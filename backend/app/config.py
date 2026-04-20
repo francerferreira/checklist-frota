@@ -20,7 +20,10 @@ def _normalize_database_url(url: str | None) -> str:
     if url.startswith("postgres://"):
         return url.replace("postgres://", "postgresql+psycopg2://", 1)
 
-    if url.startswith("postgresql://") and "+psycopg" not in url and "+psycopg2" not in url:
+    if url.startswith("postgresql+psycopg://"):
+        return url.replace("postgresql+psycopg://", "postgresql+psycopg2://", 1)
+
+    if url.startswith("postgresql://"):
         return url.replace("postgresql://", "postgresql+psycopg2://", 1)
 
     return url
