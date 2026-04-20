@@ -125,6 +125,12 @@ python desktop/main.py
 
 Use a URL da API no login. O desktop ja abre com a API em nuvem por padrao, mas voce pode trocar para `http://127.0.0.1:5000` se quiser testar localmente.
 
+Atalho rapido para abrir direto na nuvem:
+
+```text
+abrir_desktop_nuvem.bat
+```
+
 No desktop voce tera:
 
 - `Equipamentos`: cadastrar, editar, retirar, anexar foto e importar inventario
