@@ -14,7 +14,19 @@
     <title>CHECKLIST LIVE</title>
     <link rel="icon" type="image/png" sizes="192x192" href="./static/icons/icon-192.png">
     <link rel="apple-touch-icon" href="./static/icons/icon-192.png">
-    <link rel="stylesheet" href="./static/css/styles.css?v=20260420-04">
+    <link rel="stylesheet" href="./static/css/styles.css?v=20260420-05">
+    <script>
+        (function () {
+            var cssUrl = "./static/css/styles.css?v=20260420-05";
+            var style = document.createElement("style");
+            style.setAttribute("data-inline-fallback", "styles.css");
+            document.head.appendChild(style);
+            fetch(cssUrl, { cache: "no-store" })
+                .then(function (response) { return response.text(); })
+                .then(function (css) { style.textContent = css; })
+                .catch(function () { document.head.removeChild(style); });
+        })();
+    </script>
 </head>
 <body>
     <div class="mobile-shell">
@@ -453,7 +465,7 @@
             }, true);
         });
     </script>
-    <script src="./static/js/config.js?v=20260420-04"></script>
-    <script src="./static/js/app-20260419-25.js?v=20260420-04"></script>
+    <script src="./static/js/config.js?v=20260420-05"></script>
+    <script src="./static/js/app-20260419-25.js?v=20260420-05"></script>
 </body>
 </html>
