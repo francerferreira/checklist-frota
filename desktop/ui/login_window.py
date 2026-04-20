@@ -19,7 +19,7 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
-from api_client import APIClient
+from api_client import APIClient, DEFAULT_API_BASE_URL
 from components import show_notice
 from runtime_paths import asset_path, data_path
 from theme import apply_soft_shadow
@@ -319,8 +319,8 @@ class LoginWindow(QDialog):
         self.advanced_toggle.setMinimumHeight(42)
         self.advanced_toggle.clicked.connect(self.toggle_advanced)
 
-        self.base_url_input = QLineEdit("http://127.0.0.1:5000")
-        self.base_url_input.setPlaceholderText("http://127.0.0.1:5000")
+        self.base_url_input = QLineEdit(DEFAULT_API_BASE_URL)
+        self.base_url_input.setPlaceholderText(DEFAULT_API_BASE_URL)
         self.base_url_input.setMinimumHeight(50)
 
         self.advanced_panel = QFrame()

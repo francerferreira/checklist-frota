@@ -1,12 +1,16 @@
 from __future__ import annotations
 
+import os
 from pathlib import Path
 
 import requests
 
 
+DEFAULT_API_BASE_URL = os.getenv("CHECKLIST_API_URL", "https://checklist-frota-qngw.onrender.com")
+
+
 class APIClient:
-    def __init__(self, base_url: str = "http://127.0.0.1:5000"):
+    def __init__(self, base_url: str = DEFAULT_API_BASE_URL):
         self.base_url = base_url.rstrip("/")
         self.session = requests.Session()
         self.user = None
