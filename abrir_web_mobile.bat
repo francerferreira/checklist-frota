@@ -7,6 +7,9 @@ set "ROOT=%CD%"
 set "WEB_PORT=5500"
 set "WEB_URL=http://127.0.0.1:%WEB_PORT%"
 set "WEB_OPEN_URL=%WEB_URL%/?v=20260420-02"
+if not defined CHECKLIST_API_URL set "CHECKLIST_API_URL=https://checklist-frota-qngw.onrender.com"
+echo API padrao do Web Mobile: %CHECKLIST_API_URL%
+echo.
 
 echo ============================================
 echo   Checklist de Frota - Web Mobile
@@ -43,14 +46,20 @@ if errorlevel 1 (
 
 echo.
 echo [2/4] Verificando backend Flask...
-powershell -NoProfile -Command "try { Invoke-WebRequest -Uri 'http://127.0.0.1:5000/' -UseBasicParsing -TimeoutSec 2 | Out-Null; exit 0 } catch { exit 1 }"
-if errorlevel 1 (
-    echo Backend nao respondeu em http://127.0.0.1:5000.
-    echo Iniciando backend em nova janela...
-    start "Checklist Backend" powershell -NoExit -Command "Set-Location -LiteralPath '%ROOT%\backend'; python -u run.py"
-    timeout /t 15 >nul
+echo %CHECKLIST_API_URL% | findstr /I "127.0.0.1 localhost" >nul
+if not errorlevel 1 (
+    powershell -NoProfile -Command "try { Invoke-WebRequest -Uri 'http://127.0.0.1:5000/' -UseBasicParsing -TimeoutSec 2 | Out-Null; exit 0 } catch { exit 1 }"
+    if errorlevel 1 (
+        echo Backend nao respondeu em http://127.0.0.1:5000.
+        echo Iniciando backend em nova janela...
+        start "Checklist Backend" powershell -NoExit -Command "Set-Location -LiteralPath '%ROOT%\backend'; python -u run.py"
+        timeout /t 15 >nul
+    ) else (
+        echo Backend online em http://127.0.0.1:5000.
+    )
 ) else (
-    echo Backend online em http://127.0.0.1:5000.
+    echo Rodando em nuvem. Nao vou iniciar backend local.
+    echo API: %CHECKLIST_API_URL%
 )
 
 echo.
@@ -80,9 +89,6 @@ if defined LOCAL_IP (
     echo.
 )
 echo Na tela de login do Web Mobile, use a API:
-echo http://127.0.0.1:5000  ^(no computador^)
-if defined LOCAL_IP (
-    echo http://%LOCAL_IP%:5000  ^(no celular^)
-)
+echo %CHECKLIST_API_URL%
 echo.
 pause

@@ -110,7 +110,8 @@ cd backend
 python run.py
 ```
 
-Backend padrao: `http://127.0.0.1:5000`
+Backend padrao local: `http://127.0.0.1:5000`
+Backend padrao em nuvem: `https://checklist-frota-qngw.onrender.com`
 
 Uploads ficam em `backend/uploads/`.
 
@@ -122,7 +123,7 @@ Com o backend rodando:
 python desktop/main.py
 ```
 
-Use a URL da API no login, por exemplo `http://127.0.0.1:5000`.
+Use a URL da API no login. O desktop ja abre com a API em nuvem por padrao, mas voce pode trocar para `http://127.0.0.1:5000` se quiser testar localmente.
 
 No desktop voce tera:
 
@@ -247,6 +248,12 @@ Saida esperada:
 
 ```text
 dist/ChecklistFrotaDesktop.exe
+```
+
+O executavel herda o endereco da API por padrao de `CHECKLIST_API_URL` e, sem variavel definida, usa a nuvem:
+
+```text
+https://checklist-frota-qngw.onrender.com
 ```
 
 ## Observacoes de arquitetura

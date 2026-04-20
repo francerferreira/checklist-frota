@@ -4,6 +4,10 @@ chcp 65001 >nul
 
 pushd "%~dp0"
 set "ROOT=%CD%"
+if not defined CHECKLIST_API_URL set "CHECKLIST_API_URL=https://checklist-frota-qngw.onrender.com"
+
+echo API padrao do desktop: %CHECKLIST_API_URL%
+echo.
 
 for /f "usebackq delims=" %%I in (`powershell -NoProfile -Command "$root = Get-ChildItem $env:USERPROFILE -Directory | Where-Object { $_.Name -like 'OneDrive*' -and $_.Name -like '*Chibat*' } | Select-Object -First 1 -ExpandProperty FullName; if (-not $root) { exit 1 }; $pg = Join-Path $root 'Documentos\Postgres\pgsql'; if (Test-Path $pg) { Write-Output $pg } else { exit 1 }"`) do set "PGROOT=%%I"
 
@@ -39,22 +43,29 @@ if errorlevel 1 (
 
 echo.
 echo [2/3] Verificando backend Flask...
-powershell -NoProfile -Command "try { Invoke-WebRequest -Uri 'http://127.0.0.1:5000/' -UseBasicParsing -TimeoutSec 2 | Out-Null; exit 0 } catch { exit 1 }"
-if errorlevel 1 (
-    echo Backend parado. Iniciando em nova janela...
-    start "Checklist Backend" cmd /k "cd /d ""%ROOT%\backend"" && python run.py"
-    timeout /t 5 >nul
+echo %CHECKLIST_API_URL% | findstr /I "127.0.0.1 localhost" >nul
+if not errorlevel 1 (
+    powershell -NoProfile -Command "try { Invoke-WebRequest -Uri 'http://127.0.0.1:5000/' -UseBasicParsing -TimeoutSec 2 | Out-Null; exit 0 } catch { exit 1 }"
+    if errorlevel 1 (
+        echo Backend parado. Iniciando em nova janela...
+        start "Checklist Backend" cmd /k "cd /d ""%ROOT%\backend"" && python run.py"
+        timeout /t 5 >nul
+    ) else (
+        echo Backend ja esta online em http://127.0.0.1:5000
+    )
 ) else (
-    echo Backend ja esta online em http://127.0.0.1:5000
+    echo Rodando em nuvem. Nao vou iniciar backend local.
+    echo API: %CHECKLIST_API_URL%
 )
 
 echo.
 echo [3/3] Abrindo aplicativo desktop...
-start "Checklist Desktop" cmd /c "cd /d ""%ROOT%\desktop"" && python main.py"
+start "Checklist Desktop" cmd /c "set ""CHECKLIST_API_URL=%CHECKLIST_API_URL%"" && cd /d ""%ROOT%\desktop"" && python main.py"
 
 echo.
 echo Sistema iniciado.
 echo Login padrao: admin
 echo Senha padrao: 123456
+echo API em uso: %CHECKLIST_API_URL%
 echo.
 pause
