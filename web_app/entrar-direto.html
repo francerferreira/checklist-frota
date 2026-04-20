@@ -1,0 +1,142 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Entrada Direta - Checklist Live</title>
+    <style>
+        * {
+            box-sizing: border-box;
+        }
+        body {
+            margin: 0;
+            min-height: 100vh;
+            display: grid;
+            place-items: center;
+            font-family: Arial, sans-serif;
+            background: linear-gradient(180deg, #0756b5 0 170px, #edf4fb 170px);
+            color: #08111f;
+        }
+        main {
+            width: min(92vw, 440px);
+            display: grid;
+            gap: 14px;
+            padding: 20px;
+            border-radius: 20px;
+            background: #fff;
+            box-shadow: 0 18px 44px rgba(9, 26, 52, 0.14);
+        }
+        h1 {
+            margin: 0;
+            color: #0756b5;
+            font-size: 1.45rem;
+        }
+        label {
+            display: grid;
+            gap: 7px;
+            font-weight: 800;
+        }
+        input {
+            width: 100%;
+            min-height: 48px;
+            padding: 12px;
+            border: 1px solid #d7e1ec;
+            border-radius: 14px;
+            font: inherit;
+        }
+        button,
+        a {
+            min-height: 52px;
+            display: grid;
+            place-items: center;
+            border: 0;
+            border-radius: 14px;
+            background: #0756b5;
+            color: #fff;
+            text-decoration: none;
+            font-weight: 900;
+            cursor: pointer;
+        }
+        p {
+            margin: 0;
+            color: #607089;
+            line-height: 1.4;
+        }
+        .error {
+            color: #b91c1c;
+            font-weight: 800;
+        }
+    </style>
+</head>
+<body>
+    <main>
+        <h1>Entrada Direta</h1>
+        <p>Use esta tela para limpar cache antigo, autenticar e abrir o Web Mobile.</p>
+        <label>
+            URL da API
+            <input id="api" type="url" value="http://127.0.0.1:5000">
+        </label>
+        <label>
+            Login
+            <input id="login" type="text" value="admin">
+        </label>
+        <label>
+            Senha
+            <input id="senha" type="password" value="123456">
+        </label>
+        <button id="entrar" type="button">ENTRAR AGORA</button>
+        <p id="status"></p>
+        <a href="./?v=20260419-14">ABRIR TELA NORMAL</a>
+    </main>
+    <script>
+        async function clearAppCache() {
+            if ("serviceWorker" in navigator) {
+                const registrations = await navigator.serviceWorker.getRegistrations();
+                await Promise.all(registrations.map((registration) => registration.unregister()));
+            }
+            if ("caches" in window) {
+                const names = await caches.keys();
+                await Promise.all(names.map((name) => caches.delete(name)));
+            }
+        }
+
+        document.getElementById("entrar").addEventListener("click", async () => {
+            const button = document.getElementById("entrar");
+            const status = document.getElementById("status");
+            const api = document.getElementById("api").value.replace(/\/$/, "");
+            button.disabled = true;
+            button.textContent = "ENTRANDO...";
+            status.className = "";
+            status.textContent = "Limpando cache e conectando na API...";
+            try {
+                await clearAppCache();
+                localStorage.removeItem("token");
+                localStorage.removeItem("user");
+                localStorage.setItem("apiBaseUrl", api);
+
+                const response = await fetch(`${api}/login`, {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({
+                        login: document.getElementById("login").value.trim(),
+                        senha: document.getElementById("senha").value,
+                    }),
+                });
+                const body = await response.json().catch(() => ({}));
+                if (!response.ok) {
+                    throw new Error(body.error || "Erro de acesso.");
+                }
+                localStorage.setItem("token", body.token);
+                localStorage.setItem("user", JSON.stringify(body.user));
+                status.textContent = "Login OK. Abrindo sistema...";
+                window.location.href = "./?v=20260419-14&login=ok";
+            } catch (error) {
+                status.className = "error";
+                status.textContent = error.message || "Nao foi possivel entrar.";
+                button.disabled = false;
+                button.textContent = "ENTRAR AGORA";
+            }
+        });
+    </script>
+</body>
+</html>

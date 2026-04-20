@@ -1,0 +1,459 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <meta name="theme-color" content="#0756B5">
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-title" content="Checklist">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+    <meta http-equiv="Pragma" content="no-cache">
+    <meta http-equiv="Expires" content="0">
+    <title>CHECKLIST LIVE</title>
+    <link rel="icon" type="image/png" sizes="192x192" href="./static/icons/icon-192.png">
+    <link rel="apple-touch-icon" href="./static/icons/icon-192.png">
+    <link rel="stylesheet" href="./static/css/styles.css?v=20260420-04">
+</head>
+<body>
+    <div class="mobile-shell">
+        <header class="app-topbar">
+            <div class="brand-mark" aria-hidden="true">CL</div>
+            <div>
+                <p class="overline">OPERAÇÃO PORTUÁRIA</p>
+                <h1>CHECKLIST LIVE</h1>
+            </div>
+            <span id="connection-status" class="status-pill">ONLINE</span>
+        </header>
+
+        <main class="app-main">
+            <section id="login-screen" class="screen active">
+                <form id="login-form" class="login-card">
+                    <div class="login-hero">
+                        <div>
+                            <p class="overline">CHECKLIST OPERACIONAL</p>
+                            <h2>ENTRAR NA VISTORIA</h2>
+                            <span>CAVALOS, CARRETAS, FOTOS E NÃO CONFORMIDADES EM CAMPO.</span>
+                        </div>
+                        <div class="login-badge">LIVE</div>
+                    </div>
+
+                    <div class="form-fields">
+                        <label>
+                            <span>URL DA API</span>
+                            <input type="url" id="api-base-url" value="http://127.0.0.1:5000" required>
+                        </label>
+                        <label>
+                            <span>LOGIN</span>
+                    <input type="text" id="login" placeholder="ADMIN, GESTOR, MOTORISTA OU MECÂNICO" autocomplete="username" required>
+                        </label>
+                        <label>
+                            <span>SENHA</span>
+                            <input type="password" id="password" placeholder="DIGITE SUA SENHA" autocomplete="current-password" required>
+                        </label>
+                    </div>
+
+                    <button id="login-button" type="button" class="primary-button">ENTRAR NO SISTEMA</button>
+                    <div id="login-status" class="login-status" aria-live="polite"></div>
+                </form>
+            </section>
+
+            <section id="home-screen" class="screen hidden">
+                <div class="screen-heading">
+                    <div>
+                        <p class="overline">MENU OPERACIONAL</p>
+                        <h2>CAMPO</h2>
+                    </div>
+                    <button id="home-logout-button" class="icon-button" type="button">SAIR</button>
+                </div>
+
+                <div id="home-summary" class="summary-card"></div>
+                <section id="sync-panel" class="sync-panel hidden">
+                    <div>
+                        <span>FILA OFFLINE</span>
+                        <strong id="sync-counter">0 CHECKLISTS PENDENTES</strong>
+                    </div>
+                    <button id="sync-now-button" class="icon-button" type="button">SINCRONIZAR</button>
+                    <div id="sync-list" class="sync-list"></div>
+                </section>
+
+                <section id="cloud-admin-panel" class="sync-panel hidden">
+                    <div>
+                        <span>NUVEM E BACKUP</span>
+                        <strong id="cloud-storage-summary">VERIFICANDO ARMAZENAMENTO...</strong>
+                    </div>
+                    <button id="cloud-backup-button" class="icon-button" type="button">BACKUP</button>
+                    <div id="cloud-storage-detail" class="sync-list"></div>
+                </section>
+
+                <div class="menu-grid">
+                    <button id="open-checklist-menu" class="menu-card" type="button">
+                        <span>01</span>
+                        <strong>REALIZAR CHECKLIST</strong>
+                        <em>Selecionar equipamento e registrar OK ou não conformidade.</em>
+                    </button>
+                    <button id="open-activities-menu" class="menu-card" type="button">
+                        <span>02</span>
+                        <strong>ATIVIDADES</strong>
+                        <em>Executar atividades abertas e anexar evidências.</em>
+                    </button>
+                    <button id="open-washes-menu" class="menu-card" type="button">
+                        <span>03</span>
+                        <strong>LAVAGENS</strong>
+                        <em>Evidenciar veículos levados pelo cronograma.</em>
+                    </button>
+                    <button id="open-non-conformities-menu" class="menu-card" type="button">
+                        <span>04</span>
+                        <strong>NÃO CONFORMIDADES</strong>
+                        <em>Resolver não conformidades com peça cadastrada e foto de depois.</em>
+                    </button>
+                    <button id="open-maintenance-menu" class="menu-card" type="button">
+                        <span>05</span>
+                        <strong>MANUTENÇÃO</strong>
+                        <em>Serviços direcionados, preventivas e instalação programada.</em>
+                    </button>
+                </div>
+            </section>
+
+            <section id="vehicles-screen" class="screen hidden">
+                <div class="screen-heading compact">
+                    <button id="vehicles-back-button" class="icon-button" type="button">MENU</button>
+                    <div>
+                        <p class="overline">BASE ATIVA</p>
+                        <h2>EQUIPAMENTOS</h2>
+                    </div>
+                </div>
+
+                <div id="user-summary" class="summary-card"></div>
+
+                <label class="search-box">
+                    <span>BUSCAR EQUIPAMENTO</span>
+                    <input type="search" id="vehicle-search" placeholder="FROTA, PLACA OU MODELO">
+                </label>
+
+                <div class="list-toolbar">
+                    <strong id="vehicle-counter">0 ATIVOS</strong>
+                    <span>SOMENTE EQUIPAMENTOS ATIVOS APARECEM AQUI.</span>
+                </div>
+
+                <div id="vehicles-list" class="vehicle-list"></div>
+            </section>
+
+            <section id="activities-screen" class="screen hidden">
+                <div class="screen-heading compact">
+                    <button id="activities-back-button" class="icon-button" type="button">MENU</button>
+                    <div>
+                        <p class="overline">EXECUCAO EM CAMPO</p>
+                        <h2>ATIVIDADES</h2>
+                    </div>
+                </div>
+
+                <div class="list-toolbar">
+                    <strong id="activity-counter">0 ABERTAS</strong>
+                    <span>ATIVIDADES CRIADAS NO DESKTOP.</span>
+                </div>
+
+                <div id="activities-list" class="activity-list"></div>
+            </section>
+
+            <section id="activity-detail-screen" class="screen hidden">
+                <div class="screen-heading compact">
+                    <button id="activity-detail-back-button" class="icon-button" type="button">VOLTAR</button>
+                    <div>
+                        <p class="overline">EVIDENCIA DA ATIVIDADE</p>
+                        <h2 id="activity-title">ATIVIDADE</h2>
+                    </div>
+                </div>
+
+                <div id="activity-summary" class="progress-card"></div>
+                <div id="activity-items-list" class="activity-items-list"></div>
+            </section>
+
+            <section id="washes-screen" class="screen hidden">
+                <div class="screen-heading compact">
+                    <button id="washes-back-button" class="icon-button" type="button">MENU</button>
+                    <div>
+                        <p class="overline">CRONOGRAMA DE LAVAGEM</p>
+                        <h2>LAVAGENS</h2>
+                    </div>
+                </div>
+
+                <div class="list-toolbar">
+                    <strong id="wash-counter">0 PROGRAMADOS</strong>
+                    <span>VEICULOS DO CRONOGRAMA MENSAL.</span>
+                </div>
+
+                <section id="wash-report-panel" class="wash-report-panel hidden">
+                    <div>
+                        <span>RELATÓRIO DO MÊS</span>
+                        <strong>PDF COM VALORES</strong>
+                    </div>
+                    <button id="wash-export-pdf-button" class="icon-button" type="button">PDF</button>
+                </section>
+
+                <section class="wash-calendar-card">
+                    <div class="wash-calendar-header">
+                        <button id="wash-prev-month" class="icon-button" type="button" aria-label="Mes anterior">ANT.</button>
+                        <strong id="wash-month-title">MES</strong>
+                        <button id="wash-next-month" class="icon-button" type="button" aria-label="Proximo mes">PROX.</button>
+                    </div>
+                    <div class="wash-weekdays" aria-hidden="true">
+                        <span>DOM</span>
+                        <span>SEG</span>
+                        <span>TER</span>
+                        <span>QUA</span>
+                        <span>QUI</span>
+                        <span>SEX</span>
+                        <span>SAB</span>
+                    </div>
+                    <div id="wash-calendar" class="wash-calendar" aria-label="Cronograma mensal de lavagem"></div>
+                </section>
+
+                <div id="wash-day-panel" class="wash-day-panel"></div>
+                <div id="washes-list" class="activity-list"></div>
+            </section>
+
+            <section id="non-conformities-screen" class="screen hidden">
+                <div class="screen-heading compact">
+                    <button id="non-conformities-back-button" class="icon-button" type="button">MENU</button>
+                    <div>
+                        <p class="overline">MÓDULO MECÂNICO</p>
+                        <h2>NÃO CONFORMIDADES</h2>
+                    </div>
+                </div>
+
+                <div id="non-conformities-summary" class="progress-card"></div>
+
+                <div class="list-toolbar">
+                    <strong id="non-conformities-counter">0 ABERTAS</strong>
+                    <span>CHECKLIST + NÃO CONFORMIDADE INTERNA DO MECÂNICO.</span>
+                </div>
+
+                <section class="module-section">
+                    <div class="module-header">
+                        <div>
+                            <span>INDICADORES</span>
+                            <strong>MACRO E MICRO</strong>
+                        </div>
+                        <em id="non-conformities-macro-counter">0 ITENS</em>
+                    </div>
+                    <div id="non-conformities-macro-list" class="activity-list"></div>
+                    <div id="non-conformities-micro-list" class="activity-list"></div>
+                </section>
+
+                <section class="module-section">
+                    <div class="module-header">
+                        <div>
+                            <span>NÃO CONFORMIDADE DE CHECKLIST</span>
+                            <strong>ABERTAS E RESOLVIDAS</strong>
+                        </div>
+                        <em id="non-conformities-checklist-counter">0 REGISTROS</em>
+                    </div>
+                    <div class="status-group" role="group" aria-label="Filtro de status da não conformidade">
+                        <button id="nc-checklist-filter-open" type="button" class="status-button ok active">ABERTAS</button>
+                        <button id="nc-checklist-filter-closed" type="button" class="status-button nc">RESOLVIDAS</button>
+                    </div>
+                    <div id="non-conformities-checklist-list" class="activity-items-list"></div>
+                </section>
+
+                <section class="module-section">
+                    <div class="module-header">
+                        <div>
+                            <span>NÃO CONFORMIDADE INTERNA</span>
+                            <strong>REGISTRO DO MECÂNICO</strong>
+                        </div>
+                        <em id="non-conformities-mechanic-counter">0 REGISTROS</em>
+                    </div>
+                    <form id="mechanic-nc-create-form" class="form-fields">
+                        <label>
+                            <span>VEÍCULO / REFERÊNCIA</span>
+                            <input type="text" id="mechanic-nc-vehicle" placeholder="EX: CV801 OU TAH-3198">
+                        </label>
+                        <label>
+                            <span>NOME DA NÃO CONFORMIDADE</span>
+                            <input type="text" id="mechanic-nc-item-name" placeholder="EX: VAZAMENTO DE OLEO NO EIXO" required>
+                        </label>
+                        <label>
+                            <span>OBSERVAÇÃO INICIAL</span>
+                            <textarea id="mechanic-nc-observation" placeholder="DESCREVA O QUE FOI IDENTIFICADO"></textarea>
+                        </label>
+                        <label class="evidence-input">
+                            <span>EVIDÊNCIA DE ABERTURA</span>
+                            <strong>FOTO ANTES</strong>
+                            <input type="file" id="mechanic-nc-before-photo" accept="image/*" capture="environment">
+                            <em>TOQUE PARA FOTOGRAFAR OU ANEXAR IMAGEM.</em>
+                        </label>
+                        <img id="mechanic-nc-before-preview" class="photo-preview" alt="PRÉVIA DA FOTO ANTES">
+                        <button id="mechanic-nc-create-button" type="submit" class="primary-button">ABRIR NÃO CONFORMIDADE INTERNA</button>
+                    </form>
+                    <div class="status-group" role="group" aria-label="Filtro de status da não conformidade interna">
+                        <button id="nc-mechanic-filter-open" type="button" class="status-button ok active">ABERTAS</button>
+                        <button id="nc-mechanic-filter-closed" type="button" class="status-button nc">RESOLVIDAS</button>
+                    </div>
+                    <div id="non-conformities-mechanic-list" class="activity-items-list"></div>
+                </section>
+            </section>
+
+            <section id="maintenance-screen" class="screen hidden">
+                <div class="screen-heading compact">
+                    <button id="maintenance-back-button" class="icon-button" type="button">MENU</button>
+                    <div>
+                        <p class="overline">PROGRAMAÇÃO DE MANUTENÇÃO</p>
+                        <h2>MANUTENÇÃO</h2>
+                    </div>
+                </div>
+
+                <div class="list-toolbar">
+                    <strong id="maintenance-counter">0 ITENS</strong>
+                    <span>SERVIÇOS DIRECIONADOS, PREVENTIVAS E INSTALAÇÕES.</span>
+                </div>
+
+                <div id="maintenance-summary" class="progress-card"></div>
+
+                <section id="maintenance-schedule-panel" class="wash-report-panel hidden">
+                    <div>
+                        <span>GERAR CRONOGRAMA</span>
+                        <strong>CAPACIDADE DIÁRIA E DISTRIBUIÇÃO</strong>
+                    </div>
+                    <select id="maintenance-schedule-select" aria-label="Programação de manutenção"></select>
+                    <input id="maintenance-start-date" type="date" aria-label="Data inicial">
+                    <input id="maintenance-daily-capacity" type="number" min="1" step="1" value="1" aria-label="Capacidade diária">
+                    <button id="maintenance-program-button" class="icon-button" type="button">GERAR</button>
+                </section>
+
+                <section id="maintenance-report-panel" class="wash-report-panel hidden">
+                    <div>
+                        <span>RELATÓRIOS PDF</span>
+                        <strong>MÊS ATUAL DO CRONOGRAMA</strong>
+                    </div>
+                    <select id="maintenance-report-type" aria-label="Tipo de relatório de manutenção">
+                        <option value="mensal">Manutenção mensal</option>
+                        <option value="preventiva">Preventiva</option>
+                        <option value="mecanico">Mecânico</option>
+                        <option value="veiculo">Veículo</option>
+                        <option value="material">Material utilizado</option>
+                        <option value="pendencias">Pendências</option>
+                    </select>
+                    <button id="maintenance-export-pdf-button" class="icon-button" type="button">PDF</button>
+                </section>
+
+                <section class="wash-calendar-card">
+                    <div class="wash-calendar-header">
+                        <button id="maintenance-prev-month" class="icon-button" type="button" aria-label="Mês anterior">ANT.</button>
+                        <strong id="maintenance-month-title">MÊS</strong>
+                        <button id="maintenance-next-month" class="icon-button" type="button" aria-label="Próximo mês">PRÓX.</button>
+                    </div>
+                    <div class="wash-weekdays" aria-hidden="true">
+                        <span>DOM</span>
+                        <span>SEG</span>
+                        <span>TER</span>
+                        <span>QUA</span>
+                        <span>QUI</span>
+                        <span>SEX</span>
+                        <span>SÁB</span>
+                    </div>
+                    <div id="maintenance-calendar" class="wash-calendar" aria-label="Cronograma mensal de manutenção"></div>
+                </section>
+
+                <div id="maintenance-day-panel" class="wash-day-panel"></div>
+                <div id="maintenance-list" class="activity-list"></div>
+            </section>
+
+            <section id="checklist-screen" class="screen hidden">
+                <div class="screen-heading compact">
+                    <button id="back-button" class="icon-button" type="button">VOLTAR</button>
+                    <div>
+                        <p class="overline">CHECKLIST MODULAR</p>
+                        <h2 id="checklist-title">CHECKLIST</h2>
+                    </div>
+                </div>
+
+                <div class="progress-card">
+                    <div>
+                        <strong id="checklist-subtitle">PREENCHA TODOS OS ITENS.</strong>
+                        <span id="checklist-progress">0 DE 0 ITENS AVALIADOS</span>
+                    </div>
+                    <div class="progress-track" aria-hidden="true">
+                        <span id="progress-bar"></span>
+                    </div>
+                </div>
+
+                <nav id="module-tabs" class="module-tabs" aria-label="Modulos do checklist"></nav>
+
+                <form id="checklist-form" class="module-list"></form>
+
+                <div class="submit-bar">
+                    <button id="submit-checklist" class="primary-button" type="button">ENVIAR CHECKLIST</button>
+                </div>
+            </section>
+
+            <section id="success-screen" class="screen hidden success-screen">
+                <div class="success-icon" aria-hidden="true">OK</div>
+                <h2>CHECKLIST REGISTRADO</h2>
+                <p>AS INFORMACOES JA ESTAO DISPONIVEIS PARA ACOMPANHAMENTO NO DESKTOP.</p>
+                <div id="success-summary" class="success-summary"></div>
+                <button id="new-checklist-button" class="primary-button" type="button">FAZER NOVO CHECKLIST</button>
+            </section>
+        </main>
+    </div>
+
+    <div id="toast" class="toast hidden"></div>
+    <script>
+        // Login de contingência: roda antes do app principal e não depende do bundle externo.
+        document.addEventListener("DOMContentLoaded", () => {
+            const button = document.getElementById("login-button");
+            const status = document.getElementById("login-status");
+            const apiInput = document.getElementById("api-base-url");
+            const loginInput = document.getElementById("login");
+            const passwordInput = document.getElementById("password");
+            if (!button || !status || !apiInput || !loginInput || !passwordInput) return;
+
+            button.addEventListener("click", async (event) => {
+                event.preventDefault();
+                event.stopImmediatePropagation();
+
+                const apiBaseUrl = apiInput.value.replace(/\/$/, "");
+                button.disabled = true;
+                button.textContent = "ENTRANDO...";
+                status.textContent = "Conectando na API...";
+                status.className = "login-status";
+
+                try {
+                    const response = await fetch(`${apiBaseUrl}/login`, {
+                        method: "POST",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify({
+                            login: loginInput.value.trim().toLowerCase(),
+                            senha: passwordInput.value,
+                        }),
+                    });
+                    const body = await response.json().catch(() => ({}));
+                    if (!response.ok) {
+                        throw new Error(body.error || `Erro HTTP ${response.status}`);
+                    }
+
+                    localStorage.setItem("apiBaseUrl", apiBaseUrl);
+                    localStorage.setItem("token", body.token);
+                    localStorage.setItem("user", JSON.stringify(body.user));
+                    localStorage.setItem("sessionStartedAt", String(Date.now()));
+                    status.textContent = "Login OK. Abrindo o sistema...";
+                    status.classList.add("ok");
+                    if (window.enterChecklistApp) {
+                        await window.enterChecklistApp();
+                    } else {
+                        window.location.href = "./?v=20260420-04&login=ok";
+                    }
+                } catch (error) {
+                    status.textContent = `Erro de acesso: ${error.message || error}`;
+                    status.classList.add("error");
+                    button.disabled = false;
+                    button.textContent = "ENTRAR NO SISTEMA";
+                }
+            }, true);
+        });
+    </script>
+    <script src="./static/js/config.js?v=20260420-04"></script>
+    <script src="./static/js/app-20260419-25.js?v=20260420-04"></script>
+</body>
+</html>

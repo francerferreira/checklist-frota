@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Limpar Cache - Checklist Live</title>
+    <style>
+        body {
+            margin: 0;
+            min-height: 100vh;
+            display: grid;
+            place-items: center;
+            font-family: Arial, sans-serif;
+            background: #edf4fb;
+            color: #08111f;
+        }
+        main {
+            width: min(92vw, 480px);
+            padding: 24px;
+            border-radius: 20px;
+            background: #fff;
+            box-shadow: 0 18px 44px rgba(9, 26, 52, 0.14);
+        }
+        h1 {
+            margin: 0 0 10px;
+            color: #0756b5;
+        }
+        p {
+            line-height: 1.45;
+        }
+        a {
+            display: block;
+            margin-top: 16px;
+            padding: 14px;
+            border-radius: 14px;
+            background: #0756b5;
+            color: #fff;
+            text-align: center;
+            text-decoration: none;
+            font-weight: 800;
+        }
+    </style>
+</head>
+<body>
+    <main>
+        <h1>Cache limpo</h1>
+        <p id="status">Limpando cache do PWA...</p>
+        <a href="./?v=20260419-14">Abrir Checklist Live</a>
+    </main>
+    <script>
+        (async () => {
+            try {
+                if ("serviceWorker" in navigator) {
+                    const registrations = await navigator.serviceWorker.getRegistrations();
+                    await Promise.all(registrations.map((registration) => registration.unregister()));
+                }
+                if ("caches" in window) {
+                    const names = await caches.keys();
+                    await Promise.all(names.map((name) => caches.delete(name)));
+                }
+                localStorage.removeItem("token");
+                localStorage.removeItem("user");
+                document.getElementById("status").textContent = "Cache antigo removido. Pode abrir o sistema novamente.";
+            } catch (error) {
+                document.getElementById("status").textContent = "Nao foi possivel limpar tudo. Abra em aba anonima e tente novamente.";
+            }
+        })();
+    </script>
+</body>
+</html>

@@ -1,0 +1,29 @@
+# Environment and secrets
+.env
+.env.local
+
+# Python caches
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+
+# Local build artifacts
+build/
+dist/
+*.spec
+
+# Local data and exports
+data/
+exports/
+test-results/
+tmp_lavagem.xlsx
+backend/backups/
+backend_data/
+backend/checklist_frota.db
+backend/uploads/
+
+# Operating system clutter
+.DS_Store
+Thumbs.db

@@ -1,0 +1,792 @@
+﻿from __future__ import annotations
+
+from datetime import datetime
+from pathlib import Path
+
+from PySide6.QtCore import Qt, Signal
+from PySide6.QtGui import QColor, QBrush
+from PySide6.QtWidgets import (
+    QCheckBox,
+    QComboBox,
+    QDialog,
+    QFileDialog,
+    QFrame,
+    QGridLayout,
+    QHBoxLayout,
+    QLabel,
+    QLineEdit,
+    QMessageBox,
+    QPushButton,
+    QSpinBox,
+    QTableWidget,
+    QTableWidgetItem,
+    QTextEdit,
+    QVBoxLayout,
+)
+
+from components import TableSkeletonOverlay, ask_confirmation, make_icon, show_notice
+from components import MessageComposerDialog
+from runtime_paths import asset_path
+from services.export_service import (
+    export_material_report_pdf,
+    export_material_report_xlsx,
+    make_default_export_path,
+)
+from services import build_material_message_package
+from theme import build_dialog_layout, configure_dialog_window, configure_table, style_card, style_filter_bar, style_table_card
+
+
+class MaterialDialog(QDialog):
+    def __init__(self, api_client, material: dict | None = None, parent=None):
+        super().__init__(parent)
+        self.api_client = api_client
+        self.material = material or {}
+        self.selected_file = ""
+        self.result_payload = None
+
+        self.setWindowTitle("Cadastro de material")
+        configure_dialog_window(self, width=900, height=760, min_width=760, min_height=620)
+        style_card(self)
+
+        layout = build_dialog_layout(self, max_content_width=980)
+
+        header = QFrame()
+        header.setObjectName("DialogHeader")
+        header.setAttribute(Qt.WA_StyledBackground, True)
+        header_layout = QHBoxLayout(header)
+        header_layout.setContentsMargins(18, 18, 18, 18)
+        header_layout.setSpacing(14)
+
+        icon_badge = QFrame()
+        icon_badge.setObjectName("DialogIconBadge")
+        icon_badge.setAttribute(Qt.WA_StyledBackground, True)
+        icon_layout = QVBoxLayout(icon_badge)
+        icon_layout.setContentsMargins(10, 10, 10, 10)
+        icon_label = QLabel()
+        icon_label.setPixmap(make_icon("materials", "#FFFFFF", "#1D4ED8", 28).pixmap(28, 28))
+        icon_layout.addWidget(icon_label)
+
+        title_wrap = QVBoxLayout()
+        title = QLabel("Controle de material")
+        title.setObjectName("DialogHeaderTitle")
+        subtitle = QLabel("Cadastre referência, descrição, foto, aplicação e políticas de estoque do material.")
+        subtitle.setObjectName("DialogHeaderSubtitle")
+        subtitle.setWordWrap(True)
+        title_wrap.addWidget(title)
+        title_wrap.addWidget(subtitle)
+        header_layout.addWidget(icon_badge, 0, Qt.AlignTop)
+        header_layout.addLayout(title_wrap, 1)
+
+        form_card = QFrame()
+        form_card.setObjectName("HeaderCard")
+        form_card.setAttribute(Qt.WA_StyledBackground, True)
+        form = QGridLayout(form_card)
+        form.setContentsMargins(18, 18, 18, 18)
+        form.setHorizontalSpacing(16)
+        form.setVerticalSpacing(14)
+
+        self.referencia_input = QLineEdit(self.material.get("referencia", ""))
+        self.descricao_input = QLineEdit(self.material.get("descricao", ""))
+        self.aplicacao_combo = QComboBox()
+        self.aplicacao_combo.addItem("Cavalo", "cavalo")
+        self.aplicacao_combo.addItem("Carreta", "carreta")
+        self.aplicacao_combo.addItem("Ambos", "ambos")
+        idx = self.aplicacao_combo.findData(self.material.get("aplicacao_tipo", "ambos"))
+        if idx >= 0:
+            self.aplicacao_combo.setCurrentIndex(idx)
+
+        self.quantidade_spin = QSpinBox()
+        self.quantidade_spin.setMinimum(0)
+        self.quantidade_spin.setMaximum(999999)
+        self.quantidade_spin.setValue(int(self.material.get("quantidade_estoque", 0)))
+        if self.material:
+            self.quantidade_spin.setEnabled(False)
+            self.quantidade_spin.setToolTip("Para material ja cadastrado, use o botao Ajustar estoque.")
+
+        self.estoque_minimo_spin = QSpinBox()
+        self.estoque_minimo_spin.setMinimum(0)
+        self.estoque_minimo_spin.setMaximum(999999)
+        self.estoque_minimo_spin.setValue(int(self.material.get("estoque_minimo", 0)))
+
+        self.ativo_checkbox = QCheckBox("Material ativo")
+        self.ativo_checkbox.setChecked(bool(self.material.get("ativo", True)))
+
+        self.file_label = QLabel(self.material.get("foto_path") or "Nenhuma foto selecionada.")
+        self.file_label.setObjectName("MutedText")
+        self.file_label.setWordWrap(True)
+        photo_button = QPushButton("Selecionar foto")
+        photo_button.clicked.connect(self.select_file)
+
+        def add_field(row: int, column: int, label_text: str, widget, col_span: int = 1, *, highlight: bool = False):
+            field = QFrame()
+            if highlight:
+                field.setObjectName("DialogInfoBlock")
+                field.setAttribute(Qt.WA_StyledBackground, True)
+            field_layout = QVBoxLayout(field)
+            margin = 12 if highlight else 0
+            field_layout.setContentsMargins(margin, margin, margin, margin)
+            field_layout.setSpacing(6)
+            label = QLabel(label_text)
+            label.setObjectName("SectionCaption")
+            field_layout.addWidget(label)
+            field_layout.addWidget(widget)
+            form.addWidget(field, row, column, 1, col_span)
+
+        add_field(0, 0, "Referencia", self.referencia_input, highlight=True)
+        add_field(0, 1, "Descrição", self.descricao_input, highlight=True)
+        add_field(1, 0, "Aplicacao", self.aplicacao_combo, highlight=True)
+        add_field(1, 1, "Quantidade em estoque", self.quantidade_spin, highlight=True)
+        add_field(2, 0, "Estoque minimo", self.estoque_minimo_spin)
+
+        media_field = QFrame()
+        media_field.setObjectName("DialogInfoBlock")
+        media_field.setAttribute(Qt.WA_StyledBackground, True)
+        media_layout = QVBoxLayout(media_field)
+        media_layout.setContentsMargins(12, 12, 12, 12)
+        media_layout.setSpacing(8)
+        media_title = QLabel("Foto do material")
+        media_title.setObjectName("SectionCaption")
+        media_actions = QHBoxLayout()
+        media_actions.setContentsMargins(0, 0, 0, 0)
+        media_actions.setSpacing(10)
+        media_actions.addWidget(photo_button, 0)
+        media_actions.addWidget(self.file_label, 1)
+        media_layout.addWidget(media_title)
+        media_layout.addLayout(media_actions)
+        media_layout.addWidget(self.ativo_checkbox, 0, Qt.AlignLeft)
+        form.addWidget(media_field, 2, 1)
+
+        footer = QFrame()
+        footer.setObjectName("DialogFooter")
+        footer.setAttribute(Qt.WA_StyledBackground, True)
+        footer_layout = QHBoxLayout(footer)
+        footer_layout.setContentsMargins(16, 14, 16, 14)
+        footer_layout.setSpacing(12)
+        footer_layout.addStretch()
+        cancel_button = QPushButton("Cancelar")
+        save_button = QPushButton("Salvar material")
+        save_button.setProperty("variant", "primary")
+        cancel_button.clicked.connect(self.reject)
+        save_button.clicked.connect(self.submit)
+        footer_layout.addWidget(cancel_button)
+        footer_layout.addWidget(save_button)
+
+        layout.addWidget(header)
+        layout.addWidget(form_card)
+        layout.addWidget(footer)
+
+    def select_file(self):
+        filename, _ = QFileDialog.getOpenFileName(self, "Selecionar foto do material", "", "Imagens (*.png *.jpg *.jpeg *.webp)")
+        if filename:
+            self.selected_file = filename
+            self.file_label.setText(filename)
+
+    def submit(self):
+        try:
+            payload = {
+                "referencia": self.referencia_input.text().strip(),
+                "descricao": self.descricao_input.text().strip(),
+                "aplicacao_tipo": self.aplicacao_combo.currentData(),
+                "quantidade_estoque": int(self.quantidade_spin.value()),
+                "estoque_minimo": int(self.estoque_minimo_spin.value()),
+                "ativo": self.ativo_checkbox.isChecked(),
+            }
+            if self.selected_file:
+                upload = self.api_client.upload_file(
+                    self.selected_file,
+                    payload["referencia"] or "material",
+                    "material",
+                    self.api_client.user["login"],
+                )
+                payload["foto_path"] = upload["path"]
+            elif self.material.get("foto_path"):
+                payload["foto_path"] = self.material["foto_path"]
+            self.result_payload = payload
+            self.accept()
+        except Exception as exc:
+            show_notice(self, "Falha ao salvar", str(exc), icon_name="warning")
+
+
+class StockAdjustDialog(QDialog):
+    def __init__(self, api_client, material: dict, parent=None):
+        super().__init__(parent)
+        self.api_client = api_client
+        self.material = material
+        self.result_payload = None
+
+        self.setWindowTitle("Ajustar estoque")
+        configure_dialog_window(self, width=700, height=520, min_width=620, min_height=460)
+        style_card(self)
+
+        layout = build_dialog_layout(self, max_content_width=760)
+
+        header = QFrame()
+        header.setObjectName("DialogHeader")
+        header.setAttribute(Qt.WA_StyledBackground, True)
+        header_layout = QVBoxLayout(header)
+        header_layout.setContentsMargins(18, 18, 18, 18)
+        title = QLabel(f"{material.get('referencia')} - {material.get('descricao')}")
+        title.setObjectName("DialogHeaderTitle")
+        subtitle = QLabel("Registre entrada, saida ou ajuste manual de estoque.")
+        subtitle.setObjectName("DialogHeaderSubtitle")
+        header_layout.addWidget(title)
+        header_layout.addWidget(subtitle)
+
+        form_card = QFrame()
+        form_card.setObjectName("HeaderCard")
+        form_card.setAttribute(Qt.WA_StyledBackground, True)
+        form = QGridLayout(form_card)
+        form.setContentsMargins(18, 18, 18, 18)
+        form.setHorizontalSpacing(16)
+        form.setVerticalSpacing(14)
+
+        self.tipo_combo = QComboBox()
+        self.tipo_combo.addItem("Entrada", "ENTRADA")
+        self.tipo_combo.addItem("Saida", "SAIDA")
+        self.tipo_combo.addItem("Ajuste", "AJUSTE")
+
+        self.quantidade_spin = QSpinBox()
+        self.quantidade_spin.setMinimum(1)
+        self.quantidade_spin.setMaximum(999999)
+        self.quantidade_spin.setValue(1)
+
+        self.observacao_input = QTextEdit()
+        self.observacao_input.setPlaceholderText("Motivo do ajuste de estoque.")
+
+        form.addWidget(QLabel("Tipo"), 0, 0)
+        form.addWidget(self.tipo_combo, 0, 1)
+        form.addWidget(QLabel("Quantidade"), 1, 0)
+        form.addWidget(self.quantidade_spin, 1, 1)
+        form.addWidget(QLabel("Observacao"), 2, 0, 1, 2)
+        form.addWidget(self.observacao_input, 3, 0, 1, 2)
+
+        footer = QFrame()
+        footer.setObjectName("DialogFooter")
+        footer.setAttribute(Qt.WA_StyledBackground, True)
+        footer_layout = QHBoxLayout(footer)
+        footer_layout.setContentsMargins(16, 14, 16, 14)
+        footer_layout.addStretch()
+        cancel_button = QPushButton("Cancelar")
+        save_button = QPushButton("Aplicar ajuste")
+        save_button.setProperty("variant", "primary")
+        cancel_button.clicked.connect(self.reject)
+        save_button.clicked.connect(self.submit)
+        footer_layout.addWidget(cancel_button)
+        footer_layout.addWidget(save_button)
+
+        layout.addWidget(header)
+        layout.addWidget(form_card)
+        layout.addWidget(footer)
+
+    def submit(self):
+        self.result_payload = {
+            "tipo_movimento": self.tipo_combo.currentData(),
+            "quantidade": int(self.quantidade_spin.value()),
+            "observacao": self.observacao_input.toPlainText().strip(),
+        }
+        self.accept()
+
+
+class MaterialMovementsDialog(QDialog):
+    def __init__(self, api_client, material: dict, parent=None):
+        super().__init__(parent)
+        self.api_client = api_client
+        self.material = material
+        self.movements = self.api_client.get_material_movements(material["id"])
+
+        self.setWindowTitle("Histórico de estoque")
+        configure_dialog_window(self, width=1180, height=760, min_width=920, min_height=620)
+        style_card(self)
+
+        layout = build_dialog_layout(self, max_content_width=1240)
+
+        header = QFrame()
+        header.setObjectName("DialogHeader")
+        header.setAttribute(Qt.WA_StyledBackground, True)
+        header_layout = QVBoxLayout(header)
+        header_layout.setContentsMargins(18, 18, 18, 18)
+        title = QLabel(f"{material.get('referencia')} - {material.get('descricao')}")
+        title.setObjectName("DialogHeaderTitle")
+        subtitle = QLabel("Movimentações de estoque, consumo por atividade e saídas para resolução de não conformidade.")
+        subtitle.setObjectName("DialogHeaderSubtitle")
+        header_layout.addWidget(title)
+        header_layout.addWidget(subtitle)
+
+        table_card = QFrame()
+        style_table_card(table_card)
+        self.table_skeleton = TableSkeletonOverlay(table_card, rows=7)
+        table_layout = QVBoxLayout(table_card)
+        table_layout.setContentsMargins(14, 14, 14, 14)
+        table_layout.setSpacing(10)
+
+        self.table = QTableWidget(0, 7)
+        self.table.setHorizontalHeaderLabels(["Data", "Tipo", "Quantidade", "Saldo anterior", "Saldo posterior", "Usuario", "Observacao"])
+        configure_table(self.table, stretch_last=False)
+        self.table.setMinimumHeight(520)
+        self._populate()
+
+        table_layout.addWidget(self.table)
+        layout.addWidget(header)
+        layout.addWidget(table_card, 1)
+
+    def _populate(self):
+        self.table.setUpdatesEnabled(False)
+        self.table.blockSignals(True)
+        try:
+            self.table.setRowCount(len(self.movements))
+            for row, movement in enumerate(self.movements):
+                values = [
+                    (movement.get("created_at") or "-").replace("T", " ")[:19],
+                    movement.get("tipo_movimento") or "-",
+                    str(movement.get("quantidade") or 0),
+                    str(movement.get("saldo_anterior") or 0),
+                    str(movement.get("saldo_posterior") or 0),
+                    movement.get("usuario", {}).get("nome") or "-",
+                    movement.get("observacao") or "-",
+                ]
+                for col, value in enumerate(values):
+                    self.table.setItem(row, col, QTableWidgetItem(value))
+        finally:
+            self.table.blockSignals(False)
+            self.table.setUpdatesEnabled(True)
+
+
+class MaterialReportDialog(QDialog):
+    def __init__(self, api_client, parent=None):
+        super().__init__(parent)
+        self.api_client = api_client
+        self.logo_path = asset_path("logo_grupo.png")
+        self.report = {}
+
+        self.setWindowTitle("Relatorio de estoque")
+        configure_dialog_window(self, width=1320, height=820, min_width=980, min_height=680)
+        style_card(self)
+
+        layout = build_dialog_layout(self, max_content_width=1360)
+
+        header = QFrame()
+        header.setObjectName("DialogHeader")
+        header.setAttribute(Qt.WA_StyledBackground, True)
+        header_layout = QHBoxLayout(header)
+        header_layout.setContentsMargins(18, 18, 18, 18)
+        header_layout.setSpacing(14)
+
+        title_wrap = QVBoxLayout()
+        title = QLabel("Relatorio de estoque")
+        title.setObjectName("DialogHeaderTitle")
+        subtitle = QLabel("Analise de materiais abaixo do minimo, consumo no periodo e ranking dos mais utilizados.")
+        subtitle.setObjectName("DialogHeaderSubtitle")
+        subtitle.setWordWrap(True)
+        title_wrap.addWidget(title)
+        title_wrap.addWidget(subtitle)
+
+        export_xlsx = QPushButton("Excel")
+        export_xlsx.setProperty("variant", "primary")
+        export_xlsx.clicked.connect(self.export_xlsx)
+        export_pdf = QPushButton("PDF Executivo")
+        export_pdf.clicked.connect(self.export_pdf)
+        message_button = QPushButton("Gerar mensagem")
+        message_button.setProperty("variant", "primary")
+        message_button.clicked.connect(self.generate_message)
+
+        header_layout.addLayout(title_wrap, 1)
+        header_layout.addWidget(message_button)
+        header_layout.addWidget(export_xlsx)
+        header_layout.addWidget(export_pdf)
+
+        filter_card = QFrame()
+        style_filter_bar(filter_card)
+        filters = QHBoxLayout(filter_card)
+        filters.setContentsMargins(14, 14, 14, 14)
+        filters.setSpacing(10)
+
+        self.start_input = QLineEdit()
+        self.start_input.setPlaceholderText("Data inicial (YYYY-MM-DD)")
+        self.end_input = QLineEdit()
+        self.end_input.setPlaceholderText("Data final (YYYY-MM-DD)")
+        refresh_button = QPushButton("Atualizar")
+        refresh_button.setProperty("variant", "primary")
+        refresh_button.clicked.connect(self.refresh)
+
+        filters.addWidget(self.start_input)
+        filters.addWidget(self.end_input)
+        filters.addWidget(refresh_button)
+
+        summary_card = QFrame()
+        style_filter_bar(summary_card)
+        summary_layout = QHBoxLayout(summary_card)
+        summary_layout.setContentsMargins(14, 14, 14, 14)
+        summary_layout.setSpacing(10)
+        self.total_badge = QLabel("0 materiais")
+        self.total_badge.setObjectName("TopBarPill")
+        self.low_badge = QLabel("0 abaixo do minimo")
+        self.low_badge.setObjectName("TopBarPill")
+        self.stock_badge = QLabel("Saldo 0")
+        self.stock_badge.setObjectName("TopBarPill")
+        self.consumption_badge = QLabel("Consumo 0")
+        self.consumption_badge.setObjectName("TopBarPill")
+        summary_layout.addWidget(self.total_badge)
+        summary_layout.addWidget(self.low_badge)
+        summary_layout.addWidget(self.stock_badge)
+        summary_layout.addWidget(self.consumption_badge)
+        summary_layout.addStretch()
+
+        self.low_table = self._make_table(["Referencia", "Descrição", "Aplicacao", "Estoque", "Minimo", "Deficit"])
+        self.consumption_table = self._make_table(["Referencia", "Descrição", "Consumo", "Ultimo consumo"])
+        self.ranking_table = self._make_table(["Referencia", "Descrição", "Consumo", "Ultimo consumo"])
+
+        layout.addWidget(header)
+        layout.addWidget(filter_card)
+        layout.addWidget(summary_card)
+        layout.addWidget(self._wrap_table("Materiais abaixo do minimo", self.low_table), 1)
+        layout.addWidget(self._wrap_table("Consumo no periodo", self.consumption_table), 1)
+        layout.addWidget(self._wrap_table("Ranking Top 5", self.ranking_table), 1)
+
+        self.refresh()
+
+    def _make_table(self, headers: list[str]) -> QTableWidget:
+        table = QTableWidget(0, len(headers))
+        table.setHorizontalHeaderLabels(headers)
+        configure_table(table, stretch_last=False)
+        table.setMinimumHeight(170)
+        return table
+
+    def _wrap_table(self, title_text: str, table: QTableWidget) -> QFrame:
+        card = QFrame()
+        style_table_card(card)
+        layout = QVBoxLayout(card)
+        layout.setContentsMargins(14, 14, 14, 14)
+        layout.setSpacing(10)
+        title = QLabel(title_text)
+        title.setObjectName("SectionTitle")
+        layout.addWidget(title)
+        layout.addWidget(table)
+        return card
+
+    def refresh(self):
+        self.report = self.api_client.get_material_report(
+            self.start_input.text().strip() or None,
+            self.end_input.text().strip() or None,
+        )
+        resumo = self.report.get("resumo", {})
+        self.total_badge.setText(f"{resumo.get('total_materiais', 0)} materiais")
+        self.low_badge.setText(f"{resumo.get('abaixo_minimo', 0)} abaixo do minimo")
+        self.stock_badge.setText(f"Saldo {resumo.get('saldo_total', 0)}")
+        self.consumption_badge.setText(f"Consumo {resumo.get('consumo_total_periodo', 0)}")
+        self._fill_table(self.low_table, self.report.get("baixo_estoque", []), ["referencia", "descricao", "aplicacao_tipo", "quantidade_estoque", "estoque_minimo", "deficit"])
+        self._fill_table(self.consumption_table, self.report.get("consumo_periodo", []), ["referencia", "descricao", "consumo_total", "ultimo_consumo"])
+        self._fill_table(self.ranking_table, self.report.get("ranking_uso", []), ["referencia", "descricao", "consumo_total", "ultimo_consumo"])
+
+    def _fill_table(self, table: QTableWidget, rows: list[dict], keys: list[str]):
+        table.setUpdatesEnabled(False)
+        table.blockSignals(True)
+        try:
+            table.setRowCount(len(rows))
+            for row_index, row in enumerate(rows):
+                for col_index, key in enumerate(keys):
+                    value = row.get(key)
+                    if key == "ultimo_consumo" and value:
+                        value = value.replace("T", " ")[:19]
+                    table.setItem(row_index, col_index, QTableWidgetItem(str(value if value is not None else "-")))
+        finally:
+            table.blockSignals(False)
+            table.setUpdatesEnabled(True)
+
+    def export_xlsx(self):
+        filename, _ = QFileDialog.getSaveFileName(
+            self,
+            "Exportar relatório de estoque",
+            make_default_export_path("relatorio_estoque", "xlsx"),
+            "Excel (*.xlsx)",
+        )
+        if not filename:
+            return
+        try:
+            export_material_report_xlsx(self.report, output_path=filename)
+            show_notice(self, "Exportacao concluida", f"Arquivo salvo em:\n{filename}", icon_name="reports")
+        except Exception as exc:
+            show_notice(self, "Falha na exportacao", str(exc), icon_name="warning")
+
+    def export_pdf(self):
+        filename, _ = QFileDialog.getSaveFileName(
+            self,
+            "Exportar relatório de estoque",
+            make_default_export_path("relatorio_estoque", "pdf"),
+            "PDF (*.pdf)",
+        )
+        if not filename:
+            return
+        try:
+            export_material_report_pdf(
+                self.report,
+                output_path=filename,
+                logo_path=self.logo_path,
+                generated_by=(self.api_client.user or {}).get("nome", ""),
+            )
+            show_notice(self, "Exportacao concluida", f"Arquivo salvo em:\n{filename}", icon_name="reports")
+        except Exception as exc:
+            show_notice(self, "Falha na exportacao", str(exc), icon_name="warning")
+
+    def generate_message(self):
+        if not self.report:
+            show_notice(self, "Sem dados", "Não há dados disponíveis para gerar mensagem.", icon_name="warning")
+            return
+        package = build_material_message_package(
+            self.report,
+            self._period_label(),
+            generated_by=(self.api_client.user or {}).get("nome", ""),
+        )
+        MessageComposerDialog(package, self).exec()
+
+    def _period_label(self) -> str:
+        periodo = self.report.get("periodo", {}) if isinstance(self.report, dict) else {}
+        start = periodo.get("data_inicial")
+        end = periodo.get("data_final")
+        if start and end:
+            return f"{self._format_date(start)} a {self._format_date(end)}"
+        if start:
+            return f"A partir de {self._format_date(start)}"
+        return "Base consolidada"
+
+    @staticmethod
+    def _format_date(value: str | None) -> str:
+        if not value:
+            return "-"
+        try:
+            return datetime.fromisoformat(value).strftime("%d/%m/%Y")
+        except ValueError:
+            return value
+
+
+class MaterialsPage(QFrame):
+    data_changed = Signal()
+
+    def __init__(self, api_client, parent=None):
+        super().__init__(parent)
+        self.api_client = api_client
+        self.items = []
+        self.current_item = None
+        self.setObjectName("ContentSurface")
+
+        layout = QVBoxLayout(self)
+        layout.setContentsMargins(12, 10, 12, 10)
+        layout.setSpacing(8)
+
+        header = QHBoxLayout()
+        text_wrap = QVBoxLayout()
+        title = QLabel("Controle de material")
+        title.setObjectName("PageTitle")
+        subtitle = QLabel("Cadastre materiais, acompanhe estoque minimo e ajuste saldo para suportar atividades e manutencoes.")
+        subtitle.setObjectName("SectionCaption")
+        subtitle.setWordWrap(True)
+        subtitle.setMaximumHeight(24)
+        text_wrap.addWidget(title)
+        text_wrap.addWidget(subtitle)
+
+        buttons = QHBoxLayout()
+        buttons.setSpacing(8)
+        self.add_button = QPushButton("Adicionar")
+        self.add_button.setProperty("variant", "primary")
+        self.add_button.setMinimumHeight(42)
+        self.add_button.clicked.connect(self.add_material)
+        self.edit_button = QPushButton("Editar")
+        self.edit_button.setMinimumHeight(42)
+        self.edit_button.clicked.connect(self.edit_selected)
+        self.adjust_button = QPushButton("Ajustar estoque")
+        self.adjust_button.setMinimumHeight(42)
+        self.adjust_button.clicked.connect(self.adjust_stock)
+        self.report_button = QPushButton("Relatorio")
+        self.report_button.setMinimumHeight(42)
+        self.report_button.clicked.connect(self.open_report)
+        self.history_button = QPushButton("Histórico")
+        self.history_button.setMinimumHeight(42)
+        self.history_button.clicked.connect(self.open_history)
+        self.delete_button = QPushButton("Excluir")
+        self.delete_button.setProperty("variant", "danger")
+        self.delete_button.setMinimumHeight(42)
+        self.delete_button.clicked.connect(self.delete_selected)
+        for button in (self.add_button, self.edit_button, self.adjust_button, self.report_button, self.history_button, self.delete_button):
+            buttons.addWidget(button)
+
+        header.addLayout(text_wrap)
+        header.addStretch()
+        header.addLayout(buttons)
+
+        filter_card = QFrame()
+        style_filter_bar(filter_card)
+        filters = QHBoxLayout(filter_card)
+        filters.setContentsMargins(10, 8, 10, 8)
+        filters.setSpacing(8)
+
+        self.search_input = QLineEdit()
+        self.search_input.setPlaceholderText("Buscar por referência ou descrição")
+        self.search_input.setMinimumHeight(40)
+        self.search_input.returnPressed.connect(self.refresh)
+        self.type_filter = QComboBox()
+        self.type_filter.addItem("Todos", "")
+        self.type_filter.addItem("Cavalo", "cavalo")
+        self.type_filter.addItem("Carreta", "carreta")
+        self.type_filter.addItem("Ambos", "ambos")
+        self.type_filter.setMinimumHeight(40)
+        self.active_filter = QComboBox()
+        self.active_filter.addItem("Ativos", "true")
+        self.active_filter.addItem("Todos", "all")
+        self.active_filter.setMinimumHeight(40)
+        self.low_stock_check = QCheckBox("Somente baixo estoque")
+        filter_button = QPushButton("Aplicar filtros")
+        filter_button.setMinimumHeight(40)
+        filter_button.clicked.connect(self.refresh)
+        filters.addWidget(self.search_input, 1)
+        filters.addWidget(self.type_filter)
+        filters.addWidget(self.active_filter)
+        filters.addWidget(self.low_stock_check)
+        filters.addWidget(filter_button)
+
+        table_card = QFrame()
+        style_table_card(table_card)
+        self.table_skeleton = TableSkeletonOverlay(table_card, rows=7)
+        table_layout = QVBoxLayout(table_card)
+        table_layout.setContentsMargins(10, 10, 10, 10)
+        table_layout.setSpacing(8)
+
+        top = QHBoxLayout()
+        top.setContentsMargins(0, 0, 0, 0)
+        title_label = QLabel("Base de materiais")
+        title_label.setObjectName("SectionTitle")
+        self.summary_badge = QLabel("Nenhum material carregado")
+        self.summary_badge.setObjectName("TopBarPill")
+        top.addWidget(title_label)
+        top.addStretch()
+        top.addWidget(self.summary_badge)
+
+        self.table = QTableWidget(0, 8)
+        self.table.setHorizontalHeaderLabels(["Referencia", "Descrição", "Aplicacao", "Estoque", "Minimo", "Status do estoque", "Foto", "Ativo"])
+        configure_table(self.table, stretch_last=False)
+        self.table.setMinimumHeight(560)
+        self.table.itemSelectionChanged.connect(self._selection_changed)
+        self.table.itemDoubleClicked.connect(self.open_history)
+
+        table_layout.addLayout(top)
+        table_layout.addWidget(self.table)
+
+        layout.addLayout(header)
+        layout.addWidget(filter_card)
+        layout.addWidget(table_card, 1)
+        self._set_action_state(False)
+
+    def _set_action_state(self, enabled: bool):
+        self.edit_button.setEnabled(enabled)
+        self.adjust_button.setEnabled(enabled)
+        self.history_button.setEnabled(enabled)
+        self.delete_button.setEnabled(enabled)
+
+    def refresh(self):
+        self.items = self.api_client.get_materials(
+            tipo=self.type_filter.currentData() or None,
+            search=self.search_input.text().strip() or None,
+            ativos=self.active_filter.currentData(),
+            baixo_estoque=self.low_stock_check.isChecked(),
+        )
+        self.table.setUpdatesEnabled(False)
+        self.table.blockSignals(True)
+        try:
+            self.table.setRowCount(len(self.items))
+            for row, item in enumerate(self.items):
+                stock_label = "Baixo estoque" if item.get("baixo_estoque") else "Controlado"
+                values = [
+                    item.get("referencia") or "-",
+                    item.get("descricao") or "-",
+                    (item.get("aplicacao_tipo") or "-").title(),
+                    str(item.get("quantidade_estoque") or 0),
+                    str(item.get("estoque_minimo") or 0),
+                    stock_label,
+                    "Sim" if item.get("foto_path") else "Não",
+                    "Sim" if item.get("ativo") else "Não",
+                ]
+                for col, value in enumerate(values):
+                    cell = QTableWidgetItem(value)
+                    if col == 5:
+                        colors = {"background": "#FEE2E2", "color": "#B91C1C"} if item.get("baixo_estoque") else {"background": "#DCFCE7", "color": "#166534"}
+                        cell.setBackground(QBrush(QColor(colors["background"])))
+                        cell.setForeground(QBrush(QColor(colors["color"])))
+                    self.table.setItem(row, col, cell)
+        finally:
+            self.table.blockSignals(False)
+            self.table.setUpdatesEnabled(True)
+        self.summary_badge.setText(f"{len(self.items)} materiais")
+        if self.items:
+            self.table.selectRow(0)
+        else:
+            self.current_item = None
+            self._set_action_state(False)
+
+    def _selection_changed(self):
+        selected = self.table.selectedRanges()
+        if not selected:
+            self.current_item = None
+            self._set_action_state(False)
+            return
+        self.current_item = self.items[selected[0].topRow()]
+        self._set_action_state(True)
+
+    def add_material(self):
+        dialog = MaterialDialog(self.api_client, parent=self)
+        if dialog.exec():
+            self.api_client.create_material(dialog.result_payload)
+            show_notice(self, "Material salvo", "Material cadastrado com sucesso.", icon_name="dashboard")
+            self.refresh()
+            self.data_changed.emit()
+
+    def edit_selected(self):
+        if not self.current_item:
+            return
+        dialog = MaterialDialog(self.api_client, self.current_item, self)
+        if dialog.exec():
+            self.api_client.update_material(self.current_item["id"], dialog.result_payload)
+            show_notice(self, "Material atualizado", "Material atualizado com sucesso.", icon_name="dashboard")
+            self.refresh()
+            self.data_changed.emit()
+
+    def adjust_stock(self):
+        if not self.current_item:
+            return
+        dialog = StockAdjustDialog(self.api_client, self.current_item, self)
+        if dialog.exec():
+            self.api_client.adjust_material_stock(self.current_item["id"], dialog.result_payload)
+            show_notice(self, "Estoque atualizado", "Movimentacao registrada com sucesso.", icon_name="dashboard")
+            self.refresh()
+            self.data_changed.emit()
+
+    def open_history(self, *_args):
+        if not self.current_item:
+            return
+        dialog = MaterialMovementsDialog(self.api_client, self.current_item, self)
+        dialog.exec()
+
+    def open_report(self):
+        dialog = MaterialReportDialog(self.api_client, self)
+        dialog.exec()
+
+    def delete_selected(self):
+        if not self.current_item:
+            return
+        confirm = ask_confirmation(
+            self,
+            "Excluir material",
+            f"Deseja inativar o material {self.current_item['referencia']}?",
+            confirm_text="Sim",
+            cancel_text="NÃ£o",
+            icon_name="warning",
+        )
+        if confirm:
+            self.api_client.delete_material(self.current_item["id"])
+            show_notice(self, "Material inativado", "Material removido da base ativa.", icon_name="dashboard")
+            self.refresh()
+            self.data_changed.emit()
+
+    def set_loading_state(self, loading: bool):
+        if loading:
+            self.table_skeleton.show_skeleton("Carregando controle de material")
+        else:
+            self.table_skeleton.hide_skeleton()
+

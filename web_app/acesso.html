@@ -1,0 +1,143 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Acesso Checklist Live</title>
+    <style>
+        * { box-sizing: border-box; }
+        body {
+            margin: 0;
+            min-height: 100vh;
+            font-family: Arial, sans-serif;
+            background: linear-gradient(180deg, #0756b5 0 165px, #edf4fb 165px);
+            color: #08111f;
+        }
+        main {
+            width: min(92vw, 520px);
+            margin: 48px auto;
+            display: grid;
+            gap: 14px;
+            padding: 20px;
+            border-radius: 20px;
+            background: #fff;
+            box-shadow: 0 18px 44px rgba(9, 26, 52, 0.14);
+        }
+        h1 { margin: 0; color: #0756b5; }
+        label { display: grid; gap: 7px; font-weight: 800; }
+        input {
+            min-height: 48px;
+            padding: 12px;
+            border: 1px solid #d7e1ec;
+            border-radius: 14px;
+            font: inherit;
+        }
+        button, a {
+            min-height: 52px;
+            display: grid;
+            place-items: center;
+            border: 0;
+            border-radius: 14px;
+            background: #0756b5;
+            color: #fff;
+            text-decoration: none;
+            font-weight: 900;
+        }
+        .secondary { background: #e8f2ff; color: #0756b5; }
+        .status {
+            min-height: 44px;
+            padding: 12px;
+            border-radius: 14px;
+            background: #f5f8fc;
+            color: #607089;
+            white-space: pre-wrap;
+            overflow-wrap: anywhere;
+        }
+        .error { background: #fff0f0; color: #b91c1c; }
+        .ok { background: #e7f8f1; color: #047857; }
+        .hidden { display: none; }
+    </style>
+</head>
+<body>
+    <main>
+        <h1>Checklist Live</h1>
+        <label>URL da API<input id="api" type="url" value="http://127.0.0.1:5000"></label>
+        <label>Login<input id="login" type="text" value="admin"></label>
+        <label>Senha<input id="senha" type="password" value="123456"></label>
+        <button id="entrar" type="button">ENTRAR</button>
+        <button id="diagnostico" class="secondary" type="button">TESTAR CONEXÃO</button>
+        <div id="status" class="status">Pronto para testar.</div>
+        <div id="menu" class="hidden">
+            <a href="./?v=20260419-15">ABRIR WEB MOBILE COMPLETO</a>
+        </div>
+    </main>
+    <script>
+        const statusBox = document.getElementById("status");
+        const apiInput = document.getElementById("api");
+        const loginInput = document.getElementById("login");
+        const senhaInput = document.getElementById("senha");
+        const menu = document.getElementById("menu");
+
+        function setStatus(message, type = "") {
+            statusBox.textContent = message;
+            statusBox.className = `status ${type}`;
+        }
+
+        async function clearCache() {
+            if ("serviceWorker" in navigator) {
+                const registrations = await navigator.serviceWorker.getRegistrations();
+                await Promise.all(registrations.map((registration) => registration.unregister()));
+            }
+            if ("caches" in window) {
+                const names = await caches.keys();
+                await Promise.all(names.map((name) => caches.delete(name)));
+            }
+        }
+
+        async function testConnection() {
+            const api = apiInput.value.replace(/\/$/, "");
+            setStatus("Testando API...");
+            const response = await fetch(`${api}/login`, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ login: loginInput.value.trim(), senha: senhaInput.value }),
+            });
+            const body = await response.json().catch(() => ({}));
+            if (!response.ok) {
+                throw new Error(`${response.status} - ${body.error || "Falha no login"}`);
+            }
+            return body;
+        }
+
+        document.getElementById("diagnostico").addEventListener("click", async () => {
+            try {
+                const body = await testConnection();
+                setStatus(`API OK.\nUsuário: ${body.user.login}\nPerfil: ${body.user.tipo}`, "ok");
+            } catch (error) {
+                setStatus(`ERRO: ${error.message}`, "error");
+            }
+        });
+
+        document.getElementById("entrar").addEventListener("click", async () => {
+            const button = document.getElementById("entrar");
+            const api = apiInput.value.replace(/\/$/, "");
+            button.disabled = true;
+            button.textContent = "ENTRANDO...";
+            try {
+                await clearCache();
+                const body = await testConnection();
+                localStorage.setItem("apiBaseUrl", api);
+                localStorage.setItem("token", body.token);
+                localStorage.setItem("user", JSON.stringify(body.user));
+                setStatus("Login OK. Abrindo sistema completo...", "ok");
+                menu.classList.remove("hidden");
+                window.location.href = "./?v=20260419-15";
+            } catch (error) {
+                setStatus(`ERRO: ${error.message}`, "error");
+                button.disabled = false;
+                button.textContent = "ENTRAR";
+            }
+        });
+    </script>
+</body>
+</html>
