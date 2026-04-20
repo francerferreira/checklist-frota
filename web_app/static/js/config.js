@@ -1,5 +1,4 @@
 window.CHECKLIST_CONFIG = window.CHECKLIST_CONFIG || {
-    // Preencha com a URL publica do backend no Render quando publicar.
-    // Exemplo: "https://checklist-api.onrender.com"
-    API_BASE_URL: "",
+    // URL publica do backend no Render.
+    API_BASE_URL: "https://checklist-frota-qngw.onrender.com",
 };
