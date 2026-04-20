@@ -18,10 +18,10 @@ def _normalize_database_url(url: str | None) -> str:
         return f"sqlite:///{DATA_ROOT / 'checklist_frota.db'}"
 
     if url.startswith("postgres://"):
-        return url.replace("postgres://", "postgresql+psycopg://", 1)
+        return url.replace("postgres://", "postgresql+psycopg2://", 1)
 
-    if url.startswith("postgresql://") and "+psycopg" not in url:
-        return url.replace("postgresql://", "postgresql+psycopg://", 1)
+    if url.startswith("postgresql://") and "+psycopg" not in url and "+psycopg2" not in url:
+        return url.replace("postgresql://", "postgresql+psycopg2://", 1)
 
     return url
 

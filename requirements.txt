@@ -5,7 +5,7 @@ Flask-Migrate==4.1.0
 Flask-SQLAlchemy==3.1.1
 gunicorn==23.0.0
 itsdangerous==2.2.0
-psycopg[binary]==3.2.3
+psycopg2-binary==2.9.10
 PyInstaller==6.19.0
 PySide6==6.11.0
 python-dotenv==1.0.1
