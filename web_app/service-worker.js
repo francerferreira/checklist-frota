@@ -1,12 +1,14 @@
-const CACHE_NAME = "checklist-live-pwa-20260420-04";
+const CACHE_NAME = "cf-checklist-frota-pwa-20260421-02";
 const APP_SHELL = [
     "./",
     "./index.html",
     "./manifest.json",
-    "./static/css/styles.css?v=20260420-04",
-    "./static/js/app-20260419-25.js?v=20260420-04",
+    "./static/css/styles.css?v=20260421-01",
+    "./static/js/app-20260419-25.js?v=20260421-01",
     "./static/icons/icon-192.png",
     "./static/icons/icon-512.png",
+    "./static/icons/cf-logo-mark.png",
+    "./static/icons/cf-logo-cover.png",
 ];
 
 self.addEventListener("install", (event) => {

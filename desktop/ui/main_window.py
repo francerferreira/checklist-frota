@@ -41,16 +41,17 @@ class MainWindow(QMainWindow):
         self.page_animation = None
         self.is_admin = self.user["tipo"] == "admin"
         self.can_manage = self.user["tipo"] in {"admin", "gestor"}
-        self.logo_path = asset_path("logo_grupo.png")
+        self.logo_path = asset_path("app-logo-cover.png")
+        self.app_icon_path = asset_path("app-icon.ico")
         self.current_page_key = ""
         self.dirty_pages: set[str] = set()
         self.pending_refreshes: set[str] = set()
 
-        self.setWindowTitle("Checklist de Frota Portuária")
+        self.setWindowTitle("CF - Checklist de Frota")
         self.setMinimumSize(1280, 760)
         self.setStyleSheet(APP_STYLE)
-        if self.logo_path.exists():
-            self.setWindowIcon(QIcon(str(self.logo_path)))
+        if self.app_icon_path.exists():
+            self.setWindowIcon(QIcon(str(self.app_icon_path)))
 
         container = QWidget()
         container.setObjectName("MainContainer")
@@ -147,6 +148,7 @@ class MainWindow(QMainWindow):
         nav_strip = QFrame()
         nav_strip.setObjectName("TopNavStrip")
         nav_strip.setMinimumHeight(66)
+        nav_strip.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Fixed)
         nav_layout = QHBoxLayout(nav_strip)
         nav_layout.setContentsMargins(8, 6, 8, 6)
         nav_layout.setSpacing(8)
@@ -171,7 +173,7 @@ class MainWindow(QMainWindow):
         for key, label, icon in nav_items:
             button = AnimatedButton(label)
             button.setIcon(icon)
-            button.setMinimumWidth(max(164, 86 + (len(label) * 6)))
+            button.setMinimumWidth(max(132, 70 + (len(label) * 4)))
             button.setMinimumHeight(48)
             button.clicked.connect(lambda checked=False, page_key=key: self.switch_page(page_key))
             nav_layout.addWidget(button)
@@ -179,11 +181,11 @@ class MainWindow(QMainWindow):
 
         nav_scroll = QScrollArea()
         nav_scroll.setWidgetResizable(True)
-        nav_scroll.setHorizontalScrollBarPolicy(Qt.ScrollBarAsNeeded)
+        nav_scroll.setHorizontalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
         nav_scroll.setVerticalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
         nav_scroll.setFrameShape(QFrame.NoFrame)
-        nav_scroll.setMinimumHeight(74)
-        nav_scroll.setMaximumHeight(80)
+        nav_scroll.setMinimumHeight(72)
+        nav_scroll.setMaximumHeight(72)
         nav_scroll.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Fixed)
         nav_scroll.setWidget(nav_strip)
 

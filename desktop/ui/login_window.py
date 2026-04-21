@@ -4,7 +4,7 @@ import json
 from pathlib import Path
 
 from PySide6.QtCore import Qt
-from PySide6.QtGui import QPixmap
+from PySide6.QtGui import QIcon, QPixmap
 from PySide6.QtWidgets import (
     QCheckBox,
     QDialog,
@@ -193,11 +193,14 @@ class LoginWindow(QDialog):
         super().__init__(parent)
         self.api_client = api_client
         self.user = None
-        self.logo_path = asset_path("logo_grupo.png")
+        self.logo_path = asset_path("app-logo-cover.png")
+        self.app_icon_path = asset_path("app-icon.ico")
         self.login_prefs_path = data_path("login_prefs.json")
         self._advanced_visible = False
 
-        self.setWindowTitle("Acesso ao Checklist de Frota")
+        self.setWindowTitle("Acesso ao CF - Checklist de Frota")
+        if self.app_icon_path.exists():
+            self.setWindowIcon(QIcon(str(self.app_icon_path)))
         self.setModal(True)
         self.resize(1040, 720)
         self.setMinimumSize(980, 680)
