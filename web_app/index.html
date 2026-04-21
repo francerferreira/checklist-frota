@@ -14,10 +14,10 @@
     <title>CHECKLIST LIVE</title>
     <link rel="icon" type="image/png" sizes="192x192" href="./static/icons/icon-192.png">
     <link rel="apple-touch-icon" href="./static/icons/icon-192.png">
-    <link rel="stylesheet" href="./static/css/styles.css?v=20260420-05">
+    <link rel="stylesheet" href="./static/css/styles.css?v=20260420-06">
     <script>
         (function () {
-            var cssUrl = "./static/css/styles.css?v=20260420-05";
+            var cssUrl = "./static/css/styles.css?v=20260420-06";
             var style = document.createElement("style");
             style.setAttribute("data-inline-fallback", "styles.css");
             document.head.appendChild(style);
@@ -41,32 +41,35 @@
 
         <main class="app-main">
             <section id="login-screen" class="screen active">
-                <form id="login-form" class="login-card">
+                <form id="login-form" class="login-card login-card-refined">
                     <div class="login-hero">
                         <div>
-                            <p class="overline">CHECKLIST OPERACIONAL</p>
-                            <h2>ENTRAR NA VISTORIA</h2>
-                            <span>CAVALOS, CARRETAS, FOTOS E NÃO CONFORMIDADES EM CAMPO.</span>
+                            <p class="overline">ACESSO OPERACIONAL</p>
+                            <h2>Checklist Live</h2>
+                            <span>Vistoria, evidencias e campo.</span>
                         </div>
-                        <div class="login-badge">LIVE</div>
+                        <div class="login-badge">CL</div>
                     </div>
 
                     <div class="form-fields">
                         <label>
-                            <span>URL DA API</span>
-                            <input type="url" id="api-base-url" value="https://checklist-frota-qngw.onrender.com" required>
-                        </label>
-                        <label>
                             <span>LOGIN</span>
-                    <input type="text" id="login" placeholder="ADMIN, GESTOR, MOTORISTA OU MECÂNICO" autocomplete="username" required>
+                            <input type="text" id="login" placeholder="Usuario" autocomplete="username" required>
                         </label>
                         <label>
                             <span>SENHA</span>
-                            <input type="password" id="password" placeholder="DIGITE SUA SENHA" autocomplete="current-password" required>
+                            <input type="password" id="password" placeholder="Senha" autocomplete="current-password" required>
                         </label>
+                        <details class="connection-panel">
+                            <summary>Conexao</summary>
+                            <label>
+                                <span>API</span>
+                                <input type="url" id="api-base-url" value="https://checklist-frota-qngw.onrender.com" required>
+                            </label>
+                        </details>
                     </div>
 
-                    <button id="login-button" type="button" class="primary-button">ENTRAR NO SISTEMA</button>
+                    <button id="login-button" type="button" class="primary-button">ENTRAR</button>
                     <div id="login-status" class="login-status" aria-live="polite"></div>
                 </form>
             </section>
@@ -460,12 +463,12 @@
                     status.textContent = `Erro de acesso: ${error.message || error}`;
                     status.classList.add("error");
                     button.disabled = false;
-                    button.textContent = "ENTRAR NO SISTEMA";
+                    button.textContent = "ENTRAR";
                 }
             }, true);
         });
     </script>
-    <script src="./static/js/config.js?v=20260420-05"></script>
-    <script src="./static/js/app-20260419-25.js?v=20260420-05"></script>
+    <script src="./static/js/config.js?v=20260420-06"></script>
+    <script src="./static/js/app-20260419-25.js?v=20260420-06"></script>
 </body>
 </html>
