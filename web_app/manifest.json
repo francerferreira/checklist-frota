@@ -1,7 +1,7 @@
 {
-  "name": "Checklist Live",
-  "short_name": "Checklist",
-  "description": "Checklist de frota, atividades e cronograma de lavagem em campo.",
+  "name": "CF - Checklist de Frota",
+  "short_name": "CF",
+  "description": "CF - Checklist de frota, atividades e cronograma de lavagem em campo.",
   "start_url": "./?source=pwa",
   "scope": "./",
   "display": "standalone",
