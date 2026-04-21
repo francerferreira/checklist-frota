@@ -6,18 +6,18 @@
     <meta name="theme-color" content="#0756B5">
     <meta name="mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-capable" content="yes">
-    <meta name="apple-mobile-web-app-title" content="CF">
+    <meta name="apple-mobile-web-app-title" content="Checklist">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
     <meta http-equiv="Pragma" content="no-cache">
     <meta http-equiv="Expires" content="0">
-    <title>CF - CHECKLIST DE FROTA</title>
+    <title>CHECKLIST DE FROTA</title>
     <link rel="icon" type="image/png" sizes="192x192" href="./static/icons/icon-192.png?v=20260421-02">
     <link rel="apple-touch-icon" href="./static/icons/icon-192.png?v=20260421-02">
-    <link rel="stylesheet" href="./static/css/styles.css?v=20260421-01">
+    <link rel="stylesheet" href="./static/css/styles.css?v=20260421-03">
     <script>
         (function () {
-            var cssUrl = "./static/css/styles.css?v=20260421-01";
+            var cssUrl = "./static/css/styles.css?v=20260421-03";
             var style = document.createElement("style");
             style.setAttribute("data-inline-fallback", "styles.css");
             document.head.appendChild(style);
@@ -31,12 +31,9 @@
 <body>
     <div class="mobile-shell">
         <header class="app-topbar">
-            <div class="brand-mark" aria-hidden="true">
-                <img src="./static/icons/cf-logo-mark.png" alt="">
-            </div>
             <div>
                 <p class="overline">OPERAÇÃO PORTUÁRIA</p>
-                <h1>CF CHECKLIST DE FROTA</h1>
+                <h1>CHECKLIST DE FROTA</h1>
             </div>
             <span id="connection-status" class="status-pill">ONLINE</span>
         </header>
@@ -44,27 +41,21 @@
         <main class="app-main">
             <section id="login-screen" class="screen active">
                 <form id="login-form" class="login-card login-card-refined">
-                    <div class="login-hero">
-                        <div>
-                            <img class="login-hero-logo" src="./static/icons/cf-logo-cover.png" alt="CF - Checklist de Frota">
-                            <p class="overline">ACESSO OPERACIONAL</p>
-                            <h2>CF</h2>
-                            <span>CHECKLIST DE FROTA</span>
-                        </div>
-                        <div class="login-badge">CF</div>
+                    <div class="login-hero logo-only">
+                        <img class="login-hero-logo" src="./static/icons/cf-logo-cover.png" alt="Checklist de Frota">
                     </div>
 
                     <div class="form-fields">
                         <label>
                             <span>LOGIN</span>
-                            <input type="text" id="login" placeholder="Usuario" autocomplete="username" required>
+                            <input type="text" id="login" placeholder="Usuário" autocomplete="username" required>
                         </label>
                         <label>
                             <span>SENHA</span>
                             <input type="password" id="password" placeholder="Senha" autocomplete="current-password" required>
                         </label>
                         <details class="connection-panel">
-                            <summary>Conexao</summary>
+                            <summary>Conexão</summary>
                             <label>
                                 <span>API</span>
                                 <input type="url" id="api-base-url" value="https://checklist-frota-qngw.onrender.com" required>
