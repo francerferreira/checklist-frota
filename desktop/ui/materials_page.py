@@ -16,6 +16,7 @@ from PySide6.QtWidgets import (
     QLabel,
     QLineEdit,
     QMessageBox,
+    QHeaderView,
     QPushButton,
     QSpinBox,
     QTableWidget,
@@ -101,7 +102,7 @@ class MaterialDialog(QDialog):
         self.quantidade_spin.setValue(int(self.material.get("quantidade_estoque", 0)))
         if self.material:
             self.quantidade_spin.setEnabled(False)
-            self.quantidade_spin.setToolTip("Para material ja cadastrado, use o botao Ajustar estoque.")
+            self.quantidade_spin.setToolTip("Para material já cadastrado, use o botão Ajustar estoque.")
 
         self.estoque_minimo_spin = QSpinBox()
         self.estoque_minimo_spin.setMinimum(0)
@@ -132,11 +133,11 @@ class MaterialDialog(QDialog):
             field_layout.addWidget(widget)
             form.addWidget(field, row, column, 1, col_span)
 
-        add_field(0, 0, "Referencia", self.referencia_input, highlight=True)
+        add_field(0, 0, "Referência", self.referencia_input, highlight=True)
         add_field(0, 1, "Descrição", self.descricao_input, highlight=True)
-        add_field(1, 0, "Aplicacao", self.aplicacao_combo, highlight=True)
+        add_field(1, 0, "Aplicação", self.aplicacao_combo, highlight=True)
         add_field(1, 1, "Quantidade em estoque", self.quantidade_spin, highlight=True)
-        add_field(2, 0, "Estoque minimo", self.estoque_minimo_spin)
+        add_field(2, 0, "Estoque mínimo", self.estoque_minimo_spin)
 
         media_field = QFrame()
         media_field.setObjectName("DialogInfoBlock")
@@ -215,7 +216,7 @@ class StockAdjustDialog(QDialog):
         self.result_payload = None
 
         self.setWindowTitle("Ajustar estoque")
-        configure_dialog_window(self, width=700, height=520, min_width=620, min_height=460)
+        configure_dialog_window(self, width=960, height=680, min_width=840, min_height=620)
         style_card(self)
 
         layout = build_dialog_layout(self, max_content_width=760)
@@ -227,7 +228,7 @@ class StockAdjustDialog(QDialog):
         header_layout.setContentsMargins(18, 18, 18, 18)
         title = QLabel(f"{material.get('referencia')} - {material.get('descricao')}")
         title.setObjectName("DialogHeaderTitle")
-        subtitle = QLabel("Registre entrada, saida ou ajuste manual de estoque.")
+        subtitle = QLabel("Registre entrada, saída ou ajuste manual de estoque.")
         subtitle.setObjectName("DialogHeaderSubtitle")
         header_layout.addWidget(title)
         header_layout.addWidget(subtitle)
@@ -257,7 +258,7 @@ class StockAdjustDialog(QDialog):
         form.addWidget(self.tipo_combo, 0, 1)
         form.addWidget(QLabel("Quantidade"), 1, 0)
         form.addWidget(self.quantidade_spin, 1, 1)
-        form.addWidget(QLabel("Observacao"), 2, 0, 1, 2)
+        form.addWidget(QLabel("Observação"), 2, 0, 1, 2)
         form.addWidget(self.observacao_input, 3, 0, 1, 2)
 
         footer = QFrame()
@@ -295,38 +296,45 @@ class MaterialMovementsDialog(QDialog):
         self.movements = self.api_client.get_material_movements(material["id"])
 
         self.setWindowTitle("Histórico de estoque")
-        configure_dialog_window(self, width=1180, height=760, min_width=920, min_height=620)
+        configure_dialog_window(self, width=1640, height=940, min_width=1280, min_height=760)
         style_card(self)
 
-        layout = build_dialog_layout(self, max_content_width=1240)
+        layout = build_dialog_layout(self, max_content_width=0)
 
-        header = QFrame()
-        header.setObjectName("DialogHeader")
-        header.setAttribute(Qt.WA_StyledBackground, True)
-        header_layout = QVBoxLayout(header)
+        dialog_header = QFrame()
+        dialog_header.setObjectName("DialogHeader")
+        dialog_header.setAttribute(Qt.WA_StyledBackground, True)
+        header_layout = QVBoxLayout(dialog_header)
         header_layout.setContentsMargins(18, 18, 18, 18)
         title = QLabel(f"{material.get('referencia')} - {material.get('descricao')}")
         title.setObjectName("DialogHeaderTitle")
+        title.setWordWrap(True)
         subtitle = QLabel("Movimentações de estoque, consumo por atividade e saídas para resolução de não conformidade.")
         subtitle.setObjectName("DialogHeaderSubtitle")
+        subtitle.setWordWrap(True)
         header_layout.addWidget(title)
         header_layout.addWidget(subtitle)
 
         table_card = QFrame()
         style_table_card(table_card)
+        table_card.setMinimumHeight(620)
         self.table_skeleton = TableSkeletonOverlay(table_card, rows=7)
         table_layout = QVBoxLayout(table_card)
-        table_layout.setContentsMargins(14, 14, 14, 14)
+        table_layout.setContentsMargins(16, 16, 16, 16)
         table_layout.setSpacing(10)
 
         self.table = QTableWidget(0, 7)
-        self.table.setHorizontalHeaderLabels(["Data", "Tipo", "Quantidade", "Saldo anterior", "Saldo posterior", "Usuario", "Observacao"])
+        self.table.setHorizontalHeaderLabels(["Data", "Tipo", "Quantidade", "Saldo anterior", "Saldo posterior", "Usuário", "Observação"])
         configure_table(self.table, stretch_last=False)
-        self.table.setMinimumHeight(520)
+        table_header = self.table.horizontalHeader()
+        for col in range(self.table.columnCount()):
+            table_header.setSectionResizeMode(col, QHeaderView.Stretch)
+        self.table.setHorizontalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
+        self.table.setMinimumHeight(680)
         self._populate()
 
         table_layout.addWidget(self.table)
-        layout.addWidget(header)
+        layout.addWidget(dialog_header)
         layout.addWidget(table_card, 1)
 
     def _populate(self):
@@ -358,7 +366,7 @@ class MaterialReportDialog(QDialog):
         self.logo_path = asset_path("logo_grupo.png")
         self.report = {}
 
-        self.setWindowTitle("Relatorio de estoque")
+        self.setWindowTitle("Relatório de estoque")
         configure_dialog_window(self, width=1320, height=820, min_width=980, min_height=680)
         style_card(self)
 
@@ -372,9 +380,9 @@ class MaterialReportDialog(QDialog):
         header_layout.setSpacing(14)
 
         title_wrap = QVBoxLayout()
-        title = QLabel("Relatorio de estoque")
+        title = QLabel("Relatório de estoque")
         title.setObjectName("DialogHeaderTitle")
-        subtitle = QLabel("Analise de materiais abaixo do minimo, consumo no periodo e ranking dos mais utilizados.")
+        subtitle = QLabel("Análise de materiais abaixo do mínimo, consumo no período e ranking dos mais utilizados.")
         subtitle.setObjectName("DialogHeaderSubtitle")
         subtitle.setWordWrap(True)
         title_wrap.addWidget(title)
@@ -419,7 +427,7 @@ class MaterialReportDialog(QDialog):
         summary_layout.setSpacing(10)
         self.total_badge = QLabel("0 materiais")
         self.total_badge.setObjectName("TopBarPill")
-        self.low_badge = QLabel("0 abaixo do minimo")
+        self.low_badge = QLabel("0 abaixo do mínimo")
         self.low_badge.setObjectName("TopBarPill")
         self.stock_badge = QLabel("Saldo 0")
         self.stock_badge.setObjectName("TopBarPill")
@@ -431,14 +439,14 @@ class MaterialReportDialog(QDialog):
         summary_layout.addWidget(self.consumption_badge)
         summary_layout.addStretch()
 
-        self.low_table = self._make_table(["Referencia", "Descrição", "Aplicacao", "Estoque", "Minimo", "Deficit"])
-        self.consumption_table = self._make_table(["Referencia", "Descrição", "Consumo", "Ultimo consumo"])
-        self.ranking_table = self._make_table(["Referencia", "Descrição", "Consumo", "Ultimo consumo"])
+        self.low_table = self._make_table(["Referência", "Descrição", "Aplicação", "Estoque", "Mínimo", "Déficit"])
+        self.consumption_table = self._make_table(["Referência", "Descrição", "Consumo", "Último consumo"])
+        self.ranking_table = self._make_table(["Referência", "Descrição", "Consumo", "Último consumo"])
 
         layout.addWidget(header)
         layout.addWidget(filter_card)
         layout.addWidget(summary_card)
-        layout.addWidget(self._wrap_table("Materiais abaixo do minimo", self.low_table), 1)
+        layout.addWidget(self._wrap_table("Materiais abaixo do mínimo", self.low_table), 1)
         layout.addWidget(self._wrap_table("Consumo no periodo", self.consumption_table), 1)
         layout.addWidget(self._wrap_table("Ranking Top 5", self.ranking_table), 1)
 
@@ -470,7 +478,7 @@ class MaterialReportDialog(QDialog):
         )
         resumo = self.report.get("resumo", {})
         self.total_badge.setText(f"{resumo.get('total_materiais', 0)} materiais")
-        self.low_badge.setText(f"{resumo.get('abaixo_minimo', 0)} abaixo do minimo")
+        self.low_badge.setText(f"{resumo.get('abaixo_minimo', 0)} abaixo do mínimo")
         self.stock_badge.setText(f"Saldo {resumo.get('saldo_total', 0)}")
         self.consumption_badge.setText(f"Consumo {resumo.get('consumo_total_periodo', 0)}")
         self._fill_table(self.low_table, self.report.get("baixo_estoque", []), ["referencia", "descricao", "aplicacao_tipo", "quantidade_estoque", "estoque_minimo", "deficit"])
@@ -503,9 +511,9 @@ class MaterialReportDialog(QDialog):
             return
         try:
             export_material_report_xlsx(self.report, output_path=filename)
-            show_notice(self, "Exportacao concluida", f"Arquivo salvo em:\n{filename}", icon_name="reports")
+            show_notice(self, "Exportação concluída", f"Arquivo salvo em:\n{filename}", icon_name="reports")
         except Exception as exc:
-            show_notice(self, "Falha na exportacao", str(exc), icon_name="warning")
+            show_notice(self, "Falha na exportação", str(exc), icon_name="warning")
 
     def export_pdf(self):
         filename, _ = QFileDialog.getSaveFileName(
@@ -523,9 +531,9 @@ class MaterialReportDialog(QDialog):
                 logo_path=self.logo_path,
                 generated_by=(self.api_client.user or {}).get("nome", ""),
             )
-            show_notice(self, "Exportacao concluida", f"Arquivo salvo em:\n{filename}", icon_name="reports")
+            show_notice(self, "Exportação concluída", f"Arquivo salvo em:\n{filename}", icon_name="reports")
         except Exception as exc:
-            show_notice(self, "Falha na exportacao", str(exc), icon_name="warning")
+            show_notice(self, "Falha na exportação", str(exc), icon_name="warning")
 
     def generate_message(self):
         if not self.report:
@@ -576,10 +584,9 @@ class MaterialsPage(QFrame):
         text_wrap = QVBoxLayout()
         title = QLabel("Controle de material")
         title.setObjectName("PageTitle")
-        subtitle = QLabel("Cadastre materiais, acompanhe estoque minimo e ajuste saldo para suportar atividades e manutencoes.")
+        subtitle = QLabel("Cadastre materiais, acompanhe estoque mínimo e ajuste saldo para suportar atividades e manutenções.")
         subtitle.setObjectName("SectionCaption")
         subtitle.setWordWrap(True)
-        subtitle.setMaximumHeight(24)
         text_wrap.addWidget(title)
         text_wrap.addWidget(subtitle)
 
@@ -595,7 +602,7 @@ class MaterialsPage(QFrame):
         self.adjust_button = QPushButton("Ajustar estoque")
         self.adjust_button.setMinimumHeight(42)
         self.adjust_button.clicked.connect(self.adjust_stock)
-        self.report_button = QPushButton("Relatorio")
+        self.report_button = QPushButton("Relatório")
         self.report_button.setMinimumHeight(42)
         self.report_button.clicked.connect(self.open_report)
         self.history_button = QPushButton("Histórico")
@@ -660,7 +667,7 @@ class MaterialsPage(QFrame):
         top.addWidget(self.summary_badge)
 
         self.table = QTableWidget(0, 8)
-        self.table.setHorizontalHeaderLabels(["Referencia", "Descrição", "Aplicacao", "Estoque", "Minimo", "Status do estoque", "Foto", "Ativo"])
+        self.table.setHorizontalHeaderLabels(["Referência", "Descrição", "Aplicação", "Estoque", "Mínimo", "Status do estoque", "Foto", "Ativo"])
         configure_table(self.table, stretch_last=False)
         self.table.setMinimumHeight(560)
         self.table.itemSelectionChanged.connect(self._selection_changed)
@@ -753,7 +760,7 @@ class MaterialsPage(QFrame):
         dialog = StockAdjustDialog(self.api_client, self.current_item, self)
         if dialog.exec():
             self.api_client.adjust_material_stock(self.current_item["id"], dialog.result_payload)
-            show_notice(self, "Estoque atualizado", "Movimentacao registrada com sucesso.", icon_name="dashboard")
+            show_notice(self, "Estoque atualizado", "Movimentação registrada com sucesso.", icon_name="dashboard")
             self.refresh()
             self.data_changed.emit()
 
@@ -775,7 +782,7 @@ class MaterialsPage(QFrame):
             "Excluir material",
             f"Deseja inativar o material {self.current_item['referencia']}?",
             confirm_text="Sim",
-            cancel_text="NÃ£o",
+            cancel_text="Não",
             icon_name="warning",
         )
         if confirm:
