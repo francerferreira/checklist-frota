@@ -161,14 +161,6 @@ const elements = {
     maintenanceBackButton: document.getElementById("maintenance-back-button"),
     maintenanceCounter: document.getElementById("maintenance-counter"),
     maintenanceSummary: document.getElementById("maintenance-summary"),
-    maintenanceSchedulePanel: document.getElementById("maintenance-schedule-panel"),
-    maintenanceScheduleSelect: document.getElementById("maintenance-schedule-select"),
-    maintenanceStartDate: document.getElementById("maintenance-start-date"),
-    maintenanceDailyCapacity: document.getElementById("maintenance-daily-capacity"),
-    maintenanceProgramButton: document.getElementById("maintenance-program-button"),
-    maintenanceReportPanel: document.getElementById("maintenance-report-panel"),
-    maintenanceReportType: document.getElementById("maintenance-report-type"),
-    maintenanceExportPdfButton: document.getElementById("maintenance-export-pdf-button"),
     maintenanceMonthTitle: document.getElementById("maintenance-month-title"),
     maintenancePrevMonth: document.getElementById("maintenance-prev-month"),
     maintenanceNextMonth: document.getElementById("maintenance-next-month"),
@@ -785,10 +777,7 @@ function renderMaintenance() {
 
     elements.maintenanceCounter.textContent = `${Number(resumo.programados || resumo.itens || 0)} PROGRAMADOS`;
     elements.maintenanceMonthTitle.textContent = String(overview.periodo?.rotulo || `${state.maintenanceMonth}/${state.maintenanceYear}`).toUpperCase();
-    elements.maintenanceSchedulePanel?.classList.toggle("hidden", !hasWashReportAccess());
-    elements.maintenanceReportPanel?.classList.toggle("hidden", !hasWashReportAccess());
     renderMaintenanceSummary(resumo);
-    renderMaintenanceProgramPanel(overview.programacoes || []);
     renderMaintenanceCalendar(days);
     renderMaintenanceDayPanel(selectedDay);
     elements.maintenanceList.innerHTML = "";
@@ -797,7 +786,7 @@ function renderMaintenance() {
         elements.maintenanceList.innerHTML = `
             <article class="empty-state">
                 <strong>NENHUMA MANUTENÇÃO PROGRAMADA PARA ESTE DIA.</strong>
-                <span>USE O CALENDÁRIO OU GERE UM CRONOGRAMA PARA DISTRIBUIR OS VEÍCULOS.</span>
+                <span>AGUARDE NOVA PROGRAMACAO ENVIADA PELO DESKTOP.</span>
             </article>
         `;
         return;
@@ -823,23 +812,6 @@ function renderMaintenanceSummary(resumo) {
         </div>
         <span>${percent}% CONCLUÍDO | ${Number(resumo.dias_utilizados || 0)} DIAS UTILIZADOS | CAPACIDADE MÉDIA ${Number(resumo.capacidade_media || 0)}</span>
     `;
-}
-
-function renderMaintenanceProgramPanel(schedules) {
-    if (!elements.maintenanceSchedulePanel || !elements.maintenanceScheduleSelect) {
-        return;
-    }
-    const options = [`<option value="">Selecione uma programação</option>`];
-    schedules
-        .filter((schedule) => !["CONCLUIDA", "CANCELADA"].includes(String(schedule.status || "").toUpperCase()))
-        .forEach((schedule) => {
-            const resumo = schedule.resumo || {};
-            const label = `${schedule.title || "Programação"} | ${resumo.total || 0} veículos | ${String(schedule.status || "-").replace(/_/g, " ")}`;
-            options.push(`<option value="${schedule.id}">${escapeHtml(label.toUpperCase())}</option>`);
-        });
-    elements.maintenanceScheduleSelect.innerHTML = options.join("");
-    elements.maintenanceStartDate.value = elements.maintenanceStartDate.value || formatDateKey(state.maintenanceYear, state.maintenanceMonth, 1);
-    elements.maintenanceDailyCapacity.value = elements.maintenanceDailyCapacity.value || "1";
 }
 
 function ensureSelectedMaintenanceDate(days) {
@@ -2692,54 +2664,6 @@ async function changeMaintenanceMonth(delta) {
     }
 }
 
-async function programSelectedMaintenanceSchedule() {
-    const scheduleId = Number(elements.maintenanceScheduleSelect?.value || 0);
-    if (!scheduleId) {
-        showToast("SELECIONE UMA PROGRAMAÇÃO DE MANUTENÇÃO.", true);
-        return;
-    }
-    const startDate = elements.maintenanceStartDate?.value || "";
-    const dailyCapacity = Number(elements.maintenanceDailyCapacity?.value || 1);
-    if (!startDate) {
-        showToast("INFORME A DATA INICIAL DO CRONOGRAMA.", true);
-        return;
-    }
-    if (!Number.isFinite(dailyCapacity) || dailyCapacity <= 0) {
-        showToast("INFORME UMA CAPACIDADE DIÁRIA VÁLIDA.", true);
-        return;
-    }
-
-    const button = elements.maintenanceProgramButton;
-    if (button) {
-        button.disabled = true;
-        button.textContent = "GERANDO";
-    }
-    try {
-        await apiFetch(`/manutencao/programacoes/${scheduleId}/cronograma`, {
-            method: "PUT",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-                start_date: startDate,
-                daily_capacity: dailyCapacity,
-            }),
-        });
-        const [year, month] = startDate.split("-").map(Number);
-        state.maintenanceYear = year || state.maintenanceYear;
-        state.maintenanceMonth = month || state.maintenanceMonth;
-        state.selectedMaintenanceDate = startDate;
-        await loadMaintenanceOverview();
-        renderMaintenance();
-        showToast("CRONOGRAMA DE MANUTENÇÃO GERADO.");
-    } catch (error) {
-        showToast(error.message || "NÃO FOI POSSÍVEL GERAR O CRONOGRAMA.", true);
-    } finally {
-        if (button) {
-            button.disabled = false;
-            button.textContent = "GERAR";
-        }
-    }
-}
-
 async function exportWashMonthPdf() {
     if (!hasWashReportAccess()) {
         showToast("SOMENTE GESTOR OU ADMINISTRADOR PODE EXPORTAR O RELATÓRIO.", true);
@@ -2755,32 +2679,6 @@ async function exportWashMonthPdf() {
         }
         await downloadAuthorizedFile(`/lavagens/relatorio/pdf?ano=${state.washYear}&mes=${state.washMonth}`, filename);
         showToast("RELATÓRIO DE LAVAGEM GERADO.");
-    } catch (error) {
-        showToast(error.message || "NÃO FOI POSSÍVEL GERAR O RELATÓRIO.", true);
-    } finally {
-        if (button) {
-            button.disabled = false;
-            button.textContent = "PDF";
-        }
-    }
-}
-
-async function exportMaintenancePdf() {
-    if (!hasWashReportAccess()) {
-        showToast("SOMENTE GESTOR OU ADMINISTRADOR PODE EXPORTAR O RELATÓRIO.", true);
-        return;
-    }
-
-    const type = elements.maintenanceReportType?.value || "mensal";
-    const button = elements.maintenanceExportPdfButton;
-    const filename = `relatorio_manutencao_${type}_${state.maintenanceYear}_${String(state.maintenanceMonth).padStart(2, "0")}.pdf`;
-    try {
-        if (button) {
-            button.disabled = true;
-            button.textContent = "GERANDO";
-        }
-        await downloadAuthorizedFile(`/manutencao/relatorio/pdf?tipo=${encodeURIComponent(type)}&ano=${state.maintenanceYear}&mes=${state.maintenanceMonth}`, filename);
-        showToast("RELATÓRIO DE MANUTENÇÃO GERADO.");
     } catch (error) {
         showToast(error.message || "NÃO FOI POSSÍVEL GERAR O RELATÓRIO.", true);
     } finally {
@@ -3568,8 +3466,6 @@ on(elements.washNextMonth, "click", () => changeWashMonth(1));
 on(elements.washExportPdfButton, "click", exportWashMonthPdf);
 on(elements.maintenancePrevMonth, "click", () => changeMaintenanceMonth(-1));
 on(elements.maintenanceNextMonth, "click", () => changeMaintenanceMonth(1));
-on(elements.maintenanceProgramButton, "click", programSelectedMaintenanceSchedule);
-on(elements.maintenanceExportPdfButton, "click", exportMaintenancePdf);
 on(elements.syncNowButton, "click", () => syncPendingChecklists({ silent: false }));
 on(elements.cloudBackupButton, "click", createCloudBackup);
 on(elements.homeChangePasswordButton, "click", requestPasswordReset);

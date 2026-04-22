@@ -32,6 +32,7 @@ from ui.cloud_backup_page import CloudBackupPage
 from ui.dashboard_page import DashboardPage
 from ui.equipment_page import EquipmentPage
 from ui.materials_page import MaterialsPage
+from ui.maintenance_page import MaintenancePage
 from ui.non_conformities_page import NonConformitiesPage
 from ui.productivity_page import ProductivityPage
 from ui.reports_page import ReportsPage
@@ -337,6 +338,7 @@ class MainWindow(QMainWindow):
             nav_items.append(("materials", "Materiais", make_icon("materials", "#DBEAFE", "#1D4ED8")))
             nav_items.append(("washes", "Lavagens", make_icon("washes", "#CCFBF1", "#0F766E")))
             nav_items.append(("activities", "Atividades", make_icon("activities", "#FEF3C7", "#B45309")))
+            nav_items.append(("maintenance", "Manutenção", make_icon("activities", "#DBEAFE", "#1D4ED8")))
         nav_items.append(("reports", "Relatórios", make_icon("reports", "#E0E7FF", "#4338CA")))
         if self.is_admin:
             nav_items.append(("users", "Logins", make_icon("users", "#EEF2FF", "#4338CA")))
@@ -446,6 +448,7 @@ class MainWindow(QMainWindow):
         self.materials_page = MaterialsPage(self.api_client)
         self.washes_page = WashesPage(self.api_client)
         self.activities_page = ActivitiesPage(self.api_client)
+        self.maintenance_page = MaintenancePage(self.api_client)
         self.reports_page = ReportsPage(self.api_client)
         self.users_page = UsersPage(self.api_client, self.user)
         self.cloud_backup_page = CloudBackupPage(self.api_client)
@@ -462,6 +465,7 @@ class MainWindow(QMainWindow):
             self.page_map["materials"] = self.materials_page
             self.page_map["washes"] = self.washes_page
             self.page_map["activities"] = self.activities_page
+            self.page_map["maintenance"] = self.maintenance_page
             if self.is_admin:
                 self.page_map["users"] = self.users_page
                 self.page_map["cloud_backup"] = self.cloud_backup_page
@@ -480,6 +484,7 @@ class MainWindow(QMainWindow):
             self.materials_page.data_changed.connect(lambda: self.handle_data_changed("materials"))
             self.washes_page.data_changed.connect(lambda: self.handle_data_changed("washes"))
             self.activities_page.data_changed.connect(lambda: self.handle_data_changed("activities"))
+            self.maintenance_page.data_changed.connect(lambda: self.handle_data_changed("maintenance"))
             if self.is_admin:
                 self.users_page.data_changed.connect(lambda: self.handle_data_changed("users"))
 
@@ -544,6 +549,8 @@ class MainWindow(QMainWindow):
                 self.washes_page.refresh()
             elif page_key == "activities":
                 self.activities_page.refresh()
+            elif page_key == "maintenance":
+                self.maintenance_page.refresh()
             elif page_key == "reports":
                 self.reports_page.refresh()
             elif page_key == "users":
@@ -586,6 +593,7 @@ class MainWindow(QMainWindow):
             "materials": ("Carregando materiais", "Atualizando saldo, alertas de estoque e itens cadastrados."),
             "washes": ("Carregando lavagens", "Montando fila, histórico mensal e programação preventiva."),
             "activities": ("Carregando atividades", "Montando auditorias em massa, seleção e execução."),
+            "maintenance": ("Carregando manutenção", "Montando cronograma mensal e tabela de programação."),
             "reports": ("Montando relatórios", "Consolidando dados macro, micro e exportações."),
             "users": ("Carregando acessos", "Atualizando perfis, logins e permissões disponíveis."),
             "cloud_backup": ("Verificando nuvem", "Consultando uso de banco, fotos e status do backup."),
@@ -603,6 +611,7 @@ class MainWindow(QMainWindow):
             "materials": "DETALHES DE MATERIAIS",
             "washes": "DETALHES DE LAVAGENS",
             "activities": "DETALHES DE ATIVIDADES",
+            "maintenance": "DETALHES DE MANUTENÇÃO",
             "reports": "DETALHES DE RELATÓRIOS",
             "users": "DETALHES DE ACESSOS",
             "cloud_backup": "NUVEM E BACKUP",

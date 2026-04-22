@@ -143,6 +143,42 @@ class APIClient:
     def reedit_wash_schedule_decision(self, payload: dict):
         return self._request("PUT", "/lavagens/cronograma/reeditar", json=payload)
 
+    def get_maintenance_overview(
+        self,
+        year: int | None = None,
+        month: int | None = None,
+        mechanic_id: int | None = None,
+    ):
+        params = {}
+        if year:
+            params["ano"] = year
+        if month:
+            params["mes"] = month
+        if mechanic_id:
+            params["mecanico_id"] = mechanic_id
+        return self._request("GET", "/manutencao/visao", params=params or None)
+
+    def get_maintenance_schedules(self):
+        return self._request("GET", "/manutencao/programacoes")
+
+    def sync_maintenance_from_non_conformities(self):
+        return self._request("POST", "/manutencao/programacoes/sincronizar-nc", json={})
+
+    def create_maintenance_schedule(self, payload: dict):
+        return self._request("POST", "/manutencao/programacoes", json=payload)
+
+    def link_maintenance_schedule_material(self, schedule_id: int, payload: dict):
+        return self._request("POST", f"/manutencao/programacoes/{schedule_id}/materiais", json=payload)
+
+    def program_maintenance_schedule(self, schedule_id: int, payload: dict):
+        return self._request("PUT", f"/manutencao/programacoes/{schedule_id}/cronograma", json=payload)
+
+    def reprogram_maintenance_item(self, item_id: int, payload: dict):
+        return self._request("PUT", f"/manutencao/itens/{item_id}/reprogramar", json=payload)
+
+    def update_maintenance_item(self, item_id: int, payload: dict):
+        return self._request("PUT", f"/manutencao/itens/{item_id}", json=payload)
+
     def update_wash_values(self, values: list[dict]):
         return self._request("PUT", "/lavagens/valores", json={"valores": values})
 
