@@ -41,8 +41,8 @@ def build_macro_report() -> list[dict]:
     ]
 
 
-def build_micro_report() -> list[dict]:
-    rows = (
+def build_micro_report(*, only_active: bool = True) -> list[dict]:
+    query = (
         db.session.query(
             Vehicle.id,
             Vehicle.frota,
@@ -54,11 +54,10 @@ def build_micro_report() -> list[dict]:
         )
         .outerjoin(Checklist, Checklist.vehicle_id == Vehicle.id)
         .outerjoin(ChecklistItem, ChecklistItem.checklist_id == Checklist.id)
-        .filter(*_active_vehicle_filter())
-        .group_by(Vehicle.id)
-        .order_by(desc("total_nc"), Vehicle.frota.asc())
-        .all()
     )
+    if only_active:
+        query = query.filter(*_active_vehicle_filter())
+    rows = query.group_by(Vehicle.id).order_by(desc("total_nc"), Vehicle.frota.asc()).all()
     return [
         {
             "vehicle_id": vehicle_id,

@@ -469,11 +469,12 @@ class ReportsPage(QFrame):
         if tab_key == "micro":
             if "micro" in self.dirty_tabs:
                 self.micro_skeleton.show_skeleton(self._loading_message_for_tab("micro"))
-                self.micro_rows = self.api_client.get_micro_report()
+                self._prime_vehicle_cache(force=True)
+                fetched_rows = self.api_client.get_micro_report(ativos=True)
+                self.micro_rows = self._filter_active_micro_rows(fetched_rows)
                 self._populate_micro(self.micro_rows)
                 self.dirty_tabs.discard("micro")
                 self.micro_skeleton.hide_skeleton()
-                self._prime_vehicle_cache()
             return
         if tab_key == "item":
             if "item" in self.dirty_tabs:
@@ -587,15 +588,21 @@ class ReportsPage(QFrame):
             self.micro_table.setUpdatesEnabled(True)
             self.micro_table.setSortingEnabled(True)
 
-    def _prime_vehicle_cache(self):
-        if "vehicles" not in self.dirty_tabs and self.vehicle_cache:
+    def _prime_vehicle_cache(self, *, force: bool = False):
+        if not force and "vehicles" not in self.dirty_tabs and self.vehicle_cache:
             return
         try:
-            vehicles = self.api_client.get_equipment()
+            vehicles = self.api_client.get_equipment(ativos=True)
             self.vehicle_cache = {vehicle["id"]: vehicle for vehicle in vehicles}
             self.dirty_tabs.discard("vehicles")
         except Exception:
             self.vehicle_cache = {}
+
+    def _filter_active_micro_rows(self, rows: list[dict]) -> list[dict]:
+        if not self.vehicle_cache:
+            return rows
+        active_ids = set(self.vehicle_cache.keys())
+        return [row for row in rows if row.get("vehicle_id") in active_ids]
 
     def open_macro_item(self, *_args):
         selected = self.macro_table.selectedRanges()

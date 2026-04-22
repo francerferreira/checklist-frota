@@ -46,7 +46,8 @@ def macro_report():
 @bp.get("/relatorios/micro")
 @auth_required
 def micro_report():
-    return jsonify(build_micro_report())
+    only_active = request.args.get("ativos", "true").lower() != "false"
+    return jsonify(build_micro_report(only_active=only_active))
 
 
 @bp.get("/relatorios/produtividade")

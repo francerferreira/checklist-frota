@@ -243,8 +243,11 @@ class APIClient:
     def get_macro_report(self):
         return self._request("GET", "/relatorios/macro")
 
-    def get_micro_report(self):
-        return self._request("GET", "/relatorios/micro")
+    def get_micro_report(self, ativos: bool | None = True):
+        params = None
+        if ativos is not None:
+            params = {"ativos": "true" if ativos else "false"}
+        return self._request("GET", "/relatorios/micro", params=params)
 
     def get_item_report(
         self,
