@@ -1057,11 +1057,12 @@ class ActivitiesPage(QFrame):
         table_top.addLayout(title_wrap, 1)
         table_top.addWidget(self.summary_badge)
 
-        self.table = QTableWidget(0, 10)
+        self.table = QTableWidget(0, 11)
         self.table.setHorizontalHeaderLabels(
             [
                 "Título",
                 "Módulo",
+                "Origem",
                 "Tipo",
                 "Status",
                 "Mecânico",
@@ -1105,6 +1106,7 @@ class ActivitiesPage(QFrame):
                 values = [
                     item.get("titulo") or "-",
                     item.get("item_nome") or "-",
+                    self._format_origin(item.get("origem")),
                     (item.get("tipo_equipamento") or "-").title(),
                     self._format_status(item.get("status")),
                     (item.get("assigned_mechanic") or {}).get("nome") or "-",
@@ -1116,7 +1118,7 @@ class ActivitiesPage(QFrame):
                 ]
                 for column, value in enumerate(values):
                     cell = make_table_item(value, payload=item if column == 0 else None)
-                    if column == 3:
+                    if column == 4:
                         colors = self._status_colors(item.get("status"))
                         cell.setBackground(QBrush(QColor(colors["background"])))
                         cell.setForeground(QBrush(QColor(colors["color"])))
@@ -1211,6 +1213,12 @@ class ActivitiesPage(QFrame):
     @staticmethod
     def _format_status(value: str | None) -> str:
         return {"ABERTA": "Aberta", "FINALIZADA": "Finalizada"}.get(value or "", value or "-")
+
+    @staticmethod
+    def _format_origin(value: dict | None) -> str:
+        if not value:
+            return "Manual"
+        return value.get("descricao") or "Manual"
 
     @staticmethod
     def _status_colors(value: str | None) -> dict[str, str]:

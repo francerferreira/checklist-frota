@@ -310,6 +310,9 @@ class APIClient:
     def resolve_non_conformity(self, item_id: int, payload: dict):
         return self._request("PUT", f"/nao_conformidade/{item_id}/resolver", json=payload)
 
+    def create_activity_from_non_conformity(self, item_id: int, payload: dict):
+        return self._request("POST", f"/nao_conformidade/{item_id}/atividade", json=payload)
+
     def upload_file(self, file_path: str, vehicle: str, item: str, user: str) -> dict:
         path = Path(file_path)
         with path.open("rb") as file_handle:

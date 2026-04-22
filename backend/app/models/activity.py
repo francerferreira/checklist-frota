@@ -1,8 +1,34 @@
 from __future__ import annotations
 
 from datetime import datetime
+import re
 
 from app.extensions import db
+
+_ORIGIN_PATTERN = re.compile(r"\[ORIGEM:(?P<type>[A-Z_]+)#(?P<id>\d+)\]")
+
+
+def _extract_origin(observation: str | None) -> dict | None:
+    if not observation:
+        return None
+    match = _ORIGIN_PATTERN.search(observation)
+    if not match:
+        return None
+
+    raw_type = (match.group("type") or "").strip().upper()
+    raw_id = match.group("id")
+    try:
+        source_id = int(raw_id)
+    except (TypeError, ValueError):
+        return None
+
+    if raw_type in {"NC", "NAO_CONFORMIDADE"}:
+        source_type = "nao_conformidade"
+        description = f"Não conformidade #{source_id}"
+    else:
+        source_type = raw_type.lower()
+        description = f"Origem {raw_type} #{source_id}"
+    return {"tipo": source_type, "id": source_id, "descricao": description}
 
 
 class Activity(db.Model):
@@ -72,6 +98,7 @@ class Activity(db.Model):
             "fornecedor_peca": self.fornecedor_peca,
             "lote_peca": self.lote_peca,
             "observacao": self.observacao,
+            "origem": _extract_origin(self.observacao),
             "status": self.status,
             "assigned_mechanic_user_id": self.assigned_mechanic_user_id,
             "assigned_mechanic": self.assigned_mechanic.to_dict() if self.assigned_mechanic else None,
