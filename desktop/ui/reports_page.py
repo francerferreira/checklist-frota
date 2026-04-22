@@ -306,13 +306,14 @@ class ReportsPage(QFrame):
         self.macro_rows = []
         self.micro_rows = []
         self.item_rows = []
+        self.resolved_rows = []
         self.vehicle_cache = {}
-        self.dirty_tabs: set[str] = {"macro", "micro", "item", "vehicles"}
+        self.dirty_tabs: set[str] = {"macro", "micro", "item", "resolved", "vehicles"}
         self._export_jobs = []
         self._item_period_sync = False
         self._item_filter_timer = QTimer(self)
         self._item_filter_timer.setSingleShot(True)
-        self._item_filter_timer.timeout.connect(self.refresh_item_table)
+        self._item_filter_timer.timeout.connect(self._refresh_filtered_tab)
         self.pdf_export_finished.connect(self._handle_pdf_export_finished)
         self.pdf_export_failed.connect(self._handle_pdf_export_failed)
 
@@ -348,13 +349,13 @@ class ReportsPage(QFrame):
         self.item_filter = QLineEdit()
         self.item_filter.setPlaceholderText("Buscar NC, equipamento, motorista ou item")
         self.item_filter.setMinimumHeight(40)
-        self.item_filter.returnPressed.connect(self.refresh_item_table)
+        self.item_filter.returnPressed.connect(self._refresh_filtered_tab)
         self.item_filter.textChanged.connect(self._schedule_item_refresh)
 
         search_button = QPushButton("Aplicar")
         search_button.setProperty("variant", "primary")
         search_button.setMinimumHeight(40)
-        search_button.clicked.connect(self.refresh_item_table)
+        search_button.clicked.connect(self._refresh_filtered_tab)
 
         top_filter_row.addWidget(self.item_filter, 1)
         top_filter_row.addWidget(search_button)
@@ -419,6 +420,7 @@ class ReportsPage(QFrame):
         self.tabs = QTabWidget()
         self.tabs.addTab(self._build_macro_tab(), "Por não conformidade")
         self.tabs.addTab(self._build_item_tab(), "Ocorrências detalhadas")
+        self.tabs.addTab(self._build_resolved_tab(), "Resolvidos")
         self.tabs.currentChanged.connect(self._on_tab_changed)
 
         layout.addLayout(header)
@@ -427,6 +429,12 @@ class ReportsPage(QFrame):
 
     def _schedule_item_refresh(self, *_args):
         self._item_filter_timer.start(240)
+
+    def _refresh_filtered_tab(self):
+        if self.current_tab_key() == "resolved":
+            self.refresh_resolved_table()
+        else:
+            self.refresh_item_table()
 
     def _on_item_period_mode_changed(self, *_args):
         mode = self.period_mode_filter.currentData() or "all"
@@ -471,7 +479,7 @@ class ReportsPage(QFrame):
         self.modulo_filter.setCurrentIndex(0)
         self.nc_status_filter.setCurrentIndex(0)
         self.period_mode_filter.setCurrentIndex(0)
-        self.refresh_item_table()
+        self._refresh_filtered_tab()
 
     def _build_macro_tab(self):
         tab = QWidget()
@@ -626,7 +634,7 @@ class ReportsPage(QFrame):
         message_button.setProperty("variant", "primary")
         message_button.setMinimumHeight(42)
         message_button.clicked.connect(self.generate_item_message)
-        audit_pdf = QPushButton("PDF Auditoria por item")
+        audit_pdf = QPushButton("PDF Completo por NC")
         audit_pdf.setMinimumHeight(42)
         audit_pdf.clicked.connect(self.export_item_audit_pdf)
         top.addLayout(text_wrap, 1)
@@ -646,8 +654,53 @@ class ReportsPage(QFrame):
         layout.addWidget(card)
         return tab
 
+    def _build_resolved_tab(self):
+        tab = QWidget()
+        layout = QVBoxLayout(tab)
+        layout.setContentsMargins(0, 0, 0, 0)
+        layout.setSpacing(8)
+
+        card = QFrame()
+        style_table_card(card)
+        self.resolved_skeleton = TableSkeletonOverlay(card, rows=6)
+        card_layout = QVBoxLayout(card)
+        card_layout.setContentsMargins(10, 10, 10, 10)
+        card_layout.setSpacing(8)
+
+        top = QHBoxLayout()
+        top.setContentsMargins(0, 0, 0, 0)
+        top.setSpacing(12)
+        title = QLabel("Não conformidades resolvidas")
+        title.setObjectName("SectionTitle")
+        caption = QLabel("Área dedicada aos resolvidos com data de resolução, fotos antes/depois e filtros operacionais.")
+        caption.setObjectName("SectionCaption")
+        caption.setWordWrap(True)
+        text_wrap = QVBoxLayout()
+        text_wrap.addWidget(title)
+        text_wrap.addWidget(caption)
+
+        export_pdf = QPushButton("PDF Resolvidos")
+        export_pdf.setMinimumHeight(42)
+        export_pdf.clicked.connect(self.export_resolved_audit_pdf)
+
+        top.addLayout(text_wrap, 1)
+        top.addWidget(export_pdf)
+
+        self.resolved_table = QTableWidget(0, 8)
+        self.resolved_table.setHorizontalHeaderLabels(
+            ["Não conformidade", "Veículo", "Resolvido em", "Motorista", "Resolvido por", "Módulo", "Foto antes", "Foto depois"]
+        )
+        configure_table(self.resolved_table, stretch_last=False)
+        self.resolved_table.setMinimumHeight(520)
+        self.resolved_table.itemDoubleClicked.connect(self.open_resolved_occurrence)
+
+        card_layout.addLayout(top)
+        card_layout.addWidget(self.resolved_table)
+        layout.addWidget(card)
+        return tab
+
     def refresh(self):
-        self.dirty_tabs.update({"macro", "micro", "item", "vehicles"})
+        self.dirty_tabs.update({"macro", "micro", "item", "resolved", "vehicles"})
         self._load_visible_tab()
 
     def set_loading_state(self, loading: bool):
@@ -662,6 +715,10 @@ class ReportsPage(QFrame):
     def refresh_item_table(self):
         self.dirty_tabs.add("item")
         self._load_item_tab()
+
+    def refresh_resolved_table(self):
+        self.dirty_tabs.add("resolved")
+        self._load_resolved_tab()
 
     def _on_tab_changed(self, _index: int):
         self._load_visible_tab()
@@ -694,6 +751,13 @@ class ReportsPage(QFrame):
                 self._load_item_tab()
                 self.dirty_tabs.discard("item")
                 self.item_skeleton.hide_skeleton()
+            return
+        if tab_key == "resolved":
+            if "resolved" in self.dirty_tabs:
+                self.resolved_skeleton.show_skeleton(self._loading_message_for_tab("resolved"))
+                self._load_resolved_tab()
+                self.dirty_tabs.discard("resolved")
+                self.resolved_skeleton.hide_skeleton()
             return
 
     def _load_item_tab(self):
@@ -741,6 +805,52 @@ class ReportsPage(QFrame):
             self.item_table.setUpdatesEnabled(True)
             self.item_table.setSortingEnabled(True)
         self.item_skeleton.hide_skeleton()
+
+    def _load_resolved_tab(self):
+        date_from = None
+        date_to = None
+        mode = self.period_mode_filter.currentData() or "all"
+        if mode != "all":
+            date_from = self.start_date_filter.date().toString("yyyy-MM-dd")
+            date_to = self.end_date_filter.date().toString("yyyy-MM-dd")
+
+        self.resolved_rows = self.api_client.get_item_report(
+            self.item_filter.text().strip() or None,
+            date_from=date_from,
+            date_to=date_to,
+            nc_status="resolvidas",
+            modulo=self.modulo_filter.currentData() or None,
+            data_base="resolucao",
+        )
+        self.resolved_table.setSortingEnabled(False)
+        self.resolved_table.setUpdatesEnabled(False)
+        self.resolved_table.blockSignals(True)
+        try:
+            self.resolved_table.setRowCount(len(self.resolved_rows))
+            for row, item in enumerate(self.resolved_rows):
+                vehicle = item.get("veiculo") or {}
+                user = item.get("usuario") or {}
+                resolved_by = item.get("resolved_by") or {}
+                values = [
+                    item.get("item_nome") or "-",
+                    vehicle.get("frota") or "-",
+                    self._format(item.get("data_resolucao")),
+                    user.get("nome") or "-",
+                    resolved_by.get("nome") or "-",
+                    str(vehicle.get("tipo") or "-").title(),
+                    "Sim" if item.get("foto_antes") else "Não",
+                    "Sim" if item.get("foto_depois") else "Não",
+                ]
+                for column, value in enumerate(values):
+                    cell = make_table_item(value)
+                    if column == 0:
+                        cell.setData(Qt.UserRole, item)
+                    self.resolved_table.setItem(row, column, cell)
+        finally:
+            self.resolved_table.blockSignals(False)
+            self.resolved_table.setUpdatesEnabled(True)
+            self.resolved_table.setSortingEnabled(True)
+        self.resolved_skeleton.hide_skeleton()
 
     def _populate_macro(self, rows):
         self.macro_table.setSortingEnabled(False)
@@ -939,6 +1049,23 @@ class ReportsPage(QFrame):
         dialog = NonConformityDetailDialog(self.api_client, row_item, self)
         dialog.exec()
 
+    def open_resolved_occurrence(self, item=None):
+        if item is not None:
+            row_index = item.row()
+        else:
+            selected = self.resolved_table.selectedRanges()
+            if not selected:
+                return
+            row_index = selected[0].topRow()
+
+        if row_index < 0 or row_index >= len(self.resolved_rows):
+            return
+        row_item = self._payload_for_row(self.resolved_table, row_index, self.resolved_rows)
+        if not row_item:
+            return
+        dialog = NonConformityDetailDialog(self.api_client, row_item, self)
+        dialog.exec()
+
     def generate_macro_message(self):
         if not self.macro_rows:
             show_notice(self, "Sem dados", "Não há dados disponíveis para gerar mensagem.", icon_name="warning")
@@ -987,6 +1114,13 @@ class ReportsPage(QFrame):
             "Módulo": self.modulo_filter.currentText(),
             "Status NC": self.nc_status_filter.currentText(),
             "Período": self._item_period_label(),
+        }
+
+    def _resolved_filter_context(self) -> dict[str, str]:
+        return {
+            "Módulo": self.modulo_filter.currentText(),
+            "Status NC": "NC resolvidas",
+            "Período (resolução)": self._item_period_label(),
         }
 
     def generate_item_message(self):
@@ -1073,10 +1207,46 @@ class ReportsPage(QFrame):
                 generated_by=self.api_client.user.get("nome", ""),
                 occurrence_images=occurrence_images,
                 filter_context=filter_context,
+                resolved_mode=False,
+                include_resolution_details=False,
+                include_part_details=False,
             )
             return filename
 
         self._run_pdf_export("Exportando auditoria por item", task)
+
+    def export_resolved_audit_pdf(self):
+        if not self.resolved_rows:
+            show_notice(self, "Sem dados", "Aplique os filtros e carregue não conformidades resolvidas antes de exportar.", icon_name="warning")
+            return
+        scope_label = self.item_filter.text().strip() or "Não conformidades resolvidas"
+        safe_name = "".join(char if char.isalnum() else "_" for char in scope_label.lower()).strip("_") or "nao_conformidades_resolvidas"
+        default_path = make_default_export_path(f"resolvidos_{safe_name}", "pdf")
+        filename, _ = QFileDialog.getSaveFileName(self, "Exportar PDF de resolvidos", default_path, "PDF (*.pdf)")
+        if not filename:
+            return
+        rows = list(self.resolved_rows)
+        filter_context = self._resolved_filter_context()
+
+        def task(progress):
+            progress(5, "Preparando PDF de resolvidos")
+            occurrence_images = self._collect_occurrence_images_with_progress(rows, progress, start=12, end=78)
+            progress(86, "Montando páginas do PDF")
+            export_item_audit_pdf(
+                "Não conformidades resolvidas",
+                rows,
+                output_path=filename,
+                logo_path=self.logo_path,
+                generated_by=self.api_client.user.get("nome", ""),
+                occurrence_images=occurrence_images,
+                filter_context=filter_context,
+                resolved_mode=True,
+                include_resolution_details=True,
+                include_part_details=False,
+            )
+            return filename
+
+        self._run_pdf_export("Exportando PDF de resolvidos", task)
 
     def export_macro(self, file_type: str):
         columns = [
@@ -1338,13 +1508,14 @@ class ReportsPage(QFrame):
         return sorted(rows, key=lambda item: item.get("date") or "", reverse=True)
 
     def current_tab_key(self) -> str:
-        return {0: "macro", 1: "item"}.get(self.tabs.currentIndex(), "macro")
+        return {0: "macro", 1: "item", 2: "resolved"}.get(self.tabs.currentIndex(), "macro")
 
     def _overlay_for_tab(self, tab_key: str):
         return {
             "macro": self.macro_skeleton,
             "micro": self.micro_skeleton,
             "item": self.item_skeleton,
+            "resolved": self.resolved_skeleton,
         }.get(tab_key)
 
     @staticmethod
@@ -1353,6 +1524,7 @@ class ReportsPage(QFrame):
             "macro": "Montando relatório macro",
             "micro": "Montando relatório micro",
             "item": "Montando consulta por item",
+            "resolved": "Montando área de resolvidos",
         }.get(tab_key, "Montando relatório executivo")
 
     @staticmethod

@@ -500,6 +500,9 @@ def export_item_audit_pdf(
     generated_by: str = "",
     occurrence_images: dict[int, dict[str, bytes | None]] | None = None,
     filter_context: dict[str, str] | None = None,
+    resolved_mode: bool = False,
+    include_resolution_details: bool = False,
+    include_part_details: bool = False,
 ) -> Path:
     path = Path(output_path)
     path.parent.mkdir(parents=True, exist_ok=True)
@@ -516,14 +519,37 @@ def export_item_audit_pdf(
     vehicles = sorted({(item.get("veiculo") or {}).get("frota") or "-" for item in occurrences})
     open_total = sum(1 for item in occurrences if not item.get("resolvido"))
     resolved_total = sum(1 for item in occurrences if item.get("resolvido"))
+    grouped: dict[str, dict] = {}
+    for occurrence in occurrences:
+        raw_name = str(occurrence.get("item_nome") or "").strip()
+        normalized_name = " ".join(raw_name.upper().split()) or "NÃO INFORMADA"
+        bucket = grouped.setdefault(
+            normalized_name,
+            {
+                "item_nome": normalized_name,
+                "occurrences": [],
+                "vehicles": set(),
+                "abertas": 0,
+                "resolvidas": 0,
+            },
+        )
+        bucket["occurrences"].append(occurrence)
+        vehicle_name = (occurrence.get("veiculo") or {}).get("frota") or "-"
+        bucket["vehicles"].add(vehicle_name)
+        if occurrence.get("resolvido"):
+            bucket["resolvidas"] += 1
+        else:
+            bucket["abertas"] += 1
+    grouped_rows = sorted(grouped.values(), key=lambda row: (-len(row["occurrences"]), row["item_nome"]))
     scope_label = item_name or "Todas as não conformidades"
     title = "Relatório de Auditoria de Não conformidades"
-    subtitle = f"{scope_label} - {len(occurrences)} ocorrências"
+    subtitle = f"{scope_label} - {len(occurrences)} ocorrências em {len(grouped_rows)} NC"
 
     story = _build_cover_page(title, subtitle, generated_by, logo_path, styles, landscape_mode=False)
     story.append(PageBreak())
     summary_cards = [
         ("Escopo", scope_label),
+        ("Tipos de NC", str(len(grouped_rows))),
         ("Ocorrências", str(len(occurrences))),
         ("Equipamentos", str(len(vehicles))),
         ("Abertas", str(open_total)),
@@ -536,61 +562,113 @@ def export_item_audit_pdf(
         _build_summary_cards(summary_cards, styles)
     )
     story.append(Spacer(1, 8))
-    story.append(Paragraph("Equipamentos com registro neste relatório", styles["section"]))
+    story.append(Paragraph("Consolidado por não conformidade", styles["section"]))
     story.append(Spacer(1, 4))
-    story.append(
-        Paragraph(
-            _safe_paragraph_text(", ".join(vehicles) if vehicles else "Nenhum equipamento encontrado."),
-            styles["body"],
-        )
-    )
-    story.append(Spacer(1, 8))
-
-    columns = [
-        ("Data", "created_at"),
-        ("Equipamento", "vehicle"),
-        ("Status", "status"),
-        ("Motorista", "driver"),
-        ("Peça", "part"),
-    ]
-    rows = []
-    for item in occurrences:
-        vehicle = item.get("veiculo") or {}
-        user = item.get("usuario") or {}
-        rows.append(
-            {
-                "created_at": _format_datetime(item.get("created_at")),
-                "vehicle": vehicle.get("frota") or "-",
-                "status": "Resolvida" if item.get("resolvido") else "Aberta",
-                "driver": user.get("nome") or "-",
-                "part": item.get("codigo_peca") or item.get("descricao_peca") or "-",
-            }
-        )
-
-    story.append(Paragraph("Resumo das ocorrências", styles["section"]))
-    story.append(Spacer(1, 4))
-    if rows:
-        table = Table(
-            [[Paragraph(label, styles["table_header"]) for label, _ in columns]]
+    if grouped_rows:
+        consolidated_columns = [
+            ("Não conformidade", "item_nome"),
+            ("Ocorrências", "ocorrencias"),
+            ("Equipamentos", "equipamentos_total"),
+            ("Abertas", "abertas"),
+            ("Resolvidas", "resolvidas"),
+        ]
+        consolidated_table = Table(
+            [[Paragraph(label, styles["table_header"]) for label, _ in consolidated_columns]]
             + [
-                [Paragraph(_safe_paragraph_text(_stringify(row.get(key))), styles["table_cell"]) for _, key in columns]
-                for row in rows
+                [
+                    Paragraph(_safe_paragraph_text(_stringify(value)), styles["table_cell"])
+                    for value in (
+                        row["item_nome"],
+                        len(row["occurrences"]),
+                        len(row["vehicles"]),
+                        row["abertas"],
+                        row["resolvidas"],
+                    )
+                ]
+                for row in grouped_rows
             ],
             repeatRows=1,
         )
-        table.setStyle(_standard_table_style())
-        story.append(table)
+        consolidated_table.setStyle(_standard_table_style())
+        story.append(consolidated_table)
     else:
-        story.append(Paragraph("Nenhuma ocorrência encontrada para este item.", styles["muted_box"]))
+        story.append(Paragraph("Nenhuma ocorrência encontrada para o filtro atual.", styles["muted_box"]))
 
-    if occurrences:
+    for group in grouped_rows:
+        story.append(PageBreak())
+        group_name = group["item_nome"]
+        group_occurrences = sorted(group["occurrences"], key=lambda row: row.get("created_at") or "", reverse=True)
+        group_vehicles = sorted(group["vehicles"])
+        story.append(Paragraph(_safe_paragraph_text(f"Não conformidade: {group_name}"), styles["section"]))
+        story.append(Spacer(1, 4))
+        story.extend(
+            _build_summary_cards(
+                [
+                    ("Ocorrências", str(len(group_occurrences))),
+                    ("Equipamentos", str(len(group_vehicles))),
+                    ("Abertas", str(group["abertas"])),
+                    ("Resolvidas", str(group["resolvidas"])),
+                ],
+                styles,
+            )
+        )
+        story.append(Spacer(1, 6))
+        story.append(
+            Paragraph(
+                _safe_paragraph_text(
+                    f"Equipamentos ({len(group_vehicles)}): {', '.join(group_vehicles) if group_vehicles else '-'}"
+                ),
+                styles["body"],
+            )
+        )
+        story.append(Spacer(1, 8))
+
+        group_columns = [
+            ("Data", "date_value"),
+            ("Equipamento", "vehicle"),
+            ("Status", "status"),
+            ("Motorista", "driver"),
+            ("Resolvido em", "resolved_at"),
+            ("Foto antes", "before"),
+            ("Foto depois", "after"),
+        ]
+        group_rows = []
+        for occurrence in group_occurrences:
+            vehicle = occurrence.get("veiculo") or {}
+            user = occurrence.get("usuario") or {}
+            resolved_at = _format_datetime(occurrence.get("data_resolucao"))
+            row_date = resolved_at if resolved_mode and occurrence.get("data_resolucao") else _format_datetime(occurrence.get("created_at"))
+            group_rows.append(
+                {
+                    "date_value": row_date,
+                    "vehicle": vehicle.get("frota") or "-",
+                    "status": "Resolvida" if occurrence.get("resolvido") else "Aberta",
+                    "driver": user.get("nome") or "-",
+                    "resolved_at": resolved_at,
+                    "before": "Sim" if occurrence.get("foto_antes") else "Não",
+                    "after": "Sim" if occurrence.get("foto_depois") else "Não",
+                }
+            )
+        group_table = Table(
+            [[Paragraph(label, styles["table_header"]) for label, _ in group_columns]]
+            + [
+                [Paragraph(_safe_paragraph_text(_stringify(row.get(key))), styles["table_cell"]) for _, key in group_columns]
+                for row in group_rows
+            ],
+            repeatRows=1,
+        )
+        group_table.setStyle(_standard_table_style())
+        story.append(group_table)
+
         _append_occurrence_evidence_section(
             story,
-            occurrences,
+            group_occurrences,
             occurrence_images or {},
             styles,
-            section_title="Evidências fotográficas por equipamento",
+            section_title=f"Caderno de evidências - {group_name}",
             page_break_before=True,
+            include_resolution_fields=include_resolution_details,
+            include_part_fields=include_part_details,
         )
 
     story.append(Spacer(1, 12))
@@ -1743,6 +1821,8 @@ def _append_occurrence_evidence_section(
     *,
     section_title: str,
     page_break_before: bool = False,
+    include_resolution_fields: bool = True,
+    include_part_fields: bool = True,
 ) -> None:
     if page_break_before:
         story.append(PageBreak())
@@ -1767,22 +1847,35 @@ def _append_occurrence_evidence_section(
             )
         )
         story.append(Spacer(1, 4))
-        story.append(
-            _key_value_table(
+        details = [
+            ["Equipamento", vehicle.get("frota") or "-"],
+            ["Placa", vehicle.get("placa") or "-"],
+            ["Modelo", vehicle.get("modelo") or "-"],
+            ["Item", item.get("item_nome") or "-"],
+            ["Status", status_text],
+            ["Motorista", user.get("nome") or "-"],
+            ["Abertura", _format_datetime(item.get("created_at"))],
+        ]
+        if include_resolution_fields and (item.get("resolvido") or item.get("data_resolucao") or resolved_by.get("nome")):
+            details.extend(
                 [
-                    ["Equipamento", vehicle.get("frota") or "-"],
-                    ["Placa", vehicle.get("placa") or "-"],
-                    ["Modelo", vehicle.get("modelo") or "-"],
-                    ["Item", item.get("item_nome") or "-"],
-                    ["Status", status_text],
-                    ["Motorista", user.get("nome") or "-"],
-                    ["Abertura", _format_datetime(item.get("created_at"))],
                     ["Resolução", _format_datetime(item.get("data_resolucao"))],
                     ["Resolvido por", resolved_by.get("nome") or "-"],
-                    ["Código da peça", item.get("codigo_peca") or "-"],
-                    ["Descrição da peça", item.get("descricao_peca") or "-"],
-                    ["Observação", item.get("observacao") or "-"],
-                ],
+                ]
+            )
+        if include_part_fields:
+            codigo_peca = str(item.get("codigo_peca") or "").strip()
+            if codigo_peca:
+                details.append(["Código da peça", codigo_peca])
+            descricao_peca = str(item.get("descricao_peca") or "").strip()
+            if descricao_peca:
+                details.append(["Descrição da peça", descricao_peca])
+        observacao = str(item.get("observacao") or "").strip()
+        if observacao:
+            details.append(["Observação", observacao])
+        story.append(
+            _key_value_table(
+                details,
                 styles,
             )
         )

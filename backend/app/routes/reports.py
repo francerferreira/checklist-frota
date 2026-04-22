@@ -66,5 +66,6 @@ def item_report():
             date_to=request.args.get("data_ate"),
             nc_status=request.args.get("status_nc"),
             modulo=request.args.get("modulo"),
+            data_base=request.args.get("data_base"),
         )
     )

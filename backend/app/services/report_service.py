@@ -102,14 +102,17 @@ def build_item_report(
     date_to: str | None = None,
     nc_status: str | None = None,
     modulo: str | None = None,
+    data_base: str | None = None,
 ) -> list[dict]:
+    date_base = (data_base or "").strip().lower()
+    date_column = ChecklistItem.data_resolucao if date_base == "resolucao" else ChecklistItem.created_at
     query = (
         ChecklistItem.query.join(Checklist)
         .join(Vehicle)
         .outerjoin(User, User.id == Checklist.user_id)
         .filter(ChecklistItem.status == "NC")
         .filter(*_active_vehicle_filter())
-        .order_by(ChecklistItem.created_at.desc())
+        .order_by(date_column.desc().nullslast(), ChecklistItem.created_at.desc())
     )
     if item_name and item_name.strip():
         search = f"%{item_name.strip()}%"
@@ -135,12 +138,15 @@ def build_item_report(
     elif modulo == "outros":
         query = query.filter(func.coalesce(Vehicle.tipo, "").notin_(["cavalo", "carreta"]))
 
+    if date_base == "resolucao":
+        query = query.filter(ChecklistItem.data_resolucao.isnot(None))
+
     if date_from:
         start = datetime.fromisoformat(date_from)
-        query = query.filter(ChecklistItem.created_at >= start)
+        query = query.filter(date_column >= start)
     if date_to:
         end = datetime.fromisoformat(date_to) + timedelta(days=1)
-        query = query.filter(ChecklistItem.created_at < end)
+        query = query.filter(date_column < end)
     return [item.to_dict() for item in query.all()]
 
 

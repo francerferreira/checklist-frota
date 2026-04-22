@@ -260,6 +260,7 @@ class APIClient:
         date_to: str | None = None,
         nc_status: str | None = None,
         modulo: str | None = None,
+        data_base: str | None = None,
     ):
         params = {}
         if item_name:
@@ -272,6 +273,8 @@ class APIClient:
             params["status_nc"] = nc_status
         if modulo:
             params["modulo"] = modulo
+        if data_base:
+            params["data_base"] = data_base
         return self._request("GET", "/relatorios/item", params=params or None)
 
     def get_cloud_storage_status(self):
