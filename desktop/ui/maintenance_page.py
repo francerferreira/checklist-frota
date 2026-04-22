@@ -58,6 +58,14 @@ ITEM_STATUS_LABELS = {
     "CANCELADO": "Cancelado",
 }
 
+MATERIAL_STATUS_LABELS = {
+    "AGUARDANDO_MATERIAL": "Aguardando material",
+    "EM_COMPRAS": "Em compras",
+    "DISPONIVEL_EM_ESTOQUE": "Disponivel em estoque",
+    "RESERVADO": "Reservado",
+    "UTILIZADO": "Utilizado",
+}
+
 
 class MaintenanceScheduleCreateDialog(QDialog):
     def __init__(self, api_client, parent=None):
@@ -298,6 +306,8 @@ class MaintenancePage(QFrame):
         self.overview: dict = {"resumo": {}, "cronograma": {"days": []}, "programacoes": []}
         self.filtered_schedules: list[dict] = []
         self.selected_schedule_id: int | None = None
+        self.material_catalog: list[dict] = []
+        self.mechanics: list[dict] = []
         self.setObjectName("ContentSurface")
 
         layout = QVBoxLayout(self)
@@ -309,7 +319,7 @@ class MaintenancePage(QFrame):
         title = QLabel("Programacao de manutencao")
         title.setObjectName("PageTitle")
         subtitle = QLabel(
-            "Fase 2 no desktop: criar cronograma, mover itens, retirar veiculos e redistribuir capacidade."
+            "Fase 3 no desktop: governanca de cronograma com responsavel mecanico e materiais por programacao."
         )
         subtitle.setObjectName("PageSubtitle")
         subtitle.setWordWrap(True)
@@ -491,6 +501,89 @@ class MaintenancePage(QFrame):
         action_layout.setColumnStretch(1, 1)
         action_layout.setColumnStretch(4, 1)
 
+        governance_card = QFrame()
+        style_filter_bar(governance_card)
+        governance_layout = QGridLayout(governance_card)
+        governance_layout.setContentsMargins(14, 14, 14, 14)
+        governance_layout.setHorizontalSpacing(12)
+        governance_layout.setVerticalSpacing(10)
+
+        self.governance_badge = QLabel("Governanca: selecione uma programacao")
+        self.governance_badge.setObjectName("TopBarPill")
+
+        self.mechanic_combo = QComboBox()
+        self.assign_mechanic_button = QPushButton("Aplicar mecanico")
+        self.assign_mechanic_button.clicked.connect(self.assign_schedule_mechanic)
+
+        self.material_combo = QComboBox()
+        self.material_combo.currentIndexChanged.connect(self._sync_material_form_with_link)
+        self.material_qty_input = QSpinBox()
+        self.material_qty_input.setMinimum(1)
+        self.material_qty_input.setMaximum(999)
+        self.material_qty_input.setValue(1)
+        self.material_status_combo = QComboBox()
+        self.material_status_combo.addItem("Aguardando material", "AGUARDANDO_MATERIAL")
+        self.material_status_combo.addItem("Em compras", "EM_COMPRAS")
+        self.material_status_combo.addItem("Disponivel em estoque", "DISPONIVEL_EM_ESTOQUE")
+        self.material_status_combo.addItem("Reservado", "RESERVADO")
+        self.material_status_combo.addItem("Utilizado", "UTILIZADO")
+        self.material_observation_input = QLineEdit()
+        self.material_observation_input.setPlaceholderText("Observacao da peca para esta programacao.")
+        self.link_material_button = QPushButton("Vincular/atualizar material")
+        self.link_material_button.setProperty("variant", "primary")
+        self.link_material_button.clicked.connect(self.link_material_for_selected_schedule)
+
+        governance_layout.addWidget(self.governance_badge, 0, 0, 1, 6)
+        governance_layout.addWidget(QLabel("Mecanico responsavel"), 1, 0)
+        governance_layout.addWidget(self.mechanic_combo, 1, 1, 1, 2)
+        governance_layout.addWidget(self.assign_mechanic_button, 1, 3)
+        governance_layout.addWidget(QLabel("Material"), 2, 0)
+        governance_layout.addWidget(self.material_combo, 2, 1, 1, 2)
+        governance_layout.addWidget(QLabel("Qtd por veiculo"), 2, 3)
+        governance_layout.addWidget(self.material_qty_input, 2, 4)
+        governance_layout.addWidget(QLabel("Status do material"), 3, 0)
+        governance_layout.addWidget(self.material_status_combo, 3, 1, 1, 2)
+        governance_layout.addWidget(self.material_observation_input, 3, 3, 1, 2)
+        governance_layout.addWidget(self.link_material_button, 2, 5, 2, 1)
+        governance_layout.setColumnStretch(2, 1)
+        governance_layout.setColumnStretch(5, 1)
+
+        materials_card = QFrame()
+        style_table_card(materials_card)
+        self.materials_skeleton = TableSkeletonOverlay(materials_card, rows=5)
+        materials_layout = QVBoxLayout(materials_card)
+        materials_layout.setContentsMargins(14, 14, 14, 14)
+        materials_layout.setSpacing(10)
+
+        materials_top = QHBoxLayout()
+        materials_title = QLabel("Materiais da programacao selecionada")
+        materials_title.setObjectName("SectionTitle")
+        self.materials_badge = QLabel("0 materiais")
+        self.materials_badge.setObjectName("TopBarPill")
+        materials_top.addWidget(materials_title)
+        materials_top.addStretch()
+        materials_top.addWidget(self.materials_badge)
+
+        self.materials_table = QTableWidget(0, 9)
+        self.materials_table.setHorizontalHeaderLabels(
+            [
+                "ID",
+                "Referencia",
+                "Descricao",
+                "Saldo estoque",
+                "Qtd/veiculo",
+                "Qtd necessaria",
+                "Qtd reservada",
+                "Status",
+                "Observacao",
+            ]
+        )
+        configure_table(self.materials_table, stretch_last=True)
+        self.materials_table.setMinimumHeight(190)
+
+        materials_layout.addLayout(materials_top)
+        materials_layout.addWidget(self.materials_table)
+
         details_card = QFrame()
         style_table_card(details_card)
         self.details_skeleton = TableSkeletonOverlay(details_card, rows=8)
@@ -570,18 +663,25 @@ class MaintenancePage(QFrame):
         layout.addWidget(filter_card)
         layout.addWidget(schedules_card)
         layout.addWidget(action_card)
+        layout.addWidget(governance_card)
+        layout.addWidget(materials_card)
         layout.addWidget(details_card)
         layout.addWidget(calendar_card, 1)
 
         self._set_action_controls_enabled(False)
+        self._set_management_controls_enabled(False)
+        self._populate_material_combo()
+        self._populate_mechanic_combo()
 
     def set_loading_state(self, loading: bool):
         if loading:
             self.schedules_skeleton.show_skeleton("Carregando programacao de manutencao")
+            self.materials_skeleton.show_skeleton("Carregando governanca de materiais")
             self.details_skeleton.show_skeleton("Carregando itens da programacao")
             self.calendar_skeleton.show_skeleton("Carregando calendario da manutencao")
         else:
             self.schedules_skeleton.hide_skeleton()
+            self.materials_skeleton.hide_skeleton()
             self.details_skeleton.hide_skeleton()
             self.calendar_skeleton.hide_skeleton()
 
@@ -589,6 +689,7 @@ class MaintenancePage(QFrame):
         month = self.month_input.date()
         year = month.year()
         month_number = month.month()
+        self._load_reference_data()
         self.overview = self.api_client.get_maintenance_overview(year=year, month=month_number) or {}
         self.apply_filters()
 
@@ -596,6 +697,58 @@ class MaintenancePage(QFrame):
         self.source_filter.setCurrentIndex(0)
         self.status_filter.setCurrentIndex(0)
         self.apply_filters()
+
+    def _load_reference_data(self):
+        try:
+            self.mechanics = list(self.api_client.get_mechanics() or [])
+        except Exception:
+            self.mechanics = []
+        try:
+            self.material_catalog = list(self.api_client.get_materials(ativos="true") or [])
+        except Exception:
+            self.material_catalog = []
+        self._populate_mechanic_combo()
+        self._populate_material_combo()
+
+    def _populate_mechanic_combo(self):
+        current_value = self.mechanic_combo.currentData() if hasattr(self, "mechanic_combo") else None
+        if not hasattr(self, "mechanic_combo"):
+            return
+        self.mechanic_combo.blockSignals(True)
+        try:
+            self.mechanic_combo.clear()
+            self.mechanic_combo.addItem("Sem mecanico fixo", None)
+            for mechanic in sorted(self.mechanics, key=lambda row: (row.get("nome") or row.get("login") or "").upper()):
+                name = mechanic.get("nome") or mechanic.get("login") or f"Mecanico {mechanic.get('id')}"
+                self.mechanic_combo.addItem(name, int(mechanic.get("id")))
+            index = self.mechanic_combo.findData(current_value)
+            if index < 0:
+                index = 0
+            self.mechanic_combo.setCurrentIndex(index)
+        finally:
+            self.mechanic_combo.blockSignals(False)
+
+    def _populate_material_combo(self):
+        current_value = self.material_combo.currentData() if hasattr(self, "material_combo") else None
+        if not hasattr(self, "material_combo"):
+            return
+        self.material_combo.blockSignals(True)
+        try:
+            self.material_combo.clear()
+            self.material_combo.addItem("Selecione um material", None)
+            for material in sorted(self.material_catalog, key=lambda row: (row.get("referencia") or "").upper()):
+                reference = material.get("referencia") or f"ID {material.get('id')}"
+                description = material.get("descricao") or "-"
+                stock = int(material.get("quantidade_estoque") or 0)
+                label = f"{reference} | {description} | saldo {stock}"
+                self.material_combo.addItem(label, material)
+            index = self.material_combo.findData(current_value)
+            if index < 0:
+                index = 0
+            self.material_combo.setCurrentIndex(index)
+        finally:
+            self.material_combo.blockSignals(False)
+        self._sync_material_form_with_link()
 
     def apply_filters(self):
         schedules = list((self.overview or {}).get("programacoes") or [])
@@ -616,6 +769,7 @@ class MaintenancePage(QFrame):
         self._render_summary()
         self._render_schedules_table()
         self.render_selected_schedule_items()
+        self.render_selected_schedule_materials()
         self._render_calendar_table()
 
     def create_schedule(self):
@@ -759,6 +913,143 @@ class MaintenancePage(QFrame):
         icon = "dashboard" if removed else "warning"
         show_notice(self, "Retirada do cronograma", summary, icon_name=icon)
 
+    def assign_schedule_mechanic(self):
+        schedule = self._selected_schedule()
+        if not schedule:
+            show_notice(self, "Selecao obrigatoria", "Selecione uma programacao para definir o mecanico.", icon_name="warning")
+            return
+
+        start_date = str(schedule.get("start_date") or QDate.currentDate().toString("yyyy-MM-dd"))
+        daily_capacity = int(schedule.get("daily_capacity") or 1)
+        mechanic_id = self.mechanic_combo.currentData()
+        payload = {
+            "start_date": start_date,
+            "daily_capacity": max(1, daily_capacity),
+            "assigned_mechanic_user_id": mechanic_id if mechanic_id is not None else "",
+        }
+        button = self.assign_mechanic_button
+        button.setEnabled(False)
+        button.setText("Aplicando...")
+        try:
+            self.api_client.program_maintenance_schedule(int(schedule.get("id")), payload)
+            self.refresh()
+            self.data_changed.emit()
+            show_notice(self, "Mecanico aplicado", "Responsavel atualizado na programacao selecionada.", icon_name="dashboard")
+        except Exception as exc:
+            show_notice(self, "Falha ao aplicar mecanico", str(exc), icon_name="warning")
+        finally:
+            button.setEnabled(True)
+            button.setText("Aplicar mecanico")
+
+    def link_material_for_selected_schedule(self):
+        schedule = self._selected_schedule()
+        if not schedule:
+            show_notice(self, "Selecao obrigatoria", "Selecione uma programacao para vincular material.", icon_name="warning")
+            return
+
+        material = self.material_combo.currentData()
+        if not isinstance(material, dict) or not material.get("id"):
+            show_notice(self, "Material obrigatorio", "Selecione um material valido.", icon_name="warning")
+            return
+
+        payload = {
+            "material_id": int(material.get("id")),
+            "quantity_per_vehicle": int(self.material_qty_input.value()),
+            "status": self.material_status_combo.currentData(),
+            "observation": (self.material_observation_input.text() or "").strip() or None,
+        }
+        button = self.link_material_button
+        button.setEnabled(False)
+        button.setText("Salvando...")
+        try:
+            self.api_client.link_maintenance_schedule_material(int(schedule.get("id")), payload)
+            self.refresh()
+            self.data_changed.emit()
+            show_notice(self, "Material vinculado", "Governanca de pecas atualizada na programacao.", icon_name="dashboard")
+        except Exception as exc:
+            show_notice(self, "Falha ao vincular material", str(exc), icon_name="warning")
+        finally:
+            button.setEnabled(True)
+            button.setText("Vincular/atualizar material")
+
+    def render_selected_schedule_materials(self):
+        schedule = self._selected_schedule()
+        if not schedule:
+            self.materials_table.setRowCount(0)
+            self.materials_badge.setText("0 materiais")
+            self.governance_badge.setText("Governanca: selecione uma programacao")
+            self._set_management_controls_enabled(False)
+            return
+
+        self._set_management_controls_enabled(True)
+        title = str(schedule.get("title") or f"Programacao #{schedule.get('id')}")
+        self.governance_badge.setText(f"#{schedule.get('id')} | {title}")
+
+        assigned_id = schedule.get("assigned_mechanic_user_id")
+        current_mechanic_index = self.mechanic_combo.findData(assigned_id)
+        self.mechanic_combo.setCurrentIndex(current_mechanic_index if current_mechanic_index >= 0 else 0)
+
+        materials = list(schedule.get("materiais") or [])
+        self.materials_table.setSortingEnabled(False)
+        self.materials_table.setUpdatesEnabled(False)
+        self.materials_table.blockSignals(True)
+        try:
+            self.materials_table.setRowCount(len(materials))
+            for row_index, link in enumerate(materials):
+                material = link.get("material") or {}
+                values = [
+                    link.get("id"),
+                    material.get("referencia") or "-",
+                    material.get("descricao") or "-",
+                    material.get("quantidade_estoque") if material.get("quantidade_estoque") is not None else "-",
+                    link.get("quantity_per_vehicle") or 0,
+                    link.get("quantity_required") or 0,
+                    link.get("quantity_reserved") or 0,
+                    MATERIAL_STATUS_LABELS.get(str(link.get("status") or "").upper(), link.get("status") or "-"),
+                    link.get("observation") or "-",
+                ]
+                for column, value in enumerate(values):
+                    self.materials_table.setItem(row_index, column, make_table_item(value))
+        finally:
+            self.materials_table.blockSignals(False)
+            self.materials_table.setUpdatesEnabled(True)
+            self.materials_table.setSortingEnabled(True)
+
+        summary = self._material_summary_for_schedule(schedule)
+        self.materials_badge.setText(f"{len(materials)} materiais | {summary}")
+        self._sync_material_form_with_link()
+
+    def _sync_material_form_with_link(self):
+        schedule = self._selected_schedule()
+        material = self.material_combo.currentData() if hasattr(self, "material_combo") else None
+        if not schedule or not isinstance(material, dict):
+            self.material_qty_input.setValue(1)
+            self.material_status_combo.setCurrentIndex(0)
+            self.material_observation_input.clear()
+            return
+
+        selected_material_id = int(material.get("id") or 0)
+        link = next(
+            (
+                row
+                for row in (schedule.get("materiais") or [])
+                if int(row.get("material_id") or 0) == selected_material_id
+            ),
+            None,
+        )
+        if not link:
+            self.material_qty_input.setValue(1)
+            default_status = "DISPONIVEL_EM_ESTOQUE" if int(material.get("quantidade_estoque") or 0) > 0 else "AGUARDANDO_MATERIAL"
+            status_index = self.material_status_combo.findData(default_status)
+            self.material_status_combo.setCurrentIndex(status_index if status_index >= 0 else 0)
+            self.material_observation_input.clear()
+            return
+
+        self.material_qty_input.setValue(max(1, int(link.get("quantity_per_vehicle") or 1)))
+        status_index = self.material_status_combo.findData(str(link.get("status") or "").upper())
+        self.material_status_combo.setCurrentIndex(status_index if status_index >= 0 else 0)
+        self.material_observation_input.setText(str(link.get("observation") or ""))
+
     def _render_summary(self):
         summary = (self.overview or {}).get("resumo") or {}
         self.schedules_card.set_content("Programacoes", str(summary.get("programacoes", 0)), "Cronogramas ativos e historicos")
@@ -882,6 +1173,7 @@ class MaintenancePage(QFrame):
             return
         self.selected_schedule_id = int(payload.get("id"))
         self.render_selected_schedule_items()
+        self.render_selected_schedule_materials()
         self._render_calendar_table()
 
     def _selected_schedule(self) -> dict | None:
@@ -985,6 +1277,15 @@ class MaintenancePage(QFrame):
         self.redistribute_start_input.setEnabled(enabled)
         self.redistribute_capacity_input.setEnabled(enabled)
         self.redistribute_button.setEnabled(enabled)
+
+    def _set_management_controls_enabled(self, enabled: bool):
+        self.mechanic_combo.setEnabled(enabled)
+        self.assign_mechanic_button.setEnabled(enabled)
+        self.material_combo.setEnabled(enabled)
+        self.material_qty_input.setEnabled(enabled)
+        self.material_status_combo.setEnabled(enabled)
+        self.material_observation_input.setEnabled(enabled)
+        self.link_material_button.setEnabled(enabled)
 
     def _item_source_label(self, item: dict, schedule: dict) -> str:
         if item.get("checklist_item_id"):
