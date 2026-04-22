@@ -13,7 +13,7 @@ from services.export_service import export_rows_to_pdf  # noqa: E402
 
 
 def export_maintenance_pdf(payload: dict, output_path: str | Path, generated_by: str = "") -> Path:
-logo_path = DESKTOP_DIR / "assets" / "app-logo-cover.png"
+    logo_path = DESKTOP_DIR / "assets" / "app-logo-cover.png"
     return export_rows_to_pdf(
         payload["title"],
         payload["subtitle"],

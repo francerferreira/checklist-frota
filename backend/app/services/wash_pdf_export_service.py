@@ -13,7 +13,7 @@ from services.wash_reporting_service import export_wash_month_pdf  # noqa: E402
 
 
 def export_monthly_wash_pdf(overview: dict, output_path: str | Path, generated_by: str = "") -> Path:
-logo_path = DESKTOP_DIR / "assets" / "app-logo-cover.png"
+    logo_path = DESKTOP_DIR / "assets" / "app-logo-cover.png"
     return export_wash_month_pdf(
         overview,
         output_path=output_path,
