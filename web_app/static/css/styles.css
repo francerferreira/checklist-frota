@@ -36,6 +36,10 @@ body {
     overflow-x: hidden;
 }
 
+body.entry-screen {
+    background: var(--page);
+}
+
 button,
 input,
 textarea {
@@ -61,6 +65,10 @@ button {
     color: #ffffff;
     min-height: 60px;
     min-width: 0;
+}
+
+.app-topbar.hidden {
+    display: none;
 }
 
 .brand-mark {

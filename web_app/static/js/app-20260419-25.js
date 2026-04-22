@@ -18,6 +18,7 @@ const OFFLINE_CATALOG_KEY = "offlineCatalog";
 const ACTIVE_CHECKLIST_DRAFT_KEY = "activeChecklistDraftVehicleId";
 const SESSION_STARTED_AT_KEY = "sessionStartedAt";
 const SESSION_MAX_AGE_MS = 8 * 60 * 60 * 1000;
+const appTopbar = document.querySelector(".app-topbar");
 
 function readJsonStorage(key, fallback = null) {
     try {
@@ -245,6 +246,9 @@ function setActiveScreen(key) {
     Object.entries(screens).forEach(([screenKey, screen]) => {
         screen.classList.toggle("hidden", screenKey !== key);
     });
+    const isEntryScreen = key === "login";
+    document.body.classList.toggle("entry-screen", isEntryScreen);
+    appTopbar?.classList.toggle("hidden", isEntryScreen);
     window.scrollTo({ top: 0, behavior: "smooth" });
 }
 
