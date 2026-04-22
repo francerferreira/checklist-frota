@@ -120,6 +120,19 @@ def _serialize_activity(activity: Activity, *, include_items: bool = False) -> d
     if not include_items:
         return payload
 
+    links_by_item_id: dict[int, list[ActivityNonConformityLink]] = {}
+    for link in activity.non_conformity_links or []:
+        links_by_item_id.setdefault(link.activity_item_id, []).append(link)
+    for item_links in links_by_item_id.values():
+        item_links.sort(key=lambda link: link.linked_at or datetime.min, reverse=True)
+
+    def origin_from_links(item_id: int) -> str | None:
+        for link in links_by_item_id.get(item_id, []):
+            checklist_item = link.checklist_item
+            if checklist_item and checklist_item.foto_antes:
+                return checklist_item.foto_antes
+        return None
+
     linked_item_ids = {link.activity_item_id for link in (activity.non_conformity_links or [])}
     payload_by_id = {int(row.get("id")): row for row in payload.get("itens", []) if row.get("id") is not None}
     for item in activity.items:
@@ -127,7 +140,11 @@ def _serialize_activity(activity: Activity, *, include_items: bool = False) -> d
         if not item_payload:
             continue
         origin_locked = _is_origin_photo_locked(activity, item, linked_item_ids=linked_item_ids)
-        item_payload["foto_origem"] = item_payload.get("foto_antes")
+        origin_photo = item_payload.get("foto_antes") or origin_from_links(item.id)
+        if origin_photo and not item_payload.get("foto_antes"):
+            # Compatibilidade com clientes legados que só leem foto_antes.
+            item_payload["foto_antes"] = origin_photo
+        item_payload["foto_origem"] = origin_photo
         item_payload["foto_resolucao"] = item_payload.get("foto_depois")
         item_payload["foto_origem_bloqueada"] = bool(origin_locked)
     return payload
