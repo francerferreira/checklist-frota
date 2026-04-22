@@ -9,6 +9,7 @@ from PySide6.QtWidgets import (
     QComboBox,
     QDateEdit,
     QDialog,
+    QFileDialog,
     QFrame,
     QGridLayout,
     QHBoxLayout,
@@ -21,7 +22,8 @@ from PySide6.QtWidgets import (
     QVBoxLayout,
 )
 
-from components import StatCard, TableSkeletonOverlay, show_notice
+from components import StatCard, TableSkeletonOverlay, show_notice, start_export_task
+from services.export_service import make_default_export_path
 from theme import (
     build_dialog_layout,
     configure_dialog_window,
@@ -64,6 +66,15 @@ MATERIAL_STATUS_LABELS = {
     "DISPONIVEL_EM_ESTOQUE": "Disponivel em estoque",
     "RESERVADO": "Reservado",
     "UTILIZADO": "Utilizado",
+}
+
+REPORT_TYPE_LABELS = {
+    "mensal": "Manutencao mensal",
+    "preventiva": "Preventiva",
+    "mecanico": "Por mecanico",
+    "veiculo": "Por veiculo",
+    "material": "Materiais utilizados",
+    "pendencias": "Pendencias",
 }
 
 
@@ -308,6 +319,7 @@ class MaintenancePage(QFrame):
         self.selected_schedule_id: int | None = None
         self.material_catalog: list[dict] = []
         self.mechanics: list[dict] = []
+        self.report_vehicles: list[dict] = []
         self.setObjectName("ContentSurface")
 
         layout = QVBoxLayout(self)
@@ -400,6 +412,38 @@ class MaintenancePage(QFrame):
         filter_layout.addWidget(apply_button, 1, 3)
         filter_layout.addWidget(clear_button, 1, 4)
         filter_layout.setColumnStretch(5, 1)
+
+        reports_card = QFrame()
+        style_filter_bar(reports_card)
+        reports_layout = QGridLayout(reports_card)
+        reports_layout.setContentsMargins(14, 14, 14, 14)
+        reports_layout.setHorizontalSpacing(12)
+        reports_layout.setVerticalSpacing(10)
+
+        self.report_badge = QLabel("Fase 4: relatorio PDF da manutencao")
+        self.report_badge.setObjectName("TopBarPill")
+
+        self.report_type_combo = QComboBox()
+        for key, label in REPORT_TYPE_LABELS.items():
+            self.report_type_combo.addItem(label, key)
+        self.report_type_combo.currentIndexChanged.connect(self._update_report_filter_visibility)
+
+        self.report_mechanic_combo = QComboBox()
+        self.report_vehicle_combo = QComboBox()
+
+        self.export_report_button = QPushButton("PDF")
+        self.export_report_button.setProperty("variant", "primary")
+        self.export_report_button.clicked.connect(self.export_maintenance_report_pdf)
+
+        reports_layout.addWidget(self.report_badge, 0, 0, 1, 5)
+        reports_layout.addWidget(QLabel("Tipo de relatorio"), 1, 0)
+        reports_layout.addWidget(self.report_type_combo, 1, 1)
+        reports_layout.addWidget(QLabel("Mecanico"), 1, 2)
+        reports_layout.addWidget(self.report_mechanic_combo, 1, 3)
+        reports_layout.addWidget(self.export_report_button, 1, 4)
+        reports_layout.addWidget(QLabel("Veiculo"), 2, 0)
+        reports_layout.addWidget(self.report_vehicle_combo, 2, 1, 1, 3)
+        reports_layout.setColumnStretch(3, 1)
 
         schedules_card = QFrame()
         style_table_card(schedules_card)
@@ -661,6 +705,7 @@ class MaintenancePage(QFrame):
         layout.addLayout(header)
         layout.addLayout(cards_layout)
         layout.addWidget(filter_card)
+        layout.addWidget(reports_card)
         layout.addWidget(schedules_card)
         layout.addWidget(action_card)
         layout.addWidget(governance_card)
@@ -672,6 +717,8 @@ class MaintenancePage(QFrame):
         self._set_management_controls_enabled(False)
         self._populate_material_combo()
         self._populate_mechanic_combo()
+        self._populate_report_filters()
+        self._update_report_filter_visibility()
 
     def set_loading_state(self, loading: bool):
         if loading:
@@ -704,11 +751,16 @@ class MaintenancePage(QFrame):
         except Exception:
             self.mechanics = []
         try:
+            self.report_vehicles = list(self.api_client.get_equipment(ativos=True) or [])
+        except Exception:
+            self.report_vehicles = []
+        try:
             self.material_catalog = list(self.api_client.get_materials(ativos="true") or [])
         except Exception:
             self.material_catalog = []
         self._populate_mechanic_combo()
         self._populate_material_combo()
+        self._populate_report_filters()
 
     def _populate_mechanic_combo(self):
         current_value = self.mechanic_combo.currentData() if hasattr(self, "mechanic_combo") else None
@@ -749,6 +801,89 @@ class MaintenancePage(QFrame):
         finally:
             self.material_combo.blockSignals(False)
         self._sync_material_form_with_link()
+
+    def _populate_report_filters(self):
+        if not hasattr(self, "report_mechanic_combo") or not hasattr(self, "report_vehicle_combo"):
+            return
+        current_mechanic = self.report_mechanic_combo.currentData()
+        current_vehicle = self.report_vehicle_combo.currentData()
+
+        self.report_mechanic_combo.blockSignals(True)
+        self.report_vehicle_combo.blockSignals(True)
+        try:
+            self.report_mechanic_combo.clear()
+            self.report_mechanic_combo.addItem("Todos os mecanicos", None)
+            for mechanic in sorted(self.mechanics, key=lambda row: (row.get("nome") or row.get("login") or "").upper()):
+                name = mechanic.get("nome") or mechanic.get("login") or f"Mecanico {mechanic.get('id')}"
+                self.report_mechanic_combo.addItem(name, int(mechanic.get("id")))
+
+            self.report_vehicle_combo.clear()
+            self.report_vehicle_combo.addItem("Todos os veiculos", None)
+            for vehicle in sorted(self.report_vehicles, key=lambda row: (row.get("frota") or "").upper()):
+                label = f"{vehicle.get('frota') or '-'} | {vehicle.get('placa') or '-'} | {vehicle.get('modelo') or '-'}"
+                self.report_vehicle_combo.addItem(label, int(vehicle.get("id")))
+
+            mechanic_index = self.report_mechanic_combo.findData(current_mechanic)
+            vehicle_index = self.report_vehicle_combo.findData(current_vehicle)
+            self.report_mechanic_combo.setCurrentIndex(mechanic_index if mechanic_index >= 0 else 0)
+            self.report_vehicle_combo.setCurrentIndex(vehicle_index if vehicle_index >= 0 else 0)
+        finally:
+            self.report_mechanic_combo.blockSignals(False)
+            self.report_vehicle_combo.blockSignals(False)
+
+    def _update_report_filter_visibility(self):
+        report_type = str(self.report_type_combo.currentData() or "mensal")
+        needs_mechanic = report_type == "mecanico"
+        needs_vehicle = report_type == "veiculo"
+        self.report_mechanic_combo.setEnabled(needs_mechanic)
+        self.report_vehicle_combo.setEnabled(needs_vehicle)
+        if not needs_mechanic:
+            self.report_mechanic_combo.setCurrentIndex(0)
+        if not needs_vehicle:
+            self.report_vehicle_combo.setCurrentIndex(0)
+
+    def export_maintenance_report_pdf(self):
+        month = self.month_input.date()
+        report_type = str(self.report_type_combo.currentData() or "mensal")
+        mechanic_id = self.report_mechanic_combo.currentData()
+        vehicle_id = self.report_vehicle_combo.currentData()
+        report_label = REPORT_TYPE_LABELS.get(report_type, "manutencao")
+        safe_label = report_label.lower().replace(" ", "_")
+        default_name = make_default_export_path(f"relatorio_{safe_label}", "pdf")
+
+        filename, _ = QFileDialog.getSaveFileName(
+            self,
+            "Exportar relatorio de manutencao",
+            default_name,
+            "PDF (*.pdf)",
+        )
+        if not filename:
+            return
+
+        year = month.year()
+        month_number = month.month()
+
+        def task(progress):
+            progress(8, "Preparando parametros do relatorio")
+            progress(28, "Solicitando PDF ao backend")
+            self.api_client.download_maintenance_pdf(
+                filename,
+                report_type=report_type,
+                year=year,
+                month=month_number,
+                mechanic_id=int(mechanic_id) if mechanic_id else None,
+                vehicle_id=int(vehicle_id) if vehicle_id else None,
+            )
+            progress(88, "Finalizando arquivo PDF")
+            return filename
+
+        start_export_task(
+            self,
+            "Exportando PDF da manutencao",
+            task,
+            success_title="Exportacao concluida",
+            failure_title="Falha na exportacao",
+        )
 
     def apply_filters(self):
         schedules = list((self.overview or {}).get("programacoes") or [])

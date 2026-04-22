@@ -179,6 +179,46 @@ class APIClient:
     def update_maintenance_item(self, item_id: int, payload: dict):
         return self._request("PUT", f"/manutencao/itens/{item_id}", json=payload)
 
+    def download_maintenance_pdf(
+        self,
+        output_path: str,
+        *,
+        report_type: str = "mensal",
+        year: int | None = None,
+        month: int | None = None,
+        mechanic_id: int | None = None,
+        vehicle_id: int | None = None,
+    ) -> None:
+        params: dict[str, str | int] = {"tipo": report_type or "mensal"}
+        if year:
+            params["ano"] = int(year)
+        if month:
+            params["mes"] = int(month)
+        if mechanic_id:
+            params["mecanico_id"] = int(mechanic_id)
+        if vehicle_id:
+            params["vehicle_id"] = int(vehicle_id)
+
+        response = self.session.get(
+            f"{self.base_url}/manutencao/relatorio/pdf",
+            params=params,
+            timeout=180,
+            stream=True,
+        )
+        if not response.ok:
+            try:
+                payload = response.json()
+            except ValueError:
+                payload = {}
+            raise RuntimeError(payload.get("error") or "Falha ao baixar relatorio de manutencao.")
+
+        path = Path(output_path)
+        path.parent.mkdir(parents=True, exist_ok=True)
+        with path.open("wb") as file_handle:
+            for chunk in response.iter_content(chunk_size=1024 * 512):
+                if chunk:
+                    file_handle.write(chunk)
+
     def update_wash_values(self, values: list[dict]):
         return self._request("PUT", "/lavagens/valores", json={"valores": values})
 
