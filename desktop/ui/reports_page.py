@@ -140,12 +140,12 @@ class ReportsPage(QFrame):
         top_filter_row.setSpacing(8)
 
         self.item_filter = QLineEdit()
-        self.item_filter.setPlaceholderText("Filtrar não conformidade (item)")
+        self.item_filter.setPlaceholderText("Buscar NC, equipamento, motorista ou item")
         self.item_filter.setMinimumHeight(40)
         self.item_filter.returnPressed.connect(self.refresh_item_table)
         self.item_filter.textChanged.connect(self._schedule_item_refresh)
 
-        search_button = QPushButton("Consultar")
+        search_button = QPushButton("Aplicar")
         search_button.setProperty("variant", "primary")
         search_button.setMinimumHeight(40)
         search_button.clicked.connect(self.refresh_item_table)
@@ -211,9 +211,8 @@ class ReportsPage(QFrame):
         self._on_item_period_mode_changed()
 
         self.tabs = QTabWidget()
-        self.tabs.addTab(self._build_macro_tab(), "Macro")
-        self.tabs.addTab(self._build_micro_tab(), "Micro")
-        self.tabs.addTab(self._build_item_tab(), "Por item")
+        self.tabs.addTab(self._build_macro_tab(), "Por não conformidade")
+        self.tabs.addTab(self._build_item_tab(), "Ocorrências detalhadas")
         self.tabs.currentChanged.connect(self._on_tab_changed)
 
         layout.addLayout(header)
@@ -284,9 +283,9 @@ class ReportsPage(QFrame):
         top = QHBoxLayout()
         top.setContentsMargins(0, 0, 0, 0)
         top.setSpacing(12)
-        title = QLabel("Relatório macro")
+        title = QLabel("Por não conformidade")
         title.setObjectName("SectionTitle")
-        caption = QLabel("Ranking consolidado de não conformidades por item.")
+        caption = QLabel("Consolidado das não conformidades por item, com total, abertas, resolvidas e prioridade.")
         caption.setObjectName("SectionCaption")
         caption.setWordWrap(True)
         text_wrap = QVBoxLayout()
@@ -402,9 +401,9 @@ class ReportsPage(QFrame):
         top = QHBoxLayout()
         top.setContentsMargins(0, 0, 0, 0)
         top.setSpacing(12)
-        title = QLabel("Consulta de não conformidades")
+        title = QLabel("Ocorrências detalhadas")
         title.setObjectName("SectionTitle")
-        caption = QLabel("Ocorrências detalhadas com filtros por item, módulo, status e período, com acesso ao registro completo e fotos.")
+        caption = QLabel("Lista detalhada por não conformidade com equipamento, data/hora, motorista, status, prioridade e evidências.")
         caption.setObjectName("SectionCaption")
         caption.setWordWrap(True)
         text_wrap = QVBoxLayout()
@@ -612,7 +611,7 @@ class ReportsPage(QFrame):
         if not row_item:
             return
         item_name = row_item["item_nome"]
-        self.tabs.setCurrentIndex(2)
+        self.tabs.setCurrentIndex(1)
         self.item_filter.setText(item_name)
         self.refresh_item_table()
 
@@ -800,8 +799,8 @@ class ReportsPage(QFrame):
         ]
         self._export_dataset(
             "relatorio_macro",
-            "Relatório Macro de Não conformidades",
-            "Consolidado executivo por item",
+            "Relatório por Não Conformidade",
+            "Consolidado executivo por item de não conformidade",
             columns,
             self.macro_rows,
             file_type,
@@ -1051,7 +1050,7 @@ class ReportsPage(QFrame):
         return sorted(rows, key=lambda item: item.get("date") or "", reverse=True)
 
     def current_tab_key(self) -> str:
-        return {0: "macro", 1: "micro", 2: "item"}.get(self.tabs.currentIndex(), "macro")
+        return {0: "macro", 1: "item"}.get(self.tabs.currentIndex(), "macro")
 
     def _overlay_for_tab(self, tab_key: str):
         return {

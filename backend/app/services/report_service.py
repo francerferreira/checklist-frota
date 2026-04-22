@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from datetime import datetime, timedelta
 
-from sqlalchemy import case, desc, func
+from sqlalchemy import case, desc, func, or_
 
 from app.extensions import db
 from app.models import Activity, ActivityItem, Checklist, ChecklistItem, MaintenanceScheduleItem, MechanicNonConformity, User, Vehicle, WashRecord
@@ -83,12 +83,23 @@ def build_item_report(
     query = (
         ChecklistItem.query.join(Checklist)
         .join(Vehicle)
+        .outerjoin(User, User.id == Checklist.user_id)
         .filter(ChecklistItem.status == "NC")
         .filter(*_active_vehicle_filter())
         .order_by(ChecklistItem.created_at.desc())
     )
-    if item_name:
-        query = query.filter(ChecklistItem.item_nome.ilike(f"%{item_name}%"))
+    if item_name and item_name.strip():
+        search = f"%{item_name.strip()}%"
+        query = query.filter(
+            or_(
+                ChecklistItem.item_nome.ilike(search),
+                Vehicle.frota.ilike(search),
+                Vehicle.placa.ilike(search),
+                Vehicle.modelo.ilike(search),
+                User.nome.ilike(search),
+                User.login.ilike(search),
+            )
+        )
     if nc_status == "abertas":
         query = query.filter(ChecklistItem.resolvido.is_(False))
     elif nc_status == "resolvidas":
