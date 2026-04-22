@@ -8,6 +8,9 @@ from pathlib import Path
 from openpyxl import Workbook
 from openpyxl.styles import Alignment, Font, PatternFill
 from openpyxl.utils import get_column_letter
+from reportlab.graphics.charts.barcharts import VerticalBarChart
+from reportlab.graphics.charts.legends import Legend
+from reportlab.graphics.charts.piecharts import Pie
 from reportlab.graphics.shapes import Drawing, Rect, String
 from reportlab.lib import colors
 from reportlab.lib.pagesizes import A4, landscape
@@ -1175,6 +1178,9 @@ def _activity_status_stamp(status_text: str, styles):
 
 
 def _build_chart_section(columns, rows, styles):
+    if _is_nc_macro_dataset(columns):
+        return _build_nc_macro_chart_section(rows, styles)
+
     metric_key, metric_label = _detect_metric_column(columns, rows)
     category_key, _ = _detect_category_column(columns)
     if not metric_key or not category_key:
@@ -1215,6 +1221,198 @@ def _build_chart_section(columns, rows, styles):
         )
     )
     return [Paragraph("Gráfico visual", styles["section"]), wrapper]
+
+
+def _is_nc_macro_dataset(columns: list[tuple[str, str]]) -> bool:
+    keys = {key for _, key in columns}
+    return {"item_nome", "total_nc", "abertas", "resolvidas"}.issubset(keys)
+
+
+def _build_nc_macro_chart_section(rows: list[dict], styles):
+    if not rows:
+        return []
+
+    top_rows = sorted(rows, key=lambda row: _to_number(row.get("total_nc")), reverse=True)[:8]
+    if not top_rows:
+        return []
+
+    total_series = [max(0.0, _to_number(row.get("total_nc"))) for row in top_rows]
+    open_series = [max(0.0, _to_number(row.get("abertas"))) for row in top_rows[:6]]
+    resolved_series = [max(0.0, _to_number(row.get("resolvidas"))) for row in top_rows[:6]]
+    top_labels = [_truncate_label(_stringify(row.get("item_nome")), 18) for row in top_rows]
+    compare_labels = [_truncate_label(_stringify(row.get("item_nome")), 12) for row in top_rows[:6]]
+
+    total_open = sum(max(0.0, _to_number(row.get("abertas"))) for row in rows)
+    total_resolved = sum(max(0.0, _to_number(row.get("resolvidas"))) for row in rows)
+    base_total = total_open + total_resolved
+    if base_total <= 0:
+        pie_data = [1.0, 0.0]
+        open_percent = 0.0
+        resolved_percent = 0.0
+    else:
+        pie_data = [total_open, total_resolved]
+        open_percent = (total_open / base_total) * 100
+        resolved_percent = (total_resolved / base_total) * 100
+
+    max_total = max(total_series) if total_series else 1.0
+    max_compare = max(open_series + resolved_series) if (open_series or resolved_series) else 1.0
+    total_axis_max = max(1.0, max_total * 1.2)
+    compare_axis_max = max(1.0, max_compare * 1.2)
+
+    top_bar = Drawing(450, 170)
+    top_bar.add(
+        String(
+            8,
+            154,
+            "Top não conformidades por volume",
+            fontName="Helvetica-Bold",
+            fontSize=10.5,
+            fillColor=colors.HexColor(BRAND_BLUE),
+        )
+    )
+    total_chart = VerticalBarChart()
+    total_chart.x = 34
+    total_chart.y = 32
+    total_chart.height = 108
+    total_chart.width = 396
+    total_chart.data = [tuple(total_series)]
+    total_chart.categoryAxis.categoryNames = top_labels
+    total_chart.categoryAxis.labels.angle = 25
+    total_chart.categoryAxis.labels.boxAnchor = "ne"
+    total_chart.categoryAxis.labels.fontName = "Helvetica"
+    total_chart.categoryAxis.labels.fontSize = 7.4
+    total_chart.valueAxis.valueMin = 0
+    total_chart.valueAxis.valueMax = total_axis_max
+    total_chart.valueAxis.valueStep = max(1, int(round(total_axis_max / 5)))
+    total_chart.valueAxis.labels.fontName = "Helvetica"
+    total_chart.valueAxis.labels.fontSize = 7.2
+    total_chart.bars[0].fillColor = colors.HexColor(PRIMARY_BLUE)
+    total_chart.bars[0].strokeColor = colors.HexColor(PRIMARY_BLUE)
+    total_chart.bars[0].strokeWidth = 0.2
+    top_bar.add(total_chart)
+
+    pie_drawing = Drawing(210, 170)
+    pie_drawing.add(
+        String(
+            8,
+            154,
+            "Status geral das NC",
+            fontName="Helvetica-Bold",
+            fontSize=10.0,
+            fillColor=colors.HexColor(BRAND_BLUE),
+        )
+    )
+    pie = Pie()
+    pie.x = 28
+    pie.y = 38
+    pie.width = 116
+    pie.height = 102
+    pie.data = pie_data
+    pie.labels = [f"Abertas {open_percent:.0f}%", f"Resolvidas {resolved_percent:.0f}%"]
+    pie.sideLabels = True
+    pie.simpleLabels = False
+    pie.slices.strokeWidth = 0.4
+    pie.slices[0].fillColor = colors.HexColor(SEVERITY_RED)
+    pie.slices[1].fillColor = colors.HexColor(SEVERITY_GREEN)
+    pie_drawing.add(pie)
+    pie_drawing.add(
+        String(
+            8,
+            18,
+            f"Abertas: {int(total_open)} | Resolvidas: {int(total_resolved)}",
+            fontName="Helvetica-Bold",
+            fontSize=8.2,
+            fillColor=colors.HexColor(BRAND_BLUE),
+        )
+    )
+
+    compare_drawing = Drawing(210, 170)
+    compare_drawing.add(
+        String(
+            8,
+            154,
+            "Abertas x resolvidas por NC",
+            fontName="Helvetica-Bold",
+            fontSize=10.0,
+            fillColor=colors.HexColor(BRAND_BLUE),
+        )
+    )
+    compare_chart = VerticalBarChart()
+    compare_chart.x = 18
+    compare_chart.y = 40
+    compare_chart.height = 102
+    compare_chart.width = 176
+    compare_chart.data = [tuple(open_series), tuple(resolved_series)]
+    compare_chart.categoryAxis.categoryNames = compare_labels
+    compare_chart.categoryAxis.labels.angle = 20
+    compare_chart.categoryAxis.labels.boxAnchor = "ne"
+    compare_chart.categoryAxis.labels.fontName = "Helvetica"
+    compare_chart.categoryAxis.labels.fontSize = 6.9
+    compare_chart.valueAxis.valueMin = 0
+    compare_chart.valueAxis.valueMax = compare_axis_max
+    compare_chart.valueAxis.valueStep = max(1, int(round(compare_axis_max / 5)))
+    compare_chart.valueAxis.labels.fontName = "Helvetica"
+    compare_chart.valueAxis.labels.fontSize = 6.8
+    compare_chart.bars[0].fillColor = colors.HexColor(SEVERITY_RED)
+    compare_chart.bars[0].strokeColor = colors.HexColor(SEVERITY_RED)
+    compare_chart.bars[1].fillColor = colors.HexColor(SEVERITY_GREEN)
+    compare_chart.bars[1].strokeColor = colors.HexColor(SEVERITY_GREEN)
+    compare_chart.bars[0].strokeWidth = 0.2
+    compare_chart.bars[1].strokeWidth = 0.2
+    compare_drawing.add(compare_chart)
+    legend = Legend()
+    legend.x = 54
+    legend.y = 14
+    legend.fontName = "Helvetica"
+    legend.fontSize = 7.6
+    legend.colorNamePairs = [
+        (colors.HexColor(SEVERITY_RED), "Abertas"),
+        (colors.HexColor(SEVERITY_GREEN), "Resolvidas"),
+    ]
+    compare_drawing.add(legend)
+
+    top_wrapper = _chart_card(top_bar, 170 * mm)
+    bottom_wrapper = Table(
+        [[_chart_card(pie_drawing, 84 * mm), _chart_card(compare_drawing, 84 * mm)]],
+        colWidths=[84 * mm, 84 * mm],
+    )
+    bottom_wrapper.setStyle(
+        TableStyle(
+            [
+                ("LEFTPADDING", (0, 0), (-1, -1), 0),
+                ("RIGHTPADDING", (0, 0), (-1, -1), 0),
+                ("TOPPADDING", (0, 0), (-1, -1), 0),
+                ("BOTTOMPADDING", (0, 0), (-1, -1), 0),
+                ("VALIGN", (0, 0), (-1, -1), "TOP"),
+            ]
+        )
+    )
+    return [Paragraph("Painel gráfico executivo", styles["section"]), top_wrapper, Spacer(1, 6), bottom_wrapper]
+
+
+def _chart_card(drawing: Drawing, width: float) -> Table:
+    card = Table([[drawing]], colWidths=[width])
+    card.setStyle(
+        TableStyle(
+            [
+                ("BACKGROUND", (0, 0), (-1, -1), colors.white),
+                ("BOX", (0, 0), (-1, -1), 0.55, colors.HexColor("#D9E2EF")),
+                ("LEFTPADDING", (0, 0), (-1, -1), 8),
+                ("RIGHTPADDING", (0, 0), (-1, -1), 8),
+                ("TOPPADDING", (0, 0), (-1, -1), 8),
+                ("BOTTOMPADDING", (0, 0), (-1, -1), 8),
+                ("VALIGN", (0, 0), (-1, -1), "TOP"),
+            ]
+        )
+    )
+    return card
+
+
+def _truncate_label(value: str, max_len: int) -> str:
+    text = (value or "").strip()
+    if len(text) <= max_len:
+        return text
+    return text[: max(0, max_len - 3)].rstrip() + "..."
 
 
 def _build_top_five_section(columns, rows, styles):
