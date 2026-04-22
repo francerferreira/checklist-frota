@@ -39,7 +39,7 @@ def ensure_runtime_schema() -> None:
             db.session.execute(text("ALTER TABLE activities ADD COLUMN source_modulo VARCHAR(20)"))
             db.session.commit()
         if "auto_link_nc" not in columns:
-            db.session.execute(text("ALTER TABLE activities ADD COLUMN auto_link_nc BOOLEAN DEFAULT 0"))
+            db.session.execute(text("ALTER TABLE activities ADD COLUMN auto_link_nc BOOLEAN DEFAULT FALSE"))
             db.session.commit()
 
     ActivityNonConformityLink.__table__.create(bind=db.engine, checkfirst=True)
