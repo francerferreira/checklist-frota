@@ -208,6 +208,9 @@ class APIClient:
     def create_activity(self, payload: dict):
         return self._request("POST", "/atividades", json=payload)
 
+    def create_mass_activity_from_non_conformity_item(self, payload: dict):
+        return self._request("POST", "/atividades/nao_conformidades/lote", json=payload)
+
     def get_activity(self, activity_id: int):
         return self._request("GET", f"/atividades/{activity_id}")
 

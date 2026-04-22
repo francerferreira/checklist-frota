@@ -46,6 +46,10 @@ class Activity(db.Model):
     lote_peca = db.Column(db.String(120), nullable=True)
     observacao = db.Column(db.Text, nullable=True)
     status = db.Column(db.String(20), nullable=False, default="ABERTA", index=True)
+    source_type = db.Column(db.String(40), nullable=True, index=True)
+    source_key = db.Column(db.String(180), nullable=True, index=True)
+    source_modulo = db.Column(db.String(20), nullable=True, index=True)
+    auto_link_nc = db.Column(db.Boolean, nullable=False, default=False, index=True)
     created_by_user_id = db.Column(db.Integer, db.ForeignKey("users.id"), nullable=False, index=True)
     assigned_mechanic_user_id = db.Column(db.Integer, db.ForeignKey("users.id"), nullable=True, index=True)
     created_at = db.Column(db.DateTime, nullable=False, default=datetime.utcnow, index=True)
@@ -59,6 +63,12 @@ class Activity(db.Model):
         back_populates="activity",
         cascade="all, delete-orphan",
         lazy="joined",
+    )
+    non_conformity_links = db.relationship(
+        "ActivityNonConformityLink",
+        back_populates="activity",
+        cascade="all, delete-orphan",
+        lazy="selectin",
     )
 
     __table_args__ = (
@@ -85,11 +95,22 @@ class Activity(db.Model):
         }
 
     def to_dict(self, include_items: bool = False) -> dict:
+        origin = _extract_origin(self.observacao)
+        if not origin and (self.source_type or "").upper() == "NC_ITEM":
+            origin = {
+                "tipo": "relatorio_nc_item",
+                "id": None,
+                "descricao": f"Relatório NC: {self.source_key or self.item_nome}",
+            }
         data = {
             "id": self.id,
             "titulo": self.titulo,
             "item_nome": self.item_nome,
             "tipo_equipamento": self.tipo_equipamento,
+            "source_type": self.source_type,
+            "source_key": self.source_key,
+            "source_modulo": self.source_modulo,
+            "auto_link_nc": bool(self.auto_link_nc),
             "material_id": self.material_id,
             "material": self.material.to_dict() if self.material else None,
             "quantidade_por_equipamento": self.quantidade_por_equipamento,
@@ -98,7 +119,7 @@ class Activity(db.Model):
             "fornecedor_peca": self.fornecedor_peca,
             "lote_peca": self.lote_peca,
             "observacao": self.observacao,
-            "origem": _extract_origin(self.observacao),
+            "origem": origin,
             "status": self.status,
             "assigned_mechanic_user_id": self.assigned_mechanic_user_id,
             "assigned_mechanic": self.assigned_mechanic.to_dict() if self.assigned_mechanic else None,
@@ -106,10 +127,28 @@ class Activity(db.Model):
             "finalized_at": self.finalized_at.isoformat() if self.finalized_at else None,
             "created_by": self.created_by.to_dict() if self.created_by else None,
             "resumo": self.summary(),
+            "vinculos_nc": self.nc_link_summary(),
         }
         if include_items:
             data["itens"] = [item.to_dict() for item in self.items]
         return data
+
+    def nc_link_summary(self) -> dict:
+        links = self.non_conformity_links or []
+        linked_total = len(links)
+        linked_open = 0
+        linked_resolved = 0
+        for link in links:
+            checklist_item = link.checklist_item
+            if checklist_item and checklist_item.resolvido:
+                linked_resolved += 1
+            else:
+                linked_open += 1
+        return {
+            "total": linked_total,
+            "abertas": linked_open,
+            "resolvidas": linked_resolved,
+        }
 
 
 class ActivityItem(db.Model):
@@ -129,6 +168,12 @@ class ActivityItem(db.Model):
 
     activity = db.relationship("Activity", back_populates="items")
     vehicle = db.relationship("Vehicle", lazy="joined")
+    non_conformity_links = db.relationship(
+        "ActivityNonConformityLink",
+        back_populates="activity_item",
+        cascade="all, delete-orphan",
+        lazy="selectin",
+    )
 
     __table_args__ = (
         db.CheckConstraint(
@@ -151,4 +196,37 @@ class ActivityItem(db.Model):
             "instalado_em": self.instalado_em.isoformat() if self.instalado_em else None,
             "updated_at": self.updated_at.isoformat() if self.updated_at else None,
             "veiculo": self.vehicle.to_dict() if self.vehicle else None,
+        }
+
+
+class ActivityNonConformityLink(db.Model):
+    __tablename__ = "activity_non_conformity_links"
+
+    id = db.Column(db.Integer, primary_key=True)
+    activity_id = db.Column(db.Integer, db.ForeignKey("activities.id"), nullable=False, index=True)
+    activity_item_id = db.Column(db.Integer, db.ForeignKey("activity_items.id"), nullable=False, index=True)
+    checklist_item_id = db.Column(db.Integer, db.ForeignKey("checklist_items.id"), nullable=False, unique=True, index=True)
+    linked_by_mode = db.Column(db.String(20), nullable=False, default="MANUAL", index=True)
+    linked_at = db.Column(db.DateTime, nullable=False, default=datetime.utcnow, index=True)
+
+    activity = db.relationship("Activity", back_populates="non_conformity_links")
+    activity_item = db.relationship("ActivityItem", back_populates="non_conformity_links")
+    checklist_item = db.relationship("ChecklistItem", lazy="joined")
+
+    __table_args__ = (
+        db.CheckConstraint(
+            "linked_by_mode IN ('MANUAL', 'AUTO')",
+            name="ck_activity_nc_link_mode",
+        ),
+    )
+
+    def to_dict(self) -> dict:
+        return {
+            "id": self.id,
+            "activity_id": self.activity_id,
+            "activity_item_id": self.activity_item_id,
+            "checklist_item_id": self.checklist_item_id,
+            "linked_by_mode": self.linked_by_mode,
+            "linked_at": self.linked_at.isoformat() if self.linked_at else None,
+            "checklist_item": self.checklist_item.to_dict() if self.checklist_item else None,
         }

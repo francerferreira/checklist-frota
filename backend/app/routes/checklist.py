@@ -10,6 +10,7 @@ from app.services.checklist_catalog import (
     get_items_for_vehicle_type,
     normalize_item_name,
 )
+from app.services.activity_link_service import auto_link_non_conformities_to_open_activities
 from app.services.maintenance_service import sync_checklist_non_conformities
 
 bp = Blueprint("checklist", __name__)
@@ -233,6 +234,7 @@ def create_checklist():
     nc_items = ChecklistItem.query.filter_by(checklist_id=checklist.id, status="NC").all()
     if nc_items:
         sync_checklist_non_conformities(nc_items)
+        auto_link_non_conformities_to_open_activities(nc_items)
     return jsonify(checklist.to_dict(include_items=True)), 201
 
 

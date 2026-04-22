@@ -1057,7 +1057,7 @@ class ActivitiesPage(QFrame):
         table_top.addLayout(title_wrap, 1)
         table_top.addWidget(self.summary_badge)
 
-        self.table = QTableWidget(0, 11)
+        self.table = QTableWidget(0, 12)
         self.table.setHorizontalHeaderLabels(
             [
                 "Título",
@@ -1067,6 +1067,7 @@ class ActivitiesPage(QFrame):
                 "Status",
                 "Mecânico",
                 "Equipamentos",
+                "NC vinculadas",
                 "Instalados",
                 "Não instalados",
                 "Pendentes",
@@ -1111,6 +1112,7 @@ class ActivitiesPage(QFrame):
                     self._format_status(item.get("status")),
                     (item.get("assigned_mechanic") or {}).get("nome") or "-",
                     str(resumo.get("total", 0)),
+                    str((item.get("vinculos_nc") or {}).get("total", 0)),
                     str(resumo.get("instalados", 0)),
                     str(resumo.get("nao_instalados", 0)),
                     str(resumo.get("pendentes", 0)),

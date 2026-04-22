@@ -1,4 +1,4 @@
-from app.models.activity import Activity, ActivityItem
+from app.models.activity import Activity, ActivityItem, ActivityNonConformityLink
 from app.models.checklist import Checklist, ChecklistItem
 from app.models.checklist_catalog_item import ChecklistCatalogItem
 from app.models.maintenance import MaintenanceMaterial, MaintenanceSchedule, MaintenanceScheduleItem
@@ -11,6 +11,7 @@ from app.models.wash import WashBlockedDay, WashPlanConfig, WashQueueItem, WashR
 __all__ = [
     "Activity",
     "ActivityItem",
+    "ActivityNonConformityLink",
     "Checklist",
     "ChecklistCatalogItem",
     "ChecklistItem",

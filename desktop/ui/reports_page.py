@@ -6,17 +6,23 @@ from pathlib import Path
 from PySide6.QtCore import QDate, QThread, QTimer, Qt, Signal
 from PySide6.QtGui import QColor, QBrush
 from PySide6.QtWidgets import (
+    QCheckBox,
     QComboBox,
     QDateEdit,
+    QDialog,
     QFileDialog,
     QFrame,
+    QGridLayout,
     QHBoxLayout,
     QLabel,
     QLineEdit,
+    QMessageBox,
     QPushButton,
+    QSpinBox,
     QTabWidget,
     QTableWidget,
     QTableWidgetItem,
+    QTextEdit,
     QVBoxLayout,
     QWidget,
 )
@@ -38,7 +44,15 @@ from services.export_service import (
 from components import ExportProgressDialog, ExportWorker, MessageComposerDialog, TableSkeletonOverlay
 from components import show_notice
 from runtime_paths import asset_path
-from theme import configure_table, make_table_item, style_filter_bar, style_table_card
+from theme import (
+    build_dialog_layout,
+    configure_dialog_window,
+    configure_table,
+    make_table_item,
+    style_card,
+    style_filter_bar,
+    style_table_card,
+)
 from ui.detail_dialogs import NonConformityDetailDialog, VehicleDetailDialog
 
 
@@ -86,6 +100,198 @@ def _apply_light_date_popup_style(date_edit: QDateEdit):
         }
         """
     )
+
+
+class MacroMassActivityDialog(QDialog):
+    def __init__(self, api_client, context: dict, parent=None):
+        super().__init__(parent)
+        self.api_client = api_client
+        self.context = context
+        self.result_payload = None
+        self.created_activity = None
+
+        modulo = context.get("modulo") or "all"
+        modulo_material = modulo if modulo in {"cavalo", "carreta"} else None
+        self.materials = self.api_client.get_materials(tipo=modulo_material, ativos="true")
+        self.mechanics = self.api_client.get_mechanics()
+
+        self.setWindowTitle("Criar atividade em massa por não conformidade")
+        configure_dialog_window(self, width=980, height=760, min_width=840, min_height=660)
+        style_card(self)
+        layout = build_dialog_layout(self, max_content_width=1020)
+
+        header = QFrame()
+        header.setObjectName("DialogHeader")
+        header.setAttribute(Qt.WA_StyledBackground, True)
+        header_layout = QVBoxLayout(header)
+        header_layout.setContentsMargins(18, 18, 18, 18)
+        header_layout.setSpacing(4)
+        title = QLabel(f"Atividade em massa - {context.get('item_nome') or '-'}")
+        title.setObjectName("DialogHeaderTitle")
+        subtitle = QLabel(
+            f"{context.get('abertas', 0)} ocorrência(s) em aberto no escopo atual. "
+            "Novas NC do mesmo item entrarão automaticamente enquanto a atividade estiver aberta."
+        )
+        subtitle.setObjectName("DialogHeaderSubtitle")
+        subtitle.setWordWrap(True)
+        header_layout.addWidget(title)
+        header_layout.addWidget(subtitle)
+
+        form_card = QFrame()
+        form_card.setObjectName("HeaderCard")
+        form_card.setAttribute(Qt.WA_StyledBackground, True)
+        form = QGridLayout(form_card)
+        form.setContentsMargins(18, 18, 18, 18)
+        form.setHorizontalSpacing(16)
+        form.setVerticalSpacing(14)
+
+        self.titulo_input = QLineEdit(f"Tratativa em massa - {context.get('item_nome') or '-'}")
+        self.item_input = QLineEdit(context.get("item_nome") or "")
+        self.item_input.setReadOnly(True)
+        self.codigo_input = QLineEdit()
+        self.descricao_input = QLineEdit()
+
+        self.material_combo = QComboBox()
+        self.material_combo.addItem("Selecionar material do estoque", None)
+        for material in self.materials:
+            label = f"{material['referencia']} • {material['descricao']} • Saldo {material['quantidade_estoque']}"
+            self.material_combo.addItem(label, material)
+        self.material_combo.currentIndexChanged.connect(self._sync_material_fields)
+
+        self.quantidade_spin = QSpinBox()
+        self.quantidade_spin.setMinimum(1)
+        self.quantidade_spin.setMaximum(999)
+        self.quantidade_spin.setValue(1)
+
+        self.mechanic_combo = QComboBox()
+        self.mechanic_combo.addItem("Sem direcionamento", None)
+        for mechanic in self.mechanics:
+            self.mechanic_combo.addItem(
+                f"{mechanic.get('nome') or '-'} ({mechanic.get('login') or '-'})",
+                mechanic,
+            )
+
+        self.allow_duplicate_check = QCheckBox("Permitir abrir nova atividade mesmo com outra igual em aberto")
+        self.allow_duplicate_check.setChecked(False)
+
+        self.observacao_input = QTextEdit()
+        self.observacao_input.setPlaceholderText("Critérios de execução, auditoria e rastreabilidade.")
+        self.observacao_input.setPlainText(
+            (
+                f"Origem: Relatório por não conformidade\n"
+                f"Item: {context.get('item_nome') or '-'}\n"
+                f"Módulo: {context.get('modulo_label') or 'Todos'}\n"
+                f"Status NC: {context.get('status_label') or 'NC abertas'}\n"
+                f"Período: {context.get('period_label') or 'Todo período'}"
+            )
+        )
+
+        self.scope_label = QLabel(
+            f"Escopo atual: {context.get('abertas', 0)} NC abertas • módulo {context.get('modulo_label') or 'Todos'}"
+        )
+        self.scope_label.setObjectName("TopBarPill")
+
+        def add_field(row: int, column: int, label_text: str, widget, col_span: int = 1, *, highlight: bool = False):
+            field = QFrame()
+            if highlight:
+                field.setObjectName("DialogInfoBlock")
+                field.setAttribute(Qt.WA_StyledBackground, True)
+            field_layout = QVBoxLayout(field)
+            margin = 12 if highlight else 0
+            field_layout.setContentsMargins(margin, margin, margin, margin)
+            field_layout.setSpacing(6)
+            label = QLabel(label_text)
+            label.setObjectName("SectionCaption")
+            field_layout.addWidget(label)
+            field_layout.addWidget(widget)
+            form.addWidget(field, row, column, 1, col_span)
+
+        add_field(0, 0, "Título da atividade", self.titulo_input, 2, highlight=True)
+        add_field(1, 0, "Não conformidade (item)", self.item_input, 2, highlight=True)
+        add_field(2, 0, "Material do estoque", self.material_combo, highlight=True)
+        add_field(2, 1, "Quantidade por equipamento", self.quantidade_spin, highlight=True)
+        add_field(3, 0, "Código da peça", self.codigo_input)
+        add_field(3, 1, "Descrição da peça", self.descricao_input)
+        add_field(4, 0, "Mecânico direcionado", self.mechanic_combo, 2, highlight=True)
+        add_field(5, 0, "Observação da tratativa", self.observacao_input, 2)
+        add_field(6, 0, "Regra de duplicidade", self.allow_duplicate_check, 2)
+        add_field(7, 0, "Resumo de escopo", self.scope_label, 2)
+
+        footer = QFrame()
+        footer.setObjectName("DialogFooter")
+        footer.setAttribute(Qt.WA_StyledBackground, True)
+        actions = QHBoxLayout(footer)
+        actions.setContentsMargins(16, 14, 16, 14)
+        actions.setSpacing(12)
+        actions.addStretch()
+
+        cancel_button = QPushButton("Cancelar")
+        submit_button = QPushButton("Criar atividade em massa")
+        submit_button.setProperty("variant", "primary")
+        cancel_button.setMinimumHeight(50)
+        submit_button.setMinimumHeight(50)
+        cancel_button.setMinimumWidth(132)
+        submit_button.setMinimumWidth(224)
+        cancel_button.clicked.connect(self.reject)
+        submit_button.clicked.connect(self.submit)
+        actions.addWidget(cancel_button)
+        actions.addWidget(submit_button)
+
+        layout.addWidget(header)
+        layout.addWidget(form_card)
+        layout.addWidget(footer)
+
+    def _sync_material_fields(self):
+        material = self.material_combo.currentData()
+        if not material:
+            return
+        self.codigo_input.setText(material.get("referencia") or "")
+        self.descricao_input.setText(material.get("descricao") or "")
+
+    def submit(self):
+        item_nome = (self.context.get("item_nome") or "").strip()
+        if not item_nome:
+            show_notice(self, "Item obrigatório", "Selecione uma linha da tabela de não conformidades.", icon_name="warning")
+            return
+
+        status_nc = (self.context.get("status_nc") or "").strip().lower() or "abertas"
+        if status_nc != "abertas":
+            answer = QMessageBox.question(
+                self,
+                "Confirmar escopo",
+                (
+                    "O filtro atual não está em 'NC abertas'. "
+                    "Deseja seguir com esse escopo mesmo assim?"
+                ),
+                QMessageBox.Yes | QMessageBox.No,
+                QMessageBox.No,
+            )
+            if answer != QMessageBox.Yes:
+                return
+
+        material = self.material_combo.currentData() or {}
+        mechanic = self.mechanic_combo.currentData() or {}
+        self.result_payload = {
+            "titulo": self.titulo_input.text().strip(),
+            "item_nome": item_nome,
+            "modulo": self.context.get("modulo") or "all",
+            "status_nc": status_nc,
+            "date_from": self.context.get("date_from"),
+            "date_to": self.context.get("date_to"),
+            "material_id": material.get("id"),
+            "quantidade_por_equipamento": int(self.quantidade_spin.value()),
+            "codigo_peca": self.codigo_input.text().strip(),
+            "descricao_peca": self.descricao_input.text().strip(),
+            "observacao": self.observacao_input.toPlainText().strip(),
+            "assigned_mechanic_user_id": mechanic.get("id"),
+            "permitir_duplicada": self.allow_duplicate_check.isChecked(),
+            "auto_link_nc": True,
+        }
+        try:
+            self.created_activity = self.api_client.create_mass_activity_from_non_conformity_item(self.result_payload)
+            self.accept()
+        except Exception as exc:
+            show_notice(self, "Falha ao criar atividade em massa", str(exc), icon_name="warning")
 
 
 class ReportsPage(QFrame):
@@ -301,11 +507,16 @@ class ReportsPage(QFrame):
         export_pdf = QPushButton("PDF Executivo")
         export_pdf.setMinimumHeight(42)
         export_pdf.clicked.connect(lambda: self.export_macro("pdf"))
+        self.create_mass_activity_button = QPushButton("Criar atividade em massa")
+        self.create_mass_activity_button.setProperty("variant", "primary")
+        self.create_mass_activity_button.setMinimumHeight(42)
+        self.create_mass_activity_button.clicked.connect(self.create_macro_mass_activity)
         message_button = QPushButton("Gerar mensagem")
         message_button.setProperty("variant", "primary")
         message_button.setMinimumHeight(42)
         message_button.clicked.connect(self.generate_macro_message)
         top.addLayout(text_wrap, 1)
+        top.addWidget(self.create_mass_activity_button)
         top.addWidget(message_button)
         top.addWidget(export_csv)
         top.addWidget(export_xlsx)
@@ -318,10 +529,12 @@ class ReportsPage(QFrame):
         configure_table(self.macro_table, stretch_last=False)
         self.macro_table.setMinimumHeight(520)
         self.macro_table.itemDoubleClicked.connect(self.open_macro_item)
+        self.macro_table.itemSelectionChanged.connect(self._update_macro_action_state)
 
         card_layout.addLayout(top)
         card_layout.addWidget(self.macro_table)
         layout.addWidget(card)
+        self._update_macro_action_state()
         return tab
 
     def _build_micro_tab(self):
@@ -556,6 +769,81 @@ class ReportsPage(QFrame):
             self.macro_table.blockSignals(False)
             self.macro_table.setUpdatesEnabled(True)
             self.macro_table.setSortingEnabled(True)
+        if rows:
+            self.macro_table.selectRow(0)
+        self._update_macro_action_state()
+
+    def _selected_macro_row(self) -> dict | None:
+        selected = self.macro_table.selectedRanges()
+        if not selected:
+            return None
+        return self._payload_for_row(self.macro_table, selected[0].topRow(), self.macro_rows)
+
+    def _update_macro_action_state(self):
+        button = getattr(self, "create_mass_activity_button", None)
+        if button is None:
+            return
+        row = self._selected_macro_row()
+        has_open = bool(row and int(row.get("abertas") or 0) > 0)
+        button.setEnabled(has_open)
+
+    def _current_item_filter_scope(self) -> dict:
+        mode = self.period_mode_filter.currentData() or "all"
+        date_from = None
+        date_to = None
+        if mode != "all":
+            date_from = self.start_date_filter.date().toString("yyyy-MM-dd")
+            date_to = self.end_date_filter.date().toString("yyyy-MM-dd")
+        return {
+            "modulo": self.modulo_filter.currentData() or "all",
+            "modulo_label": self.modulo_filter.currentText(),
+            "status_nc": self.nc_status_filter.currentData() or "abertas",
+            "status_label": self.nc_status_filter.currentText(),
+            "date_from": date_from,
+            "date_to": date_to,
+            "period_label": self._item_period_label(),
+        }
+
+    def create_macro_mass_activity(self):
+        row = self._selected_macro_row()
+        if not row:
+            show_notice(self, "Seleção obrigatória", "Selecione uma linha da tabela por não conformidade.", icon_name="warning")
+            return
+        if int(row.get("abertas") or 0) <= 0:
+            show_notice(self, "Sem NC abertas", "A linha selecionada não possui ocorrências abertas para tratar.", icon_name="warning")
+            return
+
+        scope = self._current_item_filter_scope()
+        context = {
+            "item_nome": row.get("item_nome"),
+            "abertas": int(row.get("abertas") or 0),
+            **scope,
+        }
+        dialog = MacroMassActivityDialog(self.api_client, context, self)
+        if not dialog.exec():
+            return
+
+        created = dialog.created_activity or {}
+        activity_id = created.get("id")
+        equipments = created.get("equipamentos_iniciais") or (created.get("resumo") or {}).get("total") or 0
+        linked = created.get("nao_conformidades_iniciais") or (created.get("vinculos_nc") or {}).get("total") or 0
+        message = (
+            f"Atividade #{activity_id} criada com {equipments} equipamento(s) "
+            f"e {linked} NC vinculada(s). Novas NC do mesmo item entrarão automaticamente enquanto estiver aberta."
+            if activity_id
+            else (
+                f"Atividade criada com {equipments} equipamento(s) e {linked} NC vinculada(s). "
+                "Novas NC do mesmo item entrarão automaticamente enquanto estiver aberta."
+            )
+        )
+        show_notice(self, "Atividade em massa aberta", message, icon_name="activities")
+
+        parent_window = self.window()
+        if parent_window and hasattr(parent_window, "switch_page"):
+            try:
+                parent_window.switch_page("activities")
+            except Exception:
+                pass
 
     def _populate_micro(self, rows):
         self.micro_table.setSortingEnabled(False)

@@ -6,6 +6,12 @@ from flask import Blueprint, g, jsonify, request
 
 from app.extensions import db
 from app.models import Activity, ActivityItem, Material, User, Vehicle
+from app.services.activity_link_service import (
+    get_non_conformities_for_mass_activity,
+    link_non_conformity_to_activity,
+    normalize_item_key,
+    normalize_modulo,
+)
 from app.services.auth_service import auth_required, user_has_management_access
 from app.services.material_service import apply_activity_stock_change
 
@@ -138,6 +144,149 @@ def create_activity():
 
     db.session.commit()
     return jsonify(activity.to_dict(include_items=True)), 201
+
+
+@bp.post("/atividades/nao_conformidades/lote")
+@auth_required
+def create_mass_activity_from_non_conformity_item():
+    denied = _guard_management_access()
+    if denied:
+        return denied
+
+    payload = request.get_json(silent=True) or {}
+    item_nome = _clean(payload.get("item_nome"))
+    if not item_nome:
+        return jsonify({"error": "Informe a não conformidade (item) para abrir a atividade em massa."}), 400
+
+    modulo = normalize_modulo(payload.get("modulo"))
+    status_nc = (payload.get("status_nc") or "abertas").strip().lower()
+    date_from = _clean(payload.get("date_from"))
+    date_to = _clean(payload.get("date_to"))
+    allow_duplicate = bool(payload.get("permitir_duplicada"))
+    auto_link_nc = bool(payload.get("auto_link_nc", True))
+    source_key = normalize_item_key(item_nome)
+
+    existing_open = (
+        Activity.query.filter_by(
+            status="ABERTA",
+            source_type="NC_ITEM",
+            source_key=source_key,
+            source_modulo=modulo,
+            auto_link_nc=auto_link_nc,
+        )
+        .order_by(Activity.created_at.desc())
+        .first()
+    )
+    if existing_open and not allow_duplicate:
+        return (
+            jsonify(
+                {
+                    "error": (
+                        f"Já existe atividade em massa aberta para {source_key} neste escopo: #{existing_open.id}. "
+                        "Finalize a atividade atual ou confirme abertura duplicada."
+                    )
+                }
+            ),
+            409,
+        )
+
+    selected_non_conformities = get_non_conformities_for_mass_activity(
+        item_name=item_nome,
+        modulo=modulo,
+        status_nc=status_nc,
+        date_from=date_from,
+        date_to=date_to,
+    )
+    if not selected_non_conformities:
+        return jsonify({"error": "Nenhuma não conformidade encontrada para o item e filtros selecionados."}), 404
+
+    vehicle_map: dict[int, str | None] = {}
+    for checklist_item in selected_non_conformities:
+        vehicle = checklist_item.checklist.vehicle if checklist_item.checklist else None
+        if vehicle:
+            vehicle_map[vehicle.id] = vehicle.tipo
+    if not vehicle_map:
+        return jsonify({"error": "Não foi possível identificar equipamentos válidos para a atividade em massa."}), 400
+
+    material = None
+    material_id = payload.get("material_id")
+    if material_id:
+        material = Material.query.get(material_id)
+        if not material or not material.ativo:
+            return jsonify({"error": "Material informado e inválido ou está inativo."}), 400
+
+    try:
+        quantidade_por_equipamento = max(1, int(payload.get("quantidade_por_equipamento") or 1))
+    except (TypeError, ValueError):
+        return jsonify({"error": "Quantidade por equipamento inválida."}), 400
+
+    assigned_mechanic = None
+    assigned_mechanic_id = payload.get("assigned_mechanic_user_id")
+    if assigned_mechanic_id:
+        assigned_mechanic = User.query.get(assigned_mechanic_id)
+        if not assigned_mechanic or assigned_mechanic.tipo != "mecanico" or not assigned_mechanic.ativo:
+            return jsonify({"error": "Mecânico direcionado inválido ou inativo."}), 400
+
+    vehicle_types = {str(tipo or "").strip().lower() for tipo in vehicle_map.values()}
+    if modulo in {"cavalo", "carreta"}:
+        tipo_equipamento = modulo
+    else:
+        tipo_equipamento = vehicle_types.pop() if len(vehicle_types) == 1 and vehicle_types else "misto"
+
+    titulo = _clean(payload.get("titulo")) or f"Tratativa em massa - {source_key}"
+    context_lines = [
+            f"Origem: Relatório por não conformidade ({source_key})",
+            f"Escopo: módulo={modulo}, status={status_nc}",
+        ]
+    if auto_link_nc:
+        context_lines.append("Auto vínculo: novas NC do mesmo item serão anexadas automaticamente enquanto a atividade estiver aberta.")
+    if date_from or date_to:
+        context_lines.append(f"Período: {date_from or '-'} até {date_to or '-'}")
+    user_observation = _clean(payload.get("observacao"))
+    if user_observation:
+        context_lines.insert(0, user_observation)
+
+    activity = Activity(
+        titulo=titulo,
+        item_nome=source_key,
+        tipo_equipamento=tipo_equipamento,
+        source_type="NC_ITEM",
+        source_key=source_key,
+        source_modulo=modulo,
+        auto_link_nc=True,
+        material_id=material.id if material else None,
+        quantidade_por_equipamento=quantidade_por_equipamento,
+        codigo_peca=_clean(payload.get("codigo_peca")) or (material.referencia if material else None),
+        descricao_peca=_clean(payload.get("descricao_peca")) or (material.descricao if material else None),
+        fornecedor_peca=_clean(payload.get("fornecedor_peca")),
+        lote_peca=_clean(payload.get("lote_peca")),
+        observacao="\n".join(context_lines),
+        created_by_user_id=g.current_user.id,
+        assigned_mechanic_user_id=assigned_mechanic.id if assigned_mechanic else None,
+    )
+    db.session.add(activity)
+    db.session.flush()
+
+    for vehicle_id in sorted(vehicle_map):
+        db.session.add(
+            ActivityItem(
+                activity_id=activity.id,
+                vehicle_id=vehicle_id,
+                status_execucao="PENDENTE",
+            )
+        )
+    db.session.flush()
+
+    linked_total = 0
+    for checklist_item in selected_non_conformities:
+        if link_non_conformity_to_activity(activity, checklist_item, mode="MANUAL"):
+            linked_total += 1
+
+    db.session.commit()
+    response = activity.to_dict(include_items=True)
+    response["nao_conformidades_iniciais"] = int(linked_total)
+    response["equipamentos_iniciais"] = int(len(vehicle_map))
+    return jsonify(response), 201
 
 
 @bp.put("/atividades/<int:activity_id>/itens/<int:item_id>")

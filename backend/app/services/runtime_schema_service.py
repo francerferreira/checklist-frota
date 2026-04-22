@@ -3,6 +3,7 @@ from __future__ import annotations
 from sqlalchemy import inspect, text
 
 from app.extensions import db
+from app.models.activity import ActivityNonConformityLink
 
 
 def ensure_runtime_schema() -> None:
@@ -28,3 +29,17 @@ def ensure_runtime_schema() -> None:
         if "assigned_mechanic_user_id" not in columns:
             db.session.execute(text("ALTER TABLE activities ADD COLUMN assigned_mechanic_user_id INTEGER"))
             db.session.commit()
+        if "source_type" not in columns:
+            db.session.execute(text("ALTER TABLE activities ADD COLUMN source_type VARCHAR(40)"))
+            db.session.commit()
+        if "source_key" not in columns:
+            db.session.execute(text("ALTER TABLE activities ADD COLUMN source_key VARCHAR(180)"))
+            db.session.commit()
+        if "source_modulo" not in columns:
+            db.session.execute(text("ALTER TABLE activities ADD COLUMN source_modulo VARCHAR(20)"))
+            db.session.commit()
+        if "auto_link_nc" not in columns:
+            db.session.execute(text("ALTER TABLE activities ADD COLUMN auto_link_nc BOOLEAN DEFAULT 0"))
+            db.session.commit()
+
+    ActivityNonConformityLink.__table__.create(bind=db.engine, checkfirst=True)
