@@ -1,60 +1,117 @@
 from __future__ import annotations
 
-from PySide6.QtCore import Qt
+from PySide6.QtCore import Signal, Qt
 from PySide6.QtGui import QPixmap
 from PySide6.QtWidgets import QDialog, QFrame, QHBoxLayout, QLabel, QPushButton, QSizePolicy, QVBoxLayout
 
-from theme import build_dialog_layout, configure_dialog_window, style_card
+from theme import configure_dialog_window, style_card
+
+
+class PreviewImageLabel(QLabel):
+    double_clicked = Signal()
+
+    def mouseDoubleClickEvent(self, event):
+        self.double_clicked.emit()
+        super().mouseDoubleClickEvent(event)
 
 
 class ImagePreviewDialog(QDialog):
     def __init__(self, pixmap: QPixmap, title: str, parent=None):
         super().__init__(parent)
+        self._pixmap = pixmap
+        self._normal_geometry = None
+        self._is_full_screen = False
+
         self.setWindowTitle(title or "Visualizacao da imagem")
         configure_dialog_window(self, width=1080, height=760, min_width=820, min_height=600)
         style_card(self)
 
-        layout = build_dialog_layout(self, max_content_width=1240)
+        layout = QVBoxLayout(self)
+        layout.setContentsMargins(14, 14, 14, 14)
+        layout.setSpacing(12)
 
         header = QFrame()
         header.setObjectName("DialogHeader")
         header.setAttribute(Qt.WA_StyledBackground, True)
-        header_layout = QVBoxLayout(header)
+        header_layout = QHBoxLayout(header)
         header_layout.setContentsMargins(18, 18, 18, 18)
-        header_layout.setSpacing(4)
+        header_layout.setSpacing(14)
+
+        title_wrap = QVBoxLayout()
+        title_wrap.setContentsMargins(0, 0, 0, 0)
+        title_wrap.setSpacing(4)
 
         title_label = QLabel(title or "Imagem")
         title_label.setObjectName("DialogHeaderTitle")
-        subtitle_label = QLabel("Visualizacao ampliada para inspecao de detalhe e evidencia fotografica.")
+        subtitle_label = QLabel("Visualizacao ampliada. Use duplo clique ou F11 para tela cheia; Esc para sair.")
         subtitle_label.setObjectName("DialogHeaderSubtitle")
         subtitle_label.setWordWrap(True)
-        header_layout.addWidget(title_label)
-        header_layout.addWidget(subtitle_label)
+        title_wrap.addWidget(title_label)
+        title_wrap.addWidget(subtitle_label)
 
-        self.image_label = QLabel()
+        self.fullscreen_button = QPushButton("Tela cheia")
+        self.fullscreen_button.setProperty("variant", "primary")
+        self.fullscreen_button.clicked.connect(self.toggle_full_screen)
+
+        close_button = QPushButton("Fechar")
+        close_button.clicked.connect(self.accept)
+
+        header_layout.addLayout(title_wrap, 1)
+        header_layout.addWidget(self.fullscreen_button, 0, Qt.AlignTop)
+        header_layout.addWidget(close_button, 0, Qt.AlignTop)
+
+        self.image_label = PreviewImageLabel()
         self.image_label.setAlignment(Qt.AlignCenter)
         self.image_label.setMinimumHeight(520)
-        self.image_label.setSizePolicy(QSizePolicy.Policy.Ignored, QSizePolicy.Policy.Ignored)
+        self.image_label.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding)
+        self.image_label.setCursor(Qt.PointingHandCursor)
         self.image_label.setStyleSheet(
-            "background:qlineargradient(x1:0, y1:0, x2:1, y2:1, stop:0 #0F172A, stop:1 #1E293B); border-radius:22px; border:1px solid rgba(37,99,235,0.28);"
+            "background:qlineargradient(x1:0, y1:0, x2:1, y2:1, stop:0 #0F172A, stop:1 #1E293B); "
+            "border-radius:22px; border:1px solid rgba(37,99,235,0.28);"
         )
+        self.image_label.double_clicked.connect(self.toggle_full_screen)
 
         layout.addWidget(header)
         layout.addWidget(self.image_label, 1)
 
-        self._pixmap = pixmap
+        self._render()
+
+    def toggle_full_screen(self):
+        if self._is_full_screen:
+            self.showNormal()
+            if self._normal_geometry is not None:
+                self.setGeometry(self._normal_geometry)
+            self.fullscreen_button.setText("Tela cheia")
+            self._is_full_screen = False
+        else:
+            self._normal_geometry = self.geometry()
+            self.showFullScreen()
+            self.fullscreen_button.setText("Sair da tela cheia")
+            self._is_full_screen = True
         self._render()
 
     def _render(self):
         if self._pixmap.isNull():
             return
+        target_size = self.image_label.contentsRect().size()
+        if target_size.width() <= 0 or target_size.height() <= 0:
+            target_size = self.image_label.size()
         self.image_label.setPixmap(
             self._pixmap.scaled(
-                self.image_label.size(),
+                target_size,
                 Qt.KeepAspectRatio,
                 Qt.SmoothTransformation,
             )
         )
+
+    def keyPressEvent(self, event):
+        if event.key() in {Qt.Key_F11, Qt.Key_F}:
+            self.toggle_full_screen()
+            return
+        if event.key() == Qt.Key_Escape and self._is_full_screen:
+            self.toggle_full_screen()
+            return
+        super().keyPressEvent(event)
 
     def resizeEvent(self, event):
         self._render()

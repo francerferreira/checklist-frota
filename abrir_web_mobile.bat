@@ -1,4 +1,4 @@
-@echo off
+﻿@echo off
 setlocal
 chcp 65001 >nul
 
@@ -16,7 +16,7 @@ echo   Checklist de Frota - Web Mobile
 echo ============================================
 echo.
 
-for /f "usebackq delims=" %%I in (`powershell -NoProfile -Command "$root = Get-ChildItem $env:USERPROFILE -Directory | Where-Object { $_.Name -like 'OneDrive*' -and $_.Name -like '*Chibat*' } | Select-Object -First 1 -ExpandProperty FullName; if (-not $root) { exit 1 }; $pg = Join-Path $root 'Documentos\Postgres\pgsql'; if (Test-Path $pg) { Write-Output $pg } else { exit 1 }"`) do set "PGROOT=%%I"
+for /f "usebackq delims=" %%I in (`powershell -NoProfile -Command "$root = Get-ChildItem $env:USERPROFILE -Directory | Where-Object { $_.Name -like 'OneDrive*' } | Select-Object -First 1 -ExpandProperty FullName; if (-not $root) { exit 1 }; $pg = Join-Path $root 'Documentos\Postgres\pgsql'; if (Test-Path $pg) { Write-Output $pg } else { exit 1 }"`) do set "PGROOT=%%I"
 
 if not defined PGROOT (
     echo Nao foi possivel localizar o PostgreSQL portatil em Documentos\Postgres\pgsql.
@@ -92,3 +92,4 @@ echo Na tela de login do Web Mobile, use a API:
 echo %CHECKLIST_API_URL%
 echo.
 pause
+

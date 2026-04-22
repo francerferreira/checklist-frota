@@ -1,4 +1,4 @@
-@echo off
+﻿@echo off
 setlocal
 chcp 65001 >nul
 
@@ -9,7 +9,7 @@ if not defined CHECKLIST_API_URL set "CHECKLIST_API_URL=https://checklist-frota-
 echo API padrao do desktop: %CHECKLIST_API_URL%
 echo.
 
-for /f "usebackq delims=" %%I in (`powershell -NoProfile -Command "$root = Get-ChildItem $env:USERPROFILE -Directory | Where-Object { $_.Name -like 'OneDrive*' -and $_.Name -like '*Chibat*' } | Select-Object -First 1 -ExpandProperty FullName; if (-not $root) { exit 1 }; $pg = Join-Path $root 'Documentos\Postgres\pgsql'; if (Test-Path $pg) { Write-Output $pg } else { exit 1 }"`) do set "PGROOT=%%I"
+for /f "usebackq delims=" %%I in (`powershell -NoProfile -Command "$root = Get-ChildItem $env:USERPROFILE -Directory | Where-Object { $_.Name -like 'OneDrive*' } | Select-Object -First 1 -ExpandProperty FullName; if (-not $root) { exit 1 }; $pg = Join-Path $root 'Documentos\Postgres\pgsql'; if (Test-Path $pg) { Write-Output $pg } else { exit 1 }"`) do set "PGROOT=%%I"
 
 if not defined PGROOT (
     echo Nao foi possivel localizar o PostgreSQL portatil em Documentos\Postgres\pgsql.
@@ -22,7 +22,7 @@ set "PGDATA=%PGROOT%\data"
 set "PGLOG=%PGROOT%\postgres.log"
 
 echo ============================================
-echo   Checklist de Frota Portuaria
+echo   Checklist de Frota
 echo ============================================
 echo.
 
@@ -69,3 +69,4 @@ echo Senha padrao: 123456
 echo API em uso: %CHECKLIST_API_URL%
 echo.
 pause
+

@@ -1,4 +1,4 @@
-from __future__ import annotations
+﻿from __future__ import annotations
 
 import json
 from pathlib import Path
@@ -243,7 +243,7 @@ class LoginWindow(QDialog):
         eyebrow = QLabel("PLATAFORMA CORPORATIVA")
         eyebrow.setObjectName("HeroEyebrow")
 
-        title = QLabel("Checklist\nPortuário")
+        title = QLabel("Checklist\nFrota")
         title.setObjectName("HeroTitle")
 
         subtitle = QLabel(
@@ -268,7 +268,7 @@ class LoginWindow(QDialog):
         spacer = QWidget()
         spacer.setSizePolicy(QSizePolicy.Policy.Preferred, QSizePolicy.Policy.Expanding)
 
-        footer = QLabel("Porto Chibatão")
+        footer = QLabel("Checklist de Frota")
         footer.setObjectName("HeroSubtitle")
 
         layout.addWidget(logo_label, 0, Qt.AlignLeft)
@@ -471,3 +471,4 @@ class LoginWindow(QDialog):
             show_notice(self, "Falha no login", str(exc), icon_name="warning")
         finally:
             self.submit_button.setEnabled(True)
+

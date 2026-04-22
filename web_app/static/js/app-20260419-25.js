@@ -2317,7 +2317,7 @@ async function shareText(title, message) {
 function shareActivityItem(activity, item) {
     const vehicle = item.veiculo || {};
     const photoPath = item.foto_depois || item.foto_antes || "";
-    const title = "Checklist Live - atividade";
+    const title = "CF - atividade";
     const message = buildPhotoShareText(title, [
         `Atividade: ${activity.item_nome || activity.titulo || "-"}`,
         `Equipamento: ${vehicle.frota || "-"} | Placa: ${vehicle.placa || "-"}`,
@@ -2328,7 +2328,7 @@ function shareActivityItem(activity, item) {
 }
 
 function shareWashItem(item) {
-    const title = "Checklist Live - lavagem";
+    const title = "CF - lavagem";
     const message = buildPhotoShareText(title, [
         `Equipamento: ${item.referencia || "-"}`,
         `Data: ${formatDate(item.scheduled_date)} | Turno: ${item.scheduled_shift || "-"}`,

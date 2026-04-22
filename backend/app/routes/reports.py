@@ -58,4 +58,12 @@ def productivity_report():
 @bp.get("/relatorios/item")
 @auth_required
 def item_report():
-    return jsonify(build_item_report(request.args.get("item")))
+    return jsonify(
+        build_item_report(
+            request.args.get("item"),
+            date_from=request.args.get("data_de"),
+            date_to=request.args.get("data_ate"),
+            nc_status=request.args.get("status_nc"),
+            modulo=request.args.get("modulo"),
+        )
+    )

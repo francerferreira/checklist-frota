@@ -17,10 +17,10 @@ from PySide6.QtWidgets import (
     QVBoxLayout,
 )
 
-from components import ImagePanel, make_icon, show_notice
+from components import ImagePanel, make_icon, show_notice, start_export_task
 from runtime_paths import asset_path
 from services.export_service import export_non_conformity_pdf, export_vehicle_detail_pdf, make_default_export_path
-from theme import build_dialog_layout, configure_dialog_window, configure_table, style_card, style_table_card
+from theme import build_dialog_layout, configure_dialog_window, configure_table, make_table_item, style_card, style_table_card
 
 
 class NonConformityDetailDialog(QDialog):
@@ -28,7 +28,7 @@ class NonConformityDetailDialog(QDialog):
         super().__init__(parent)
         self.api_client = api_client
         self.item = item
-        self.logo_path = asset_path("logo_grupo.png")
+        self.logo_path = asset_path("app-logo-cover.png")
 
         self.setWindowTitle("Detalhe da não conformidade")
         configure_dialog_window(self, width=1260, height=800, min_width=980, min_height=680)
@@ -177,7 +177,7 @@ class VehicleDetailDialog(QDialog):
         super().__init__(parent)
         self.api_client = api_client
         self.vehicle = vehicle
-        self.logo_path = asset_path("logo_grupo.png")
+        self.logo_path = asset_path("app-logo-cover.png")
         try:
             self.history = self.api_client.get_vehicle_history(vehicle["id"])
         except Exception:
@@ -217,7 +217,7 @@ class VehicleDetailDialog(QDialog):
         title_wrap.addWidget(title)
         title_wrap.addWidget(subtitle)
 
-        export_button = QPushButton("Exportar ficha PDF")
+        export_button = QPushButton("PDF auditoria")
         export_button.setProperty("variant", "primary")
         export_button.setMinimumHeight(48)
         export_button.setMinimumWidth(172)
@@ -360,14 +360,22 @@ class VehicleDetailDialog(QDialog):
         return sorted(rows, key=lambda row: row.get("date") or "", reverse=True)
 
     def _fill_history(self):
-        self.table.setRowCount(len(self.operational_history))
-        for row, item in enumerate(self.operational_history):
-            self.table.setItem(row, 0, QTableWidgetItem(self._format(item.get("date"))))
-            self.table.setItem(row, 1, QTableWidgetItem(item.get("origin") or "-"))
-            self.table.setItem(row, 2, QTableWidgetItem(item.get("item") or "-"))
-            self.table.setItem(row, 3, QTableWidgetItem(item.get("status") or "-"))
-            self.table.setItem(row, 4, QTableWidgetItem(item.get("owner") or "-"))
-        self.table.resizeColumnsToContents()
+        self.table.setSortingEnabled(False)
+        self.table.setUpdatesEnabled(False)
+        self.table.blockSignals(True)
+        try:
+            self.table.setRowCount(len(self.operational_history))
+            for row, item in enumerate(self.operational_history):
+                self.table.setItem(row, 0, make_table_item(self._format(item.get("date")), payload=item))
+                self.table.setItem(row, 1, make_table_item(item.get("origin") or "-"))
+                self.table.setItem(row, 2, make_table_item(item.get("item") or "-"))
+                self.table.setItem(row, 3, make_table_item(item.get("status") or "-"))
+                self.table.setItem(row, 4, make_table_item(item.get("owner") or "-"))
+            self.table.resizeColumnsToContents()
+        finally:
+            self.table.blockSignals(False)
+            self.table.setUpdatesEnabled(True)
+            self.table.setSortingEnabled(True)
         if self.operational_history:
             self.table.selectRow(0)
 
@@ -376,7 +384,11 @@ class VehicleDetailDialog(QDialog):
         if not selected:
             return
         row = selected[0].topRow()
-        occurrence = self.operational_history[row].get("occurrence")
+        first_cell = self.table.item(row, 0)
+        history_item = first_cell.data(Qt.UserRole) if first_cell else None
+        if not history_item and 0 <= row < len(self.operational_history):
+            history_item = self.operational_history[row]
+        occurrence = (history_item or {}).get("occurrence")
         if not occurrence:
             return
         dialog = NonConformityDetailDialog(self.api_client, occurrence, self)
@@ -395,7 +407,11 @@ class VehicleDetailDialog(QDialog):
         )
         if not filename:
             return
-        try:
+
+        def task(progress):
+            progress(8, "Preparando auditoria do equipamento")
+            occurrence_images = self._collect_occurrence_images_with_progress(self.occurrences, progress, start=14, end=76)
+            progress(86, "Montando páginas do PDF")
             export_vehicle_detail_pdf(
                 self.vehicle,
                 self.occurrences,
@@ -404,14 +420,45 @@ class VehicleDetailDialog(QDialog):
                 generated_by=self.api_client.user.get("nome", ""),
                 vehicle_image=self.vehicle_image,
                 operational_history=self.operational_history,
+                occurrence_images=occurrence_images,
             )
-            show_notice(self, "PDF gerado", f"Arquivo salvo em:\n{filename}", icon_name="reports")
-        except Exception as exc:
-            show_notice(self, "Falha ao exportar PDF", str(exc), icon_name="warning")
+            return filename
+
+        start_export_task(self, "Exportando auditoria do equipamento", task)
+
+    def _collect_occurrence_images_with_progress(self, occurrences: list[dict], progress, *, start: int, end: int):
+        images = {}
+        total = max(1, len(occurrences))
+        if not occurrences:
+            progress(end, "Nenhuma evidência fotográfica para carregar")
+            return images
+        for index, item in enumerate(occurrences, start=1):
+            progress(start + int(((index - 1) / total) * (end - start)), f"Carregando evidências {index}/{len(occurrences)}")
+            item_id = item.get("id")
+            if not item_id:
+                continue
+            images[item_id] = {
+                "before": self.api_client.fetch_image(item.get("foto_antes")),
+                "after": self.api_client.fetch_image(item.get("foto_depois")),
+            }
+        progress(end, "Evidências fotográficas carregadas")
+        return images
 
     @staticmethod
     def _format(value: str | None) -> str:
         if not value:
             return "-"
         return value.replace("T", " ")[:19]
+
+    def _collect_occurrence_images(self, occurrences: list[dict]) -> dict[int, dict[str, bytes | None]]:
+        images: dict[int, dict[str, bytes | None]] = {}
+        for item in occurrences:
+            item_id = item.get("id")
+            if not item_id:
+                continue
+            images[item_id] = {
+                "before": self.api_client.fetch_image(item.get("foto_antes")),
+                "after": self.api_client.fetch_image(item.get("foto_depois")),
+            }
+        return images
 

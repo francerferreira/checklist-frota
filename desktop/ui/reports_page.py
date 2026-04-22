@@ -3,8 +3,11 @@
 from datetime import datetime
 from pathlib import Path
 
+from PySide6.QtCore import QDate, QThread, QTimer, Qt, Signal
 from PySide6.QtGui import QColor, QBrush
 from PySide6.QtWidgets import (
+    QComboBox,
+    QDateEdit,
     QFileDialog,
     QFrame,
     QHBoxLayout,
@@ -25,29 +28,87 @@ from services import (
     build_micro_message_package,
 )
 from services.export_service import (
+    export_item_audit_pdf,
     export_rows_to_csv,
     export_rows_to_pdf,
     export_rows_to_xlsx,
+    export_vehicle_detail_pdf,
     make_default_export_path,
 )
-from components import MessageComposerDialog, TableSkeletonOverlay
+from components import ExportProgressDialog, ExportWorker, MessageComposerDialog, TableSkeletonOverlay
 from components import show_notice
 from runtime_paths import asset_path
-from theme import configure_table, style_filter_bar, style_table_card
+from theme import configure_table, make_table_item, style_filter_bar, style_table_card
 from ui.detail_dialogs import NonConformityDetailDialog, VehicleDetailDialog
 
 
+def _apply_light_date_popup_style(date_edit: QDateEdit):
+    calendar_widget = date_edit.calendarWidget()
+    if not calendar_widget:
+        return
+    calendar_widget.setStyleSheet(
+        """
+        QCalendarWidget QWidget {
+            background: #FFFFFF;
+            color: #0F172A;
+        }
+        QCalendarWidget QToolButton {
+            background: #F8FAFC;
+            color: #0F172A;
+            border: 1px solid rgba(148, 163, 184, 0.35);
+            border-radius: 8px;
+            padding: 4px 8px;
+            font-weight: 700;
+        }
+        QCalendarWidget QToolButton:hover {
+            background: #EFF6FF;
+            border: 1px solid rgba(37, 99, 235, 0.35);
+        }
+        QCalendarWidget QMenu {
+            background: #FFFFFF;
+            color: #0F172A;
+        }
+        QCalendarWidget QSpinBox {
+            background: #FFFFFF;
+            color: #0F172A;
+            border: 1px solid rgba(148, 163, 184, 0.35);
+            border-radius: 8px;
+        }
+        QCalendarWidget QAbstractItemView:enabled {
+            selection-background-color: #2563EB;
+            selection-color: #FFFFFF;
+            background: #FFFFFF;
+            color: #0F172A;
+            outline: 0;
+        }
+        QCalendarWidget QAbstractItemView:disabled {
+            color: #94A3B8;
+        }
+        """
+    )
+
+
 class ReportsPage(QFrame):
+    pdf_export_finished = Signal(object, object)
+    pdf_export_failed = Signal(object, str)
+
     def __init__(self, api_client, parent=None):
         super().__init__(parent)
         self.api_client = api_client
         self.setObjectName("ContentSurface")
-        self.logo_path = asset_path("logo_grupo.png")
+        self.logo_path = asset_path("app-logo-cover.png")
         self.macro_rows = []
         self.micro_rows = []
         self.item_rows = []
         self.vehicle_cache = {}
         self.dirty_tabs: set[str] = {"macro", "micro", "item", "vehicles"}
+        self._export_jobs = []
+        self._item_period_sync = False
+        self._item_filter_timer = QTimer(self)
+        self._item_filter_timer.setSingleShot(True)
+        self._item_filter_timer.timeout.connect(self.refresh_item_table)
+        self.pdf_export_finished.connect(self._handle_pdf_export_finished)
+        self.pdf_export_failed.connect(self._handle_pdf_export_failed)
 
         layout = QVBoxLayout(self)
         layout.setContentsMargins(12, 10, 12, 10)
@@ -55,14 +116,13 @@ class ReportsPage(QFrame):
 
         header = QHBoxLayout()
         text_wrap = QVBoxLayout()
-        title = QLabel("Relatorios")
+        title = QLabel("Relatórios")
         title.setObjectName("PageTitle")
         subtitle = QLabel(
-            "Visao gerencial com tabelas amplas, exportacao executiva e abertura de detalhes operacionais por linha."
+            "Visão gerencial com tabelas amplas, exportação executiva e abertura de detalhes operacionais por linha."
         )
         subtitle.setObjectName("SectionCaption")
         subtitle.setWordWrap(True)
-        subtitle.setMaximumHeight(24)
         text_wrap.addWidget(title)
         text_wrap.addWidget(subtitle)
 
@@ -71,22 +131,84 @@ class ReportsPage(QFrame):
 
         self.filter_card = QFrame()
         style_filter_bar(self.filter_card)
-        filter_layout = QHBoxLayout(self.filter_card)
+        filter_layout = QVBoxLayout(self.filter_card)
         filter_layout.setContentsMargins(10, 8, 10, 8)
         filter_layout.setSpacing(8)
 
+        top_filter_row = QHBoxLayout()
+        top_filter_row.setContentsMargins(0, 0, 0, 0)
+        top_filter_row.setSpacing(8)
+
         self.item_filter = QLineEdit()
-        self.item_filter.setPlaceholderText("Buscar item especifico")
+        self.item_filter.setPlaceholderText("Filtrar não conformidade (item)")
         self.item_filter.setMinimumHeight(40)
         self.item_filter.returnPressed.connect(self.refresh_item_table)
+        self.item_filter.textChanged.connect(self._schedule_item_refresh)
 
-        search_button = QPushButton("Consultar item")
+        search_button = QPushButton("Consultar")
         search_button.setProperty("variant", "primary")
         search_button.setMinimumHeight(40)
         search_button.clicked.connect(self.refresh_item_table)
 
-        filter_layout.addWidget(self.item_filter, 1)
-        filter_layout.addWidget(search_button)
+        top_filter_row.addWidget(self.item_filter, 1)
+        top_filter_row.addWidget(search_button)
+
+        bottom_filter_row = QHBoxLayout()
+        bottom_filter_row.setContentsMargins(0, 0, 0, 0)
+        bottom_filter_row.setSpacing(8)
+
+        self.modulo_filter = QComboBox()
+        self.modulo_filter.addItem("Todos os módulos", "")
+        self.modulo_filter.addItem("Cavalos", "cavalo")
+        self.modulo_filter.addItem("Carretas", "carreta")
+        self.modulo_filter.addItem("Outros", "outros")
+        self.modulo_filter.setMinimumHeight(40)
+        self.modulo_filter.currentIndexChanged.connect(self._schedule_item_refresh)
+
+        self.nc_status_filter = QComboBox()
+        self.nc_status_filter.addItem("Todas as NC", "")
+        self.nc_status_filter.addItem("NC abertas", "abertas")
+        self.nc_status_filter.addItem("NC resolvidas", "resolvidas")
+        self.nc_status_filter.setMinimumHeight(40)
+        self.nc_status_filter.currentIndexChanged.connect(self._schedule_item_refresh)
+        self.nc_status_filter.setCurrentIndex(1)
+
+        self.period_mode_filter = QComboBox()
+        self.period_mode_filter.addItem("Todo período", "all")
+        self.period_mode_filter.addItem("Hoje", "today")
+        self.period_mode_filter.addItem("Mês atual", "month")
+        self.period_mode_filter.addItem("Período personalizado", "custom")
+        self.period_mode_filter.setMinimumHeight(40)
+        self.period_mode_filter.currentIndexChanged.connect(self._on_item_period_mode_changed)
+
+        self.start_date_filter = QDateEdit()
+        self.start_date_filter.setCalendarPopup(True)
+        self.start_date_filter.setDisplayFormat("dd/MM/yyyy")
+        self.start_date_filter.setMinimumHeight(40)
+        _apply_light_date_popup_style(self.start_date_filter)
+        self.start_date_filter.dateChanged.connect(self._on_item_period_date_changed)
+
+        self.end_date_filter = QDateEdit()
+        self.end_date_filter.setCalendarPopup(True)
+        self.end_date_filter.setDisplayFormat("dd/MM/yyyy")
+        self.end_date_filter.setMinimumHeight(40)
+        _apply_light_date_popup_style(self.end_date_filter)
+        self.end_date_filter.dateChanged.connect(self._on_item_period_date_changed)
+
+        clear_filter_button = QPushButton("Limpar filtros")
+        clear_filter_button.setMinimumHeight(40)
+        clear_filter_button.clicked.connect(self._clear_item_filters)
+
+        bottom_filter_row.addWidget(self.modulo_filter)
+        bottom_filter_row.addWidget(self.nc_status_filter)
+        bottom_filter_row.addWidget(self.period_mode_filter)
+        bottom_filter_row.addWidget(self.start_date_filter)
+        bottom_filter_row.addWidget(self.end_date_filter)
+        bottom_filter_row.addWidget(clear_filter_button)
+
+        filter_layout.addLayout(top_filter_row)
+        filter_layout.addLayout(bottom_filter_row)
+        self._on_item_period_mode_changed()
 
         self.tabs = QTabWidget()
         self.tabs.addTab(self._build_macro_tab(), "Macro")
@@ -97,6 +219,54 @@ class ReportsPage(QFrame):
         layout.addLayout(header)
         layout.addWidget(self.filter_card)
         layout.addWidget(self.tabs, 1)
+
+    def _schedule_item_refresh(self, *_args):
+        self._item_filter_timer.start(240)
+
+    def _on_item_period_mode_changed(self, *_args):
+        mode = self.period_mode_filter.currentData() or "all"
+        today = QDate.currentDate()
+        first_day = QDate(today.year(), today.month(), 1)
+
+        self._item_period_sync = True
+        if mode == "all":
+            self.start_date_filter.setDate(first_day)
+            self.end_date_filter.setDate(today)
+            self.start_date_filter.setEnabled(False)
+            self.end_date_filter.setEnabled(False)
+        elif mode == "today":
+            self.start_date_filter.setDate(today)
+            self.end_date_filter.setDate(today)
+            self.start_date_filter.setEnabled(False)
+            self.end_date_filter.setEnabled(False)
+        elif mode == "month":
+            self.start_date_filter.setDate(first_day)
+            self.end_date_filter.setDate(today)
+            self.start_date_filter.setEnabled(False)
+            self.end_date_filter.setEnabled(False)
+        else:
+            self.start_date_filter.setEnabled(True)
+            self.end_date_filter.setEnabled(True)
+            if self.start_date_filter.date() > self.end_date_filter.date():
+                self.end_date_filter.setDate(self.start_date_filter.date())
+        self._item_period_sync = False
+        self._schedule_item_refresh()
+
+    def _on_item_period_date_changed(self, *_args):
+        if self._item_period_sync:
+            return
+        if self.start_date_filter.date() > self.end_date_filter.date():
+            self._item_period_sync = True
+            self.end_date_filter.setDate(self.start_date_filter.date())
+            self._item_period_sync = False
+        self._schedule_item_refresh()
+
+    def _clear_item_filters(self):
+        self.item_filter.clear()
+        self.modulo_filter.setCurrentIndex(0)
+        self.nc_status_filter.setCurrentIndex(0)
+        self.period_mode_filter.setCurrentIndex(0)
+        self.refresh_item_table()
 
     def _build_macro_tab(self):
         tab = QWidget()
@@ -114,11 +284,11 @@ class ReportsPage(QFrame):
         top = QHBoxLayout()
         top.setContentsMargins(0, 0, 0, 0)
         top.setSpacing(12)
-        title = QLabel("Relatorio macro")
+        title = QLabel("Relatório macro")
         title.setObjectName("SectionTitle")
         caption = QLabel("Ranking consolidado de não conformidades por item.")
         caption.setObjectName("SectionCaption")
-        caption.setMaximumHeight(20)
+        caption.setWordWrap(True)
         text_wrap = QVBoxLayout()
         text_wrap.addWidget(title)
         text_wrap.addWidget(caption)
@@ -171,11 +341,11 @@ class ReportsPage(QFrame):
         top = QHBoxLayout()
         top.setContentsMargins(0, 0, 0, 0)
         top.setSpacing(12)
-        title = QLabel("Relatorio micro")
+        title = QLabel("Relatório micro")
         title.setObjectName("SectionTitle")
         caption = QLabel("Leitura por equipamento, com acesso direto a ficha operacional.")
         caption.setObjectName("SectionCaption")
-        caption.setMaximumHeight(20)
+        caption.setWordWrap(True)
         text_wrap = QVBoxLayout()
         text_wrap.addWidget(title)
         text_wrap.addWidget(caption)
@@ -189,6 +359,9 @@ class ReportsPage(QFrame):
         export_pdf = QPushButton("PDF Executivo")
         export_pdf.setMinimumHeight(42)
         export_pdf.clicked.connect(lambda: self.export_micro("pdf"))
+        audit_pdf = QPushButton("PDF Auditoria do equipamento")
+        audit_pdf.setMinimumHeight(42)
+        audit_pdf.clicked.connect(self.export_selected_vehicle_audit_pdf)
         message_button = QPushButton("Gerar mensagem")
         message_button.setProperty("variant", "primary")
         message_button.setMinimumHeight(42)
@@ -198,6 +371,7 @@ class ReportsPage(QFrame):
         top.addWidget(export_csv)
         top.addWidget(export_xlsx)
         top.addWidget(export_pdf)
+        top.addWidget(audit_pdf)
 
         self.micro_table = QTableWidget(0, 7)
         self.micro_table.setHorizontalHeaderLabels(
@@ -228,11 +402,11 @@ class ReportsPage(QFrame):
         top = QHBoxLayout()
         top.setContentsMargins(0, 0, 0, 0)
         top.setSpacing(12)
-        title = QLabel("Consulta por item")
+        title = QLabel("Consulta de não conformidades")
         title.setObjectName("SectionTitle")
-        caption = QLabel("Ocorrencias detalhadas por item, com acesso ao registro completo e fotos.")
+        caption = QLabel("Ocorrências detalhadas com filtros por item, módulo, status e período, com acesso ao registro completo e fotos.")
         caption.setObjectName("SectionCaption")
-        caption.setMaximumHeight(20)
+        caption.setWordWrap(True)
         text_wrap = QVBoxLayout()
         text_wrap.addWidget(title)
         text_wrap.addWidget(caption)
@@ -240,12 +414,16 @@ class ReportsPage(QFrame):
         message_button.setProperty("variant", "primary")
         message_button.setMinimumHeight(42)
         message_button.clicked.connect(self.generate_item_message)
+        audit_pdf = QPushButton("PDF Auditoria por item")
+        audit_pdf.setMinimumHeight(42)
+        audit_pdf.clicked.connect(self.export_item_audit_pdf)
         top.addLayout(text_wrap, 1)
         top.addWidget(message_button)
+        top.addWidget(audit_pdf)
 
         self.item_table = QTableWidget(0, 8)
         self.item_table.setHorizontalHeaderLabels(
-            ["Veiculo", "Item", "Data", "Motorista", "Status", "Prioridade", "Foto antes", "Foto depois"]
+            ["Veículo", "Item", "Data", "Motorista", "Status", "Prioridade", "Foto antes", "Foto depois"]
         )
         configure_table(self.item_table, stretch_last=False)
         self.item_table.setMinimumHeight(520)
@@ -306,7 +484,21 @@ class ReportsPage(QFrame):
             return
 
     def _load_item_tab(self):
-        self.item_rows = self.api_client.get_item_report(self.item_filter.text().strip() or None)
+        date_from = None
+        date_to = None
+        mode = self.period_mode_filter.currentData() or "all"
+        if mode != "all":
+            date_from = self.start_date_filter.date().toString("yyyy-MM-dd")
+            date_to = self.end_date_filter.date().toString("yyyy-MM-dd")
+
+        self.item_rows = self.api_client.get_item_report(
+            self.item_filter.text().strip() or None,
+            date_from=date_from,
+            date_to=date_to,
+            nc_status=self.nc_status_filter.currentData() or None,
+            modulo=self.modulo_filter.currentData() or None,
+        )
+        self.item_table.setSortingEnabled(False)
         self.item_table.setUpdatesEnabled(False)
         self.item_table.blockSignals(True)
         try:
@@ -324,7 +516,9 @@ class ReportsPage(QFrame):
                     "Sim" if item.get("foto_depois") else "Não",
                 ]
                 for column, value in enumerate(values):
-                    cell = QTableWidgetItem(value)
+                    cell = make_table_item(value)
+                    if column == 0:
+                        cell.setData(Qt.UserRole, item)
                     if column == 5:
                         cell.setBackground(QBrush(QColor(severity["background"])))
                         cell.setForeground(QBrush(QColor(severity["color"])))
@@ -332,9 +526,11 @@ class ReportsPage(QFrame):
         finally:
             self.item_table.blockSignals(False)
             self.item_table.setUpdatesEnabled(True)
+            self.item_table.setSortingEnabled(True)
         self.item_skeleton.hide_skeleton()
 
     def _populate_macro(self, rows):
+        self.macro_table.setSortingEnabled(False)
         self.macro_table.setUpdatesEnabled(False)
         self.macro_table.blockSignals(True)
         try:
@@ -349,7 +545,9 @@ class ReportsPage(QFrame):
                     severity["label"],
                 ]
                 for column, value in enumerate(values):
-                    cell = QTableWidgetItem(value)
+                    cell = make_table_item(value)
+                    if column == 0:
+                        cell.setData(Qt.UserRole, item)
                     if column == 4:
                         cell.setBackground(QBrush(QColor(severity["background"])))
                         cell.setForeground(QBrush(QColor(severity["color"])))
@@ -357,8 +555,10 @@ class ReportsPage(QFrame):
         finally:
             self.macro_table.blockSignals(False)
             self.macro_table.setUpdatesEnabled(True)
+            self.macro_table.setSortingEnabled(True)
 
     def _populate_micro(self, rows):
+        self.micro_table.setSortingEnabled(False)
         self.micro_table.setUpdatesEnabled(False)
         self.micro_table.blockSignals(True)
         try:
@@ -375,7 +575,9 @@ class ReportsPage(QFrame):
                     self._format(item.get("ultimo_checklist")),
                 ]
                 for column, value in enumerate(values):
-                    cell = QTableWidgetItem(value)
+                    cell = make_table_item(value)
+                    if column == 0:
+                        cell.setData(Qt.UserRole, item)
                     if column == 5:
                         cell.setBackground(QBrush(QColor(severity["background"])))
                         cell.setForeground(QBrush(QColor(severity["color"])))
@@ -383,6 +585,7 @@ class ReportsPage(QFrame):
         finally:
             self.micro_table.blockSignals(False)
             self.micro_table.setUpdatesEnabled(True)
+            self.micro_table.setSortingEnabled(True)
 
     def _prime_vehicle_cache(self):
         if "vehicles" not in self.dirty_tabs and self.vehicle_cache:
@@ -398,7 +601,10 @@ class ReportsPage(QFrame):
         selected = self.macro_table.selectedRanges()
         if not selected:
             return
-        item_name = self.macro_rows[selected[0].topRow()]["item_nome"]
+        row_item = self._payload_for_row(self.macro_table, selected[0].topRow(), self.macro_rows)
+        if not row_item:
+            return
+        item_name = row_item["item_nome"]
         self.tabs.setCurrentIndex(2)
         self.item_filter.setText(item_name)
         self.refresh_item_table()
@@ -407,12 +613,14 @@ class ReportsPage(QFrame):
         selected = self.micro_table.selectedRanges()
         if not selected:
             return
-        row = self.micro_rows[selected[0].topRow()]
+        row = self._payload_for_row(self.micro_table, selected[0].topRow(), self.micro_rows)
+        if not row:
+            return
         vehicle = self.vehicle_cache.get(row.get("vehicle_id"))
         if not vehicle:
             show_notice(
                 self,
-                "Ficha indisponivel",
+                "Ficha indisponível",
                 "Não foi possível localizar os dados completos do equipamento.",
                 icon_name="warning",
             )
@@ -431,7 +639,10 @@ class ReportsPage(QFrame):
 
         if row_index < 0 or row_index >= len(self.item_rows):
             return
-        dialog = NonConformityDetailDialog(self.api_client, self.item_rows[row_index], self)
+        row_item = self._payload_for_row(self.item_table, row_index, self.item_rows)
+        if not row_item:
+            return
+        dialog = NonConformityDetailDialog(self.api_client, row_item, self)
         dialog.exec()
 
     def generate_macro_message(self):
@@ -456,17 +667,122 @@ class ReportsPage(QFrame):
         )
         MessageComposerDialog(package, self).exec()
 
+    def _item_scope_label(self) -> str:
+        item_name = self.item_filter.text().strip()
+        if item_name:
+            return f"Não conformidade: {item_name}"
+        status = self.nc_status_filter.currentData()
+        if status == "abertas":
+            return "Não conformidades abertas"
+        if status == "resolvidas":
+            return "Não conformidades resolvidas"
+        return "Todas as não conformidades"
+
+    def _item_period_label(self) -> str:
+        mode = self.period_mode_filter.currentData() or "all"
+        if mode == "all":
+            return "Todo período"
+        start = self.start_date_filter.date().toString("dd/MM/yyyy")
+        end = self.end_date_filter.date().toString("dd/MM/yyyy")
+        if start == end:
+            return start
+        return f"{start} a {end}"
+
+    def _item_filter_context(self) -> dict[str, str]:
+        return {
+            "Módulo": self.modulo_filter.currentText(),
+            "Status NC": self.nc_status_filter.currentText(),
+            "Período": self._item_period_label(),
+        }
+
     def generate_item_message(self):
         if not self.item_rows:
             show_notice(self, "Sem dados", "Não há ocorrências disponíveis para gerar mensagem.", icon_name="warning")
             return
         package = build_item_message_package(
             self.item_rows,
-            self.item_filter.text().strip() or "Item selecionado",
+            self._item_scope_label(),
             self._build_period_label("relatorio_item", self.item_rows),
             generated_by=self.api_client.user.get("nome", ""),
         )
         MessageComposerDialog(package, self).exec()
+
+    def export_selected_vehicle_audit_pdf(self):
+        selected = self.micro_table.selectedRanges()
+        if not selected:
+            show_notice(self, "Seleção obrigatória", "Selecione um equipamento no relatório micro.", icon_name="warning")
+            return
+        row = self._payload_for_row(self.micro_table, selected[0].topRow(), self.micro_rows)
+        if not row:
+            return
+        vehicle = self.vehicle_cache.get(row.get("vehicle_id"))
+        if not vehicle:
+            try:
+                self._prime_vehicle_cache()
+                vehicle = self.vehicle_cache.get(row.get("vehicle_id"))
+            except Exception:
+                vehicle = None
+        if not vehicle:
+            show_notice(self, "Ficha indisponível", "Não foi possível localizar os dados completos do equipamento.", icon_name="warning")
+            return
+
+        default_path = make_default_export_path(f"auditoria_{vehicle.get('frota', 'frota').lower()}", "pdf")
+        filename, _ = QFileDialog.getSaveFileName(self, "Exportar auditoria do equipamento", default_path, "PDF (*.pdf)")
+        if not filename:
+            return
+
+        def task(progress):
+            progress(5, "Preparando auditoria do equipamento")
+            history = self.api_client.get_vehicle_history(vehicle["id"])
+            occurrences = history.get("nao_conformidades") or []
+            progress(18, f"Histórico carregado: {len(occurrences)} ocorrência(s)")
+            vehicle_image = self.api_client.fetch_image(vehicle.get("foto_path"))
+            progress(26, "Foto do equipamento carregada")
+            occurrence_images = self._collect_occurrence_images_with_progress(occurrences, progress, start=26, end=78)
+            progress(86, "Montando páginas do PDF")
+            export_vehicle_detail_pdf(
+                vehicle,
+                occurrences,
+                output_path=filename,
+                logo_path=self.logo_path,
+                generated_by=self.api_client.user.get("nome", ""),
+                vehicle_image=vehicle_image,
+                operational_history=self._build_operational_history(history, occurrences),
+                occurrence_images=occurrence_images,
+            )
+            return filename
+
+        self._run_pdf_export("Exportando auditoria do equipamento", task)
+
+    def export_item_audit_pdf(self):
+        if not self.item_rows:
+            show_notice(self, "Sem dados", "Aplique os filtros e carregue ocorrências antes de gerar o PDF de auditoria.", icon_name="warning")
+            return
+        scope_label = self._item_scope_label()
+        safe_name = "".join(char if char.isalnum() else "_" for char in scope_label.lower()).strip("_") or "nao_conformidades"
+        default_path = make_default_export_path(f"auditoria_item_{safe_name}", "pdf")
+        filename, _ = QFileDialog.getSaveFileName(self, "Exportar auditoria por item", default_path, "PDF (*.pdf)")
+        if not filename:
+            return
+        rows = list(self.item_rows)
+        filter_context = self._item_filter_context()
+
+        def task(progress):
+            progress(5, "Preparando auditoria por item")
+            occurrence_images = self._collect_occurrence_images_with_progress(rows, progress, start=12, end=78)
+            progress(86, "Montando páginas do PDF")
+            export_item_audit_pdf(
+                scope_label,
+                rows,
+                output_path=filename,
+                logo_path=self.logo_path,
+                generated_by=self.api_client.user.get("nome", ""),
+                occurrence_images=occurrence_images,
+                filter_context=filter_context,
+            )
+            return filename
+
+        self._run_pdf_export("Exportando auditoria por item", task)
 
     def export_macro(self, file_type: str):
         columns = [
@@ -477,7 +793,7 @@ class ReportsPage(QFrame):
         ]
         self._export_dataset(
             "relatorio_macro",
-            "Relatorio Macro de Não conformidades",
+            "Relatório Macro de Não conformidades",
             "Consolidado executivo por item",
             columns,
             self.macro_rows,
@@ -507,8 +823,8 @@ class ReportsPage(QFrame):
         ]
         self._export_dataset(
             "relatorio_micro",
-            "Relatorio Micro por Equipamento",
-            "Visao operacional por unidade da frota",
+            "Relatório Micro por Equipamento",
+            "Visão operacional por unidade da frota",
             columns,
             rows,
             file_type,
@@ -540,19 +856,28 @@ class ReportsPage(QFrame):
             elif file_type == "xlsx":
                 export_rows_to_xlsx(title, columns, rows, filename)
             else:
-                export_rows_to_pdf(
-                    title,
-                    subtitle,
-                    columns,
-                    rows,
-                    filename,
-                    logo_path=self.logo_path,
-                    generated_by=self.api_client.user.get("nome", ""),
-                    period_label=self._build_period_label(prefix, rows),
-                )
-            show_notice(self, "Exportacao concluida", f"Arquivo salvo em:\n{filename}", icon_name="reports")
+                period_label = self._build_period_label(prefix, rows)
+
+                def task(progress):
+                    progress(12, "Organizando dados do relatório")
+                    progress(42, "Montando capa, gráficos e tabela")
+                    export_rows_to_pdf(
+                        title,
+                        subtitle,
+                        columns,
+                        rows,
+                        filename,
+                        logo_path=self.logo_path,
+                        generated_by=self.api_client.user.get("nome", ""),
+                        period_label=period_label,
+                    )
+                    return filename
+
+                self._run_pdf_export("Exportando PDF executivo", task)
+                return
+            show_notice(self, "Exportação concluída", f"Arquivo salvo em:\n{filename}", icon_name="reports")
         except Exception as exc:
-            show_notice(self, "Falha na exportacao", str(exc), icon_name="warning")
+            show_notice(self, "Falha na exportação", str(exc), icon_name="warning")
 
     def _build_period_label(self, prefix: str, rows: list[dict]) -> str:
         today = datetime.now().strftime("%d/%m/%Y")
@@ -570,7 +895,153 @@ class ReportsPage(QFrame):
                 start = self._format_date_only(normalized[0])
                 end = self._format_date_only(normalized[-1])
                 return f"{start} a {end}"
-        return f"Base consolidada ate {today}"
+        return f"Base consolidada até {today}"
+
+    def _collect_occurrence_images(self, occurrences: list[dict]) -> dict[int, dict[str, bytes | None]]:
+        images: dict[int, dict[str, bytes | None]] = {}
+        for item in occurrences:
+            item_id = item.get("id")
+            if not item_id:
+                continue
+            images[item_id] = {
+                "before": self.api_client.fetch_image(item.get("foto_antes")),
+                "after": self.api_client.fetch_image(item.get("foto_depois")),
+            }
+        return images
+
+    def _collect_occurrence_images_with_progress(
+        self,
+        occurrences: list[dict],
+        progress,
+        *,
+        start: int,
+        end: int,
+    ) -> dict[int, dict[str, bytes | None]]:
+        images: dict[int, dict[str, bytes | None]] = {}
+        total = max(1, len(occurrences))
+        if not occurrences:
+            progress(end, "Nenhuma foto de evidência para carregar")
+            return images
+
+        for index, item in enumerate(occurrences, start=1):
+            item_id = item.get("id")
+            percent = start + int(((index - 1) / total) * (end - start))
+            label = item.get("item_nome") or f"ocorrência {item_id or index}"
+            progress(percent, f"Carregando evidências {index}/{len(occurrences)}: {label}")
+            if not item_id:
+                continue
+            images[item_id] = {
+                "before": self.api_client.fetch_image(item.get("foto_antes")),
+                "after": self.api_client.fetch_image(item.get("foto_depois")),
+            }
+        progress(end, "Evidências fotográficas carregadas")
+        return images
+
+    def _run_pdf_export(self, title: str, task):
+        dialog = ExportProgressDialog(title, self)
+        thread = QThread(self)
+        worker = ExportWorker(task)
+        worker.moveToThread(thread)
+
+        job = {"thread": thread, "worker": worker, "dialog": dialog}
+        self._export_jobs.append(job)
+
+        def cleanup():
+            if job in self._export_jobs:
+                self._export_jobs.remove(job)
+
+        thread.started.connect(worker.run)
+        worker.progress.connect(dialog.set_progress)
+        worker.finished.connect(lambda path, current_job=job: self.pdf_export_finished.emit(current_job, path))
+        worker.failed.connect(lambda message, current_job=job: self.pdf_export_failed.emit(current_job, message))
+        worker.finished.connect(worker.deleteLater)
+        worker.failed.connect(worker.deleteLater)
+        thread.finished.connect(cleanup)
+        thread.finished.connect(thread.deleteLater)
+
+        dialog.show()
+        thread.start()
+
+    def _handle_pdf_export_finished(self, job: dict, path):
+        dialog = job.get("dialog")
+        thread = job.get("thread")
+        if dialog:
+            dialog.mark_finished()
+        if thread and thread.isRunning():
+            thread.quit()
+        show_notice(self, "PDF gerado", f"Arquivo salvo em:\n{path}", icon_name="reports")
+        if dialog:
+            dialog.accept()
+
+    def _handle_pdf_export_failed(self, job: dict, message: str):
+        dialog = job.get("dialog")
+        thread = job.get("thread")
+        if dialog:
+            dialog.mark_failed(message)
+        if thread and thread.isRunning():
+            thread.quit()
+        show_notice(self, "Falha ao exportar PDF", message, icon_name="warning")
+        if dialog:
+            dialog.accept()
+
+    @staticmethod
+    def _payload_for_row(table: QTableWidget, row: int, fallback_rows: list[dict]):
+        if row < 0:
+            return None
+        first_cell = table.item(row, 0)
+        if first_cell:
+            payload = first_cell.data(Qt.UserRole)
+            if payload:
+                return payload
+        if row < len(fallback_rows):
+            return fallback_rows[row]
+        return None
+
+    def _build_operational_history(self, history: dict, occurrences: list[dict]) -> list[dict]:
+        rows = []
+        for item in occurrences:
+            rows.append(
+                {
+                    "date": item.get("created_at"),
+                    "origin": "Não conformidade",
+                    "item": item.get("item_nome") or "-",
+                    "status": "Resolvida" if item.get("resolvido") else "Aberta",
+                    "owner": item.get("usuario", {}).get("nome") or "-",
+                }
+            )
+        for item in history.get("manutencoes", []):
+            schedule = item.get("schedule") or {}
+            rows.append(
+                {
+                    "date": item.get("executed_at") or item.get("scheduled_date") or item.get("created_at"),
+                    "origin": "Manutenção",
+                    "item": schedule.get("title") or "-",
+                    "status": str(item.get("status") or "-").replace("_", " "),
+                    "owner": (item.get("executed_by") or item.get("assigned_mechanic") or {}).get("nome") or "-",
+                }
+            )
+        for item in history.get("lavagens", []):
+            rows.append(
+                {
+                    "date": item.get("wash_date"),
+                    "origin": "Lavagem",
+                    "item": item.get("tipo_equipamento") or "Lavagem",
+                    "status": item.get("status") or "-",
+                    "owner": (item.get("created_by") or {}).get("nome") or "-",
+                }
+            )
+        for item in history.get("atividades", []):
+            activity = item.get("atividade") or {}
+            rows.append(
+                {
+                    "date": item.get("instalado_em") or item.get("updated_at"),
+                    "origin": "Atividade",
+                    "item": activity.get("item_nome") or activity.get("titulo") or f"Atividade #{item.get('activity_id') or '-'}",
+                    "status": str(item.get("status_execucao") or "-").replace("_", " "),
+                    "owner": item.get("executado_por_nome") or "-",
+                }
+            )
+        return sorted(rows, key=lambda item: item.get("date") or "", reverse=True)
 
     def current_tab_key(self) -> str:
         return {0: "macro", 1: "micro", 2: "item"}.get(self.tabs.currentIndex(), "macro")

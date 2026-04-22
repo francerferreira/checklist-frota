@@ -1,4 +1,4 @@
-from __future__ import annotations
+﻿from __future__ import annotations
 
 import io
 import sys
@@ -13,6 +13,7 @@ if str(DESKTOP_ROOT) not in sys.path:
 
 from services.export_service import (
     export_activity_pdf,
+    export_item_audit_pdf,
     export_material_report_pdf,
     export_material_report_xlsx,
     export_non_conformity_pdf,
@@ -107,7 +108,7 @@ class ExportServiceTests(unittest.TestCase):
             "modelo": "Scania P360XT",
             "ano": "2024",
             "chassi": "123",
-            "configuracao": "Portuaria",
+            "configuracao": "Operacional",
             "atividade": "Container",
             "status": "ON",
             "local": "Patio",
@@ -120,6 +121,8 @@ class ExportServiceTests(unittest.TestCase):
                 "resolvido": False,
                 "codigo_peca": None,
                 "usuario": {"nome": "Motorista"},
+                "id": 1,
+                "veiculo": {"frota": "CV801", "tipo": "cavalo", "placa": "ABC-1234", "modelo": "Scania"},
             }
         ]
         export_vehicle_detail_pdf(
@@ -128,6 +131,42 @@ class ExportServiceTests(unittest.TestCase):
             output_path=path,
             generated_by="Administrador",
             vehicle_image=self.sample_png,
+            occurrence_images={1: {"before": self.sample_png, "after": self.sample_png}},
+        )
+        self.assertTrue(path.exists())
+        self.assertGreater(path.stat().st_size, 1000)
+
+    def test_export_item_audit_pdf_creates_file_with_images(self):
+        path = self.output_dir / "auditoria_item.pdf"
+        occurrences = [
+            {
+                "id": 10,
+                "created_at": "2026-04-11T12:00:00",
+                "data_resolucao": "2026-04-12T10:00:00",
+                "item_nome": "Paralamas esquerdo",
+                "resolvido": True,
+                "codigo_peca": "P-300",
+                "descricao_peca": "Paralamas",
+                "observacao": "Resolvido para auditoria",
+                "veiculo": {"frota": "CV801", "tipo": "cavalo", "placa": "ABC-1234", "modelo": "Scania"},
+                "usuario": {"nome": "Motorista"},
+                "resolved_by": {"nome": "Mecanico"},
+            },
+            {
+                "id": 11,
+                "created_at": "2026-04-13T12:00:00",
+                "item_nome": "Paralamas esquerdo",
+                "resolvido": False,
+                "veiculo": {"frota": "CV802", "tipo": "cavalo", "placa": "DEF-5678", "modelo": "Volvo"},
+                "usuario": {"nome": "Motorista"},
+            },
+        ]
+        export_item_audit_pdf(
+            "Paralamas esquerdo",
+            occurrences,
+            output_path=path,
+            generated_by="Administrador",
+            occurrence_images={10: {"before": self.sample_png, "after": self.sample_png}},
         )
         self.assertTrue(path.exists())
         self.assertGreater(path.stat().st_size, 1000)
@@ -223,3 +262,4 @@ class ExportServiceTests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+

@@ -1,4 +1,4 @@
-from __future__ import annotations
+﻿from __future__ import annotations
 
 import calendar as month_calendar
 from datetime import date, datetime
@@ -11,10 +11,9 @@ from reportlab.platypus import PageBreak, Paragraph, SimpleDocTemplate, Spacer, 
 
 from .export_service import (
     _build_cover_page,
-    _build_header,
     _build_signature_block,
     _build_summary_cards,
-    _draw_footer,
+    _draw_page_frame,
     _key_value_table,
     _safe_paragraph_text,
     _styles,
@@ -67,29 +66,20 @@ def export_wash_month_pdf(
         pagesize=landscape(A4),
         leftMargin=14 * mm,
         rightMargin=14 * mm,
-        topMargin=14 * mm,
+        topMargin=40 * mm,
         bottomMargin=14 * mm,
     )
     styles = _styles()
 
     story = _build_cover_page(
         "Relatório mensal de lavagens",
-        f"Porto Chibatão - {period_label}",
+        f"Checklist de Frota - {period_label}",
         generated_by,
         logo_path,
         styles,
         landscape_mode=True,
     )
     story.append(PageBreak())
-    story.extend(
-        _build_header(
-            "Relatório mensal de lavagens",
-            f"Programação e execução de {period_label}",
-            generated_by,
-            logo_path,
-            styles,
-        )
-    )
     story.extend(
         _build_summary_cards(
             [
@@ -184,7 +174,14 @@ def export_wash_month_pdf(
     story.extend(_build_signature_block(generated_by, styles))
 
     def footer(canvas, document):
-        _draw_footer(canvas, document, generated_by)
+        _draw_page_frame(
+            canvas,
+            document,
+            generated_by,
+            "Relatório mensal de lavagens",
+            f"Programação e execução de {period_label}",
+            logo_path,
+        )
         canvas.saveState()
         canvas.setFillColor(colors.HexColor("#0B1220"))
         canvas.setFont("Helvetica-Bold", 8)
@@ -214,29 +211,20 @@ def export_wash_schedule_pdf(
         pagesize=landscape(A4),
         leftMargin=14 * mm,
         rightMargin=14 * mm,
-        topMargin=14 * mm,
+        topMargin=40 * mm,
         bottomMargin=14 * mm,
     )
     styles = _styles()
 
     story = _build_cover_page(
         "Cronograma mensal de lavagens",
-        f"Porto Chibatão - {period_label}",
+        f"Checklist de Frota - {period_label}",
         generated_by,
         logo_path,
         styles,
         landscape_mode=True,
     )
     story.append(PageBreak())
-    story.extend(
-        _build_header(
-            "Cronograma mensal de lavagens",
-            f"Programação operacional de {period_label}",
-            generated_by,
-            logo_path,
-            styles,
-        )
-    )
 
     story.append(Paragraph("Cronograma mensal vivo", styles["section"]))
     story.append(Spacer(1, 4))
@@ -311,7 +299,14 @@ def export_wash_schedule_pdf(
     story.extend(_build_signature_block(generated_by, styles))
 
     def footer(canvas, document):
-        _draw_footer(canvas, document, generated_by)
+        _draw_page_frame(
+            canvas,
+            document,
+            generated_by,
+            "Cronograma mensal de lavagens",
+            f"Programação operacional de {period_label}",
+            logo_path,
+        )
 
     doc.build(story, onFirstPage=footer, onLaterPages=footer)
     return path
@@ -407,3 +402,4 @@ def _format_currency(value) -> str:
     except (TypeError, ValueError):
         amount = 0.0
     return f"R$ {amount:,.2f}".replace(",", "X").replace(".", ",").replace("X", ".")
+

@@ -18,7 +18,7 @@ from PySide6.QtWidgets import (
 )
 
 from components import TableSkeletonOverlay, ask_confirmation, make_icon, show_notice
-from theme import build_dialog_layout, configure_dialog_window, configure_table, style_card, style_table_card
+from theme import build_dialog_layout, configure_dialog_window, configure_table, make_table_item, style_card, style_table_card
 
 
 class UserDialog(QDialog):
@@ -139,7 +139,7 @@ class UserDialog(QDialog):
         if self.senha_input.text():
             payload["senha"] = self.senha_input.text()
         if not self.user and "senha" not in payload:
-            show_notice(self, "Senha obrigatÃ³ria", "Informe a senha para o novo login.", icon_name="warning")
+            show_notice(self, "Senha obrigatória", "Informe a senha para o novo login.", icon_name="warning")
             return
         self.result_payload = payload
         self.accept()
@@ -240,13 +240,21 @@ class UsersPage(QFrame):
 
     def refresh(self):
         self.users = self.api_client.get_users()
-        self.table.setRowCount(len(self.users))
-        for row, user in enumerate(self.users):
-            self.table.setItem(row, 0, QTableWidgetItem(user["nome"]))
-            self.table.setItem(row, 1, QTableWidgetItem(user["login"]))
-            self.table.setItem(row, 2, QTableWidgetItem(user["tipo"]))
-            self.table.setItem(row, 3, QTableWidgetItem("Sim" if user["ativo"] else "N\u00e3o"))
-        self.table.resizeColumnsToContents()
+        self.table.setSortingEnabled(False)
+        self.table.setUpdatesEnabled(False)
+        self.table.blockSignals(True)
+        try:
+            self.table.setRowCount(len(self.users))
+            for row, user in enumerate(self.users):
+                self.table.setItem(row, 0, make_table_item(user["nome"], payload=user))
+                self.table.setItem(row, 1, make_table_item(user["login"]))
+                self.table.setItem(row, 2, make_table_item(user["tipo"]))
+                self.table.setItem(row, 3, make_table_item("Sim" if user["ativo"] else "N\u00e3o"))
+            self.table.resizeColumnsToContents()
+        finally:
+            self.table.blockSignals(False)
+            self.table.setUpdatesEnabled(True)
+            self.table.setSortingEnabled(True)
         enable_actions = self.is_admin and bool(self.users)
         self.edit_button.setEnabled(enable_actions)
         self.delete_button.setEnabled(enable_actions)
@@ -267,7 +275,15 @@ class UsersPage(QFrame):
             return
 
         row = selected[0].topRow()
-        self.current_user_item = self.users[row]
+        first_cell = self.table.item(row, 0)
+        self.current_user_item = first_cell.data(Qt.UserRole) if first_cell else None
+        if not self.current_user_item and 0 <= row < len(self.users):
+            self.current_user_item = self.users[row]
+        if not self.current_user_item:
+            self.info_label.setText("Selecione um login para editar.")
+            self.edit_button.setEnabled(False)
+            self.delete_button.setEnabled(False)
+            return
         self.info_label.setText(
             f"{self.current_user_item['nome']} ({self.current_user_item['login']}) \u2022 "
             f"perfil {self.current_user_item['tipo']} \u2022 "

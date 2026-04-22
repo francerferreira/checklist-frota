@@ -113,7 +113,7 @@ class FakeAPIClient:
         self.calls["reports_micro"] += 1
         return []
 
-    def get_item_report(self, item_name=None):
+    def get_item_report(self, item_name=None, **_kwargs):
         self.calls["reports_item"] += 1
         return []
 

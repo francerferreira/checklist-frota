@@ -6,7 +6,7 @@ import webbrowser
 from datetime import date, datetime
 from pathlib import Path
 
-from PySide6.QtCore import QDate, Qt, Signal
+from PySide6.QtCore import QDate, QEvent, QTimer, Qt, Signal
 from PySide6.QtGui import QColor, QFont, QPainter
 from PySide6.QtWidgets import (
     QAbstractItemView,
@@ -37,7 +37,7 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
-from components import MessageComposerDialog, TableSkeletonOverlay, make_icon, show_notice
+from components import MessageComposerDialog, TableSkeletonOverlay, make_icon, show_notice, start_export_task
 from runtime_paths import asset_path
 from services.wash_reporting_service import (
     build_wash_tomorrow_message_package,
@@ -48,6 +48,7 @@ from theme import (
     build_dialog_layout,
     configure_dialog_window,
     configure_table,
+    make_table_item,
     style_card,
     style_filter_bar,
     style_table_card,
@@ -273,7 +274,7 @@ class WashRegisterDialog(QDialog):
             self.trailer_combo.addItem(label, trailer.get("frota"))
         self._configure_trailer_search(self.trailer_combo)
 
-        self.location_input = QLineEdit(queue_item.get("last_location") or "PORTO CHIBATÃO")
+        self.location_input = QLineEdit(queue_item.get("last_location") or "PATIO")
         self.location_input.setPlaceholderText("Local da lavagem")
 
         self.value_input = QDoubleSpinBox()
@@ -813,12 +814,15 @@ class WashValuesDialog(QDialog):
         self.table = QTableWidget(len(rows), 2)
         self.table.setHorizontalHeaderLabels(["Categoria", "Valor unitário"])
         configure_table(self.table, stretch_last=False)
+        self.table.setSortingEnabled(False)
+        self.table.horizontalHeader().setSectionsClickable(False)
+        self.table.horizontalHeader().setSortIndicatorShown(False)
         self.table.verticalHeader().setVisible(False)
         self.table.setEditTriggers(QAbstractItemView.NoEditTriggers)
         self.editors: list[tuple[str, QDoubleSpinBox]] = []
         for row_index, item in enumerate(rows):
             category = item.get("categoria") or "-"
-            self.table.setItem(row_index, 0, QTableWidgetItem(category))
+            self.table.setItem(row_index, 0, make_table_item(category))
             editor = QDoubleSpinBox()
             editor.setMaximum(99999.99)
             editor.setDecimals(2)
@@ -867,13 +871,16 @@ class ScheduleDetailDialog(QDialog):
         configure_dialog_window(self, width=1420, height=860, min_width=1240, min_height=720)
         self.setWindowState(self.windowState() | Qt.WindowMaximized)
         style_card(self)
-        layout = build_dialog_layout(self, max_content_width=0)
+        layout = QVBoxLayout(self)
+        layout.setContentsMargins(18, 18, 18, 18)
+        layout.setSpacing(14)
 
         header = QFrame()
         header.setObjectName("DialogHeader")
         header.setAttribute(Qt.WA_StyledBackground, True)
         header_layout = QVBoxLayout(header)
         header_layout.setContentsMargins(18, 18, 18, 18)
+        header_layout.setSpacing(6)
         title = QLabel("Cumprimento do cronograma")
         title.setObjectName("DialogHeaderTitle")
         subtitle = QLabel(title_text)
@@ -886,23 +893,33 @@ class ScheduleDetailDialog(QDialog):
         body.setObjectName("HeaderCard")
         body.setAttribute(Qt.WA_StyledBackground, True)
         body.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
-        body.setMinimumWidth(1260)
         body_layout = QVBoxLayout(body)
-        body_layout.setContentsMargins(16, 16, 16, 16)
+        body_layout.setContentsMargins(16, 14, 16, 14)
+        body_layout.setSpacing(12)
 
         headers = ["Turno", "Referencia", "Categoria", "Valor", "Status", "Foto", "OK", "X", "Reeditar"]
         self.table = QTableWidget(len(schedule_items), len(headers))
         self.table.setHorizontalHeaderLabels(headers)
-        configure_table(self.table, stretch_last=False)
+        configure_table(self.table, stretch_last=False, auto_fit=False)
         self.table.setColumnHidden(3, not self.host_page.can_view_values)
-        self.table.verticalHeader().setVisible(False)
-        self.table.setMinimumHeight(620)
-        self.table.setMinimumWidth(1220)
+        self.table.setSortingEnabled(False)
+        self.table.horizontalHeader().setSectionsClickable(False)
+        self.table.horizontalHeader().setSortIndicatorShown(False)
+        self.table.setMinimumHeight(640)
         self.table.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
         self.table.setHorizontalScrollBarPolicy(Qt.ScrollBarAsNeeded)
         self.table.setWordWrap(False)
-        self.table.horizontalHeader().setSectionResizeMode(QHeaderView.Interactive)
-        self.table.horizontalHeader().setMinimumSectionSize(90)
+        self.table.horizontalHeader().setDefaultSectionSize(136)
+        self.table.horizontalHeader().setMinimumSectionSize(82)
+        self.table.horizontalHeader().setFixedHeight(56)
+        self.table.setStyleSheet(
+            """
+            QTableWidget { font-size: 15px; }
+            QHeaderView::section { font-size: 15px; font-weight: 760; }
+            QTableWidget::item { padding: 6px 8px; }
+            """
+        )
+
         for row_index, item in enumerate(schedule_items):
             values = [
                 "Manha" if item.get("scheduled_shift") == "MANHA" else "Tarde",
@@ -911,7 +928,9 @@ class ScheduleDetailDialog(QDialog):
                 self.host_page._format_currency(item.get("valor_sugerido")) if self.host_page.can_view_values else "",
             ]
             for column, value in enumerate(values):
-                self.table.setItem(row_index, column, QTableWidgetItem(value))
+                cell = make_table_item(value)
+                cell.setTextAlignment(Qt.AlignLeft | Qt.AlignVCenter)
+                self.table.setItem(row_index, column, cell)
 
             self.table.setCellWidget(
                 row_index,
@@ -924,13 +943,14 @@ class ScheduleDetailDialog(QDialog):
             photo_path = item.get("foto_path")
             if photo_path:
                 photo_button = QPushButton("Ver")
-                photo_button.setMinimumHeight(32)
+                photo_button.setMinimumHeight(34)
+                photo_button.setMinimumWidth(76)
                 photo_button.clicked.connect(
                     lambda checked=False, path=photo_path: self.host_page.open_wash_photo(path)
                 )
                 self.table.setCellWidget(row_index, 5, photo_button)
             else:
-                self.table.setItem(row_index, 5, QTableWidgetItem("-"))
+                self.table.setItem(row_index, 5, make_table_item("-"))
 
             ok_button = QPushButton()
             ok_button.setIcon(make_icon("ok", "#ECFDF5", "#16A34A", 20))
@@ -958,21 +978,26 @@ class ScheduleDetailDialog(QDialog):
             self.table.setCellWidget(row_index, 6, ok_button)
             self.table.setCellWidget(row_index, 7, no_button)
             reedit_button = QPushButton("Reeditar")
-            reedit_button.setMinimumHeight(32)
+            reedit_button.setMinimumHeight(34)
+            reedit_button.setMinimumWidth(116)
             reedit_button.setEnabled(item.get("status_execucao") in {"NAO_CUMPRIDO", "LAVADO"})
             reedit_button.clicked.connect(lambda checked=False, payload=item: self._handle_reedit(payload))
             self.table.setCellWidget(row_index, 8, reedit_button)
+            self.table.setRowHeight(row_index, 62)
+
         self._apply_schedule_table_widths(headers)
-        body_layout.addWidget(self.table)
+        body_layout.addWidget(self.table, 1)
 
         footer = QFrame()
         footer.setObjectName("DialogFooter")
         footer.setAttribute(Qt.WA_StyledBackground, True)
         footer_layout = QHBoxLayout(footer)
-        footer_layout.setContentsMargins(16, 14, 16, 14)
+        footer_layout.setContentsMargins(16, 12, 16, 12)
         footer_layout.addStretch()
         close_button = QPushButton("Fechar")
         close_button.setProperty("variant", "primary")
+        close_button.setMinimumWidth(120)
+        close_button.setMinimumHeight(38)
         close_button.clicked.connect(self.accept)
         footer_layout.addWidget(close_button)
 
@@ -993,22 +1018,25 @@ class ScheduleDetailDialog(QDialog):
         self.host_page.reedit_schedule_decision(payload)
 
     def _apply_schedule_table_widths(self, headers: list[str]):
-        width_map = {
-            "Turno": 130,
-            "Referencia": 190,
-            "Referência": 190,
-            "Categoria": 170,
-            "Valor": 120,
-            "Status": 180,
-            "Foto": 110,
-            "OK": 90,
-            "X": 90,
-            "Reeditar": 120,
-        }
+        header = self.table.horizontalHeader()
         for index, title in enumerate(headers):
-            target_width = width_map.get(title, 120)
-            current_width = self.table.columnWidth(index)
-            self.table.setColumnWidth(index, max(current_width, target_width))
+            if title in {"OK", "X"}:
+                header.setSectionResizeMode(index, QHeaderView.Fixed)
+                self.table.setColumnWidth(index, 96)
+                continue
+            if title == "Reeditar":
+                header.setSectionResizeMode(index, QHeaderView.Fixed)
+                self.table.setColumnWidth(index, 140)
+                continue
+            if title == "Foto":
+                header.setSectionResizeMode(index, QHeaderView.Fixed)
+                self.table.setColumnWidth(index, 108)
+                continue
+            if title == "Valor":
+                header.setSectionResizeMode(index, QHeaderView.Fixed)
+                self.table.setColumnWidth(index, 132)
+                continue
+            header.setSectionResizeMode(index, QHeaderView.Stretch)
 
 
 class WashesPage(QFrame):
@@ -1027,6 +1055,9 @@ class WashesPage(QFrame):
         self.category_values: dict[str, float] = {}
         self.trailers: list[dict] = []
         self.current_item: dict | None = None
+        self._queue_filter_timer = QTimer(self)
+        self._queue_filter_timer.setSingleShot(True)
+        self._queue_filter_timer.timeout.connect(self.apply_filters)
         self.setObjectName("ContentSurface")
 
         shell = QVBoxLayout(self)
@@ -1229,7 +1260,10 @@ class WashesPage(QFrame):
         self.calendar_table.setObjectName("WashCalendarTable")
         self.calendar_table.setHorizontalHeaderLabels(WEEKDAY_HEADERS)
         self.calendar_table.setItemDelegate(WashCalendarDelegate(self.calendar_table))
-        configure_table(self.calendar_table, stretch_last=False)
+        configure_table(self.calendar_table, stretch_last=False, auto_fit=False)
+        self.calendar_table.setSortingEnabled(False)
+        self.calendar_table.horizontalHeader().setSectionsClickable(False)
+        self.calendar_table.horizontalHeader().setSortIndicatorShown(False)
         self.calendar_table.setShowGrid(True)
         self.calendar_table.setGridStyle(Qt.SolidLine)
         self.calendar_table.setSelectionBehavior(QAbstractItemView.SelectItems)
@@ -1239,6 +1273,8 @@ class WashesPage(QFrame):
         self.calendar_table.setMinimumHeight(580)
         self.calendar_table.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
         self.calendar_table.verticalHeader().setVisible(False)
+        self.calendar_table.horizontalHeader().setSectionResizeMode(QHeaderView.Stretch)
+        self.calendar_table.viewport().installEventFilter(self)
         self.calendar_table.setStyleSheet(
             """
             QTableWidget#WashCalendarTable {
@@ -1259,12 +1295,14 @@ class WashesPage(QFrame):
                 color: #FFFFFF;
             }
             QHeaderView::section {
-                background: #F8FAFC;
+                background: #EEF2F6;
+                color: #1E293B;
+                border-right: 1px solid rgba(148, 163, 184, 0.16);
+                border-bottom: 1px solid rgba(148, 163, 184, 0.20);
             }
             """
         )
-        for row in range(6):
-            self.calendar_table.setRowHeight(row, 122)
+        self._resize_calendar_cells()
 
         calendar_card_layout.addLayout(calendar_top)
         calendar_card_layout.addWidget(self.calendar_table)
@@ -1308,8 +1346,9 @@ class WashesPage(QFrame):
         detail_layout.addWidget(self.day_detail_title)
         detail_layout.addWidget(self.day_detail_table)
 
-        calendar_layout.addWidget(self.calendar_card)
-        calendar_layout.addWidget(self.day_detail_card)
+        self.day_detail_card.setVisible(False)
+        calendar_layout.addWidget(self.calendar_card, 1)
+        calendar_layout.addWidget(self.day_detail_card, 0)
 
         self.queue_tab = QWidget()
         queue_tab_layout = QVBoxLayout(self.queue_tab)
@@ -1324,6 +1363,7 @@ class WashesPage(QFrame):
         self.search_input = QLineEdit()
         self.search_input.setPlaceholderText("Buscar por referência, placa, modelo ou local")
         self.search_input.returnPressed.connect(self.apply_filters)
+        self.search_input.textChanged.connect(self._schedule_queue_filter)
         self.status_filter = QComboBox()
         self.status_filter.addItem("Todos", "")
         self.status_filter.addItem("Disponíveis", "DISPONIVEL")
@@ -1607,28 +1647,49 @@ class WashesPage(QFrame):
             show_notice(self, "Falha ao gerar mensagem", str(exc), icon_name="warning")
 
     def export_month_pdf(self):
-        try:
-            logo_path = asset_path("logo_grupo.png")
+        logo_path = asset_path("app-logo-cover.png")
+        overview = dict(self.overview)
+
+        def task(progress):
+            progress(12, "Preparando relatório mensal de lavagens")
+            progress(48, "Montando indicadores e histórico")
             path = export_wash_month_pdf(
-                self.overview,
+                overview,
                 logo_path=logo_path if logo_path.exists() else None,
                 generated_by=self._generated_by(),
             )
-            show_notice(self, "PDF gerado", f"Relatório salvo em:\n{path}", icon_name="reports")
-        except Exception as exc:
-            show_notice(self, "Falha ao exportar", str(exc), icon_name="warning")
+            return path
+
+        start_export_task(
+            self,
+            "Exportando PDF mensal",
+            task,
+            success_template="Relatório salvo em:\n{result}",
+            failure_title="Falha ao exportar",
+        )
 
     def export_schedule_pdf(self):
-        try:
-            logo_path = asset_path("logo_grupo.png")
+        logo_path = asset_path("app-logo-cover.png")
+        overview = dict(self.overview)
+
+        def task(progress):
+            progress(12, "Preparando cronograma de lavagens")
+            progress(48, "Montando programação mensal")
             path = export_wash_schedule_pdf(
-                self.overview,
+                overview,
                 logo_path=logo_path if logo_path.exists() else None,
                 generated_by=self._generated_by(),
             )
-            show_notice(self, "PDF do cronograma", f"Relatório salvo em:\n{path}", icon_name="reports")
-        except Exception as exc:
-            show_notice(self, "Falha ao exportar", str(exc), icon_name="warning")
+            return path
+
+        start_export_task(
+            self,
+            "Exportando PDF do cronograma",
+            task,
+            success_title="PDF do cronograma",
+            success_template="Relatório salvo em:\n{result}",
+            failure_title="Falha ao exportar",
+        )
 
     def open_values_dialog(self):
         rows = self.overview.get("tabela_valores", [])
@@ -1705,6 +1766,9 @@ class WashesPage(QFrame):
         self.visible_queue_items = filtered
         self._fill_queue_table(filtered)
 
+    def _schedule_queue_filter(self, *_args):
+        self._queue_filter_timer.start(180)
+
     def _fill_summary(self):
         summary = self.overview.get("resumo") or {}
         next_item = summary.get("proximo") or {}
@@ -1774,39 +1838,57 @@ class WashesPage(QFrame):
                     cell_item.setFont(highlight_font)
                 self.calendar_table.setItem(row, column, cell_item)
 
+        self._resize_calendar_cells()
         self._refresh_selected_day_badge()
         self._fill_day_detail()
 
+    def _resize_calendar_cells(self):
+        rows = max(1, self.calendar_table.rowCount())
+        header_height = self.calendar_table.horizontalHeader().height()
+        frame = self.calendar_table.frameWidth() * 2
+        available_height = max(0, self.calendar_table.height() - header_height - frame - 4)
+        row_height = max(118, available_height // rows)
+        for row in range(rows):
+            self.calendar_table.setRowHeight(row, row_height)
+
+    def eventFilter(self, obj, event):
+        if obj is self.calendar_table.viewport() and event.type() == QEvent.Resize:
+            self._resize_calendar_cells()
+        return super().eventFilter(obj, event)
+
     def _fill_queue_table(self, items: list[dict]):
+        self.queue_table.setSortingEnabled(False)
         self.queue_table.blockSignals(True)
         self.queue_table.setUpdatesEnabled(False)
-        self.queue_table.setRowCount(len(items))
-        self.current_item = None
+        try:
+            self.queue_table.setRowCount(len(items))
+            self.current_item = None
 
-        for row, item in enumerate(items):
-            vehicle = item.get("vehicle") or {}
-            values = [
-                str(item.get("queue_position") or "-"),
-                item.get("referencia") or "-",
-                vehicle.get("placa") or "-",
-                vehicle.get("modelo") or "-",
-                item.get("categoria_sugerida") or "-",
-                self._format_currency(item.get("valor_sugerido")) if self.can_view_values else "",
-                self._format_date(item.get("last_wash_at")),
-                self._format_date(item.get("proxima_preventiva")),
-                "Indisponível" if item.get("indisponivel") else "Disponível",
-            ]
-            for column, value in enumerate(values):
-                self.queue_table.setItem(row, column, QTableWidgetItem(value))
+            for row, item in enumerate(items):
+                vehicle = item.get("vehicle") or {}
+                values = [
+                    str(item.get("queue_position") or "-"),
+                    item.get("referencia") or "-",
+                    vehicle.get("placa") or "-",
+                    vehicle.get("modelo") or "-",
+                    item.get("categoria_sugerida") or "-",
+                    self._format_currency(item.get("valor_sugerido")) if self.can_view_values else "",
+                    self._format_date(item.get("last_wash_at")),
+                    self._format_date(item.get("proxima_preventiva")),
+                    "Indisponível" if item.get("indisponivel") else "Disponível",
+                ]
+                for column, value in enumerate(values):
+                    self.queue_table.setItem(row, column, make_table_item(value, payload=item if column == 0 else None))
 
-            action_button = QPushButton("Liberar" if item.get("indisponivel") else "Pular")
-            action_button.setMinimumHeight(34)
-            action_button.setProperty("variant", "secondary")
-            action_button.clicked.connect(lambda checked=False, payload=item: self.toggle_queue_item(payload))
-            self.queue_table.setCellWidget(row, 9, action_button)
-
-        self.queue_table.setUpdatesEnabled(True)
-        self.queue_table.blockSignals(False)
+                action_button = QPushButton("Liberar" if item.get("indisponivel") else "Pular")
+                action_button.setMinimumHeight(34)
+                action_button.setProperty("variant", "secondary")
+                action_button.clicked.connect(lambda checked=False, payload=item: self.toggle_queue_item(payload))
+                self.queue_table.setCellWidget(row, 9, action_button)
+        finally:
+            self.queue_table.setUpdatesEnabled(True)
+            self.queue_table.blockSignals(False)
+            self.queue_table.setSortingEnabled(True)
         self.selection_badge.setText(f"{len(self._selected_queue_payloads())} selecionados")
         self.register_button.setEnabled(False)
         self.preventive_button.setEnabled(False)
@@ -1837,34 +1919,44 @@ class WashesPage(QFrame):
                     filtered_history.append(item)
             history = filtered_history
 
-        self.history_table.setRowCount(len(history))
-        for row, item in enumerate(history):
-            values = [
-                self._format_datetime(item.get("wash_date")),
-                item.get("referencia") or "-",
-                item.get("carreta") or "-",
-                item.get("tipo_equipamento") or "-",
-                (item.get("turno") or "-").title(),
-                item.get("local") or "-",
-                self._format_currency(item.get("valor")) if self.can_view_values else "",
-                item.get("observacao") or "-",
-            ]
-            for column, value in enumerate(values):
-                self.history_table.setItem(row, column, QTableWidgetItem(value))
+        for table in (self.history_table, self.category_table, self.vehicle_table):
+            table.setSortingEnabled(False)
+            table.setUpdatesEnabled(False)
+            table.blockSignals(True)
+        try:
+            self.history_table.setRowCount(len(history))
+            for row, item in enumerate(history):
+                values = [
+                    self._format_datetime(item.get("wash_date")),
+                    item.get("referencia") or "-",
+                    item.get("carreta") or "-",
+                    item.get("tipo_equipamento") or "-",
+                    (item.get("turno") or "-").title(),
+                    item.get("local") or "-",
+                    self._format_currency(item.get("valor")) if self.can_view_values else "",
+                    item.get("observacao") or "-",
+                ]
+                for column, value in enumerate(values):
+                    self.history_table.setItem(row, column, make_table_item(value))
 
-        category_rows = (self.overview.get("indicadores") or {}).get("por_categoria", [])
-        self.category_table.setRowCount(len(category_rows))
-        for row, item in enumerate(category_rows):
-            self.category_table.setItem(row, 0, QTableWidgetItem(item.get("categoria") or "-"))
-            self.category_table.setItem(row, 1, QTableWidgetItem(str(item.get("quantidade") or 0)))
-            self.category_table.setItem(row, 2, QTableWidgetItem(self._format_currency(item.get("valor")) if self.can_view_values else ""))
+            category_rows = (self.overview.get("indicadores") or {}).get("por_categoria", [])
+            self.category_table.setRowCount(len(category_rows))
+            for row, item in enumerate(category_rows):
+                self.category_table.setItem(row, 0, make_table_item(item.get("categoria") or "-"))
+                self.category_table.setItem(row, 1, make_table_item(item.get("quantidade") or 0))
+                self.category_table.setItem(row, 2, make_table_item(self._format_currency(item.get("valor")) if self.can_view_values else ""))
 
-        vehicle_rows = (self.overview.get("indicadores") or {}).get("por_veiculo", [])
-        self.vehicle_table.setRowCount(len(vehicle_rows))
-        for row, item in enumerate(vehicle_rows):
-            self.vehicle_table.setItem(row, 0, QTableWidgetItem(item.get("referencia") or "-"))
-            self.vehicle_table.setItem(row, 1, QTableWidgetItem(str(item.get("quantidade") or 0)))
-            self.vehicle_table.setItem(row, 2, QTableWidgetItem(self._format_currency(item.get("valor")) if self.can_view_values else ""))
+            vehicle_rows = (self.overview.get("indicadores") or {}).get("por_veiculo", [])
+            self.vehicle_table.setRowCount(len(vehicle_rows))
+            for row, item in enumerate(vehicle_rows):
+                self.vehicle_table.setItem(row, 0, make_table_item(item.get("referencia") or "-"))
+                self.vehicle_table.setItem(row, 1, make_table_item(item.get("quantidade") or 0))
+                self.vehicle_table.setItem(row, 2, make_table_item(self._format_currency(item.get("valor")) if self.can_view_values else ""))
+        finally:
+            for table in (self.history_table, self.category_table, self.vehicle_table):
+                table.blockSignals(False)
+                table.setUpdatesEnabled(True)
+                table.setSortingEnabled(True)
 
     def _fill_day_detail(self):
         if not self.selected_day_iso:
@@ -1881,57 +1973,65 @@ class WashesPage(QFrame):
             for item in payload.get(shift_key, []) or []:
                 rows.append((label, item))
 
-        self.day_detail_table.setRowCount(len(rows))
-        for row_index, (shift_label, item) in enumerate(rows):
-            values = [
-                shift_label,
-                item.get("referencia") or "-",
-                item.get("categoria_lavagem") or "-",
-                self._format_currency(item.get("valor_sugerido")) if self.can_view_values else "",
-            ]
-            for column, value in enumerate(values):
-                self.day_detail_table.setItem(row_index, column, QTableWidgetItem(value))
+        self.day_detail_table.setSortingEnabled(False)
+        self.day_detail_table.setUpdatesEnabled(False)
+        self.day_detail_table.blockSignals(True)
+        try:
+            self.day_detail_table.setRowCount(len(rows))
+            for row_index, (shift_label, item) in enumerate(rows):
+                values = [
+                    shift_label,
+                    item.get("referencia") or "-",
+                    item.get("categoria_lavagem") or "-",
+                    self._format_currency(item.get("valor_sugerido")) if self.can_view_values else "",
+                ]
+                for column, value in enumerate(values):
+                    self.day_detail_table.setItem(row_index, column, make_table_item(value))
 
-            self.day_detail_table.setCellWidget(
-                row_index,
-                4,
-                self._build_status_badge(
-                    item.get("status_execucao") or "PENDENTE",
-                    item.get("status_rotulo") or "Pendente",
-                ),
-            )
+                self.day_detail_table.setCellWidget(
+                    row_index,
+                    4,
+                    self._build_status_badge(
+                        item.get("status_execucao") or "PENDENTE",
+                        item.get("status_rotulo") or "Pendente",
+                    ),
+                )
 
-            ok_button = QPushButton()
-            ok_button.setIcon(make_icon("ok", "#ECFDF5", "#16A34A", 20))
-            ok_button.setToolTip("Confirmar que lavou")
-            ok_button.setFixedSize(40, 34)
-            ok_button.setStyleSheet(
-                "QPushButton {background:#FFFFFF; border:1px solid rgba(22,163,74,0.45); border-radius:10px;}"
-                "QPushButton:hover {background:#ECFDF5;}"
-            )
-            ok_button.clicked.connect(lambda checked=False, payload=item: self.confirm_schedule_success(payload))
+                ok_button = QPushButton()
+                ok_button.setIcon(make_icon("ok", "#ECFDF5", "#16A34A", 20))
+                ok_button.setToolTip("Confirmar que lavou")
+                ok_button.setFixedSize(40, 34)
+                ok_button.setStyleSheet(
+                    "QPushButton {background:#FFFFFF; border:1px solid rgba(22,163,74,0.45); border-radius:10px;}"
+                    "QPushButton:hover {background:#ECFDF5;}"
+                )
+                ok_button.clicked.connect(lambda checked=False, payload=item: self.confirm_schedule_success(payload))
 
-            no_button = QPushButton()
-            no_button.setIcon(make_icon("cancel", "#FEF2F2", "#DC2626", 20))
-            no_button.setToolTip("Marcar que não lavou")
-            no_button.setFixedSize(40, 34)
-            no_button.setStyleSheet(
-                "QPushButton {background:#FFFFFF; border:1px solid rgba(220,38,38,0.45); border-radius:10px;}"
-                "QPushButton:hover {background:#FEF2F2;}"
-            )
-            no_button.clicked.connect(lambda checked=False, payload=item: self.mark_schedule_not_completed(payload))
+                no_button = QPushButton()
+                no_button.setIcon(make_icon("cancel", "#FEF2F2", "#DC2626", 20))
+                no_button.setToolTip("Marcar que não lavou")
+                no_button.setFixedSize(40, 34)
+                no_button.setStyleSheet(
+                    "QPushButton {background:#FFFFFF; border:1px solid rgba(220,38,38,0.45); border-radius:10px;}"
+                    "QPushButton:hover {background:#FEF2F2;}"
+                )
+                no_button.clicked.connect(lambda checked=False, payload=item: self.mark_schedule_not_completed(payload))
 
-            ok_button.setEnabled(item.get("status_execucao") != "LAVADO")
-            no_button.setEnabled(item.get("status_execucao") != "NAO_CUMPRIDO")
+                ok_button.setEnabled(item.get("status_execucao") != "LAVADO")
+                no_button.setEnabled(item.get("status_execucao") != "NAO_CUMPRIDO")
 
-            reedit_button = QPushButton("Reeditar")
-            reedit_button.setMinimumHeight(32)
-            reedit_button.setEnabled(item.get("status_execucao") in {"NAO_CUMPRIDO", "LAVADO"})
-            reedit_button.clicked.connect(lambda checked=False, payload=item: self.reedit_schedule_decision(payload))
+                reedit_button = QPushButton("Reeditar")
+                reedit_button.setMinimumHeight(32)
+                reedit_button.setEnabled(item.get("status_execucao") in {"NAO_CUMPRIDO", "LAVADO"})
+                reedit_button.clicked.connect(lambda checked=False, payload=item: self.reedit_schedule_decision(payload))
 
-            self.day_detail_table.setCellWidget(row_index, 5, ok_button)
-            self.day_detail_table.setCellWidget(row_index, 6, no_button)
-            self.day_detail_table.setCellWidget(row_index, 7, reedit_button)
+                self.day_detail_table.setCellWidget(row_index, 5, ok_button)
+                self.day_detail_table.setCellWidget(row_index, 6, no_button)
+                self.day_detail_table.setCellWidget(row_index, 7, reedit_button)
+        finally:
+            self.day_detail_table.blockSignals(False)
+            self.day_detail_table.setUpdatesEnabled(True)
+            self.day_detail_table.setSortingEnabled(True)
 
     def _build_status_badge(self, status_key: str, status_label: str) -> QWidget:
         frame = QFrame()
@@ -1985,6 +2085,14 @@ class WashesPage(QFrame):
 
     def _selected_queue_payloads(self) -> list[dict]:
         rows = sorted({item.row() for item in self.queue_table.selectedItems()})
+        selected = []
+        for row in rows:
+            first_cell = self.queue_table.item(row, 0)
+            payload = first_cell.data(Qt.UserRole) if first_cell else None
+            if payload:
+                selected.append(payload)
+        if selected:
+            return selected
         references = [self.queue_table.item(row, 1).text() for row in rows if self.queue_table.item(row, 1)]
         return [item for item in self.visible_queue_items if item.get("referencia") in references]
 
@@ -2313,4 +2421,3 @@ class WashesPage(QFrame):
             return datetime.fromisoformat(value.replace("Z", "")).strftime("%d/%m/%Y %H:%M")
         except ValueError:
             return value
-

@@ -2,7 +2,7 @@
 
 from pathlib import Path
 
-from PySide6.QtCore import Qt, Signal
+from PySide6.QtCore import QTimer, Qt, Signal
 from PySide6.QtGui import QColor, QBrush
 from PySide6.QtWidgets import (
     QComboBox,
@@ -22,7 +22,7 @@ from PySide6.QtWidgets import (
     QVBoxLayout,
 )
 
-from components import TableSkeletonOverlay, make_icon, show_notice
+from components import TableSkeletonOverlay, make_icon, show_notice, start_export_task
 from components import MessageComposerDialog
 from runtime_paths import asset_path
 from services.export_service import (
@@ -32,7 +32,7 @@ from services.export_service import (
     make_default_export_path,
 )
 from services import build_activity_message_package
-from theme import build_dialog_layout, configure_dialog_window, configure_table, style_card, style_filter_bar, style_table_card
+from theme import build_dialog_layout, configure_dialog_window, configure_table, make_table_item, style_card, style_filter_bar, style_table_card
 
 
 class ActivityDialog(QDialog):
@@ -44,6 +44,9 @@ class ActivityDialog(QDialog):
         self.filtered_equipment = []
         self.materials = []
         self.mechanics = []
+        self._equipment_filter_timer = QTimer(self)
+        self._equipment_filter_timer.setSingleShot(True)
+        self._equipment_filter_timer.timeout.connect(self.apply_equipment_filters)
 
         self.setWindowTitle("Nova atividade em massa")
         configure_dialog_window(self, width=1320, height=820, min_width=980, min_height=700)
@@ -114,19 +117,19 @@ class ActivityDialog(QDialog):
         self.quantidade_spin.setValue(1)
 
         self.codigo_input = QLineEdit()
-        self.codigo_input.setPlaceholderText("CÃ³digo da peÃ§a")
+        self.codigo_input.setPlaceholderText("Código da peça")
 
         self.descricao_input = QLineEdit()
-        self.descricao_input.setPlaceholderText("DescriÃ§Ã£o da peÃ§a ou kit aplicado")
+        self.descricao_input.setPlaceholderText("Descrição da peça ou kit aplicado")
 
         self.fornecedor_input = QLineEdit()
-        self.fornecedor_input.setPlaceholderText("Fornecedor da peÃ§a")
+        self.fornecedor_input.setPlaceholderText("Fornecedor da peça")
 
         self.lote_input = QLineEdit()
-        self.lote_input.setPlaceholderText("Lote da peÃ§a")
+        self.lote_input.setPlaceholderText("Lote da peça")
 
         self.observacao_input = QTextEdit()
-        self.observacao_input.setPlaceholderText("Escopo da troca, fornecedor, lote, observaÃ§Ãµes gerais.")
+        self.observacao_input.setPlaceholderText("Escopo da troca, fornecedor, lote, observações gerais.")
 
         def add_field(row: int, column: int, label_text: str, widget, col_span: int = 1, *, highlight: bool = False):
             field = QFrame()
@@ -143,17 +146,17 @@ class ActivityDialog(QDialog):
             field_layout.addWidget(widget)
             form_layout.addWidget(field, row, column, 1, col_span)
 
-        add_field(0, 0, "Titulo da atividade", self.titulo_input, highlight=True)
-        add_field(0, 1, "Modulo / componente", self.item_input, highlight=True)
+        add_field(0, 0, "Título da atividade", self.titulo_input, highlight=True)
+        add_field(0, 1, "Módulo / componente", self.item_input, highlight=True)
         add_field(1, 0, "Tipo de equipamento", self.tipo_combo, highlight=True)
         add_field(1, 1, "Material do estoque", self.material_combo, highlight=True)
-        add_field(2, 0, "CÃ³digo da peÃ§a", self.codigo_input)
+        add_field(2, 0, "Código da peça", self.codigo_input)
         add_field(2, 1, "Quantidade por equipamento", self.quantidade_spin, highlight=True)
-        add_field(3, 0, "DescriÃ§Ã£o da peÃ§a", self.descricao_input, 2)
+        add_field(3, 0, "Descrição da peça", self.descricao_input, 2)
         add_field(4, 0, "Fornecedor", self.fornecedor_input)
         add_field(4, 1, "Lote", self.lote_input)
-        add_field(5, 0, "Mecanico direcionado", self.mechanic_combo, 2, highlight=True)
-        add_field(6, 0, "ObservaÃ§Ã£o geral", self.observacao_input, 2)
+        add_field(5, 0, "Mecânico direcionado", self.mechanic_combo, 2, highlight=True)
+        add_field(6, 0, "Observação geral", self.observacao_input, 2)
 
         filter_card = QFrame()
         style_filter_bar(filter_card)
@@ -164,6 +167,7 @@ class ActivityDialog(QDialog):
         self.search_input = QLineEdit()
         self.search_input.setPlaceholderText("Buscar por frota, placa, modelo, chassi ou atividade")
         self.search_input.returnPressed.connect(self.apply_equipment_filters)
+        self.search_input.textChanged.connect(self._schedule_equipment_filter)
 
         self.active_filter = QComboBox()
         self.active_filter.addItem("Ativos", "true")
@@ -172,7 +176,7 @@ class ActivityDialog(QDialog):
 
         select_all_button = QPushButton("Selecionar todos")
         select_all_button.clicked.connect(self.select_all)
-        clear_button = QPushButton("Limpar selecao")
+        clear_button = QPushButton("Limpar seleção")
         clear_button.clicked.connect(self.clear_selection)
         filter_button = QPushButton("Aplicar filtros")
         filter_button.clicked.connect(self.apply_equipment_filters)
@@ -193,7 +197,7 @@ class ActivityDialog(QDialog):
         table_top = QHBoxLayout()
         table_top.setContentsMargins(0, 0, 0, 0)
         table_top.setSpacing(12)
-        table_title = QLabel("Equipamentos selecionaveis")
+        table_title = QLabel("Equipamentos selecionáveis")
         table_title.setObjectName("SectionTitle")
         table_caption = QLabel(
             "Marque todos ou apenas os equipamentos desejados. A atividade vai auditar individualmente cada unidade."
@@ -254,13 +258,16 @@ class ActivityDialog(QDialog):
         self.all_equipment = self.api_client.get_equipment(self.tipo_combo.currentData(), ativos)
         self.apply_equipment_filters()
 
+    def _schedule_equipment_filter(self, *_args):
+        self._equipment_filter_timer.start(140)
+
     def refresh_materials(self):
         self.materials = self.api_client.get_materials(tipo=self.tipo_combo.currentData(), ativos="true")
         self.material_combo.blockSignals(True)
         self.material_combo.clear()
         self.material_combo.addItem("Selecionar material", None)
         for material in self.materials:
-            label = f"{material['referencia']} â€¢ {material['descricao']} â€¢ Saldo {material['quantidade_estoque']}"
+            label = f"{material['referencia']} • {material['descricao']} • Saldo {material['quantidade_estoque']}"
             self.material_combo.addItem(label, material)
         self.material_combo.blockSignals(False)
         self._sync_material_fields()
@@ -268,7 +275,7 @@ class ActivityDialog(QDialog):
     def refresh_mechanics(self):
         self.mechanics = self.api_client.get_mechanics()
         self.mechanic_combo.clear()
-        self.mechanic_combo.addItem("Sem direcionamento especifico", None)
+        self.mechanic_combo.addItem("Sem direcionamento específico", None)
         for user in self.mechanics:
             self.mechanic_combo.addItem(f"{user.get('nome') or '-'} ({user.get('login') or '-'})", user)
 
@@ -293,6 +300,7 @@ class ActivityDialog(QDialog):
         self._populate_table()
 
     def _populate_table(self):
+        self.table.setSortingEnabled(False)
         self.table.setUpdatesEnabled(False)
         self.table.blockSignals(True)
         try:
@@ -303,14 +311,15 @@ class ActivityDialog(QDialog):
                 selector.setCheckState(Qt.Unchecked)
                 selector.setData(Qt.UserRole, item["id"])
                 self.table.setItem(row, 0, selector)
-                self.table.setItem(row, 1, QTableWidgetItem(item.get("frota") or "-"))
-                self.table.setItem(row, 2, QTableWidgetItem(item.get("placa") or "-"))
-                self.table.setItem(row, 3, QTableWidgetItem(item.get("modelo") or "-"))
-                self.table.setItem(row, 4, QTableWidgetItem(item.get("status") or "-"))
-                self.table.setItem(row, 5, QTableWidgetItem(item.get("local") or "-"))
+                self.table.setItem(row, 1, make_table_item(item.get("frota") or "-"))
+                self.table.setItem(row, 2, make_table_item(item.get("placa") or "-"))
+                self.table.setItem(row, 3, make_table_item(item.get("modelo") or "-"))
+                self.table.setItem(row, 4, make_table_item(item.get("status") or "-"))
+                self.table.setItem(row, 5, make_table_item(item.get("local") or "-"))
         finally:
             self.table.blockSignals(False)
             self.table.setUpdatesEnabled(True)
+            self.table.setSortingEnabled(True)
         self._update_selection_badge()
 
     def _handle_item_changed(self, item):
@@ -418,7 +427,7 @@ class ActivityItemUpdateDialog(QDialog):
         title_wrap.setSpacing(4)
         title = QLabel(f"{veiculo.get('frota') or '-'} - {activity.get('item_nome') or '-'}")
         title.setObjectName("DialogHeaderTitle")
-        subtitle = QLabel("Registre se a peÃ§a foi instalada, nÃ£o instalada ou permanece pendente, com evidÃªncias.")
+        subtitle = QLabel("Registre se a peça foi instalada, não instalada ou permanece pendente, com evidências.")
         subtitle.setObjectName("DialogHeaderSubtitle")
         subtitle.setWordWrap(True)
         title_wrap.addWidget(title)
@@ -438,14 +447,14 @@ class ActivityItemUpdateDialog(QDialog):
         self.status_combo = QComboBox()
         self.status_combo.addItem("Pendente", "PENDENTE")
         self.status_combo.addItem("Instalado", "INSTALADO")
-        self.status_combo.addItem("NÃ£o instalado", "NAO_INSTALADO")
+        self.status_combo.addItem("Não instalado", "NAO_INSTALADO")
         existing_status = item.get("status_execucao") or "PENDENTE"
         index = self.status_combo.findData(existing_status)
         if index >= 0:
             self.status_combo.setCurrentIndex(index)
 
         self.observacao_input = QTextEdit(item.get("observacao") or "")
-        self.observacao_input.setPlaceholderText("Descreva a execuÃ§Ã£o, pendÃªncia, restriÃ§Ã£o ou apontamento de auditoria.")
+        self.observacao_input.setPlaceholderText("Descreva a execução, pendência, restrição ou apontamento de auditoria.")
 
         self.before_label = QLabel(item.get("foto_antes") or "Sem foto antes vinculada.")
         self.before_label.setObjectName("MutedText")
@@ -483,7 +492,7 @@ class ActivityItemUpdateDialog(QDialog):
         before_layout = QVBoxLayout(before_field)
         before_layout.setContentsMargins(12, 12, 12, 12)
         before_layout.setSpacing(8)
-        before_title = QLabel("Evidencia antes")
+        before_title = QLabel("Evidência antes")
         before_title.setObjectName("SectionCaption")
         before_layout.addWidget(before_title)
         before_actions = QHBoxLayout()
@@ -499,7 +508,7 @@ class ActivityItemUpdateDialog(QDialog):
         after_layout = QVBoxLayout(after_field)
         after_layout.setContentsMargins(12, 12, 12, 12)
         after_layout.setSpacing(8)
-        after_title = QLabel("Evidencia depois")
+        after_title = QLabel("Evidência depois")
         after_title.setObjectName("SectionCaption")
         after_layout.addWidget(after_title)
         after_actions = QHBoxLayout()
@@ -521,7 +530,7 @@ class ActivityItemUpdateDialog(QDialog):
         footer_layout.addStretch()
 
         cancel_button = QPushButton("Cancelar")
-        save_button = QPushButton("Salvar atualizacao")
+        save_button = QPushButton("Salvar atualização")
         save_button.setProperty("variant", "primary")
         cancel_button.setMinimumHeight(50)
         save_button.setMinimumHeight(50)
@@ -586,7 +595,7 @@ class ActivityDetailDialog(QDialog):
         super().__init__(parent)
         self.api_client = api_client
         self.activity_id = activity_id
-        self.logo_path = asset_path("logo_grupo.png")
+        self.logo_path = asset_path("app-logo-cover.png")
         self.activity = {}
         self.items = []
         self.updated = False
@@ -655,7 +664,7 @@ class ActivityDetailDialog(QDialog):
         self.total_badge.setObjectName("TopBarPill")
         self.installed_badge = QLabel("0 instalados")
         self.installed_badge.setObjectName("TopBarPill")
-        self.not_installed_badge = QLabel("0 nÃ£o instalados")
+        self.not_installed_badge = QLabel("0 não instalados")
         self.not_installed_badge.setObjectName("TopBarPill")
         self.pending_badge = QLabel("0 pendentes")
         self.pending_badge.setObjectName("TopBarPill")
@@ -678,7 +687,7 @@ class ActivityDetailDialog(QDialog):
         title = QLabel("Auditoria por equipamento")
         title.setObjectName("SectionTitle")
         caption = QLabel(
-            "Clique duas vezes em uma linha para registrar instalaÃ§Ã£o, nÃ£o instalaÃ§Ã£o, observaÃ§Ãµes e evidÃªncias."
+            "Clique duas vezes em uma linha para registrar instalação, não instalação, observações e evidências."
         )
         caption.setObjectName("SectionCaption")
         text_wrap = QVBoxLayout()
@@ -729,14 +738,14 @@ class ActivityDetailDialog(QDialog):
 
         self.title_label.setText(self.activity.get("titulo") or "Atividade em massa")
         self.subtitle_label.setText(
-            f"{(self.activity.get('tipo_equipamento') or '-').title()} â€¢ "
-            f"{self.activity.get('item_nome') or '-'} â€¢ "
-            f"{self._format(self.activity.get('created_at'))} â€¢ "
+            f"{(self.activity.get('tipo_equipamento') or '-').title()} • "
+            f"{self.activity.get('item_nome') or '-'} • "
+            f"{self._format(self.activity.get('created_at'))} • "
             f"Status {self._format_activity_status(self.activity.get('status'))}"
         )
         self.total_badge.setText(f"{resumo.get('total', 0)} equipamentos")
         self.installed_badge.setText(f"{resumo.get('instalados', 0)} instalados")
-        self.not_installed_badge.setText(f"{resumo.get('nao_instalados', 0)} nÃ£o instalados")
+        self.not_installed_badge.setText(f"{resumo.get('nao_instalados', 0)} não instalados")
         self.pending_badge.setText(f"{resumo.get('pendentes', 0)} pendentes")
         self.total_badge.setToolTip(
             f"Código: {self.activity.get('codigo_peca') or '-'}\n"
@@ -744,6 +753,7 @@ class ActivityDetailDialog(QDialog):
             f"Lote: {self.activity.get('lote_peca') or '-'}"
         )
 
+        self.table.setSortingEnabled(False)
         self.table.setUpdatesEnabled(False)
         self.table.blockSignals(True)
         try:
@@ -757,12 +767,12 @@ class ActivityDetailDialog(QDialog):
                     self._format_item_status(item.get("status_execucao")),
                     self._format(item.get("instalado_em")),
                     item.get("executado_por_nome") or "-",
-                    "Sim" if item.get("foto_antes") else "NÃ£o",
-                    "Sim" if item.get("foto_depois") else "NÃ£o",
+                    "Sim" if item.get("foto_antes") else "Não",
+                    "Sim" if item.get("foto_depois") else "Não",
                     item.get("observacao") or "-",
                 ]
                 for column, value in enumerate(values):
-                    cell = QTableWidgetItem(value)
+                    cell = make_table_item(value, payload=item if column == 0 else None)
                     if column == 3:
                         colors = self._status_colors(item.get("status_execucao"))
                         cell.setBackground(QBrush(QColor(colors["background"])))
@@ -771,6 +781,7 @@ class ActivityDetailDialog(QDialog):
         finally:
             self.table.blockSignals(False)
             self.table.setUpdatesEnabled(True)
+            self.table.setSortingEnabled(True)
         if self.items:
             self.table.selectRow(0)
 
@@ -779,9 +790,19 @@ class ActivityDetailDialog(QDialog):
         if not selected:
             return None
         row = selected[0].topRow()
-        if row < 0 or row >= len(self.items):
+        return self._item_for_row(row)
+
+    def _item_for_row(self, row: int | None):
+        if row is None or row < 0:
             return None
-        return self.items[row]
+        first_cell = self.table.item(row, 0)
+        if first_cell:
+            payload = first_cell.data(Qt.UserRole)
+            if payload:
+                return payload
+        if row < len(self.items):
+            return self.items[row]
+        return None
 
     def edit_selected_item(self, *_args):
         item = self._selected_item()
@@ -801,7 +822,7 @@ class ActivityDetailDialog(QDialog):
 
     def export_activity(self, file_type: str):
         if not self.items:
-            show_notice(self, "Sem dados", "NÃ£o hÃ¡ equipamentos registrados nesta atividade.", icon_name="warning")
+            show_notice(self, "Sem dados", "Não há equipamentos registrados nesta atividade.", icon_name="warning")
             return
 
         rows = []
@@ -814,8 +835,8 @@ class ActivityDetailDialog(QDialog):
                     "modelo": veiculo.get("modelo") or "-",
                     "status_execucao": self._format_item_status(item.get("status_execucao")),
                     "instalado_em": self._format(item.get("instalado_em")),
-                    "foto_antes": "Sim" if item.get("foto_antes") else "NÃ£o",
-                    "foto_depois": "Sim" if item.get("foto_depois") else "NÃ£o",
+                    "foto_antes": "Sim" if item.get("foto_antes") else "Não",
+                    "foto_depois": "Sim" if item.get("foto_depois") else "Não",
                     "observacao": item.get("observacao") or "-",
                 }
             )
@@ -846,26 +867,44 @@ class ActivityDetailDialog(QDialog):
             elif file_type == "xlsx":
                 export_rows_to_xlsx(self.activity.get("titulo") or "Atividade em massa", columns, rows, filename)
             else:
-                item_images = {}
-                for activity_item in self.items:
-                    item_images[activity_item["id"]] = {
-                        "before": self.api_client.fetch_image(activity_item.get("foto_antes")),
-                        "after": self.api_client.fetch_image(activity_item.get("foto_depois")),
-                    }
-                export_activity_pdf(
-                    self.activity,
-                    output_path=filename,
-                    logo_path=self.logo_path,
-                    generated_by=(self.api_client.user or {}).get("nome", ""),
-                    item_images=item_images,
+                activity = dict(self.activity)
+                activity_items = list(self.items)
+
+                def task(progress):
+                    progress(8, "Preparando PDF da atividade")
+                    item_images = {}
+                    total = max(1, len(activity_items))
+                    for index, activity_item in enumerate(activity_items, start=1):
+                        progress(12 + int(((index - 1) / total) * 62), f"Carregando evidências {index}/{len(activity_items)}")
+                        item_images[activity_item["id"]] = {
+                            "before": self.api_client.fetch_image(activity_item.get("foto_antes")),
+                            "after": self.api_client.fetch_image(activity_item.get("foto_depois")),
+                        }
+                    progress(82, "Montando páginas do PDF")
+                    export_activity_pdf(
+                        activity,
+                        output_path=filename,
+                        logo_path=self.logo_path,
+                        generated_by=(self.api_client.user or {}).get("nome", ""),
+                        item_images=item_images,
+                    )
+                    return filename
+
+                start_export_task(
+                    self,
+                    "Exportando PDF da atividade",
+                    task,
+                    success_title="Exportação concluída",
+                    failure_title="Falha na exportação",
                 )
-            show_notice(self, "Exportacao concluida", f"Arquivo salvo em:\n{filename}", icon_name="reports")
+                return
+            show_notice(self, "Exportação concluída", f"Arquivo salvo em:\n{filename}", icon_name="reports")
         except Exception as exc:
-            show_notice(self, "Falha na exportacao", str(exc), icon_name="warning")
+            show_notice(self, "Falha na exportação", str(exc), icon_name="warning")
 
     def generate_message(self):
         if not self.activity or not self.items:
-            show_notice(self, "Sem dados", "NÃ£o hÃ¡ dados disponÃ­veis para gerar mensagem.", icon_name="warning")
+            show_notice(self, "Sem dados", "Não há dados disponíveis para gerar mensagem.", icon_name="warning")
             return
         package = build_activity_message_package(
             self.activity,
@@ -888,7 +927,7 @@ class ActivityDetailDialog(QDialog):
         return {
             "PENDENTE": "Pendente",
             "INSTALADO": "Instalado",
-            "NAO_INSTALADO": "NÃ£o instalado",
+            "NAO_INSTALADO": "Não instalado",
         }.get(value or "", value or "-")
 
     @staticmethod
@@ -909,6 +948,9 @@ class ActivitiesPage(QFrame):
         self.api_client = api_client
         self.items = []
         self.mechanics = []
+        self._live_filter_timer = QTimer(self)
+        self._live_filter_timer.setSingleShot(True)
+        self._live_filter_timer.timeout.connect(self.refresh)
         self.setObjectName("ContentSurface")
 
         layout = QVBoxLayout(self)
@@ -924,7 +966,6 @@ class ActivitiesPage(QFrame):
         )
         subtitle.setObjectName("SectionCaption")
         subtitle.setWordWrap(True)
-        subtitle.setMaximumHeight(24)
         text_wrap.addWidget(title)
         text_wrap.addWidget(subtitle)
 
@@ -958,22 +999,26 @@ class ActivitiesPage(QFrame):
         self.item_filter.setPlaceholderText("Buscar por titulo, modulo ou componente")
         self.item_filter.setMinimumHeight(40)
         self.item_filter.returnPressed.connect(self.refresh)
+        self.item_filter.textChanged.connect(self._schedule_live_refresh)
 
         self.type_filter = QComboBox()
         self.type_filter.addItem("Todos os tipos", "")
         self.type_filter.addItem("Cavalos", "cavalo")
         self.type_filter.addItem("Carretas", "carreta")
         self.type_filter.setMinimumHeight(40)
+        self.type_filter.currentIndexChanged.connect(self._schedule_live_refresh)
 
         self.status_filter = QComboBox()
         self.status_filter.addItem("Todas", "")
         self.status_filter.addItem("Abertas", "ABERTA")
         self.status_filter.addItem("Finalizadas", "FINALIZADA")
         self.status_filter.setMinimumHeight(40)
+        self.status_filter.currentIndexChanged.connect(self._schedule_live_refresh)
 
         self.mechanic_filter = QComboBox()
         self.mechanic_filter.addItem("Todos os mecânicos", None)
         self.mechanic_filter.setMinimumHeight(40)
+        self.mechanic_filter.currentIndexChanged.connect(self._schedule_live_refresh)
 
         filter_button = QPushButton("Aplicar filtros")
         filter_button.setMinimumHeight(40)
@@ -1001,7 +1046,7 @@ class ActivitiesPage(QFrame):
             "Clique duas vezes em uma linha para abrir os detalhes, ver a auditoria por equipamento e exportar o relatório."
         )
         table_caption.setObjectName("SectionCaption")
-        table_caption.setMaximumHeight(20)
+        table_caption.setWordWrap(True)
         title_wrap = QVBoxLayout()
         title_wrap.setContentsMargins(0, 0, 0, 0)
         title_wrap.setSpacing(2)
@@ -1015,14 +1060,14 @@ class ActivitiesPage(QFrame):
         self.table = QTableWidget(0, 10)
         self.table.setHorizontalHeaderLabels(
             [
-                "Titulo",
-                "Modulo",
+                "Título",
+                "Módulo",
                 "Tipo",
                 "Status",
-                "Mecanico",
+                "Mecânico",
                 "Equipamentos",
                 "Instalados",
-                "NÃ£o instalados",
+                "Não instalados",
                 "Pendentes",
                 "Abertura",
             ]
@@ -1039,6 +1084,9 @@ class ActivitiesPage(QFrame):
         layout.addWidget(table_card, 1)
         self.open_button.setEnabled(False)
 
+    def _schedule_live_refresh(self, *_args):
+        self._live_filter_timer.start(220)
+
     def refresh(self):
         self._refresh_mechanic_filter()
         self.items = self.api_client.get_activities(
@@ -1047,6 +1095,7 @@ class ActivitiesPage(QFrame):
             item_name=self.item_filter.text().strip() or None,
             mechanic_id=self.mechanic_filter.currentData() or None,
         )
+        self.table.setSortingEnabled(False)
         self.table.setUpdatesEnabled(False)
         self.table.blockSignals(True)
         try:
@@ -1066,7 +1115,7 @@ class ActivitiesPage(QFrame):
                     self._format(item.get("created_at")),
                 ]
                 for column, value in enumerate(values):
-                    cell = QTableWidgetItem(value)
+                    cell = make_table_item(value, payload=item if column == 0 else None)
                     if column == 3:
                         colors = self._status_colors(item.get("status"))
                         cell.setBackground(QBrush(QColor(colors["background"])))
@@ -1075,6 +1124,7 @@ class ActivitiesPage(QFrame):
         finally:
             self.table.blockSignals(False)
             self.table.setUpdatesEnabled(True)
+            self.table.setSortingEnabled(True)
 
         self.summary_badge.setText(f"{len(self.items)} atividades")
         self.open_button.setEnabled(bool(self.items))
@@ -1109,9 +1159,19 @@ class ActivitiesPage(QFrame):
         if not selected:
             return None
         row = selected[0].topRow()
-        if row < 0 or row >= len(self.items):
+        return self._activity_for_row(row)
+
+    def _activity_for_row(self, row: int | None):
+        if row is None or row < 0:
             return None
-        return self.items[row]
+        first_cell = self.table.item(row, 0)
+        if first_cell:
+            payload = first_cell.data(Qt.UserRole)
+            if payload:
+                return payload
+        if row < len(self.items):
+            return self.items[row]
+        return None
 
     def add_activity(self):
         dialog = ActivityDialog(self.api_client, self)
@@ -1131,10 +1191,7 @@ class ActivitiesPage(QFrame):
 
     def open_activity_details(self, item=None):
         if item is not None:
-            row_index = item.row()
-            if row_index < 0 or row_index >= len(self.items):
-                return
-            activity = self.items[row_index]
+            activity = self._activity_for_row(item.row())
         else:
             activity = self._selected_row()
         if not activity:

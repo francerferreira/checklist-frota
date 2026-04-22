@@ -1,8 +1,8 @@
-param(
+﻿param(
     [string]$ApiUrl = "https://checklist-api.onrender.com",
     [string]$Login = "admin",
     [string]$Senha = "123456",
-    [string]$Destino = "$env:USERPROFILE\OneDrive - Chibatao Navegacao e Comercio Ltda\BACKUPS_CHECKLIST",
+    [string]$Destino = "$env:USERPROFILE\BACKUPS_CHECKLIST",
     [switch]$LimparAntigos,
     [int]$ManterDias = 14
 )
@@ -42,3 +42,4 @@ if ($LimparAntigos) {
 } else {
     Write-Host "Limpeza nao executada. Para limpar antigos, rode com -LimparAntigos."
 }
+

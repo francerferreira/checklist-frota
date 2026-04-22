@@ -1,6 +1,6 @@
-# Sistema de Checklist de Frota Portuaria
+﻿# Sistema de Checklist de Frota
 
-Sistema corporativo completo para checklist de manutencao de frota portuaria com:
+Sistema corporativo completo para checklist de manutencao de frota com:
 
 - Backend Flask + SQLAlchemy pronto para PostgreSQL em nuvem
 - App desktop em PySide6 com visual moderno
@@ -268,3 +268,4 @@ https://checklist-frota-qngw.onrender.com
 - `desktop` consome a API e foca no fluxo de gestao
 - `web_app` consome a API e foca no checklist mobile
 - A regra de checklist por tipo de veiculo fica centralizada em `backend/app/services/checklist_catalog.py`
+

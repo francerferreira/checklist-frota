@@ -13,7 +13,7 @@ from PySide6.QtWidgets import (
 )
 
 from components import StatCard, TableSkeletonOverlay
-from theme import configure_table, style_table_card
+from theme import configure_table, make_table_item, style_table_card
 
 
 class ProductivityPage(QFrame):
@@ -32,7 +32,7 @@ class ProductivityPage(QFrame):
         title = QLabel("Produtividade")
         title.setObjectName("PageTitle")
         subtitle = QLabel(
-            "Acompanhe atuaÃ§Ãµes de motoristas e mecanicos em checklist, manutencao, nao conformidades e lavagens."
+            "Acompanhe atuações de motoristas e mecânicos em checklist, manutenção, não conformidades e lavagens."
         )
         subtitle.setObjectName("PageSubtitle")
         subtitle.setWordWrap(True)
@@ -51,7 +51,7 @@ class ProductivityPage(QFrame):
         self.users_card = StatCard("Usuários monitorados", "0", "Motoristas e mecânicos ativos", icon_name="users")
         self.checklists_card = StatCard("Checklists", "0", "Registros feitos por motorista", icon_name="reports")
         self.resolved_card = StatCard("Não conformidades resolvidas", "0", "Checklist e não conformidade interna mecânica", icon_name="ok")
-        self.actions_card = StatCard("Atuacoes totais", "0", "Soma operacional da produtividade", icon_name="dashboard")
+        self.actions_card = StatCard("Atuações totais", "0", "Soma operacional da produtividade", icon_name="dashboard")
         cards_layout.addWidget(self.users_card, 0, 0)
         cards_layout.addWidget(self.checklists_card, 0, 1)
         cards_layout.addWidget(self.resolved_card, 0, 2)
@@ -76,7 +76,7 @@ class ProductivityPage(QFrame):
         self.table = QTableWidget(0, 14)
         self.table.setHorizontalHeaderLabels(
             [
-                "Usuario",
+                "Usuário",
                 "Perfil",
                 "Pontos",
                 "Checklists",
@@ -116,9 +116,10 @@ class ProductivityPage(QFrame):
         self.users_card.set_content("Usuários monitorados", str(resumo.get("usuarios", 0)), "Motoristas e mecânicos ativos")
         self.checklists_card.set_content("Checklists", str(resumo.get("checklists", 0)), "Registros feitos por motorista")
         self.resolved_card.set_content("Não conformidades resolvidas", str(resumo.get("nc_resolvidas", 0)), "Checklist e não conformidade interna mecânica")
-        self.actions_card.set_content("Atuacoes totais", str(resumo.get("pontuacao", 0)), "Soma operacional da produtividade")
-        self.badge.setText(f"{len(rows)} usuarios")
+        self.actions_card.set_content("Atuações totais", str(resumo.get("pontuacao", 0)), "Soma operacional da produtividade")
+        self.badge.setText(f"{len(rows)} usuários")
 
+        self.table.setSortingEnabled(False)
         self.table.setUpdatesEnabled(False)
         self.table.blockSignals(True)
         try:
@@ -142,7 +143,7 @@ class ProductivityPage(QFrame):
                     str(item.get("lavagens", 0)),
                 ]
                 for column, value in enumerate(values):
-                    cell = QTableWidgetItem(value)
+                    cell = make_table_item(value)
                     if column == 2:
                         cell.setBackground(QBrush(QColor("#DBEAFE")))
                         cell.setForeground(QBrush(QColor("#1D4ED8")))
@@ -150,4 +151,5 @@ class ProductivityPage(QFrame):
         finally:
             self.table.blockSignals(False)
             self.table.setUpdatesEnabled(True)
+            self.table.setSortingEnabled(True)
 

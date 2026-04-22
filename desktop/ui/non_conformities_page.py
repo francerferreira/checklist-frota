@@ -1,6 +1,6 @@
 ﻿from __future__ import annotations
 
-from PySide6.QtCore import Qt, Signal
+from PySide6.QtCore import QTimer, Qt, Signal
 from PySide6.QtGui import QColor, QBrush
 from PySide6.QtWidgets import (
     QComboBox,
@@ -14,6 +14,7 @@ from PySide6.QtWidgets import (
     QMessageBox,
     QPushButton,
     QSpinBox,
+    QTabWidget,
     QTableWidget,
     QTableWidgetItem,
     QTextEdit,
@@ -22,7 +23,7 @@ from PySide6.QtWidgets import (
 
 from components import TableSkeletonOverlay, make_icon, show_notice
 from services import severity_from_occurrence
-from theme import build_dialog_layout, configure_dialog_window, configure_table, style_card, style_filter_bar, style_table_card
+from theme import build_dialog_layout, configure_dialog_window, configure_table, make_table_item, style_card, style_filter_bar, style_table_card
 from ui.detail_dialogs import NonConformityDetailDialog
 
 
@@ -79,7 +80,7 @@ class ResolveDialog(QDialog):
         self.material_combo = QComboBox()
         self.material_combo.addItem("Selecionar material do estoque", None)
         for material in self.materials:
-            label = f"{material['referencia']} â€¢ {material['descricao']} â€¢ Saldo {material['quantidade_estoque']}"
+            label = f"{material['referencia']} • {material['descricao']} • Saldo {material['quantidade_estoque']}"
             self.material_combo.addItem(label, material)
         self.material_combo.currentIndexChanged.connect(self._sync_material_fields)
         self.quantidade_spin = QSpinBox()
@@ -220,6 +221,9 @@ class NonConformitiesPage(QFrame):
         self.items = []
         self.mechanic_items = []
         self.current_item = None
+        self._live_filter_timer = QTimer(self)
+        self._live_filter_timer.setSingleShot(True)
+        self._live_filter_timer.timeout.connect(self.refresh)
         self.setObjectName("ContentSurface")
 
         outer = QVBoxLayout(self)
@@ -235,7 +239,6 @@ class NonConformitiesPage(QFrame):
         )
         subtitle.setObjectName("SectionCaption")
         subtitle.setWordWrap(True)
-        subtitle.setMaximumHeight(24)
         text_wrap.addWidget(title)
         text_wrap.addWidget(subtitle)
 
@@ -265,17 +268,20 @@ class NonConformitiesPage(QFrame):
         self.vehicle_filter.setPlaceholderText("Filtrar por veículo")
         self.vehicle_filter.setMinimumHeight(40)
         self.vehicle_filter.returnPressed.connect(self.refresh)
+        self.vehicle_filter.textChanged.connect(self._schedule_live_refresh)
 
         self.item_filter = QLineEdit()
         self.item_filter.setPlaceholderText("Filtrar por item")
         self.item_filter.setMinimumHeight(40)
         self.item_filter.returnPressed.connect(self.refresh)
+        self.item_filter.textChanged.connect(self._schedule_live_refresh)
 
         self.status_filter = QComboBox()
         self.status_filter.addItem("Todas", "")
         self.status_filter.addItem("Abertas", "abertas")
         self.status_filter.addItem("Resolvidas", "resolvidas")
         self.status_filter.setMinimumHeight(40)
+        self.status_filter.currentIndexChanged.connect(self.refresh)
 
         refresh_button = QPushButton("Atualizar")
         refresh_button.setProperty("variant", "primary")
@@ -287,10 +293,15 @@ class NonConformitiesPage(QFrame):
         filters.addWidget(self.status_filter)
         filters.addWidget(refresh_button)
 
-        table_card = QFrame()
-        style_table_card(table_card)
-        self.table_skeleton = TableSkeletonOverlay(table_card, rows=7)
-        table_layout = QVBoxLayout(table_card)
+        self.tabs = QTabWidget()
+        self.tabs.setDocumentMode(True)
+        self.tabs.setTabPosition(QTabWidget.North)
+
+        occurrences_tab = QFrame()
+        occurrences_tab.setObjectName("TableCard")
+        occurrences_tab.setAttribute(Qt.WA_StyledBackground, True)
+        self.table_skeleton = TableSkeletonOverlay(occurrences_tab, rows=10)
+        table_layout = QVBoxLayout(occurrences_tab)
         table_layout.setContentsMargins(10, 10, 10, 10)
         table_layout.setSpacing(8)
 
@@ -309,24 +320,25 @@ class NonConformitiesPage(QFrame):
             "Clique duas vezes em uma linha para abrir fotos, histórico, peça aplicada e exportação de PDF."
         )
         table_caption.setObjectName("SectionCaption")
-        table_caption.setMaximumHeight(20)
+        table_caption.setWordWrap(True)
 
         self.table = QTableWidget(0, 9)
         self.table.setHorizontalHeaderLabels(
             ["Veículo", "Item", "Status", "Prioridade", "Data", "Motorista", "Peça", "Foto antes", "Foto depois"]
         )
         configure_table(self.table, stretch_last=False)
-        self.table.setMinimumHeight(540)
+        self.table.setMinimumHeight(620)
         self.table.itemSelectionChanged.connect(self._selection_changed)
         self.table.itemDoubleClicked.connect(self.open_item_details)
 
         table_layout.addLayout(top_row)
         table_layout.addWidget(table_caption)
-        table_layout.addWidget(self.table)
+        table_layout.addWidget(self.table, 1)
 
-        mechanic_card = QFrame()
-        style_table_card(mechanic_card)
-        mechanic_layout = QVBoxLayout(mechanic_card)
+        mechanic_tab = QFrame()
+        mechanic_tab.setObjectName("TableCard")
+        mechanic_tab.setAttribute(Qt.WA_StyledBackground, True)
+        mechanic_layout = QVBoxLayout(mechanic_tab)
         mechanic_layout.setContentsMargins(10, 10, 10, 10)
         mechanic_layout.setSpacing(8)
 
@@ -343,24 +355,29 @@ class NonConformitiesPage(QFrame):
             "Registros internos abertos e resolvidos pelo módulo mecânico, separados das não conformidades do checklist."
         )
         mechanic_caption.setObjectName("SectionCaption")
-        mechanic_caption.setMaximumHeight(20)
+        mechanic_caption.setWordWrap(True)
 
         self.mechanic_table = QTableWidget(0, 8)
         self.mechanic_table.setHorizontalHeaderLabels(
             ["Referência", "Item", "Status", "Aberta por", "Resolvida por", "Abertura", "Resolução", "Peça"]
         )
         configure_table(self.mechanic_table, stretch_last=False)
-        self.mechanic_table.setMinimumHeight(220)
+        self.mechanic_table.setMinimumHeight(620)
 
         mechanic_layout.addLayout(mechanic_top)
         mechanic_layout.addWidget(mechanic_caption)
-        mechanic_layout.addWidget(self.mechanic_table)
+        mechanic_layout.addWidget(self.mechanic_table, 1)
+
+        self.tabs.addTab(occurrences_tab, "Ocorrências registradas")
+        self.tabs.addTab(mechanic_tab, "Atividades dos mecânicos")
 
         outer.addLayout(header)
         outer.addWidget(self.filter_card)
-        outer.addWidget(table_card, 1)
-        outer.addWidget(mechanic_card)
+        outer.addWidget(self.tabs, 1)
         self._set_action_state(False)
+
+    def _schedule_live_refresh(self, *_args):
+        self._live_filter_timer.start(240)
 
     def _set_action_state(self, enabled: bool):
         self.open_button.setEnabled(enabled)
@@ -375,6 +392,7 @@ class NonConformitiesPage(QFrame):
         self.mechanic_items = self.api_client.get_mechanic_non_conformities(
             status=self.status_filter.currentData() or None,
         )
+        self.table.setSortingEnabled(False)
         self.table.setUpdatesEnabled(False)
         self.table.blockSignals(True)
         try:
@@ -396,7 +414,7 @@ class NonConformitiesPage(QFrame):
                     "Sim" if item.get("foto_depois") else "Não",
                 ]
                 for column, value in enumerate(values):
-                    cell = QTableWidgetItem(value)
+                    cell = make_table_item(value, payload=item if column == 0 else None)
                     if column == 3:
                         cell.setBackground(QBrush(QColor(severity["background"])))
                         cell.setForeground(QBrush(QColor(severity["color"])))
@@ -404,6 +422,7 @@ class NonConformitiesPage(QFrame):
         finally:
             self.table.blockSignals(False)
             self.table.setUpdatesEnabled(True)
+            self.table.setSortingEnabled(True)
 
         self.summary_badge.setText(f"{len(self.items)} ocorrências")
         self._populate_mechanic_table()
@@ -414,6 +433,7 @@ class NonConformitiesPage(QFrame):
             self._set_action_state(False)
 
     def _populate_mechanic_table(self):
+        self.mechanic_table.setSortingEnabled(False)
         self.mechanic_table.setUpdatesEnabled(False)
         self.mechanic_table.blockSignals(True)
         try:
@@ -430,7 +450,7 @@ class NonConformitiesPage(QFrame):
                     item.get("codigo_peca") or "-",
                 ]
                 for column, value in enumerate(values):
-                    cell = QTableWidgetItem(value)
+                    cell = make_table_item(value)
                     if column == 2:
                         if item.get("resolvido"):
                             cell.setBackground(QBrush(QColor("#DCFCE7")))
@@ -442,6 +462,7 @@ class NonConformitiesPage(QFrame):
         finally:
             self.mechanic_table.blockSignals(False)
             self.mechanic_table.setUpdatesEnabled(True)
+            self.mechanic_table.setSortingEnabled(True)
         self.mechanic_badge.setText(f"{len(self.mechanic_items)} registros")
 
     @staticmethod
@@ -464,12 +485,17 @@ class NonConformitiesPage(QFrame):
             return
 
         row = selected[0].topRow()
-        self.current_item = self.items[row]
+        self.current_item = self._item_for_row(row)
         self._set_action_state(True)
 
     def _item_for_row(self, row: int | None):
         if row is None or row < 0 or row >= len(self.items):
             return None
+        first_cell = self.table.item(row, 0)
+        if first_cell:
+            payload = first_cell.data(Qt.UserRole)
+            if payload:
+                return payload
         return self.items[row]
 
     def _selected_item(self):

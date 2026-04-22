@@ -13,7 +13,7 @@ from PySide6.QtWidgets import (
 
 from components import StatCard, TableSkeletonOverlay
 from services import overall_executive_status, severity_from_counts
-from theme import configure_table, style_card, style_table_card
+from theme import configure_table, make_table_item, style_card, style_table_card
 
 
 class DashboardPage(QFrame):
@@ -66,10 +66,10 @@ class DashboardPage(QFrame):
         semaforo_wrap = QVBoxLayout()
         semaforo_wrap.setContentsMargins(0, 0, 0, 0)
         semaforo_wrap.setSpacing(8)
-        semaforo_title = QLabel("Semaforo executivo")
+        semaforo_title = QLabel("Semáforo executivo")
         semaforo_title.setObjectName("CardTitle")
         self.hero_badge.setMinimumWidth(170)
-        self.severity_strip = QLabel("Alta: 0  â€¢  Moderada: 0  â€¢  Controlada: 0")
+        self.severity_strip = QLabel("Alta: 0  •  Moderada: 0  •  Controlada: 0")
         self.severity_strip.setObjectName("MutedText")
         self.severity_strip.setWordWrap(True)
         semaforo_wrap.addWidget(semaforo_title)
@@ -153,7 +153,7 @@ class DashboardPage(QFrame):
 
     def set_loading_state(self, loading: bool):
         if loading:
-            self.table_skeleton.show_skeleton("Carregando itens crÃ­ticos")
+            self.table_skeleton.show_skeleton("Carregando itens críticos")
         else:
             self.table_skeleton.hide_skeleton()
 
@@ -188,7 +188,7 @@ class DashboardPage(QFrame):
         for item in critical_items:
             severity_counts[severity_from_counts(item.get("total_nc", 0), item.get("abertas", 0))["label"]] += 1
         self.severity_strip.setText(
-            f"Alta: {severity_counts['Alta']}  â€¢  Moderada: {severity_counts['Moderada']}  â€¢  Controlada: {severity_counts['Controlada']}"
+            f"Alta: {severity_counts['Alta']}  •  Moderada: {severity_counts['Moderada']}  •  Controlada: {severity_counts['Controlada']}"
         )
 
         if critical_items:
@@ -196,6 +196,7 @@ class DashboardPage(QFrame):
         else:
             self.table_badge.setText("Sem itens cr\u00edticos")
 
+        self.critical_table.setSortingEnabled(False)
         self.critical_table.setUpdatesEnabled(False)
         self.critical_table.blockSignals(True)
         try:
@@ -210,7 +211,7 @@ class DashboardPage(QFrame):
                     severity["label"],
                 ]
                 for column, value in enumerate(values):
-                    cell = QTableWidgetItem(value)
+                    cell = make_table_item(value)
                     if column == 4:
                         cell.setBackground(QBrush(QColor(severity["background"])))
                         cell.setForeground(QBrush(QColor(severity["color"])))
@@ -218,4 +219,5 @@ class DashboardPage(QFrame):
         finally:
             self.critical_table.blockSignals(False)
             self.critical_table.setUpdatesEnabled(True)
+            self.critical_table.setSortingEnabled(True)
 

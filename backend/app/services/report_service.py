@@ -1,9 +1,20 @@
 from __future__ import annotations
 
+from datetime import datetime, timedelta
+
 from sqlalchemy import case, desc, func
 
 from app.extensions import db
 from app.models import Activity, ActivityItem, Checklist, ChecklistItem, MaintenanceScheduleItem, MechanicNonConformity, User, Vehicle, WashRecord
+
+
+def _active_vehicle_filter():
+    normalized_status = func.upper(func.trim(func.coalesce(Vehicle.status, "ON")))
+    return (
+        Vehicle.ativo.is_(True),
+        Vehicle.retirado_em.is_(None),
+        normalized_status.notin_(["RETIRADO", "OFF"]),
+    )
 
 
 def build_macro_report() -> list[dict]:
@@ -43,6 +54,7 @@ def build_micro_report() -> list[dict]:
         )
         .outerjoin(Checklist, Checklist.vehicle_id == Vehicle.id)
         .outerjoin(ChecklistItem, ChecklistItem.checklist_id == Checklist.id)
+        .filter(*_active_vehicle_filter())
         .group_by(Vehicle.id)
         .order_by(desc("total_nc"), Vehicle.frota.asc())
         .all()
@@ -61,15 +73,41 @@ def build_micro_report() -> list[dict]:
     ]
 
 
-def build_item_report(item_name: str | None = None) -> list[dict]:
+def build_item_report(
+    item_name: str | None = None,
+    *,
+    date_from: str | None = None,
+    date_to: str | None = None,
+    nc_status: str | None = None,
+    modulo: str | None = None,
+) -> list[dict]:
     query = (
         ChecklistItem.query.join(Checklist)
         .join(Vehicle)
         .filter(ChecklistItem.status == "NC")
+        .filter(*_active_vehicle_filter())
         .order_by(ChecklistItem.created_at.desc())
     )
     if item_name:
         query = query.filter(ChecklistItem.item_nome.ilike(f"%{item_name}%"))
+    if nc_status == "abertas":
+        query = query.filter(ChecklistItem.resolvido.is_(False))
+    elif nc_status == "resolvidas":
+        query = query.filter(ChecklistItem.resolvido.is_(True))
+
+    if modulo == "cavalo":
+        query = query.filter(Vehicle.tipo == "cavalo")
+    elif modulo == "carreta":
+        query = query.filter(Vehicle.tipo == "carreta")
+    elif modulo == "outros":
+        query = query.filter(func.coalesce(Vehicle.tipo, "").notin_(["cavalo", "carreta"]))
+
+    if date_from:
+        start = datetime.fromisoformat(date_from)
+        query = query.filter(ChecklistItem.created_at >= start)
+    if date_to:
+        end = datetime.fromisoformat(date_to) + timedelta(days=1)
+        query = query.filter(ChecklistItem.created_at < end)
     return [item.to_dict() for item in query.all()]
 
 

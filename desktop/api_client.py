@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import os
+from datetime import datetime
 from pathlib import Path
 
 import requests
@@ -14,6 +15,7 @@ class APIClient:
         self.base_url = base_url.rstrip("/")
         self.session = requests.Session()
         self.user = None
+        self.login_started_at: datetime | None = None
         self._image_cache: dict[str, bytes | None] = {}
 
     def set_base_url(self, base_url: str) -> None:
@@ -28,7 +30,8 @@ class APIClient:
             return False
 
     def _request(self, method: str, path: str, **kwargs):
-        response = self.session.request(method, f"{self.base_url}{path}", timeout=30, **kwargs)
+        timeout = kwargs.pop("timeout", 30)
+        response = self.session.request(method, f"{self.base_url}{path}", timeout=timeout, **kwargs)
         if response.ok:
             if response.content:
                 return response.json()
@@ -45,6 +48,7 @@ class APIClient:
         token = payload["token"]
         self.session.headers.update({"Authorization": f"Bearer {token}"})
         self.user = payload["user"]
+        self.login_started_at = datetime.now()
         self._image_cache.clear()
         return payload
 
@@ -86,6 +90,13 @@ class APIClient:
 
     def update_user(self, user_id: int, payload: dict):
         return self._request("PUT", f"/usuarios/{user_id}", json=payload)
+
+    def update_own_password(self, current_password: str, new_password: str):
+        return self._request(
+            "PUT",
+            "/usuarios/me/senha",
+            json={"senha_atual": current_password, "nova_senha": new_password},
+        )
 
     def delete_user(self, user_id: int):
         return self._request("DELETE", f"/usuarios/{user_id}")
@@ -235,9 +246,49 @@ class APIClient:
     def get_micro_report(self):
         return self._request("GET", "/relatorios/micro")
 
-    def get_item_report(self, item_name: str | None = None):
-        params = {"item": item_name} if item_name else None
-        return self._request("GET", "/relatorios/item", params=params)
+    def get_item_report(
+        self,
+        item_name: str | None = None,
+        *,
+        date_from: str | None = None,
+        date_to: str | None = None,
+        nc_status: str | None = None,
+        modulo: str | None = None,
+    ):
+        params = {}
+        if item_name:
+            params["item"] = item_name
+        if date_from:
+            params["data_de"] = date_from
+        if date_to:
+            params["data_ate"] = date_to
+        if nc_status:
+            params["status_nc"] = nc_status
+        if modulo:
+            params["modulo"] = modulo
+        return self._request("GET", "/relatorios/item", params=params or None)
+
+    def get_cloud_storage_status(self):
+        return self._request("GET", "/admin/storage/status")
+
+    def create_cloud_backup(self):
+        return self._request("POST", "/admin/backups/create", timeout=180)
+
+    def download_cloud_backup(self, download_url: str, output_path: str) -> None:
+        response = self.session.get(self.make_absolute_url(download_url), timeout=180, stream=True)
+        if not response.ok:
+            try:
+                payload = response.json()
+            except ValueError:
+                payload = {}
+            raise RuntimeError(payload.get("error") or "Falha ao baixar backup.")
+
+        path = Path(output_path)
+        path.parent.mkdir(parents=True, exist_ok=True)
+        with path.open("wb") as file_handle:
+            for chunk in response.iter_content(chunk_size=1024 * 512):
+                if chunk:
+                    file_handle.write(chunk)
 
     def get_non_conformities(self, vehicle: str | None = None, item_type: str | None = None, status: str | None = None):
         params = {}

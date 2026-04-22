@@ -1,16 +1,21 @@
 ﻿from __future__ import annotations
 
+from datetime import datetime
 from pathlib import Path
 
 from PySide6.QtCore import QEasingCurve, QPropertyAnimation, QTimer, Qt
 from PySide6.QtGui import QIcon, QPixmap
 from PySide6.QtWidgets import (
+    QDialog,
     QFrame,
     QGraphicsOpacityEffect,
+    QGridLayout,
     QHBoxLayout,
     QLabel,
+    QLineEdit,
     QMainWindow,
     QMessageBox,
+    QPushButton,
     QScrollArea,
     QSizePolicy,
     QStackedWidget,
@@ -23,6 +28,7 @@ from runtime_paths import asset_path
 from theme import APP_STYLE, style_top_bar
 from ui.activities_page import ActivitiesPage
 from ui.checklist_items_page import ChecklistItemsPage
+from ui.cloud_backup_page import CloudBackupPage
 from ui.dashboard_page import DashboardPage
 from ui.equipment_page import EquipmentPage
 from ui.materials_page import MaterialsPage
@@ -31,6 +37,159 @@ from ui.productivity_page import ProductivityPage
 from ui.reports_page import ReportsPage
 from ui.users_page import UsersPage
 from ui.washes_page import WashesPage
+
+
+class AccessDialog(QDialog):
+    def __init__(self, api_client, user: dict, parent=None):
+        super().__init__(parent)
+        self.api_client = api_client
+        self.user = user
+        self.setWindowTitle("Meu acesso")
+        self.setMinimumSize(560, 430)
+        self.setWindowFlag(Qt.WindowContextHelpButtonHint, False)
+
+        layout = QVBoxLayout(self)
+        layout.setContentsMargins(18, 18, 18, 18)
+        layout.setSpacing(14)
+
+        header = QFrame()
+        header.setObjectName("DialogHeader")
+        header.setAttribute(Qt.WA_StyledBackground, True)
+        header_layout = QHBoxLayout(header)
+        header_layout.setContentsMargins(18, 18, 18, 18)
+        header_layout.setSpacing(14)
+
+        icon_badge = QFrame()
+        icon_badge.setObjectName("DialogIconBadge")
+        icon_badge.setAttribute(Qt.WA_StyledBackground, True)
+        icon_layout = QVBoxLayout(icon_badge)
+        icon_layout.setContentsMargins(10, 10, 10, 10)
+        icon_label = QLabel()
+        icon_label.setPixmap(make_icon("users", "#FFFFFF", "#1D4ED8", 28).pixmap(28, 28))
+        icon_layout.addWidget(icon_label)
+
+        title_wrap = QVBoxLayout()
+        title_wrap.setContentsMargins(0, 0, 0, 0)
+        title = QLabel("Meu acesso")
+        title.setObjectName("DialogHeaderTitle")
+        subtitle = QLabel("Consulte sua sessão atual e altere sua própria senha.")
+        subtitle.setObjectName("DialogHeaderSubtitle")
+        subtitle.setWordWrap(True)
+        title_wrap.addWidget(title)
+        title_wrap.addWidget(subtitle)
+
+        header_layout.addWidget(icon_badge, 0, Qt.AlignTop)
+        header_layout.addLayout(title_wrap, 1)
+
+        info_card = QFrame()
+        info_card.setObjectName("HeaderCard")
+        info_card.setAttribute(Qt.WA_StyledBackground, True)
+        info_layout = QGridLayout(info_card)
+        info_layout.setContentsMargins(16, 16, 16, 16)
+        info_layout.setHorizontalSpacing(16)
+        info_layout.setVerticalSpacing(10)
+
+        started = self.api_client.login_started_at
+        started_text = started.strftime("%d/%m/%Y %H:%M:%S") if started else "-"
+        info_rows = [
+            ("Nome", user.get("nome") or "-"),
+            ("Login", user.get("login") or "-"),
+            ("Perfil", user.get("tipo") or "-"),
+            ("Logado desde", started_text),
+            ("Tempo de sessão", self._session_duration(started)),
+        ]
+        for row, (label_text, value_text) in enumerate(info_rows):
+            label = QLabel(label_text)
+            label.setObjectName("SectionCaption")
+            value = QLabel(value_text)
+            value.setObjectName("DialogInfoValue")
+            value.setWordWrap(True)
+            info_layout.addWidget(label, row, 0)
+            info_layout.addWidget(value, row, 1)
+
+        password_card = QFrame()
+        password_card.setObjectName("DialogInfoBlock")
+        password_card.setAttribute(Qt.WA_StyledBackground, True)
+        password_layout = QGridLayout(password_card)
+        password_layout.setContentsMargins(16, 16, 16, 16)
+        password_layout.setHorizontalSpacing(12)
+        password_layout.setVerticalSpacing(10)
+
+        password_title = QLabel("Alterar minha senha")
+        password_title.setObjectName("SectionTitle")
+        self.current_password = QLineEdit()
+        self.current_password.setEchoMode(QLineEdit.Password)
+        self.current_password.setPlaceholderText("Senha atual")
+        self.new_password = QLineEdit()
+        self.new_password.setEchoMode(QLineEdit.Password)
+        self.new_password.setPlaceholderText("Nova senha")
+        self.confirm_password = QLineEdit()
+        self.confirm_password.setEchoMode(QLineEdit.Password)
+        self.confirm_password.setPlaceholderText("Confirmar nova senha")
+
+        password_layout.addWidget(password_title, 0, 0, 1, 2)
+        password_layout.addWidget(QLabel("Senha atual"), 1, 0)
+        password_layout.addWidget(self.current_password, 1, 1)
+        password_layout.addWidget(QLabel("Nova senha"), 2, 0)
+        password_layout.addWidget(self.new_password, 2, 1)
+        password_layout.addWidget(QLabel("Confirmar senha"), 3, 0)
+        password_layout.addWidget(self.confirm_password, 3, 1)
+
+        footer = QFrame()
+        footer.setObjectName("DialogFooter")
+        footer.setAttribute(Qt.WA_StyledBackground, True)
+        footer_layout = QHBoxLayout(footer)
+        footer_layout.setContentsMargins(16, 14, 16, 14)
+        footer_layout.setSpacing(12)
+        footer_layout.addStretch()
+        close_button = QPushButton("Fechar")
+        close_button.clicked.connect(self.accept)
+        save_button = QPushButton("Salvar nova senha")
+        save_button.setProperty("variant", "primary")
+        save_button.clicked.connect(self.change_password)
+        footer_layout.addWidget(close_button)
+        footer_layout.addWidget(save_button)
+
+        layout.addWidget(header)
+        layout.addWidget(info_card)
+        layout.addWidget(password_card)
+        layout.addWidget(footer)
+
+    def change_password(self):
+        current = self.current_password.text()
+        new = self.new_password.text()
+        confirmation = self.confirm_password.text()
+        if not current or not new:
+            show_notice(self, "Campos obrigatórios", "Informe a senha atual e a nova senha.", icon_name="warning")
+            return
+        if new != confirmation:
+            show_notice(self, "Confirmação inválida", "A confirmação precisa ser igual à nova senha.", icon_name="warning")
+            return
+        if len(new) < 6:
+            show_notice(self, "Senha curta", "A nova senha deve ter pelo menos 6 caracteres.", icon_name="warning")
+            return
+        try:
+            self.api_client.update_own_password(current, new)
+            self.current_password.clear()
+            self.new_password.clear()
+            self.confirm_password.clear()
+            show_notice(self, "Senha alterada", "Sua senha foi atualizada com sucesso.", icon_name="dashboard")
+        except Exception as exc:
+            show_notice(self, "Falha ao alterar senha", str(exc), icon_name="warning")
+
+    @staticmethod
+    def _session_duration(started: datetime | None) -> str:
+        if not started:
+            return "-"
+        elapsed = datetime.now() - started
+        total_seconds = max(0, int(elapsed.total_seconds()))
+        hours, remainder = divmod(total_seconds, 3600)
+        minutes, seconds = divmod(remainder, 60)
+        if hours:
+            return f"{hours}h {minutes}min"
+        if minutes:
+            return f"{minutes}min {seconds}s"
+        return f"{seconds}s"
 
 
 class MainWindow(QMainWindow):
@@ -44,6 +203,7 @@ class MainWindow(QMainWindow):
         self.logo_path = asset_path("app-logo-cover.png")
         self.app_icon_path = asset_path("app-icon.ico")
         self.current_page_key = ""
+        self.top_bar_collapsed = False
         self.dirty_pages: set[str] = set()
         self.pending_refreshes: set[str] = set()
 
@@ -72,11 +232,14 @@ class MainWindow(QMainWindow):
         top_bar = QFrame()
         style_top_bar(top_bar)
 
-        layout = QVBoxLayout(top_bar)
-        layout.setContentsMargins(20, 12, 20, 12)
-        layout.setSpacing(10)
+        self.top_bar_layout = QVBoxLayout(top_bar)
+        self.top_bar_layout.setContentsMargins(20, 12, 20, 12)
+        self.top_bar_layout.setSpacing(10)
 
+        self.header_content = QFrame()
+        self.header_content.setFrameShape(QFrame.NoFrame)
         header_row = QHBoxLayout()
+        self.header_content.setLayout(header_row)
         header_row.setContentsMargins(0, 0, 0, 0)
         header_row.setSpacing(16)
 
@@ -103,7 +266,7 @@ class MainWindow(QMainWindow):
         title = QLabel("Sistema de Checklist de Frota")
         title.setObjectName("TopBarTitle")
 
-        subtitle = QLabel("Operação portuária • Porto Chibatão")
+        subtitle = QLabel("Gestão de Frota")
         subtitle.setObjectName("TopBarSubtitle")
 
         text_wrap.addWidget(self.top_bar_pill, 0, Qt.AlignLeft)
@@ -113,6 +276,8 @@ class MainWindow(QMainWindow):
         badge = QFrame()
         badge.setObjectName("TopBarBadge")
         badge.setMinimumWidth(148)
+        badge.setCursor(Qt.PointingHandCursor)
+        badge.mousePressEvent = lambda event: self.open_access_dialog()
         badge_layout = QVBoxLayout(badge)
         badge_layout.setContentsMargins(16, 12, 16, 12)
         badge_layout.setSpacing(2)
@@ -132,6 +297,12 @@ class MainWindow(QMainWindow):
         logout_button.setIcon(make_icon("logout", "#26FFFFFF", "#FFFFFF"))
         logout_button.clicked.connect(self.close)
 
+        collapse_button = QPushButton("Recolher topo")
+        collapse_button.setMinimumHeight(54)
+        collapse_button.setMinimumWidth(158)
+        collapse_button.setIcon(make_icon("cancel", "#EFF6FF", "#1D4ED8"))
+        collapse_button.clicked.connect(self.toggle_top_bar)
+
         header_row.addWidget(logo_label, 0)
         header_row.addLayout(text_wrap, 1)
 
@@ -141,57 +312,121 @@ class MainWindow(QMainWindow):
         header_actions.setContentsMargins(14, 12, 14, 12)
         header_actions.setSpacing(12)
         header_actions.addWidget(badge, 0)
+        header_actions.addWidget(collapse_button, 0)
         header_actions.addWidget(logout_button, 0)
         header_actions_card.setLayout(header_actions)
         header_row.addWidget(header_actions_card, 0)
 
         nav_strip = QFrame()
         nav_strip.setObjectName("TopNavStrip")
-        nav_strip.setMinimumHeight(66)
+        nav_strip.setMinimumHeight(118)
         nav_strip.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Fixed)
-        nav_layout = QHBoxLayout(nav_strip)
+        nav_layout = QGridLayout(nav_strip)
         nav_layout.setContentsMargins(8, 6, 8, 6)
         nav_layout.setSpacing(8)
-        nav_layout.setAlignment(Qt.AlignLeft)
 
         self.nav_buttons = {}
         nav_items = [
             ("dashboard", "Dashboard", make_icon("dashboard")),
-            ("nc", "Não Conformidades", make_icon("warning", "#DBEAFE", "#1D4ED8")),
-            ("productivity", "Produtividade", make_icon("dashboard", "#DCFCE7", "#166534")),
+            ("nc", "Ocorrências", make_icon("warning", "#FEE2E2", "#B91C1C")),
+            ("productivity", "Produtividade", make_icon("productivity", "#DCFCE7", "#166534")),
         ]
         if self.can_manage:
-            nav_items.append(("equipment", "Equipamentos", make_icon("equipment")))
-            nav_items.append(("checklist_items", "Itens Checklist", make_icon("reports")))
-            nav_items.append(("materials", "Controle de Material", make_icon("materials", "#DBEAFE", "#1D4ED8")))
-            nav_items.append(("washes", "Lavagens", make_icon("activities", "#DBEAFE", "#1D4ED8")))
-            nav_items.append(("activities", "Atividades", make_icon("activities", "#DBEAFE", "#1D4ED8")))
-        nav_items.append(("reports", "Relatórios", make_icon("reports")))
+            nav_items.append(("equipment", "Frota", make_icon("equipment", "#E0F2FE", "#0369A1")))
+            nav_items.append(("checklist_items", "Checklist", make_icon("checklist", "#EDE9FE", "#6D28D9")))
+            nav_items.append(("materials", "Materiais", make_icon("materials", "#DBEAFE", "#1D4ED8")))
+            nav_items.append(("washes", "Lavagens", make_icon("washes", "#CCFBF1", "#0F766E")))
+            nav_items.append(("activities", "Atividades", make_icon("activities", "#FEF3C7", "#B45309")))
+        nav_items.append(("reports", "Relatórios", make_icon("reports", "#E0E7FF", "#4338CA")))
         if self.is_admin:
             nav_items.append(("users", "Logins", make_icon("users", "#EEF2FF", "#4338CA")))
+            nav_items.append(("cloud_backup", "Backup", make_icon("cloud", "#DBEAFE", "#1D4ED8")))
 
-        for key, label, icon in nav_items:
+        max_columns = 6
+        for index, (key, label, icon) in enumerate(nav_items):
             button = AnimatedButton(label)
             button.setIcon(icon)
-            button.setMinimumWidth(max(132, 70 + (len(label) * 4)))
-            button.setMinimumHeight(48)
+            button.setMinimumWidth(154)
+            button.setMaximumWidth(196)
+            button.setMinimumHeight(50)
             button.clicked.connect(lambda checked=False, page_key=key: self.switch_page(page_key))
-            nav_layout.addWidget(button)
+            row = index // max_columns
+            column = index % max_columns
+            nav_layout.addWidget(button, row, column)
             self.nav_buttons[key] = button
+        for column in range(max_columns):
+            nav_layout.setColumnStretch(column, 1)
 
-        nav_scroll = QScrollArea()
-        nav_scroll.setWidgetResizable(True)
-        nav_scroll.setHorizontalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
-        nav_scroll.setVerticalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
-        nav_scroll.setFrameShape(QFrame.NoFrame)
-        nav_scroll.setMinimumHeight(72)
-        nav_scroll.setMaximumHeight(72)
-        nav_scroll.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Fixed)
-        nav_scroll.setWidget(nav_strip)
+        self.nav_scroll = QScrollArea()
+        self.nav_scroll.setWidgetResizable(True)
+        self.nav_scroll.setHorizontalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
+        self.nav_scroll.setVerticalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
+        self.nav_scroll.setFrameShape(QFrame.NoFrame)
+        self.nav_scroll.setMinimumHeight(124)
+        self.nav_scroll.setMaximumHeight(124)
+        self.nav_scroll.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Fixed)
+        self.nav_scroll.setWidget(nav_strip)
 
-        layout.addLayout(header_row)
-        layout.addWidget(nav_scroll)
+        self.compact_top_bar = self._build_compact_top_bar()
+        self.compact_top_bar.hide()
+
+        self.top_bar_layout.addWidget(self.header_content)
+        self.top_bar_layout.addWidget(self.nav_scroll)
+        self.top_bar_layout.addWidget(self.compact_top_bar)
         return top_bar
+
+    def _build_compact_top_bar(self):
+        compact = QFrame()
+        compact.setObjectName("TopBarActionCluster")
+        compact.setAttribute(Qt.WA_StyledBackground, True)
+
+        layout = QHBoxLayout(compact)
+        layout.setContentsMargins(14, 10, 14, 10)
+        layout.setSpacing(12)
+
+        self.compact_context_label = QLabel("PAINEL OPERACIONAL")
+        self.compact_context_label.setObjectName("TopBarPill")
+
+        self.compact_title_label = QLabel("Sistema de Checklist de Frota")
+        self.compact_title_label.setStyleSheet("font-size:16px; font-weight:760; color:#0B1220;")
+
+        user_label = QPushButton(f"{self.user['nome']} • {self.user['tipo']}")
+        user_label.setMinimumHeight(42)
+        user_label.clicked.connect(self.open_access_dialog)
+
+        expand_button = QPushButton("Expandir menu")
+        expand_button.setMinimumHeight(42)
+        expand_button.setIcon(make_icon("dashboard", "#DBEAFE", "#1D4ED8"))
+        expand_button.clicked.connect(self.toggle_top_bar)
+
+        logout_button = QPushButton("Sair")
+        logout_button.setMinimumHeight(42)
+        logout_button.setProperty("variant", "danger")
+        logout_button.setIcon(make_icon("logout", "#26FFFFFF", "#FFFFFF"))
+        logout_button.clicked.connect(self.close)
+
+        layout.addWidget(self.compact_context_label, 0)
+        layout.addWidget(self.compact_title_label, 1)
+        layout.addWidget(user_label, 0)
+        layout.addWidget(expand_button, 0)
+        layout.addWidget(logout_button, 0)
+        return compact
+
+    def open_access_dialog(self):
+        AccessDialog(self.api_client, self.user, self).exec()
+
+    def toggle_top_bar(self):
+        self.top_bar_collapsed = not self.top_bar_collapsed
+        self.header_content.setVisible(not self.top_bar_collapsed)
+        self.nav_scroll.setVisible(not self.top_bar_collapsed)
+        self.compact_top_bar.setVisible(self.top_bar_collapsed)
+        if self.top_bar_collapsed:
+            self.top_bar_layout.setContentsMargins(12, 8, 12, 8)
+            self.top_bar.setMaximumHeight(88)
+        else:
+            self.top_bar_layout.setContentsMargins(20, 12, 20, 12)
+            self.top_bar.setMaximumHeight(16777215)
+        self.top_bar.updateGeometry()
 
     def _build_content(self):
         shell = QWidget()
@@ -213,6 +448,7 @@ class MainWindow(QMainWindow):
         self.activities_page = ActivitiesPage(self.api_client)
         self.reports_page = ReportsPage(self.api_client)
         self.users_page = UsersPage(self.api_client, self.user)
+        self.cloud_backup_page = CloudBackupPage(self.api_client)
 
         self.page_map = {
             "dashboard": self.dashboard_page,
@@ -228,6 +464,7 @@ class MainWindow(QMainWindow):
             self.page_map["activities"] = self.activities_page
             if self.is_admin:
                 self.page_map["users"] = self.users_page
+                self.page_map["cloud_backup"] = self.cloud_backup_page
 
         for page in self.page_map.values():
             self.stack.addWidget(page)
@@ -311,6 +548,8 @@ class MainWindow(QMainWindow):
                 self.reports_page.refresh()
             elif page_key == "users":
                 self.users_page.refresh()
+            elif page_key == "cloud_backup":
+                self.cloud_backup_page.refresh()
         except Exception as exc:
             show_notice(self, "Falha ao carregar dados", str(exc), icon_name="warning")
 
@@ -349,6 +588,7 @@ class MainWindow(QMainWindow):
             "activities": ("Carregando atividades", "Montando auditorias em massa, seleção e execução."),
             "reports": ("Montando relatórios", "Consolidando dados macro, micro e exportações."),
             "users": ("Carregando acessos", "Atualizando perfis, logins e permissões disponíveis."),
+            "cloud_backup": ("Verificando nuvem", "Consultando uso de banco, fotos e status do backup."),
         }
         title, subtitle = context_map.get(page_key, ("Carregando painel", "Preparando dados da tela atual."))
         self.loading_overlay.show_loading(title, subtitle)
@@ -365,6 +605,11 @@ class MainWindow(QMainWindow):
             "activities": "DETALHES DE ATIVIDADES",
             "reports": "DETALHES DE RELATÓRIOS",
             "users": "DETALHES DE ACESSOS",
+            "cloud_backup": "NUVEM E BACKUP",
         }
-        self.top_bar_pill.setText(context_map.get(page_key, "PAINEL OPERACIONAL"))
+        context = context_map.get(page_key, "PAINEL OPERACIONAL")
+        self.top_bar_pill.setText(context)
+        if hasattr(self, "compact_context_label"):
+            self.compact_context_label.setText(context)
+
 

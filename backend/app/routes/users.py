@@ -34,6 +34,25 @@ def list_mechanics():
     return jsonify([user.to_dict() for user in users])
 
 
+@bp.put("/usuarios/me/senha")
+@auth_required
+def update_own_password():
+    payload = request.get_json(silent=True) or {}
+    current_password = payload.get("senha_atual") or ""
+    new_password = payload.get("nova_senha") or ""
+
+    if not current_password or not new_password:
+        return jsonify({"error": "Informe a senha atual e a nova senha."}), 400
+    if len(new_password) < 6:
+        return jsonify({"error": "A nova senha deve ter pelo menos 6 caracteres."}), 400
+    if not g.current_user.check_password(current_password):
+        return jsonify({"error": "Senha atual invalida."}), 401
+
+    g.current_user.set_password(new_password)
+    db.session.commit()
+    return jsonify({"success": True})
+
+
 @bp.post("/usuarios")
 @auth_required
 def create_user():

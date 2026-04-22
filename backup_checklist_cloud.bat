@@ -1,11 +1,11 @@
-@echo off
+﻿@echo off
 setlocal
 chcp 65001 >nul
 
 set "API_URL=https://checklist-api.onrender.com"
 set "LOGIN=admin"
 set "SENHA=123456"
-set "DESTINO=%USERPROFILE%\OneDrive - Chibatao Navegacao e Comercio Ltda\BACKUPS_CHECKLIST"
+set "DESTINO=%USERPROFILE%\BACKUPS_CHECKLIST"
 
 echo ============================================
 echo   Backup Checklist Live - Nuvem
@@ -18,3 +18,4 @@ echo.
 powershell -NoProfile -ExecutionPolicy Bypass -File "%~dp0backup_checklist_cloud.ps1" -ApiUrl "%API_URL%" -Login "%LOGIN%" -Senha "%SENHA%" -Destino "%DESTINO%"
 echo.
 pause
+

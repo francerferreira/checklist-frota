@@ -1,6 +1,6 @@
 ﻿from __future__ import annotations
 
-from PySide6.QtCore import Qt, Signal
+from PySide6.QtCore import QTimer, Qt, Signal
 from PySide6.QtWidgets import (
     QCheckBox,
     QComboBox,
@@ -20,7 +20,7 @@ from PySide6.QtWidgets import (
 )
 
 from components import TableSkeletonOverlay, ask_confirmation, make_icon
-from theme import build_dialog_layout, configure_dialog_window, configure_table, style_card, style_filter_bar, style_table_card
+from theme import build_dialog_layout, configure_dialog_window, configure_table, make_table_item, style_card, style_filter_bar, style_table_card
 from ui.detail_dialogs import VehicleDetailDialog
 
 
@@ -61,7 +61,7 @@ class EquipmentDialog(QDialog):
         title_wrap.setSpacing(4)
         header_title = QLabel("Cadastro de equipamento")
         header_title.setObjectName("DialogHeaderTitle")
-        header_subtitle = QLabel("Preencha os dados principais da frota em um formulario mais rapido e organizado.")
+        header_subtitle = QLabel("Preencha os dados principais da frota em um formulário mais rápido e organizado.")
         header_subtitle.setObjectName("DialogHeaderSubtitle")
         header_subtitle.setWordWrap(True)
         title_wrap.addWidget(header_title)
@@ -130,7 +130,7 @@ class EquipmentDialog(QDialog):
         add_field(1, 1, "Ano", self.ano_input)
         add_field(2, 0, "Modelo", self.modelo_input)
         add_field(2, 1, "Chassi", self.chassi_input)
-        add_field(3, 0, "Configuracao", self.configuracao_input)
+        add_field(3, 0, "Configuração", self.configuracao_input)
         add_field(3, 1, "Atividade", self.atividade_input)
         add_field(4, 0, "Status", self.status_combo, highlight=True)
         add_field(4, 1, "Local", self.local_input)
@@ -232,6 +232,9 @@ class EquipmentPage(QFrame):
         self.api_client = api_client
         self.items = []
         self.current_item = None
+        self._live_filter_timer = QTimer(self)
+        self._live_filter_timer.setSingleShot(True)
+        self._live_filter_timer.timeout.connect(self.refresh)
         self.setObjectName("ContentSurface")
 
         layout = QVBoxLayout(self)
@@ -247,17 +250,11 @@ class EquipmentPage(QFrame):
         )
         subtitle.setObjectName("SectionCaption")
         subtitle.setWordWrap(True)
-        subtitle.setMaximumHeight(24)
         text_wrap.addWidget(title)
         text_wrap.addWidget(subtitle)
 
         buttons = QHBoxLayout()
         buttons.setSpacing(8)
-
-        self.import_button = QPushButton("Importar inventario")
-        self.import_button.setProperty("variant", "primary")
-        self.import_button.setMinimumHeight(42)
-        self.import_button.clicked.connect(self.import_inventory)
 
         self.add_button = QPushButton("Adicionar")
         self.add_button.setProperty("variant", "primary")
@@ -277,7 +274,6 @@ class EquipmentPage(QFrame):
         self.retire_button.setMinimumHeight(42)
         self.retire_button.clicked.connect(self.retire_selected)
 
-        buttons.addWidget(self.import_button)
         buttons.addWidget(self.add_button)
         buttons.addWidget(self.edit_button)
         buttons.addWidget(self.open_button)
@@ -297,13 +293,15 @@ class EquipmentPage(QFrame):
         self.search_input.setPlaceholderText("Buscar por frota, placa, modelo, chassi ou atividade")
         self.search_input.setMinimumHeight(40)
         self.search_input.returnPressed.connect(self.refresh)
+        self.search_input.textChanged.connect(self._schedule_live_refresh)
 
         self.type_filter = QComboBox()
         self.type_filter.addItem("Todos", "")
         self.type_filter.addItem("Cavalos", "cavalo")
         self.type_filter.addItem("Carretas", "carreta")
-        self.type_filter.addItem("Veiculos auxiliares", "auxiliar")
+        self.type_filter.addItem("Veículos auxiliares", "auxiliar")
         self.type_filter.setMinimumHeight(40)
+        self.type_filter.currentIndexChanged.connect(self.refresh)
 
         filter_button = QPushButton("Aplicar filtros")
         filter_button.setMinimumHeight(40)
@@ -340,7 +338,7 @@ class EquipmentPage(QFrame):
             "A tabela e o foco principal desta tela. Clique duas vezes em qualquer linha para abrir a ficha completa."
         )
         table_caption.setObjectName("SectionCaption")
-        table_caption.setMaximumHeight(20)
+        table_caption.setWordWrap(True)
 
         self.table = QTableWidget(0, 9)
         self.table.setHorizontalHeaderLabels(
@@ -360,6 +358,9 @@ class EquipmentPage(QFrame):
         layout.addWidget(table_card, 1)
 
         self._set_action_state(False)
+
+    def _schedule_live_refresh(self, *_args):
+        self._live_filter_timer.start(220)
 
     def _set_action_state(self, enabled: bool):
         self.edit_button.setEnabled(enabled)
@@ -384,24 +385,27 @@ class EquipmentPage(QFrame):
     def refresh(self):
         rows = self.api_client.get_equipment(self.type_filter.currentData() or None, True)
         self.items = self._filtered_rows(rows)
+        self.table.setSortingEnabled(False)
         self.table.setUpdatesEnabled(False)
         self.table.blockSignals(True)
         try:
             self.table.setRowCount(len(self.items))
 
             for row, item in enumerate(self.items):
-                self.table.setItem(row, 0, QTableWidgetItem(item["frota"]))
-                self.table.setItem(row, 1, QTableWidgetItem(item["tipo"].title()))
-                self.table.setItem(row, 2, QTableWidgetItem(item["placa"] or ""))
-                self.table.setItem(row, 3, QTableWidgetItem(item["ano"] or ""))
-                self.table.setItem(row, 4, QTableWidgetItem(item["modelo"]))
-                self.table.setItem(row, 5, QTableWidgetItem(item.get("status") or ""))
-                self.table.setItem(row, 6, QTableWidgetItem(item.get("chassi") or ""))
-                self.table.setItem(row, 7, QTableWidgetItem(item.get("local") or ""))
-                self.table.setItem(row, 8, QTableWidgetItem("Sim" if item.get("foto_path") else "Não"))
+                first_cell = make_table_item(item["frota"], payload=item)
+                self.table.setItem(row, 0, first_cell)
+                self.table.setItem(row, 1, make_table_item(item["tipo"].title()))
+                self.table.setItem(row, 2, make_table_item(item["placa"] or ""))
+                self.table.setItem(row, 3, make_table_item(item["ano"] or ""))
+                self.table.setItem(row, 4, make_table_item(item["modelo"]))
+                self.table.setItem(row, 5, make_table_item(item.get("status") or ""))
+                self.table.setItem(row, 6, make_table_item(item.get("chassi") or ""))
+                self.table.setItem(row, 7, make_table_item(item.get("local") or ""))
+                self.table.setItem(row, 8, make_table_item("Sim" if item.get("foto_path") else "Não"))
         finally:
             self.table.blockSignals(False)
             self.table.setUpdatesEnabled(True)
+            self.table.setSortingEnabled(True)
 
         self.summary_badge.setText(f"{len(self.items)} registros")
         if self.items:
@@ -422,12 +426,17 @@ class EquipmentPage(QFrame):
             self.current_item = None
             self._set_action_state(False)
             return
-        self.current_item = self.items[selected[0].topRow()]
+        self.current_item = self._item_for_row(selected[0].topRow())
         self._set_action_state(True)
 
     def _item_for_row(self, row: int | None):
         if row is None or row < 0 or row >= len(self.items):
             return None
+        first_cell = self.table.item(row, 0)
+        if first_cell:
+            payload = first_cell.data(Qt.UserRole)
+            if payload:
+                return payload
         return self.items[row]
 
     def _selected_item(self):
@@ -475,7 +484,7 @@ class EquipmentPage(QFrame):
             "Retirar equipamento",
             f"Deseja retirar {self.current_item['frota']} da frota ativa?",
             confirm_text="Sim",
-            cancel_text="NÃ£o",
+            cancel_text="Não",
             icon_name="warning",
         )
         if confirm:
@@ -484,16 +493,3 @@ class EquipmentPage(QFrame):
             show_notice(self, "Equipamento retirado", "Equipamento removido da lista ativa.", icon_name="dashboard")
             self.refresh()
             self.data_changed.emit()
-
-    def import_inventory(self):
-        result = self.api_client.import_inventory()
-        from components import show_notice
-        show_notice(
-            self,
-            "Inventario importado",
-            f"Arquivo: {result['arquivo']}\nImportados: {result['importados']}\nAtualizados: {result['atualizados']}",
-            icon_name="reports",
-        )
-        self.refresh()
-        self.data_changed.emit()
-

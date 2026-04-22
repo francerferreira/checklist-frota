@@ -3,7 +3,7 @@
 from datetime import datetime
 from pathlib import Path
 
-from PySide6.QtCore import Qt, Signal
+from PySide6.QtCore import QTimer, Qt, Signal
 from PySide6.QtGui import QColor, QBrush
 from PySide6.QtWidgets import (
     QCheckBox,
@@ -25,7 +25,7 @@ from PySide6.QtWidgets import (
     QVBoxLayout,
 )
 
-from components import TableSkeletonOverlay, ask_confirmation, make_icon, show_notice
+from components import TableSkeletonOverlay, ask_confirmation, make_icon, show_notice, start_export_task
 from components import MessageComposerDialog
 from runtime_paths import asset_path
 from services.export_service import (
@@ -34,7 +34,7 @@ from services.export_service import (
     make_default_export_path,
 )
 from services import build_material_message_package
-from theme import build_dialog_layout, configure_dialog_window, configure_table, style_card, style_filter_bar, style_table_card
+from theme import build_dialog_layout, configure_dialog_window, configure_table, make_table_item, style_card, style_filter_bar, style_table_card
 
 
 class MaterialDialog(QDialog):
@@ -328,8 +328,8 @@ class MaterialMovementsDialog(QDialog):
         configure_table(self.table, stretch_last=False)
         table_header = self.table.horizontalHeader()
         for col in range(self.table.columnCount()):
-            table_header.setSectionResizeMode(col, QHeaderView.Stretch)
-        self.table.setHorizontalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
+            table_header.setSectionResizeMode(col, QHeaderView.Interactive)
+        self.table.setHorizontalScrollBarPolicy(Qt.ScrollBarAsNeeded)
         self.table.setMinimumHeight(680)
         self._populate()
 
@@ -338,6 +338,7 @@ class MaterialMovementsDialog(QDialog):
         layout.addWidget(table_card, 1)
 
     def _populate(self):
+        self.table.setSortingEnabled(False)
         self.table.setUpdatesEnabled(False)
         self.table.blockSignals(True)
         try:
@@ -353,18 +354,22 @@ class MaterialMovementsDialog(QDialog):
                     movement.get("observacao") or "-",
                 ]
                 for col, value in enumerate(values):
-                    self.table.setItem(row, col, QTableWidgetItem(value))
+                    self.table.setItem(row, col, make_table_item(value))
         finally:
             self.table.blockSignals(False)
             self.table.setUpdatesEnabled(True)
+            self.table.setSortingEnabled(True)
 
 
 class MaterialReportDialog(QDialog):
     def __init__(self, api_client, parent=None):
         super().__init__(parent)
         self.api_client = api_client
-        self.logo_path = asset_path("logo_grupo.png")
+        self.logo_path = asset_path("app-logo-cover.png")
         self.report = {}
+        self._live_filter_timer = QTimer(self)
+        self._live_filter_timer.setSingleShot(True)
+        self._live_filter_timer.timeout.connect(self.refresh)
 
         self.setWindowTitle("Relatório de estoque")
         configure_dialog_window(self, width=1320, height=820, min_width=980, min_height=680)
@@ -412,6 +417,8 @@ class MaterialReportDialog(QDialog):
         self.start_input.setPlaceholderText("Data inicial (YYYY-MM-DD)")
         self.end_input = QLineEdit()
         self.end_input.setPlaceholderText("Data final (YYYY-MM-DD)")
+        self.start_input.textChanged.connect(self._schedule_live_refresh)
+        self.end_input.textChanged.connect(self._schedule_live_refresh)
         refresh_button = QPushButton("Atualizar")
         refresh_button.setProperty("variant", "primary")
         refresh_button.clicked.connect(self.refresh)
@@ -452,6 +459,13 @@ class MaterialReportDialog(QDialog):
 
         self.refresh()
 
+    def _schedule_live_refresh(self, *_args):
+        start = self.start_input.text().strip()
+        end = self.end_input.text().strip()
+        if (start and len(start) < 10) or (end and len(end) < 10):
+            return
+        self._live_filter_timer.start(280)
+
     def _make_table(self, headers: list[str]) -> QTableWidget:
         table = QTableWidget(0, len(headers))
         table.setHorizontalHeaderLabels(headers)
@@ -486,6 +500,7 @@ class MaterialReportDialog(QDialog):
         self._fill_table(self.ranking_table, self.report.get("ranking_uso", []), ["referencia", "descricao", "consumo_total", "ultimo_consumo"])
 
     def _fill_table(self, table: QTableWidget, rows: list[dict], keys: list[str]):
+        table.setSortingEnabled(False)
         table.setUpdatesEnabled(False)
         table.blockSignals(True)
         try:
@@ -495,10 +510,11 @@ class MaterialReportDialog(QDialog):
                     value = row.get(key)
                     if key == "ultimo_consumo" and value:
                         value = value.replace("T", " ")[:19]
-                    table.setItem(row_index, col_index, QTableWidgetItem(str(value if value is not None else "-")))
+                    table.setItem(row_index, col_index, make_table_item(value if value is not None else "-"))
         finally:
             table.blockSignals(False)
             table.setUpdatesEnabled(True)
+            table.setSortingEnabled(True)
 
     def export_xlsx(self):
         filename, _ = QFileDialog.getSaveFileName(
@@ -524,16 +540,26 @@ class MaterialReportDialog(QDialog):
         )
         if not filename:
             return
-        try:
+        report = dict(self.report)
+
+        def task(progress):
+            progress(14, "Preparando relatório de estoque")
+            progress(48, "Montando tabelas e indicadores")
             export_material_report_pdf(
-                self.report,
+                report,
                 output_path=filename,
                 logo_path=self.logo_path,
                 generated_by=(self.api_client.user or {}).get("nome", ""),
             )
-            show_notice(self, "Exportação concluída", f"Arquivo salvo em:\n{filename}", icon_name="reports")
-        except Exception as exc:
-            show_notice(self, "Falha na exportação", str(exc), icon_name="warning")
+            return filename
+
+        start_export_task(
+            self,
+            "Exportando PDF de estoque",
+            task,
+            success_title="Exportação concluída",
+            failure_title="Falha na exportação",
+        )
 
     def generate_message(self):
         if not self.report:
@@ -574,6 +600,9 @@ class MaterialsPage(QFrame):
         self.api_client = api_client
         self.items = []
         self.current_item = None
+        self._live_filter_timer = QTimer(self)
+        self._live_filter_timer.setSingleShot(True)
+        self._live_filter_timer.timeout.connect(self.refresh)
         self.setObjectName("ContentSurface")
 
         layout = QVBoxLayout(self)
@@ -629,17 +658,21 @@ class MaterialsPage(QFrame):
         self.search_input.setPlaceholderText("Buscar por referência ou descrição")
         self.search_input.setMinimumHeight(40)
         self.search_input.returnPressed.connect(self.refresh)
+        self.search_input.textChanged.connect(self._schedule_live_refresh)
         self.type_filter = QComboBox()
         self.type_filter.addItem("Todos", "")
         self.type_filter.addItem("Cavalo", "cavalo")
         self.type_filter.addItem("Carreta", "carreta")
         self.type_filter.addItem("Ambos", "ambos")
         self.type_filter.setMinimumHeight(40)
+        self.type_filter.currentIndexChanged.connect(self._schedule_live_refresh)
         self.active_filter = QComboBox()
         self.active_filter.addItem("Ativos", "true")
         self.active_filter.addItem("Todos", "all")
         self.active_filter.setMinimumHeight(40)
+        self.active_filter.currentIndexChanged.connect(self._schedule_live_refresh)
         self.low_stock_check = QCheckBox("Somente baixo estoque")
+        self.low_stock_check.toggled.connect(self._schedule_live_refresh)
         filter_button = QPushButton("Aplicar filtros")
         filter_button.setMinimumHeight(40)
         filter_button.clicked.connect(self.refresh)
@@ -681,6 +714,9 @@ class MaterialsPage(QFrame):
         layout.addWidget(table_card, 1)
         self._set_action_state(False)
 
+    def _schedule_live_refresh(self, *_args):
+        self._live_filter_timer.start(220)
+
     def _set_action_state(self, enabled: bool):
         self.edit_button.setEnabled(enabled)
         self.adjust_button.setEnabled(enabled)
@@ -694,6 +730,7 @@ class MaterialsPage(QFrame):
             ativos=self.active_filter.currentData(),
             baixo_estoque=self.low_stock_check.isChecked(),
         )
+        self.table.setSortingEnabled(False)
         self.table.setUpdatesEnabled(False)
         self.table.blockSignals(True)
         try:
@@ -711,7 +748,7 @@ class MaterialsPage(QFrame):
                     "Sim" if item.get("ativo") else "Não",
                 ]
                 for col, value in enumerate(values):
-                    cell = QTableWidgetItem(value)
+                    cell = make_table_item(value, payload=item if col == 0 else None)
                     if col == 5:
                         colors = {"background": "#FEE2E2", "color": "#B91C1C"} if item.get("baixo_estoque") else {"background": "#DCFCE7", "color": "#166534"}
                         cell.setBackground(QBrush(QColor(colors["background"])))
@@ -720,6 +757,7 @@ class MaterialsPage(QFrame):
         finally:
             self.table.blockSignals(False)
             self.table.setUpdatesEnabled(True)
+            self.table.setSortingEnabled(True)
         self.summary_badge.setText(f"{len(self.items)} materiais")
         if self.items:
             self.table.selectRow(0)
@@ -733,8 +771,20 @@ class MaterialsPage(QFrame):
             self.current_item = None
             self._set_action_state(False)
             return
-        self.current_item = self.items[selected[0].topRow()]
+        self.current_item = self._item_for_row(selected[0].topRow())
         self._set_action_state(True)
+
+    def _item_for_row(self, row: int | None):
+        if row is None or row < 0:
+            return None
+        first_cell = self.table.item(row, 0)
+        if first_cell:
+            payload = first_cell.data(Qt.UserRole)
+            if payload:
+                return payload
+        if row < len(self.items):
+            return self.items[row]
+        return None
 
     def add_material(self):
         dialog = MaterialDialog(self.api_client, parent=self)
@@ -764,10 +814,12 @@ class MaterialsPage(QFrame):
             self.refresh()
             self.data_changed.emit()
 
-    def open_history(self, *_args):
-        if not self.current_item:
+    def open_history(self, item=None):
+        row_item = self._item_for_row(item.row()) if item is not None else self.current_item
+        if not row_item:
             return
-        dialog = MaterialMovementsDialog(self.api_client, self.current_item, self)
+        self.current_item = row_item
+        dialog = MaterialMovementsDialog(self.api_client, row_item, self)
         dialog.exec()
 
     def open_report(self):

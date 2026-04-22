@@ -1,4 +1,4 @@
-from __future__ import annotations
+﻿from __future__ import annotations
 
 import csv
 import io
@@ -116,14 +116,13 @@ def export_rows_to_pdf(
         pagesize=landscape(A4),
         leftMargin=14 * mm,
         rightMargin=14 * mm,
-        topMargin=14 * mm,
+        topMargin=40 * mm,
         bottomMargin=12 * mm,
     )
 
     styles = _styles()
     story = _build_cover_page(title, subtitle, generated_by, logo_path, styles, landscape_mode=True)
     story.append(PageBreak())
-    story.extend(_build_header(title, subtitle, generated_by, logo_path, styles))
     story.extend(
         _build_summary_cards(
             [
@@ -177,10 +176,11 @@ def export_rows_to_pdf(
     story.extend(_build_executive_conclusion(columns, rows, styles, period_label))
     story.append(Spacer(1, 10))
     story.extend(_build_signature_block(generated_by, styles))
+    page_frame = _page_frame_callback(title, subtitle, generated_by, logo_path)
     doc.build(
         story,
-        onFirstPage=lambda canvas, document: _draw_footer(canvas, document, generated_by),
-        onLaterPages=lambda canvas, document: _draw_footer(canvas, document, generated_by),
+        onFirstPage=page_frame,
+        onLaterPages=page_frame,
     )
     return path
 
@@ -202,7 +202,7 @@ def export_non_conformity_pdf(
         pagesize=A4,
         leftMargin=14 * mm,
         rightMargin=14 * mm,
-        topMargin=14 * mm,
+        topMargin=40 * mm,
         bottomMargin=12 * mm,
     )
     styles = _styles()
@@ -215,15 +215,6 @@ def export_non_conformity_pdf(
         landscape_mode=False,
     )
     story.append(PageBreak())
-    story.extend(
-        _build_header(
-            "Relatório de Não Conformidade",
-            f"{item['veiculo']['frota']} - {item['item_nome']}",
-            generated_by,
-            logo_path,
-            styles,
-        )
-    )
 
     status_text = "Resolvida" if item.get("resolvido") else "Aberta"
     story.extend(
@@ -293,10 +284,16 @@ def export_non_conformity_pdf(
     story.append(image_table)
     story.append(Spacer(1, 12))
     story.extend(_build_signature_block(generated_by, styles))
+    page_frame = _page_frame_callback(
+        "Relatório de Não Conformidade",
+        f"{item['veiculo']['frota']} - {item['item_nome']}",
+        generated_by,
+        logo_path,
+    )
     doc.build(
         story,
-        onFirstPage=lambda canvas, document: _draw_footer(canvas, document, generated_by),
-        onLaterPages=lambda canvas, document: _draw_footer(canvas, document, generated_by),
+        onFirstPage=page_frame,
+        onLaterPages=page_frame,
     )
     return path
 
@@ -310,6 +307,7 @@ def export_vehicle_detail_pdf(
     generated_by: str = "",
     vehicle_image: bytes | None = None,
     operational_history: list[dict] | None = None,
+    occurrence_images: dict[int, dict[str, bytes | None]] | None = None,
 ) -> Path:
     path = Path(output_path)
     path.parent.mkdir(parents=True, exist_ok=True)
@@ -319,7 +317,7 @@ def export_vehicle_detail_pdf(
         pagesize=A4,
         leftMargin=14 * mm,
         rightMargin=14 * mm,
-        topMargin=14 * mm,
+        topMargin=40 * mm,
         bottomMargin=12 * mm,
     )
     styles = _styles()
@@ -332,15 +330,6 @@ def export_vehicle_detail_pdf(
         landscape_mode=False,
     )
     story.append(PageBreak())
-    story.extend(
-        _build_header(
-            "Ficha de Equipamento",
-            f"{vehicle.get('frota', '-')} - {vehicle.get('modelo', '-')}",
-            generated_by,
-            logo_path,
-            styles,
-        )
-    )
     story.extend(
         _build_summary_cards(
             [
@@ -428,6 +417,16 @@ def export_vehicle_detail_pdf(
     else:
         story.append(Paragraph("Nenhuma não conformidade registrada para este equipamento.", styles["muted_box"]))
 
+    if occurrences:
+        _append_occurrence_evidence_section(
+            story,
+            occurrences,
+            occurrence_images or {},
+            styles,
+            section_title="Evidências das não conformidades",
+            page_break_before=True,
+        )
+
     if operational_history:
         history_columns = [
             ("Data", "date"),
@@ -475,10 +474,129 @@ def export_vehicle_detail_pdf(
 
     story.append(Spacer(1, 12))
     story.extend(_build_signature_block(generated_by, styles))
+    page_frame = _page_frame_callback(
+        "Ficha de Equipamento",
+        f"{vehicle.get('frota', '-')} - {vehicle.get('modelo', '-')}",
+        generated_by,
+        logo_path,
+    )
     doc.build(
         story,
-        onFirstPage=lambda canvas, document: _draw_footer(canvas, document, generated_by),
-        onLaterPages=lambda canvas, document: _draw_footer(canvas, document, generated_by),
+        onFirstPage=page_frame,
+        onLaterPages=page_frame,
+    )
+    return path
+
+
+def export_item_audit_pdf(
+    item_name: str | None,
+    occurrences: list[dict],
+    *,
+    output_path: str | Path,
+    logo_path: str | Path | None = None,
+    generated_by: str = "",
+    occurrence_images: dict[int, dict[str, bytes | None]] | None = None,
+    filter_context: dict[str, str] | None = None,
+) -> Path:
+    path = Path(output_path)
+    path.parent.mkdir(parents=True, exist_ok=True)
+
+    doc = SimpleDocTemplate(
+        str(path),
+        pagesize=A4,
+        leftMargin=14 * mm,
+        rightMargin=14 * mm,
+        topMargin=40 * mm,
+        bottomMargin=12 * mm,
+    )
+    styles = _styles()
+    vehicles = sorted({(item.get("veiculo") or {}).get("frota") or "-" for item in occurrences})
+    open_total = sum(1 for item in occurrences if not item.get("resolvido"))
+    resolved_total = sum(1 for item in occurrences if item.get("resolvido"))
+    scope_label = item_name or "Todas as não conformidades"
+    title = "Relatório de Auditoria de Não conformidades"
+    subtitle = f"{scope_label} - {len(occurrences)} ocorrências"
+
+    story = _build_cover_page(title, subtitle, generated_by, logo_path, styles, landscape_mode=False)
+    story.append(PageBreak())
+    summary_cards = [
+        ("Escopo", scope_label),
+        ("Ocorrências", str(len(occurrences))),
+        ("Equipamentos", str(len(vehicles))),
+        ("Abertas", str(open_total)),
+        ("Resolvidas", str(resolved_total)),
+    ]
+    if filter_context:
+        for key, value in filter_context.items():
+            summary_cards.append((key, value or "-"))
+    story.extend(
+        _build_summary_cards(summary_cards, styles)
+    )
+    story.append(Spacer(1, 8))
+    story.append(Paragraph("Equipamentos com registro neste relatório", styles["section"]))
+    story.append(Spacer(1, 4))
+    story.append(
+        Paragraph(
+            _safe_paragraph_text(", ".join(vehicles) if vehicles else "Nenhum equipamento encontrado."),
+            styles["body"],
+        )
+    )
+    story.append(Spacer(1, 8))
+
+    columns = [
+        ("Data", "created_at"),
+        ("Equipamento", "vehicle"),
+        ("Status", "status"),
+        ("Motorista", "driver"),
+        ("Peça", "part"),
+    ]
+    rows = []
+    for item in occurrences:
+        vehicle = item.get("veiculo") or {}
+        user = item.get("usuario") or {}
+        rows.append(
+            {
+                "created_at": _format_datetime(item.get("created_at")),
+                "vehicle": vehicle.get("frota") or "-",
+                "status": "Resolvida" if item.get("resolvido") else "Aberta",
+                "driver": user.get("nome") or "-",
+                "part": item.get("codigo_peca") or item.get("descricao_peca") or "-",
+            }
+        )
+
+    story.append(Paragraph("Resumo das ocorrências", styles["section"]))
+    story.append(Spacer(1, 4))
+    if rows:
+        table = Table(
+            [[Paragraph(label, styles["table_header"]) for label, _ in columns]]
+            + [
+                [Paragraph(_safe_paragraph_text(_stringify(row.get(key))), styles["table_cell"]) for _, key in columns]
+                for row in rows
+            ],
+            repeatRows=1,
+        )
+        table.setStyle(_standard_table_style())
+        story.append(table)
+    else:
+        story.append(Paragraph("Nenhuma ocorrência encontrada para este item.", styles["muted_box"]))
+
+    if occurrences:
+        _append_occurrence_evidence_section(
+            story,
+            occurrences,
+            occurrence_images or {},
+            styles,
+            section_title="Evidências fotográficas por equipamento",
+            page_break_before=True,
+        )
+
+    story.append(Spacer(1, 12))
+    story.extend(_build_signature_block(generated_by, styles))
+    page_frame = _page_frame_callback(title, subtitle, generated_by, logo_path)
+    doc.build(
+        story,
+        onFirstPage=page_frame,
+        onLaterPages=page_frame,
     )
     return path
 
@@ -499,7 +617,7 @@ def export_activity_pdf(
         pagesize=A4,
         leftMargin=14 * mm,
         rightMargin=14 * mm,
-        topMargin=14 * mm,
+        topMargin=40 * mm,
         bottomMargin=12 * mm,
     )
     styles = _styles()
@@ -512,7 +630,6 @@ def export_activity_pdf(
 
     story = _build_cover_page(title, subtitle, generated_by, logo_path, styles, landscape_mode=False)
     story.append(PageBreak())
-    story.extend(_build_header(title, subtitle, generated_by, logo_path, styles))
     story.extend(
         _build_summary_cards(
             [
@@ -677,10 +794,11 @@ def export_activity_pdf(
 
     story.append(Spacer(1, 12))
     story.extend(_build_signature_block(generated_by, styles))
+    page_frame = _page_frame_callback(title, subtitle, generated_by, logo_path)
     doc.build(
         story,
-        onFirstPage=lambda canvas, document: _draw_footer(canvas, document, generated_by),
-        onLaterPages=lambda canvas, document: _draw_footer(canvas, document, generated_by),
+        onFirstPage=page_frame,
+        onLaterPages=page_frame,
     )
     return path
 
@@ -771,13 +889,12 @@ def export_material_report_pdf(
         pagesize=A4,
         leftMargin=14 * mm,
         rightMargin=14 * mm,
-        topMargin=14 * mm,
+        topMargin=40 * mm,
         bottomMargin=12 * mm,
     )
 
     story = _build_cover_page("Relatório de Estoque", subtitle, generated_by, logo_path, styles, landscape_mode=False)
     story.append(PageBreak())
-    story.extend(_build_header("Relatório de Estoque", subtitle, generated_by, logo_path, styles))
     story.extend(
         _build_summary_cards(
             [
@@ -841,10 +958,11 @@ def export_material_report_pdf(
         story.append(Spacer(1, 10))
 
     story.extend(_build_signature_block(generated_by, styles))
+    page_frame = _page_frame_callback("Relatório de Estoque", subtitle, generated_by, logo_path)
     doc.build(
         story,
-        onFirstPage=lambda canvas, document: _draw_footer(canvas, document, generated_by),
-        onLaterPages=lambda canvas, document: _draw_footer(canvas, document, generated_by),
+        onFirstPage=page_frame,
+        onLaterPages=page_frame,
     )
     return path
 
@@ -852,7 +970,7 @@ def export_material_report_pdf(
 def _build_header(title: str, subtitle: str, generated_by: str, logo_path: str | Path | None, styles):
     story = []
     cover_band = Table(
-        [[Paragraph("Grupo Chibatão | Relatório corporativo", styles["cover_band"])]],
+        [[Paragraph("Sistema de Checklist de Frota | Relatório corporativo", styles["cover_band"])]],
         colWidths=[180 * mm],
     )
     cover_band.setStyle(
@@ -881,7 +999,7 @@ def _build_header(title: str, subtitle: str, generated_by: str, logo_path: str |
     metadata = [
         f"Gerado em: {datetime.now().strftime('%d/%m/%Y %H:%M')}",
         f"Emitido por: {generated_by or 'Sistema'}",
-        "Grupo Chibatão",
+        "Sistema de Checklist de Frota",
     ]
     header_row.append(Paragraph("<br/>".join(metadata), styles["meta"]))
 
@@ -917,7 +1035,7 @@ def _build_cover_page(
     width = 250 * mm if landscape_mode else 180 * mm
 
     top_band = Table(
-        [[Paragraph("Relatório executivo | Grupo Chibatão", styles["cover_band_large"])]],
+        [[Paragraph("Relatório executivo | Sistema de Checklist de Frota", styles["cover_band_large"])]],
         colWidths=[width],
     )
     top_band.setStyle(
@@ -960,7 +1078,7 @@ def _build_cover_page(
 
     intro = Table(
         [[Paragraph(
-            "Documento gerado para apoio gerencial, rastreabilidade operacional e evidências de manutenção da frota portuária.",
+            "Documento gerado para apoio gerencial, rastreabilidade operacional e evidências de manutenção da frota.",
             styles["cover_intro"],
         )]],
         colWidths=[width],
@@ -1273,6 +1391,100 @@ def _to_number(value) -> float:
         return 0.0
 
 
+def _page_frame_callback(title: str, subtitle: str, generated_by: str, logo_path: str | Path | None):
+    def draw(canvas, document):
+        _draw_page_frame(canvas, document, generated_by, title, subtitle, logo_path)
+
+    return draw
+
+
+def _draw_page_frame(
+    canvas,
+    document,
+    generated_by: str,
+    title: str | None = None,
+    subtitle: str | None = None,
+    logo_path: str | Path | None = None,
+):
+    if canvas.getPageNumber() > 1:
+        _draw_report_page_header(canvas, document, title or "Relatório corporativo", subtitle or "", generated_by, logo_path)
+    _draw_footer(canvas, document, generated_by)
+
+
+def _draw_report_page_header(
+    canvas,
+    document,
+    title: str,
+    subtitle: str,
+    generated_by: str,
+    logo_path: str | Path | None,
+):
+    canvas.saveState()
+    page_width, page_height = document.pagesize
+    content_width = page_width - document.leftMargin - document.rightMargin
+    left = document.leftMargin
+    right = left + content_width
+    top = page_height - 12 * mm
+    line_y = top - 7 * mm
+
+    canvas.setFillColor(colors.HexColor(MUTED))
+    canvas.setFont("Helvetica-Bold", 8)
+    canvas.drawString(left, top, "Sistema de Checklist de Frota | Relatório corporativo")
+    canvas.setStrokeColor(colors.HexColor("#D9E2EF"))
+    canvas.setLineWidth(0.45)
+    canvas.line(left, line_y, right, line_y)
+
+    logo_bottom = line_y - 20 * mm
+    logo_width = 24 * mm
+    logo_height = 16 * mm
+    logo_file = Path(logo_path) if logo_path else None
+    if logo_file and logo_file.exists():
+        try:
+            canvas.drawImage(
+                str(logo_file),
+                left,
+                logo_bottom + 2 * mm,
+                width=logo_width,
+                height=logo_height,
+                preserveAspectRatio=True,
+                mask="auto",
+            )
+        except Exception:
+            pass
+
+    text_left = left + 30 * mm
+    title_y = line_y - 7 * mm
+    canvas.setFillColor(colors.HexColor("#0B1220"))
+    canvas.setFont("Helvetica-Bold", 11)
+    canvas.drawString(text_left, title_y, _canvas_text(title, 68))
+
+    canvas.setFillColor(colors.HexColor(MUTED))
+    canvas.setFont("Helvetica", 10)
+    canvas.drawString(text_left, title_y - 6 * mm, _canvas_text(subtitle, 82))
+
+    metadata = [
+        f"Gerado em: {datetime.now().strftime('%d/%m/%Y %H:%M')}",
+        f"Emitido por: {generated_by or 'Sistema'}",
+        "Sistema de Checklist de Frota",
+    ]
+    canvas.setFont("Helvetica", 7)
+    meta_y = title_y - 1 * mm
+    for index, line in enumerate(metadata):
+        canvas.drawRightString(right, meta_y - index * 4.2 * mm, _canvas_text(line, 42))
+
+    canvas.setStrokeColor(colors.HexColor("#D9E2EF"))
+    canvas.setLineWidth(0.7)
+    canvas.line(left, logo_bottom, right, logo_bottom)
+    canvas.restoreState()
+
+
+def _canvas_text(value: str | None, max_chars: int) -> str:
+    text = str(value or "")
+    if len(text) <= max_chars:
+        return text
+    return text[: max(0, max_chars - 3)].rstrip() + "..."
+
+
 def _draw_footer(canvas, document, generated_by: str):
     canvas.saveState()
     footer_y = 9 * mm
@@ -1281,7 +1493,7 @@ def _draw_footer(canvas, document, generated_by: str):
     canvas.line(document.leftMargin, footer_y + 4 * mm, document.leftMargin + width, footer_y + 4 * mm)
     canvas.setFillColor(colors.HexColor(MUTED))
     canvas.setFont("Helvetica", 8)
-    canvas.drawString(document.leftMargin, footer_y, "Grupo Chibatão • Sistema de Checklist de Frota")
+    canvas.drawString(document.leftMargin, footer_y, "Sistema de Checklist de Frota")
     canvas.drawCentredString(document.leftMargin + width / 2, footer_y, f"Emitido por: {generated_by or 'Sistema'}")
     canvas.drawRightString(document.leftMargin + width, footer_y, f"Página {canvas.getPageNumber()}")
     canvas.restoreState()
@@ -1307,6 +1519,109 @@ def _key_value_table(rows: list[list[str]], styles):
         )
     )
     return table
+
+
+def _standard_table_style() -> TableStyle:
+    return TableStyle(
+        [
+            ("BACKGROUND", (0, 0), (-1, 0), colors.HexColor(PRIMARY_BLUE)),
+            ("TEXTCOLOR", (0, 0), (-1, 0), colors.white),
+            ("LINEBELOW", (0, 0), (-1, -1), 0.35, colors.HexColor("#E2E8F0")),
+            ("ROWBACKGROUNDS", (0, 1), (-1, -1), [colors.white, colors.HexColor(LIGHT_BG)]),
+            ("LEFTPADDING", (0, 0), (-1, -1), 7),
+            ("RIGHTPADDING", (0, 0), (-1, -1), 7),
+            ("TOPPADDING", (0, 0), (-1, -1), 7),
+            ("BOTTOMPADDING", (0, 0), (-1, -1), 7),
+            ("VALIGN", (0, 0), (-1, -1), "TOP"),
+        ]
+    )
+
+
+def _append_occurrence_evidence_section(
+    story: list,
+    occurrences: list[dict],
+    occurrence_images: dict[int, dict[str, bytes | None]],
+    styles,
+    *,
+    section_title: str,
+    page_break_before: bool = False,
+) -> None:
+    if page_break_before:
+        story.append(PageBreak())
+    story.append(Paragraph(section_title, styles["section"]))
+    story.append(Spacer(1, 6))
+
+    for index, item in enumerate(occurrences, start=1):
+        if index > 1:
+            story.append(PageBreak())
+
+        vehicle = item.get("veiculo") or {}
+        user = item.get("usuario") or {}
+        resolved_by = item.get("resolved_by") or {}
+        status_text = "Resolvida" if item.get("resolvido") else "Aberta"
+
+        story.append(
+            Paragraph(
+                _safe_paragraph_text(
+                    f"Ocorrência {index} - {vehicle.get('frota') or '-'} - {item.get('item_nome') or '-'}"
+                ),
+                styles["section"],
+            )
+        )
+        story.append(Spacer(1, 4))
+        story.append(
+            _key_value_table(
+                [
+                    ["Equipamento", vehicle.get("frota") or "-"],
+                    ["Placa", vehicle.get("placa") or "-"],
+                    ["Modelo", vehicle.get("modelo") or "-"],
+                    ["Item", item.get("item_nome") or "-"],
+                    ["Status", status_text],
+                    ["Motorista", user.get("nome") or "-"],
+                    ["Abertura", _format_datetime(item.get("created_at"))],
+                    ["Resolução", _format_datetime(item.get("data_resolucao"))],
+                    ["Resolvido por", resolved_by.get("nome") or "-"],
+                    ["Código da peça", item.get("codigo_peca") or "-"],
+                    ["Descrição da peça", item.get("descricao_peca") or "-"],
+                    ["Observação", item.get("observacao") or "-"],
+                ],
+                styles,
+            )
+        )
+        story.append(Spacer(1, 8))
+
+        images = occurrence_images.get(item.get("id"), {})
+        before = images.get("before")
+        after = images.get("after")
+        image_block = [
+            _reportlab_image(before, 86 * mm, 76 * mm) if before else Paragraph("Sem foto antes", styles["muted_box"]),
+            _reportlab_image(after, 86 * mm, 76 * mm) if after else Paragraph("Sem foto depois", styles["muted_box"]),
+        ]
+        image_table = Table(
+            [
+                [
+                    Paragraph("Foto antes", styles["section"]),
+                    Paragraph("Foto depois / resolução", styles["section"]),
+                ],
+                image_block,
+            ],
+            colWidths=[89 * mm, 89 * mm],
+        )
+        image_table.setStyle(
+            TableStyle(
+                [
+                    ("BACKGROUND", (0, 0), (-1, 0), colors.white),
+                    ("LINEBELOW", (0, 0), (-1, 0), 0.35, colors.HexColor("#CBD5E1")),
+                    ("INNERGRID", (0, 0), (-1, -1), 0.25, colors.HexColor("#E2E8F0")),
+                    ("LEFTPADDING", (0, 0), (-1, -1), 4),
+                    ("RIGHTPADDING", (0, 0), (-1, -1), 4),
+                    ("TOPPADDING", (0, 0), (-1, -1), 5),
+                    ("BOTTOMPADDING", (0, 0), (-1, -1), 5),
+                    ("VALIGN", (0, 0), (-1, -1), "TOP"),
+                ]
+            )
+        )
+        story.append(image_table)
 
 
 def _reportlab_image(raw_bytes: bytes, width: float, height: float):
@@ -1493,3 +1808,4 @@ def _safe_paragraph_text(value: str) -> str:
         .replace(">", "&gt;")
         .replace("\n", "<br/>")
     )
+

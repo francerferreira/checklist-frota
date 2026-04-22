@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from datetime import datetime
+
 from PySide6.QtCore import QEasingCurve, QPropertyAnimation, QTimer, Qt
 from PySide6.QtGui import QColor, QGuiApplication
 from PySide6.QtWidgets import (
@@ -11,9 +13,62 @@ from PySide6.QtWidgets import (
     QHBoxLayout,
     QScrollArea,
     QTableWidget,
+    QTableWidgetItem,
     QVBoxLayout,
     QWidget,
 )
+
+
+TABLE_SORT_ROLE = Qt.UserRole + 100
+
+
+class SortableTableWidgetItem(QTableWidgetItem):
+    def __lt__(self, other):
+        left = self.data(TABLE_SORT_ROLE)
+        right = other.data(TABLE_SORT_ROLE) if isinstance(other, QTableWidgetItem) else None
+        if left is not None and right is not None:
+            try:
+                return left < right
+            except TypeError:
+                return str(left).casefold() < str(right).casefold()
+        return super().__lt__(other)
+
+
+def _coerce_sort_value(value):
+    if value is None:
+        return ""
+    if isinstance(value, (int, float)):
+        return float(value)
+
+    text = str(value).strip()
+    if not text or text == "-":
+        return ""
+
+    numeric = text.replace("R$", "").replace("%", "").replace(" ", "")
+    if "," in numeric:
+        numeric = numeric.replace(".", "").replace(",", ".")
+    try:
+        return float(numeric)
+    except ValueError:
+        pass
+
+    normalized_date = text.replace("T", " ")[:19]
+    for fmt in ("%Y-%m-%d %H:%M:%S", "%Y-%m-%d", "%d/%m/%Y %H:%M:%S", "%d/%m/%Y"):
+        try:
+            return datetime.strptime(normalized_date, fmt).timestamp()
+        except ValueError:
+            continue
+
+    return text.casefold()
+
+
+def make_table_item(value="", *, payload=None, sort_value=None) -> QTableWidgetItem:
+    display = "-" if value is None else str(value)
+    item = SortableTableWidgetItem(display)
+    if payload is not None:
+        item.setData(Qt.UserRole, payload)
+    item.setData(TABLE_SORT_ROLE, _coerce_sort_value(value) if sort_value is None else sort_value)
+    return item
 
 
 APP_STYLE = """
@@ -253,12 +308,16 @@ QTableView::item:hover {
     background: rgba(37, 99, 235, 0.08);
 }
 QHeaderView::section {
-    background: #F8FAFC;
-    color: #334155;
+    background: #EEF2F6;
+    color: #1E293B;
     border: none;
-    border-bottom: 1px solid rgba(148, 163, 184, 0.14);
+    border-right: 1px solid rgba(148, 163, 184, 0.16);
+    border-bottom: 1px solid rgba(148, 163, 184, 0.20);
     padding: 16px 14px;
-    font-weight: 700;
+    font-weight: 720;
+}
+QHeaderView::section:hover {
+    background: #E7EDF4;
 }
 QScrollArea, QStackedWidget {
     border: none;
@@ -434,10 +493,52 @@ def animate_dialog_in(dialog: QDialog) -> None:
     dialog._dialog_intro_animation = animation
 
 
-def configure_table(table: QTableWidget, stretch_last: bool = True) -> None:
+def _apply_table_autofit(table: QTableWidget) -> None:
+    try:
+        if table is None or not bool(table.property("_auto_fit_enabled")):
+            return
+        if table.columnCount() <= 0:
+            return
+    except RuntimeError:
+        return
+
+    header = table.horizontalHeader()
+    stretch_last = bool(table.property("_stretch_last_enabled"))
+    sorting_enabled = table.isSortingEnabled()
+
+    table.setSortingEnabled(False)
+    try:
+        header.setStretchLastSection(False)
+        for column in range(table.columnCount()):
+            header.setSectionResizeMode(column, QHeaderView.ResizeToContents)
+        table.resizeColumnsToContents()
+        for column in range(table.columnCount()):
+            header.setSectionResizeMode(column, QHeaderView.Interactive)
+        header.setStretchLastSection(stretch_last)
+    finally:
+        table.setSortingEnabled(sorting_enabled)
+
+
+def _schedule_table_autofit(table: QTableWidget) -> None:
+    try:
+        if table is None or not bool(table.property("_auto_fit_enabled")):
+            return
+    except RuntimeError:
+        return
+    timer = getattr(table, "_auto_fit_timer", None)
+    if timer is None:
+        timer = QTimer(table)
+        timer.setSingleShot(True)
+        timer.timeout.connect(lambda target=table: _apply_table_autofit(target))
+        table._auto_fit_timer = timer
+    timer.start(45)
+
+
+def configure_table(table: QTableWidget, stretch_last: bool = True, auto_fit: bool = True) -> None:
     table.setAlternatingRowColors(True)
     table.setShowGrid(False)
     table.setWordWrap(False)
+    table.setSortingEnabled(True)
     table.setSelectionBehavior(QAbstractItemView.SelectRows)
     table.setSelectionMode(QAbstractItemView.SingleSelection)
     table.setEditTriggers(QAbstractItemView.NoEditTriggers)
@@ -448,12 +549,27 @@ def configure_table(table: QTableWidget, stretch_last: bool = True) -> None:
     table.horizontalHeader().setDefaultAlignment(Qt.AlignLeft | Qt.AlignVCenter)
     table.horizontalHeader().setStretchLastSection(stretch_last)
     table.horizontalHeader().setMinimumSectionSize(110)
+    table.horizontalHeader().setSectionsClickable(True)
+    table.horizontalHeader().setSortIndicatorShown(True)
     table.setHorizontalScrollMode(QAbstractItemView.ScrollPerPixel)
     table.setVerticalScrollMode(QAbstractItemView.ScrollPerPixel)
+    table.setHorizontalScrollBarPolicy(Qt.ScrollBarAsNeeded)
+    table.setVerticalScrollBarPolicy(Qt.ScrollBarAsNeeded)
     table.setFocusPolicy(Qt.NoFocus)
+    table.setProperty("_stretch_last_enabled", stretch_last)
+    table.setProperty("_auto_fit_enabled", auto_fit)
 
     header = table.horizontalHeader()
-    if not stretch_last:
-        header.setSectionResizeMode(QHeaderView.Stretch)
-    else:
-        header.setSectionResizeMode(QHeaderView.ResizeToContents)
+    header.setSectionResizeMode(QHeaderView.Interactive)
+    header.setStretchLastSection(stretch_last)
+
+    if auto_fit and not bool(table.property("_auto_fit_connected")):
+        model = table.model()
+        model.modelReset.connect(lambda *_args, target=table: _schedule_table_autofit(target))
+        model.rowsInserted.connect(lambda *_args, target=table: _schedule_table_autofit(target))
+        model.rowsRemoved.connect(lambda *_args, target=table: _schedule_table_autofit(target))
+        model.columnsInserted.connect(lambda *_args, target=table: _schedule_table_autofit(target))
+        model.columnsRemoved.connect(lambda *_args, target=table: _schedule_table_autofit(target))
+        model.dataChanged.connect(lambda *_args, target=table: _schedule_table_autofit(target))
+        table.setProperty("_auto_fit_connected", True)
+        _schedule_table_autofit(table)

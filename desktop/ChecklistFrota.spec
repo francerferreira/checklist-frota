@@ -9,7 +9,12 @@ desktop_root = Path(SPECPATH).resolve()
 backend_root = desktop_root.parent / "backend"
 
 hiddenimports = collect_submodules("PySide6") + collect_submodules("app")
-datas = [(str(desktop_root / "assets"), "assets")]
+datas = [
+    (str(desktop_root / "assets" / "app-icon.ico"), "assets"),
+    (str(desktop_root / "assets" / "app-icon.png"), "assets"),
+    (str(desktop_root / "assets" / "app-logo-cover.png"), "assets"),
+    (str(desktop_root / "assets" / "cf-logo-cover.png"), "assets"),
+]
 
 
 a = Analysis(
