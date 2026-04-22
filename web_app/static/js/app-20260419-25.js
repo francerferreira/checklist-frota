@@ -1939,6 +1939,11 @@ function renderActivityDetail() {
 function makeActivityItemCard(activity, item, index) {
     const vehicle = item.veiculo || {};
     const canShare = item.status_execucao && item.status_execucao !== "PENDENTE";
+    const beforePath = item.foto_origem || item.foto_antes || "";
+    const afterPath = item.foto_resolucao || item.foto_depois || "";
+    const beforePhoto = beforePath ? makeAbsoluteUrl(beforePath) : "";
+    const afterPhoto = afterPath ? makeAbsoluteUrl(afterPath) : "";
+    const originLocked = Boolean(item.foto_origem_bloqueada);
     const card = document.createElement("article");
     card.className = "checklist-card activity-item-card";
     card.dataset.activityId = activity.id;
@@ -1977,6 +1982,31 @@ function makeActivityItemCard(activity, item, index) {
         <button type="button" class="primary-button activity-save-button">SALVAR EVIDÊNCIA</button>
         ${canShare ? `<button type="button" class="share-button activity-share-button">COMPARTILHAR NO WHATSAPP</button>` : ""}
     `;
+
+    const beforeInput = card.querySelector("input[data-photo='before']");
+    const beforeHint = beforeInput?.closest(".evidence-input")?.querySelector("em");
+    const beforePreview = card.querySelector(".before-preview");
+    if (beforeHint) {
+        beforeHint.textContent = beforePath ? "FOTO ANTES JÁ VINCULADA." : "TOQUE PARA FOTOGRAFAR OU ANEXAR IMAGEM.";
+    }
+    if (beforeInput && originLocked) {
+        beforeInput.disabled = true;
+    }
+    if (beforePreview && beforePhoto) {
+        beforePreview.src = beforePhoto;
+        beforePreview.classList.add("visible");
+    }
+
+    const afterInput = card.querySelector("input[data-photo='after']");
+    const afterHint = afterInput?.closest(".evidence-input")?.querySelector("em");
+    const afterPreview = card.querySelector(".after-preview");
+    if (afterHint) {
+        afterHint.textContent = afterPath ? "FOTO DEPOIS JÁ VINCULADA." : "TOQUE PARA FOTOGRAFAR OU ANEXAR IMAGEM.";
+    }
+    if (afterPreview && afterPhoto) {
+        afterPreview.src = afterPhoto;
+        afterPreview.classList.add("visible");
+    }
 
     const statusButtons = card.querySelectorAll(".activity-status-group .status-button");
     statusButtons.forEach((button) => {
@@ -2023,6 +2053,8 @@ function previewFile(input, card) {
 async function submitActivityItem(card, activity, item) {
     const vehicle = item.veiculo || {};
     const status = card.dataset.status;
+    const currentBeforePath = item.foto_origem || item.foto_antes;
+    const currentAfterPath = item.foto_resolucao || item.foto_depois;
     if (!status || status === "PENDENTE") {
         showToast("SELECIONE INSTALADO OU NÃO INSTALADO.", true);
         return;
@@ -2042,13 +2074,13 @@ async function submitActivityItem(card, activity, item) {
 
         if (beforeFile) {
             payload.foto_antes = await uploadEvidence(beforeFile, vehicle.frota || "EQUIPAMENTO", activity.item_nome || "ATIVIDADE", "atividade_antes", "ATIVIDADES");
-        } else if (item.foto_antes) {
-            payload.foto_antes = item.foto_antes;
+        } else if (currentBeforePath) {
+            payload.foto_antes = currentBeforePath;
         }
         if (afterFile) {
             payload.foto_depois = await uploadEvidence(afterFile, vehicle.frota || "EQUIPAMENTO", activity.item_nome || "ATIVIDADE", "atividade_depois", "ATIVIDADES");
-        } else if (item.foto_depois) {
-            payload.foto_depois = item.foto_depois;
+        } else if (currentAfterPath) {
+            payload.foto_depois = currentAfterPath;
         }
 
         state.selectedActivity = await apiFetch(`/atividades/${activity.id}/itens/${item.id}`, {

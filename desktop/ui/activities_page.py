@@ -25,7 +25,7 @@ from PySide6.QtWidgets import (
     QVBoxLayout,
 )
 
-from components import TableSkeletonOverlay, make_icon, show_notice, start_export_task
+from components import ImagePanel, TableSkeletonOverlay, make_icon, show_notice, start_export_task
 from components import MessageComposerDialog
 from runtime_paths import asset_path
 from services.export_service import (
@@ -516,6 +516,20 @@ class ActivityItemUpdateDialog(QDialog):
         self.after_label = QLabel(item.get("foto_resolucao") or item.get("foto_depois") or "Sem foto de resolução vinculada.")
         self.after_label.setObjectName("MutedText")
         self.after_label.setWordWrap(True)
+        self.before_remote_path = item.get("foto_origem") or item.get("foto_antes") or ""
+        self.after_remote_path = item.get("foto_resolucao") or item.get("foto_depois") or ""
+
+        self.before_preview = ImagePanel("Prévia da origem")
+        self.before_preview.set_preview_title(f"Foto de origem - {veiculo.get('frota') or '-'}")
+        self.before_preview.set_photo_role("Origem")
+        self.before_preview.set_preview_height(220, minimum=170)
+        self.before_preview.setMinimumHeight(300)
+
+        self.after_preview = ImagePanel("Prévia da resolução")
+        self.after_preview.set_preview_title(f"Foto de resolução - {veiculo.get('frota') or '-'}")
+        self.after_preview.set_photo_role("Resolução")
+        self.after_preview.set_preview_height(220, minimum=170)
+        self.after_preview.setMinimumHeight(300)
 
         before_button = QPushButton("Selecionar foto de origem")
         before_button.setMinimumHeight(42)
@@ -584,6 +598,7 @@ class ActivityItemUpdateDialog(QDialog):
         before_actions.addWidget(before_button, 0, Qt.AlignLeft)
         before_actions.addWidget(self.before_label, 1)
         before_layout.addLayout(before_actions)
+        before_layout.addWidget(self.before_preview)
 
         after_field = QFrame()
         after_field.setObjectName("DialogInfoBlock")
@@ -600,6 +615,7 @@ class ActivityItemUpdateDialog(QDialog):
         after_actions.addWidget(after_button, 0, Qt.AlignLeft)
         after_actions.addWidget(self.after_label, 1)
         after_layout.addLayout(after_actions)
+        after_layout.addWidget(self.after_preview)
 
         evidence_layout.addWidget(before_field, 0, 0)
         evidence_layout.addWidget(after_field, 0, 1)
@@ -631,6 +647,7 @@ class ActivityItemUpdateDialog(QDialog):
         layout.addWidget(form_card)
         layout.addWidget(footer)
         self._sync_material_fields()
+        self._refresh_evidence_previews()
 
     def _sync_material_fields(self):
         material = self.material_combo.currentData()
@@ -656,6 +673,26 @@ class ActivityItemUpdateDialog(QDialog):
         else:
             self.after_file = filename
             self.after_label.setText(filename)
+        self._refresh_evidence_previews()
+
+    def _load_preview_bytes(self, file_path: str, remote_path: str) -> bytes | None:
+        if file_path:
+            try:
+                return Path(file_path).read_bytes()
+            except Exception:
+                return None
+        if remote_path:
+            return self.api_client.fetch_image(remote_path)
+        return None
+
+    def _refresh_evidence_previews(self):
+        before_bytes = self._load_preview_bytes(self.before_file, self.before_remote_path)
+        before_caption = self.before_file or self.before_remote_path or "Sem foto de origem vinculada."
+        self.before_preview.set_image_data(before_bytes, before_caption)
+
+        after_bytes = self._load_preview_bytes(self.after_file, self.after_remote_path)
+        after_caption = self.after_file or self.after_remote_path or "Sem foto de resolução vinculada."
+        self.after_preview.set_image_data(after_bytes, after_caption)
 
     def submit(self):
         try:
