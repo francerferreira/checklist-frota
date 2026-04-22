@@ -704,6 +704,31 @@ textarea {
     font-size: 0.98rem;
 }
 
+.wash-shift-tabs {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 8px;
+    margin: 10px 0 12px;
+}
+
+.wash-shift-tab {
+    border: 1px solid rgba(148, 163, 184, 0.34);
+    border-radius: 12px;
+    background: #ffffff;
+    color: var(--muted);
+    font-size: 0.78rem;
+    font-weight: 900;
+    letter-spacing: 0.03em;
+    padding: 10px 8px;
+}
+
+.wash-shift-tab.active {
+    background: linear-gradient(135deg, #1d4ed8, #2563eb);
+    border-color: transparent;
+    color: #ffffff;
+    box-shadow: 0 12px 24px rgba(37, 99, 235, 0.26);
+}
+
 .wash-shift-section {
     display: grid;
     gap: 10px;

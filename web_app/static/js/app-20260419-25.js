@@ -67,6 +67,7 @@ const state = {
     washYear: new Date().getFullYear(),
     washMonth: new Date().getMonth() + 1,
     selectedWashDate: "",
+    selectedWashShiftTab: "TODOS",
     maintenanceYear: new Date().getFullYear(),
     maintenanceMonth: new Date().getMonth() + 1,
     selectedMaintenanceDate: "",
@@ -1959,7 +1960,6 @@ function makeActivityItemCard(activity, item, index) {
         </div>
         <div class="status-group activity-status-group" role="group" aria-label="Status da atividade">
             <button type="button" class="status-button ok" data-status="INSTALADO">INSTALADO</button>
-            <button type="button" class="status-button nc" data-status="NAO_INSTALADO">NÃO INSTALADO</button>
         </div>
         <label>
             <span>OBSERVAÇÃO DA ATIVIDADE</span>
@@ -2010,16 +2010,18 @@ function makeActivityItemCard(activity, item, index) {
 
     const statusButtons = card.querySelectorAll(".activity-status-group .status-button");
     statusButtons.forEach((button) => {
-        if (button.dataset.status === item.status_execucao) {
-            button.classList.add("active");
-        }
         button.addEventListener("click", () => {
             statusButtons.forEach((statusButton) => statusButton.classList.remove("active"));
             button.classList.add("active");
             card.dataset.status = button.dataset.status;
         });
     });
-    card.dataset.status = item.status_execucao || "PENDENTE";
+    card.dataset.status = "INSTALADO";
+    statusButtons.forEach((statusButton) => {
+        if (statusButton.dataset.status === "INSTALADO") {
+            statusButton.classList.add("active");
+        }
+    });
 
     card.querySelectorAll("input[type='file']").forEach((input) => {
         input.addEventListener("change", () => previewFile(input, card));
@@ -2052,13 +2054,9 @@ function previewFile(input, card) {
 
 async function submitActivityItem(card, activity, item) {
     const vehicle = item.veiculo || {};
-    const status = card.dataset.status;
+    const status = "INSTALADO";
     const currentBeforePath = item.foto_origem || item.foto_antes;
     const currentAfterPath = item.foto_resolucao || item.foto_depois;
-    if (!status || status === "PENDENTE") {
-        showToast("SELECIONE INSTALADO OU NÃO INSTALADO.", true);
-        return;
-    }
 
     const saveButton = card.querySelector(".activity-save-button");
     saveButton.disabled = true;
@@ -2490,6 +2488,17 @@ function renderWashDayPanel(days) {
         morning: [],
         afternoon: [],
     };
+    const morningItems = selectedDay.morning || [];
+    const afternoonItems = selectedDay.afternoon || [];
+    if (state.selectedWashShiftTab !== "TODOS" && state.selectedWashShiftTab !== "MANHA" && state.selectedWashShiftTab !== "TARDE") {
+        state.selectedWashShiftTab = "TODOS";
+    }
+    if (state.selectedWashShiftTab === "MANHA" && morningItems.length === 0 && afternoonItems.length > 0) {
+        state.selectedWashShiftTab = "TARDE";
+    }
+    if (state.selectedWashShiftTab === "TARDE" && afternoonItems.length === 0 && morningItems.length > 0) {
+        state.selectedWashShiftTab = "MANHA";
+    }
     const summary = summarizeWashDay(selectedDay);
 
     elements.washDayPanel.innerHTML = `
@@ -2503,7 +2512,18 @@ function renderWashDayPanel(days) {
                 <strong>${summary.pending} PENDENTES</strong>
             </div>
         </section>
+        <section class="wash-shift-tabs" role="tablist" aria-label="Filtro por turno">
+            <button type="button" class="wash-shift-tab ${state.selectedWashShiftTab === "TODOS" ? "active" : ""}" data-shift="TODOS">TODOS</button>
+            <button type="button" class="wash-shift-tab ${state.selectedWashShiftTab === "MANHA" ? "active" : ""}" data-shift="MANHA">MANHÃ</button>
+            <button type="button" class="wash-shift-tab ${state.selectedWashShiftTab === "TARDE" ? "active" : ""}" data-shift="TARDE">TARDE</button>
+        </section>
     `;
+    elements.washDayPanel.querySelectorAll(".wash-shift-tab").forEach((button) => {
+        button.addEventListener("click", () => {
+            state.selectedWashShiftTab = button.dataset.shift || "TODOS";
+            renderWashDayPanel(days);
+        });
+    });
     elements.washesList.innerHTML = "";
 
     if (!summary.total) {
@@ -2516,8 +2536,13 @@ function renderWashDayPanel(days) {
         return;
     }
 
-    renderWashShift("MANHÃ", selectedDay.morning || []);
-    renderWashShift("TARDE", selectedDay.afternoon || []);
+    const activeShift = state.selectedWashShiftTab || "TODOS";
+    if (activeShift === "TODOS" || activeShift === "MANHA") {
+        renderWashShift("MANHÃ", morningItems);
+    }
+    if (activeShift === "TODOS" || activeShift === "TARDE") {
+        renderWashShift("TARDE", afternoonItems);
+    }
 }
 
 function renderWashShift(title, items) {
