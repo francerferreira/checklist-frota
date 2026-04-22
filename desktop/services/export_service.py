@@ -1200,13 +1200,27 @@ def _build_cover_page(
 
 
 def _build_summary_cards(items: list[tuple[str, str]], styles, *, compact: bool = True):
+    if not items:
+        return []
+
+    # Mantém os cards dentro da área útil da página em qualquer relatório
+    # (principalmente A4 retrato com 4 indicadores).
+    max_total_width = 180 * mm
+    gap_width = 2.5 * mm
+    total_gaps = gap_width * max(0, len(items) - 1)
+    card_width = (max_total_width - total_gaps) / len(items)
+    min_card_width = 34 * mm if compact else 38 * mm
+    card_width = max(min_card_width, card_width)
+
     cells = []
     for label, value in items:
-        width = 54 * mm if compact else 58 * mm
         accent = _summary_accent_for(label, value)
         card = Table(
-            [[Paragraph(label, styles["summary_label"])], [Paragraph(_safe_paragraph_text(value), styles["summary_value"])]],
-            colWidths=[width],
+            [
+                [Paragraph(label, styles["summary_label"])],
+                [Paragraph(_safe_paragraph_text(value), styles["summary_value"])],
+            ],
+            colWidths=[card_width],
         )
         card.setStyle(
             TableStyle(
@@ -1222,9 +1236,24 @@ def _build_summary_cards(items: list[tuple[str, str]], styles, *, compact: bool 
             )
         )
         cells.append(card)
-    wrapper_width = 60 * mm if compact else 62 * mm
-    wrapper = Table([cells], colWidths=[wrapper_width] * len(cells))
-    wrapper.setStyle(TableStyle([("BOX", (0, 0), (-1, -1), 0, colors.white), ("VALIGN", (0, 0), (-1, -1), "TOP")]))
+
+    col_widths = [card_width] * len(cells)
+    if len(cells) > 1:
+        col_widths = [card_width + (gap_width if index < len(cells) - 1 else 0) for index in range(len(cells))]
+    wrapper = Table([cells], colWidths=col_widths)
+    wrapper.hAlign = "LEFT"
+    wrapper.setStyle(
+        TableStyle(
+            [
+                ("BOX", (0, 0), (-1, -1), 0, colors.white),
+                ("VALIGN", (0, 0), (-1, -1), "TOP"),
+                ("LEFTPADDING", (0, 0), (-1, -1), 0),
+                ("RIGHTPADDING", (0, 0), (-1, -1), 0),
+                ("TOPPADDING", (0, 0), (-1, -1), 0),
+                ("BOTTOMPADDING", (0, 0), (-1, -1), 0),
+            ]
+        )
+    )
     return [wrapper]
 
 
