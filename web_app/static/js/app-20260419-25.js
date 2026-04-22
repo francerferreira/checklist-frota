@@ -1735,6 +1735,14 @@ async function restoreActiveChecklistDraft() {
     }
     const vehicle = state.vehicles.find((item) => Number(item.id) === Number(draft.vehicleId));
     if (!vehicle) {
+        localStorage.removeItem(ACTIVE_CHECKLIST_DRAFT_KEY);
+        return false;
+    }
+    const vehicleLabel = vehicle.frota || draft.vehicle?.frota || "equipamento";
+    const shouldRestore = window.confirm(`Deseja voltar para o checklist do ${vehicleLabel}?`);
+    if (!shouldRestore) {
+        localStorage.removeItem(ACTIVE_CHECKLIST_DRAFT_KEY);
+        showToast("RETORNO AUTOMÁTICO DO CHECKLIST CANCELADO.");
         return false;
     }
     await selectVehicle(vehicle, { restoreDraft: true });
