@@ -31,6 +31,70 @@ def _clean(value: str | None) -> str | None:
     return text or None
 
 
+def _resolve_material(material_id: int | None) -> Material | None:
+    if not material_id:
+        return None
+    material = Material.query.get(material_id)
+    if not material or not material.ativo:
+        return None
+    return material
+
+
+def _effective_material(item: ActivityItem, activity: Activity) -> Material | None:
+    return item.material or activity.material
+
+
+def _effective_quantity(item: ActivityItem, activity: Activity) -> int:
+    raw_value = item.quantidade_peca or activity.quantidade_por_equipamento or 1
+    try:
+        return max(1, int(raw_value))
+    except (TypeError, ValueError):
+        return 1
+
+
+def _apply_item_material_payload(item: ActivityItem, activity: Activity, payload: dict):
+    material_field_present = "material_id" in payload
+    selected_material = item.material
+    if material_field_present:
+        raw_material_id = payload.get("material_id")
+        if raw_material_id in ("", None, 0):
+            selected_material = None
+            item.material_id = None
+        else:
+            try:
+                parsed_id = int(raw_material_id)
+            except (TypeError, ValueError):
+                raise ValueError("Material informado é inválido.")
+            selected_material = _resolve_material(parsed_id)
+            if not selected_material:
+                raise ValueError("Material informado é inválido ou está inativo.")
+            item.material_id = selected_material.id
+
+    if "quantidade_peca" in payload or "quantidade_por_equipamento" in payload:
+        raw_quantity = payload.get("quantidade_peca", payload.get("quantidade_por_equipamento"))
+        try:
+            item.quantidade_peca = max(1, int(raw_quantity or 1))
+        except (TypeError, ValueError):
+            raise ValueError("Quantidade de peça inválida.")
+
+    if "codigo_peca" in payload:
+        item.codigo_peca = _clean(payload.get("codigo_peca"))
+    if "descricao_peca" in payload:
+        item.descricao_peca = _clean(payload.get("descricao_peca"))
+
+    if selected_material:
+        if not item.codigo_peca:
+            item.codigo_peca = selected_material.referencia
+        if not item.descricao_peca:
+            item.descricao_peca = selected_material.descricao
+    elif material_field_present:
+        item.codigo_peca = _clean(payload.get("codigo_peca"))
+        item.descricao_peca = _clean(payload.get("descricao_peca"))
+
+    if not item.quantidade_peca:
+        item.quantidade_peca = max(1, int(activity.quantidade_por_equipamento or 1))
+
+
 def _activity_query():
     query = Activity.query.order_by(Activity.created_at.desc())
     tipo = request.args.get("tipo")
@@ -138,6 +202,10 @@ def create_activity():
             ActivityItem(
                 activity_id=activity.id,
                 vehicle_id=vehicle.id,
+                material_id=activity.material_id,
+                quantidade_peca=activity.quantidade_por_equipamento,
+                codigo_peca=activity.codigo_peca,
+                descricao_peca=activity.descricao_peca,
                 status_execucao="PENDENTE",
             )
         )
@@ -253,7 +321,7 @@ def create_mass_activity_from_non_conformity_item():
         source_type="NC_ITEM",
         source_key=source_key,
         source_modulo=modulo,
-        auto_link_nc=True,
+        auto_link_nc=auto_link_nc,
         material_id=material.id if material else None,
         quantidade_por_equipamento=quantidade_por_equipamento,
         codigo_peca=_clean(payload.get("codigo_peca")) or (material.referencia if material else None),
@@ -272,6 +340,10 @@ def create_mass_activity_from_non_conformity_item():
             ActivityItem(
                 activity_id=activity.id,
                 vehicle_id=vehicle_id,
+                material_id=activity.material_id,
+                quantidade_peca=activity.quantidade_por_equipamento,
+                codigo_peca=activity.codigo_peca,
+                descricao_peca=activity.descricao_peca,
                 status_execucao="PENDENTE",
             )
         )
@@ -295,11 +367,35 @@ def update_activity_item(activity_id: int, item_id: int):
     activity = Activity.query.get_or_404(activity_id)
     item = ActivityItem.query.filter_by(id=item_id, activity_id=activity.id).first_or_404()
     payload = request.get_json(silent=True) or {}
+    material_fields = {"material_id", "quantidade_peca", "quantidade_por_equipamento", "codigo_peca", "descricao_peca"}
+    material_payload_present = any(field in payload for field in material_fields)
+    if material_payload_present and not user_has_management_access(g.current_user):
+        return jsonify({"error": "Somente admin ou gestor podem editar material da atividade."}), 403
+
     previous_status = item.status_execucao
+    previous_material = _effective_material(item, activity)
+    previous_quantity = _effective_quantity(item, activity)
 
     status_execucao = str(payload.get("status_execucao") or item.status_execucao).strip().upper()
     if status_execucao not in {"PENDENTE", "INSTALADO", "NAO_INSTALADO"}:
         return jsonify({"error": "Status da atividade invalido."}), 400
+
+    try:
+        _apply_item_material_payload(item, activity, payload)
+    except ValueError as exc:
+        return jsonify({"error": str(exc)}), 400
+
+    next_material = _effective_material(item, activity)
+    next_quantity = _effective_quantity(item, activity)
+    if (
+        previous_status == "INSTALADO"
+        and status_execucao == "INSTALADO"
+        and (
+            (previous_material.id if previous_material else None) != (next_material.id if next_material else None)
+            or previous_quantity != next_quantity
+        )
+    ):
+        return jsonify({"error": "Para trocar material de item já instalado, altere o status para pendente/não instalado antes."}), 400
 
     item.status_execucao = status_execucao
     item.observacao = _clean(payload.get("observacao")) or item.observacao
@@ -315,11 +411,13 @@ def update_activity_item(activity_id: int, item_id: int):
         item.executado_por_login = g.current_user.login
 
     try:
+        material_for_movement = next_material if status_execucao == "INSTALADO" else previous_material
+        quantity_for_movement = next_quantity if status_execucao == "INSTALADO" else previous_quantity
         apply_activity_stock_change(
-            activity.material,
+            material_for_movement,
             previous_status=previous_status,
             new_status=status_execucao,
-            quantity_per_equipment=activity.quantidade_por_equipamento,
+            quantity_per_equipment=quantity_for_movement,
             activity_id=activity.id,
             vehicle_label=item.vehicle.frota if item.vehicle else "equipamento",
         )
@@ -334,3 +432,64 @@ def update_activity_item(activity_id: int, item_id: int):
 
     db.session.commit()
     return jsonify(activity.to_dict(include_items=True))
+
+
+@bp.put("/atividades/<int:activity_id>/materiais")
+@auth_required
+def update_activity_item_materials(activity_id: int):
+    denied = _guard_management_access()
+    if denied:
+        return denied
+
+    activity = Activity.query.get_or_404(activity_id)
+    payload = request.get_json(silent=True) or {}
+    material_fields = {"material_id", "quantidade_peca", "quantidade_por_equipamento", "codigo_peca", "descricao_peca"}
+    if not any(field in payload for field in material_fields):
+        return jsonify({"error": "Informe ao menos um campo de material para atualizar."}), 400
+
+    apply_to_all = bool(payload.get("apply_to_all"))
+    item_ids = payload.get("activity_item_ids") or []
+    if apply_to_all:
+        target_items = ActivityItem.query.filter_by(activity_id=activity.id).all()
+    else:
+        if not item_ids:
+            return jsonify({"error": "Selecione ao menos um equipamento para atualizar material."}), 400
+        try:
+            unique_ids = sorted({int(item_id) for item_id in item_ids if str(item_id).strip()})
+        except (TypeError, ValueError):
+            return jsonify({"error": "Ha equipamentos invalidos na selecao de materiais."}), 400
+        if not unique_ids:
+            return jsonify({"error": "Selecione ao menos um equipamento para atualizar material."}), 400
+        target_items = ActivityItem.query.filter(
+            ActivityItem.activity_id == activity.id,
+            ActivityItem.id.in_(unique_ids),
+        ).all()
+        if len(target_items) != len(unique_ids):
+            return jsonify({"error": "Há equipamentos inválidos na seleção de materiais."}), 400
+
+    if not target_items:
+        return jsonify({"error": "Selecione ao menos um equipamento para atualizar material."}), 400
+
+    if any((item.status_execucao or "").upper() == "INSTALADO" for item in target_items):
+        return jsonify({"error": "Não é permitido alterar material de item já instalado."}), 400
+
+    try:
+        for item in target_items:
+            _apply_item_material_payload(item, activity, payload)
+    except ValueError as exc:
+        return jsonify({"error": str(exc)}), 400
+
+    if apply_to_all:
+        if "material_id" in payload:
+            activity.material_id = target_items[0].material_id
+        if "quantidade_peca" in payload or "quantidade_por_equipamento" in payload:
+            activity.quantidade_por_equipamento = target_items[0].quantidade_peca
+        if "codigo_peca" in payload:
+            activity.codigo_peca = target_items[0].codigo_peca
+        if "descricao_peca" in payload:
+            activity.descricao_peca = target_items[0].descricao_peca
+
+    db.session.commit()
+    response = activity.to_dict(include_items=True)
+    response["itens_atualizados"] = len(target_items)
+    return jsonify(response)

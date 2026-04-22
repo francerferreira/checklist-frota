@@ -679,11 +679,20 @@ class ReportsPage(QFrame):
         text_wrap.addWidget(title)
         text_wrap.addWidget(caption)
 
+        export_csv = QPushButton("CSV")
+        export_csv.setMinimumHeight(42)
+        export_csv.clicked.connect(lambda: self.export_resolved("csv"))
+        export_xlsx = QPushButton("Excel")
+        export_xlsx.setProperty("variant", "primary")
+        export_xlsx.setMinimumHeight(42)
+        export_xlsx.clicked.connect(lambda: self.export_resolved("xlsx"))
         export_pdf = QPushButton("PDF Resolvidos")
         export_pdf.setMinimumHeight(42)
         export_pdf.clicked.connect(self.export_resolved_audit_pdf)
 
         top.addLayout(text_wrap, 1)
+        top.addWidget(export_csv)
+        top.addWidget(export_xlsx)
         top.addWidget(export_pdf)
 
         self.resolved_table = QTableWidget(0, 8)
@@ -1289,6 +1298,44 @@ class ReportsPage(QFrame):
             "relatorio_micro",
             "Relatório Micro por Equipamento",
             "Visão operacional por unidade da frota",
+            columns,
+            rows,
+            file_type,
+        )
+
+    def export_resolved(self, file_type: str):
+        rows = []
+        for item in self.resolved_rows:
+            vehicle = item.get("veiculo") or {}
+            user = item.get("usuario") or {}
+            resolved_by = item.get("resolved_by") or {}
+            rows.append(
+                {
+                    "item_nome": item.get("item_nome") or "-",
+                    "frota": vehicle.get("frota") or "-",
+                    "data_resolucao": self._format(item.get("data_resolucao")),
+                    "motorista": user.get("nome") or "-",
+                    "resolved_by": resolved_by.get("nome") or "-",
+                    "modulo": str(vehicle.get("tipo") or "-").title(),
+                    "foto_antes": "Sim" if item.get("foto_antes") else "Não",
+                    "foto_depois": "Sim" if item.get("foto_depois") else "Não",
+                }
+            )
+
+        columns = [
+            ("Não conformidade", "item_nome"),
+            ("Veículo", "frota"),
+            ("Resolvido em", "data_resolucao"),
+            ("Motorista", "motorista"),
+            ("Resolvido por", "resolved_by"),
+            ("Módulo", "modulo"),
+            ("Foto antes", "foto_antes"),
+            ("Foto depois", "foto_depois"),
+        ]
+        self._export_dataset(
+            "relatorio_resolvidos",
+            "Relatório de Não Conformidades Resolvidas",
+            "Visão operacional de resolvidos por ocorrência",
             columns,
             rows,
             file_type,

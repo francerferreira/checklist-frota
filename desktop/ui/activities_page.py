@@ -5,11 +5,14 @@ from pathlib import Path
 from PySide6.QtCore import QTimer, Qt, Signal
 from PySide6.QtGui import QColor, QBrush
 from PySide6.QtWidgets import (
+    QAbstractItemView,
+    QCheckBox,
     QComboBox,
     QDialog,
     QFileDialog,
     QFrame,
     QGridLayout,
+    QHeaderView,
     QHBoxLayout,
     QLabel,
     QLineEdit,
@@ -389,16 +392,21 @@ class ActivityDialog(QDialog):
 
 
 class ActivityItemUpdateDialog(QDialog):
-    def __init__(self, api_client, activity: dict, item: dict, parent=None):
+    def __init__(self, api_client, activity: dict, item: dict, parent=None, *, allow_material_edit: bool = True):
         super().__init__(parent)
         self.api_client = api_client
         self.activity = activity
         self.item = item
+        self.allow_material_edit = bool(allow_material_edit)
         self.before_file = ""
         self.after_file = ""
         self.result_payload = None
+        self.materials = []
 
         veiculo = item.get("veiculo", {})
+        item_tipo = str((veiculo.get("tipo") or activity.get("tipo_equipamento") or "")).strip().lower()
+        material_tipo = item_tipo if item_tipo in {"cavalo", "carreta"} else None
+        self.materials = self.api_client.get_materials(tipo=material_tipo, ativos="true")
 
         self.setWindowTitle("Atualizar execução da atividade")
         configure_dialog_window(self, width=900, height=720, min_width=760, min_height=620)
@@ -456,6 +464,39 @@ class ActivityItemUpdateDialog(QDialog):
         self.observacao_input = QTextEdit(item.get("observacao") or "")
         self.observacao_input.setPlaceholderText("Descreva a execução, pendência, restrição ou apontamento de auditoria.")
 
+        self.material_combo = QComboBox()
+        self.material_combo.addItem("Sem material específico (usar padrão da atividade)", None)
+        for material in self.materials:
+            label = f"{material.get('referencia') or '-'} • {material.get('descricao') or '-'} • Saldo {material.get('quantidade_estoque') or 0}"
+            self.material_combo.addItem(label, material)
+
+        current_material_id = item.get("material_id")
+        if not current_material_id:
+            current_material_id = activity.get("material_id")
+        if current_material_id:
+            for idx in range(self.material_combo.count()):
+                data = self.material_combo.itemData(idx) or {}
+                if data.get("id") == current_material_id:
+                    self.material_combo.setCurrentIndex(idx)
+                    break
+        self.material_combo.currentIndexChanged.connect(self._sync_material_fields)
+
+        self.quantidade_spin = QSpinBox()
+        self.quantidade_spin.setMinimum(1)
+        self.quantidade_spin.setMaximum(999)
+        self.quantidade_spin.setValue(int(item.get("quantidade_peca") or activity.get("quantidade_por_equipamento") or 1))
+
+        self.codigo_input = QLineEdit(item.get("codigo_peca") or activity.get("codigo_peca") or "")
+        self.codigo_input.setPlaceholderText("Código da peça")
+
+        self.descricao_input = QLineEdit(item.get("descricao_peca") or activity.get("descricao_peca") or "")
+        self.descricao_input.setPlaceholderText("Descrição da peça")
+        if not self.allow_material_edit:
+            self.material_combo.setEnabled(False)
+            self.quantidade_spin.setEnabled(False)
+            self.codigo_input.setEnabled(False)
+            self.descricao_input.setEnabled(False)
+
         self.before_label = QLabel(item.get("foto_antes") or "Sem foto antes vinculada.")
         self.before_label.setObjectName("MutedText")
         self.before_label.setWordWrap(True)
@@ -485,6 +526,22 @@ class ActivityItemUpdateDialog(QDialog):
 
         add_field(0, "Status da execução", self.status_combo, highlight=True)
         add_field(1, "Observação da atividade", self.observacao_input)
+        material_label = "Material específico deste equipamento"
+        if not self.allow_material_edit:
+            material_label += " (somente leitura)"
+        add_field(2, material_label, self.material_combo, highlight=True)
+
+        material_meta_row = QFrame()
+        material_meta_layout = QHBoxLayout(material_meta_row)
+        material_meta_layout.setContentsMargins(0, 0, 0, 0)
+        material_meta_layout.setSpacing(10)
+        material_meta_layout.addWidget(QLabel("Qtd. peça"))
+        material_meta_layout.addWidget(self.quantidade_spin)
+        material_meta_layout.addWidget(QLabel("Código"))
+        material_meta_layout.addWidget(self.codigo_input, 1)
+        material_meta_layout.addWidget(QLabel("Descrição"))
+        material_meta_layout.addWidget(self.descricao_input, 2)
+        add_field(3, "Detalhes do material", material_meta_row)
 
         before_field = QFrame()
         before_field.setObjectName("DialogInfoBlock")
@@ -518,8 +575,8 @@ class ActivityItemUpdateDialog(QDialog):
         after_actions.addWidget(self.after_label, 1)
         after_layout.addLayout(after_actions)
 
-        form_layout.addWidget(before_field, 2, 0)
-        form_layout.addWidget(after_field, 2, 1)
+        form_layout.addWidget(before_field, 4, 0)
+        form_layout.addWidget(after_field, 4, 1)
 
         footer = QFrame()
         footer.setObjectName("DialogFooter")
@@ -544,6 +601,16 @@ class ActivityItemUpdateDialog(QDialog):
         layout.addWidget(header)
         layout.addWidget(form_card)
         layout.addWidget(footer)
+        self._sync_material_fields()
+
+    def _sync_material_fields(self):
+        material = self.material_combo.currentData()
+        if not material:
+            return
+        if not self.codigo_input.text().strip():
+            self.codigo_input.setText(material.get("referencia") or "")
+        if not self.descricao_input.text().strip():
+            self.descricao_input.setText(material.get("descricao") or "")
 
     def _select_file(self, target: str):
         filename, _ = QFileDialog.getOpenFileName(
@@ -567,6 +634,15 @@ class ActivityItemUpdateDialog(QDialog):
                 "status_execucao": self.status_combo.currentData(),
                 "observacao": self.observacao_input.toPlainText().strip(),
             }
+            if self.allow_material_edit:
+                payload.update(
+                    {
+                        "material_id": (self.material_combo.currentData() or {}).get("id"),
+                        "quantidade_peca": int(self.quantidade_spin.value()),
+                        "codigo_peca": self.codigo_input.text().strip(),
+                        "descricao_peca": self.descricao_input.text().strip(),
+                    }
+                )
             veiculo = self.item.get("veiculo", {})
             item_nome = self.activity.get("item_nome") or "atividade"
             user_login = (self.api_client.user or {}).get("login", "sistema")
@@ -590,6 +666,130 @@ class ActivityItemUpdateDialog(QDialog):
             show_notice(self, "Falha ao salvar", str(exc), icon_name="warning")
 
 
+class ActivityMaterialBatchDialog(QDialog):
+    def __init__(self, api_client, activity: dict, selected_count: int, total_count: int, parent=None):
+        super().__init__(parent)
+        self.api_client = api_client
+        self.activity = activity
+        self.selected_count = selected_count
+        self.total_count = total_count
+        self.result_payload = None
+
+        activity_tipo = str(activity.get("tipo_equipamento") or "").strip().lower()
+        material_tipo = activity_tipo if activity_tipo in {"cavalo", "carreta"} else None
+        self.materials = self.api_client.get_materials(tipo=material_tipo, ativos="true")
+
+        self.setWindowTitle("Editar material da atividade")
+        configure_dialog_window(self, width=940, height=620, min_width=780, min_height=560)
+        style_card(self)
+
+        layout = build_dialog_layout(self, max_content_width=980)
+
+        header = QFrame()
+        header.setObjectName("DialogHeader")
+        header.setAttribute(Qt.WA_StyledBackground, True)
+        header_layout = QVBoxLayout(header)
+        header_layout.setContentsMargins(18, 18, 18, 18)
+        header_layout.setSpacing(4)
+        title = QLabel("Material por equipamento")
+        title.setObjectName("DialogHeaderTitle")
+        subtitle = QLabel(
+            f"Selecionados: {selected_count} de {total_count}. "
+            "Você pode aplicar o mesmo material nos selecionados ou em toda a atividade."
+        )
+        subtitle.setObjectName("DialogHeaderSubtitle")
+        subtitle.setWordWrap(True)
+        header_layout.addWidget(title)
+        header_layout.addWidget(subtitle)
+
+        form_card = QFrame()
+        form_card.setObjectName("HeaderCard")
+        form_card.setAttribute(Qt.WA_StyledBackground, True)
+        form_layout = QGridLayout(form_card)
+        form_layout.setContentsMargins(18, 18, 18, 18)
+        form_layout.setHorizontalSpacing(14)
+        form_layout.setVerticalSpacing(12)
+
+        self.material_combo = QComboBox()
+        self.material_combo.addItem("Sem material específico (manual)", None)
+        for material in self.materials:
+            label = f"{material.get('referencia') or '-'} • {material.get('descricao') or '-'} • Saldo {material.get('quantidade_estoque') or 0}"
+            self.material_combo.addItem(label, material)
+        if activity.get("material_id"):
+            for idx in range(self.material_combo.count()):
+                data = self.material_combo.itemData(idx) or {}
+                if data.get("id") == activity.get("material_id"):
+                    self.material_combo.setCurrentIndex(idx)
+                    break
+        self.material_combo.currentIndexChanged.connect(self._sync_material_fields)
+
+        self.quantidade_spin = QSpinBox()
+        self.quantidade_spin.setMinimum(1)
+        self.quantidade_spin.setMaximum(999)
+        self.quantidade_spin.setValue(int(activity.get("quantidade_por_equipamento") or 1))
+
+        self.codigo_input = QLineEdit(activity.get("codigo_peca") or "")
+        self.codigo_input.setPlaceholderText("Código da peça")
+
+        self.descricao_input = QLineEdit(activity.get("descricao_peca") or "")
+        self.descricao_input.setPlaceholderText("Descrição da peça")
+
+        self.apply_all_check = QCheckBox("Aplicar em todos os equipamentos da atividade")
+        self.apply_all_check.setChecked(selected_count <= 0)
+
+        def add_field(row: int, label_text: str, widget):
+            label = QLabel(label_text)
+            label.setObjectName("SectionCaption")
+            form_layout.addWidget(label, row, 0)
+            form_layout.addWidget(widget, row, 1)
+
+        add_field(0, "Material", self.material_combo)
+        add_field(1, "Quantidade por equipamento", self.quantidade_spin)
+        add_field(2, "Código da peça", self.codigo_input)
+        add_field(3, "Descrição da peça", self.descricao_input)
+        form_layout.addWidget(self.apply_all_check, 4, 0, 1, 2)
+
+        footer = QFrame()
+        footer.setObjectName("DialogFooter")
+        footer.setAttribute(Qt.WA_StyledBackground, True)
+        footer_layout = QHBoxLayout(footer)
+        footer_layout.setContentsMargins(16, 14, 16, 14)
+        footer_layout.setSpacing(12)
+        footer_layout.addStretch()
+
+        cancel_button = QPushButton("Cancelar")
+        save_button = QPushButton("Aplicar material")
+        save_button.setProperty("variant", "primary")
+        cancel_button.clicked.connect(self.reject)
+        save_button.clicked.connect(self.submit)
+        footer_layout.addWidget(cancel_button)
+        footer_layout.addWidget(save_button)
+
+        layout.addWidget(header)
+        layout.addWidget(form_card)
+        layout.addWidget(footer)
+        self._sync_material_fields()
+
+    def _sync_material_fields(self):
+        material = self.material_combo.currentData()
+        if not material:
+            return
+        if not self.codigo_input.text().strip():
+            self.codigo_input.setText(material.get("referencia") or "")
+        if not self.descricao_input.text().strip():
+            self.descricao_input.setText(material.get("descricao") or "")
+
+    def submit(self):
+        self.result_payload = {
+            "material_id": (self.material_combo.currentData() or {}).get("id"),
+            "quantidade_peca": int(self.quantidade_spin.value()),
+            "codigo_peca": self.codigo_input.text().strip(),
+            "descricao_peca": self.descricao_input.text().strip(),
+            "apply_to_all": bool(self.apply_all_check.isChecked()),
+        }
+        self.accept()
+
+
 class ActivityDetailDialog(QDialog):
     def __init__(self, api_client, activity_id: int, parent=None):
         super().__init__(parent)
@@ -599,12 +799,19 @@ class ActivityDetailDialog(QDialog):
         self.activity = {}
         self.items = []
         self.updated = False
+        user_tipo = str((self.api_client.user or {}).get("tipo") or "").strip().lower()
+        self.can_manage_materials = user_tipo in {"admin", "gestor"}
 
         self.setWindowTitle("Detalhes da atividade")
-        configure_dialog_window(self, width=1380, height=860, min_width=1040, min_height=720)
+        configure_dialog_window(self, width=1760, height=940, min_width=1240, min_height=760)
         style_card(self)
 
-        layout = build_dialog_layout(self, max_content_width=1440)
+        layout = build_dialog_layout(
+            self,
+            max_content_width=0,
+            margins=(10, 10, 10, 10),
+            spacing=12,
+        )
 
         self.header = QFrame()
         self.header.setObjectName("DialogHeader")
@@ -678,8 +885,8 @@ class ActivityDetailDialog(QDialog):
         style_table_card(table_card)
         self.table_skeleton = TableSkeletonOverlay(table_card, rows=7)
         table_layout = QVBoxLayout(table_card)
-        table_layout.setContentsMargins(14, 14, 14, 14)
-        table_layout.setSpacing(10)
+        table_layout.setContentsMargins(10, 10, 10, 10)
+        table_layout.setSpacing(8)
 
         table_top = QHBoxLayout()
         table_top.setContentsMargins(0, 0, 0, 0)
@@ -690,6 +897,7 @@ class ActivityDetailDialog(QDialog):
             "Clique duas vezes em uma linha para registrar instalação, não instalação, observações e evidências."
         )
         caption.setObjectName("SectionCaption")
+        caption.setWordWrap(True)
         text_wrap = QVBoxLayout()
         text_wrap.addWidget(title)
         text_wrap.addWidget(caption)
@@ -699,17 +907,23 @@ class ActivityDetailDialog(QDialog):
         edit_button = QPushButton("Marcar selecionado")
         edit_button.setProperty("variant", "primary")
         edit_button.clicked.connect(self.edit_selected_item)
+        material_button = QPushButton("Editar material")
+        material_button.clicked.connect(self.edit_material_for_selected)
+        material_button.setVisible(self.can_manage_materials)
 
         table_top.addLayout(text_wrap, 1)
         table_top.addWidget(refresh_button)
+        table_top.addWidget(material_button)
         table_top.addWidget(edit_button)
 
-        self.table = QTableWidget(0, 9)
+        self.table = QTableWidget(0, 11)
         self.table.setHorizontalHeaderLabels(
             [
                 "Frota",
                 "Placa",
                 "Modelo",
+                "Material",
+                "Qtd peça",
                 "Status da atividade",
                 "Executado em",
                 "Executado por",
@@ -719,7 +933,9 @@ class ActivityDetailDialog(QDialog):
             ]
         )
         configure_table(self.table, stretch_last=False)
-        self.table.setMinimumHeight(560)
+        self.table.setSelectionMode(QAbstractItemView.ExtendedSelection)
+        self.table.setMinimumHeight(660)
+        self._configure_activity_table_columns()
         self.table.itemDoubleClicked.connect(self.edit_selected_item)
 
         table_layout.addLayout(table_top)
@@ -730,6 +946,22 @@ class ActivityDetailDialog(QDialog):
         layout.addWidget(table_card, 1)
 
         self.refresh()
+
+    def _configure_activity_table_columns(self):
+        header = self.table.horizontalHeader()
+        header.setMinimumSectionSize(88)
+        header.setDefaultSectionSize(134)
+        header.setSectionResizeMode(0, QHeaderView.ResizeToContents)  # Frota
+        header.setSectionResizeMode(1, QHeaderView.ResizeToContents)  # Placa
+        header.setSectionResizeMode(2, QHeaderView.Stretch)  # Modelo
+        header.setSectionResizeMode(3, QHeaderView.Stretch)  # Material
+        header.setSectionResizeMode(4, QHeaderView.ResizeToContents)  # Qtd peça
+        header.setSectionResizeMode(5, QHeaderView.ResizeToContents)  # Status da atividade
+        header.setSectionResizeMode(6, QHeaderView.ResizeToContents)  # Executado em
+        header.setSectionResizeMode(7, QHeaderView.ResizeToContents)  # Executado por
+        header.setSectionResizeMode(8, QHeaderView.ResizeToContents)  # Foto antes
+        header.setSectionResizeMode(9, QHeaderView.ResizeToContents)  # Foto depois
+        header.setSectionResizeMode(10, QHeaderView.Stretch)  # Observação
 
     def refresh(self):
         self.activity = self.api_client.get_activity(self.activity_id)
@@ -760,10 +992,13 @@ class ActivityDetailDialog(QDialog):
             self.table.setRowCount(len(self.items))
             for row, item in enumerate(self.items):
                 veiculo = item.get("veiculo", {})
+                material = item.get("material") or {}
                 values = [
                     veiculo.get("frota") or "-",
                     veiculo.get("placa") or "-",
                     veiculo.get("modelo") or "-",
+                    item.get("descricao_peca") or material.get("descricao") or item.get("codigo_peca") or "-",
+                    str(item.get("quantidade_peca") or self.activity.get("quantidade_por_equipamento") or 1),
                     self._format_item_status(item.get("status_execucao")),
                     self._format(item.get("instalado_em")),
                     item.get("executado_por_nome") or "-",
@@ -773,7 +1008,7 @@ class ActivityDetailDialog(QDialog):
                 ]
                 for column, value in enumerate(values):
                     cell = make_table_item(value, payload=item if column == 0 else None)
-                    if column == 3:
+                    if column == 5:
                         colors = self._status_colors(item.get("status_execucao"))
                         cell.setBackground(QBrush(QColor(colors["background"])))
                         cell.setForeground(QBrush(QColor(colors["color"])))
@@ -792,6 +1027,24 @@ class ActivityDetailDialog(QDialog):
         row = selected[0].topRow()
         return self._item_for_row(row)
 
+    def _selected_rows(self) -> list[int]:
+        model = self.table.selectionModel()
+        if not model:
+            return []
+        return sorted({index.row() for index in model.selectedRows()})
+
+    def _selected_items(self) -> list[dict]:
+        rows = self._selected_rows()
+        if not rows:
+            item = self._selected_item()
+            return [item] if item else []
+        selected_items = []
+        for row in rows:
+            payload = self._item_for_row(row)
+            if payload:
+                selected_items.append(payload)
+        return selected_items
+
     def _item_for_row(self, row: int | None):
         if row is None or row < 0:
             return None
@@ -808,7 +1061,13 @@ class ActivityDetailDialog(QDialog):
         item = self._selected_item()
         if not item:
             return
-        dialog = ActivityItemUpdateDialog(self.api_client, self.activity, item, self)
+        dialog = ActivityItemUpdateDialog(
+            self.api_client,
+            self.activity,
+            item,
+            self,
+            allow_material_edit=self.can_manage_materials,
+        )
         if dialog.exec():
             self.api_client.update_activity_item(self.activity_id, item["id"], dialog.result_payload)
             show_notice(
@@ -820,6 +1079,33 @@ class ActivityDetailDialog(QDialog):
             self.updated = True
             self.refresh()
 
+    def edit_material_for_selected(self):
+        if not self.can_manage_materials:
+            show_notice(self, "Acesso restrito", "Somente admin ou gestor podem editar materiais da atividade.", icon_name="warning")
+            return
+        selected_items = self._selected_items()
+        if not selected_items:
+            show_notice(self, "Seleção obrigatória", "Selecione ao menos um equipamento para editar material.", icon_name="warning")
+            return
+        dialog = ActivityMaterialBatchDialog(
+            self.api_client,
+            self.activity,
+            selected_count=len(selected_items),
+            total_count=len(self.items),
+            parent=self,
+        )
+        if not dialog.exec():
+            return
+        payload = dict(dialog.result_payload or {})
+        payload["activity_item_ids"] = [int(item.get("id")) for item in selected_items if item.get("id")]
+        try:
+            self.api_client.update_activity_materials(self.activity_id, payload)
+            show_notice(self, "Materiais atualizados", "Material aplicado aos equipamentos selecionados.", icon_name="dashboard")
+            self.updated = True
+            self.refresh()
+        except Exception as exc:
+            show_notice(self, "Falha ao atualizar material", str(exc), icon_name="warning")
+
     def export_activity(self, file_type: str):
         if not self.items:
             show_notice(self, "Sem dados", "Não há equipamentos registrados nesta atividade.", icon_name="warning")
@@ -828,13 +1114,17 @@ class ActivityDetailDialog(QDialog):
         rows = []
         for item in self.items:
             veiculo = item.get("veiculo", {})
+            material = item.get("material") or {}
             rows.append(
                 {
                     "frota": veiculo.get("frota") or "-",
                     "placa": veiculo.get("placa") or "-",
                     "modelo": veiculo.get("modelo") or "-",
+                    "material": item.get("descricao_peca") or material.get("descricao") or item.get("codigo_peca") or "-",
+                    "quantidade_peca": str(item.get("quantidade_peca") or self.activity.get("quantidade_por_equipamento") or 1),
                     "status_execucao": self._format_item_status(item.get("status_execucao")),
                     "instalado_em": self._format(item.get("instalado_em")),
+                    "executado_por": item.get("executado_por_nome") or "-",
                     "foto_antes": "Sim" if item.get("foto_antes") else "Não",
                     "foto_depois": "Sim" if item.get("foto_depois") else "Não",
                     "observacao": item.get("observacao") or "-",
@@ -845,8 +1135,11 @@ class ActivityDetailDialog(QDialog):
             ("Frota", "frota"),
             ("Placa", "placa"),
             ("Modelo", "modelo"),
+            ("Material", "material"),
+            ("Qtd peça", "quantidade_peca"),
             ("Status da atividade", "status_execucao"),
             ("Instalado em", "instalado_em"),
+            ("Executado por", "executado_por"),
             ("Foto antes", "foto_antes"),
             ("Foto depois", "foto_depois"),
             ("Observação", "observacao"),

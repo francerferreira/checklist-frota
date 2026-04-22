@@ -157,6 +157,10 @@ class ActivityItem(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     activity_id = db.Column(db.Integer, db.ForeignKey("activities.id"), nullable=False, index=True)
     vehicle_id = db.Column(db.Integer, db.ForeignKey("vehicles.id"), nullable=False, index=True)
+    material_id = db.Column(db.Integer, db.ForeignKey("materials.id"), nullable=True, index=True)
+    quantidade_peca = db.Column(db.Integer, nullable=False, default=1)
+    codigo_peca = db.Column(db.String(80), nullable=True)
+    descricao_peca = db.Column(db.String(255), nullable=True)
     status_execucao = db.Column(db.String(20), nullable=False, default="PENDENTE", index=True)
     observacao = db.Column(db.Text, nullable=True)
     foto_antes = db.Column(db.String(255), nullable=True)
@@ -168,6 +172,7 @@ class ActivityItem(db.Model):
 
     activity = db.relationship("Activity", back_populates="items")
     vehicle = db.relationship("Vehicle", lazy="joined")
+    material = db.relationship("Material", lazy="joined")
     non_conformity_links = db.relationship(
         "ActivityNonConformityLink",
         back_populates="activity_item",
@@ -180,6 +185,10 @@ class ActivityItem(db.Model):
             "status_execucao IN ('PENDENTE', 'INSTALADO', 'NAO_INSTALADO')",
             name="ck_activity_item_status_execucao",
         ),
+        db.CheckConstraint(
+            "quantidade_peca > 0",
+            name="ck_activity_item_quantidade_peca_positive",
+        ),
         db.UniqueConstraint("activity_id", "vehicle_id", name="uq_activity_vehicle"),
     )
 
@@ -187,6 +196,11 @@ class ActivityItem(db.Model):
         return {
             "id": self.id,
             "activity_id": self.activity_id,
+            "material_id": self.material_id,
+            "material": self.material.to_dict() if self.material else None,
+            "quantidade_peca": int(self.quantidade_peca or 1),
+            "codigo_peca": self.codigo_peca,
+            "descricao_peca": self.descricao_peca,
             "status_execucao": self.status_execucao,
             "observacao": self.observacao,
             "foto_antes": self.foto_antes,

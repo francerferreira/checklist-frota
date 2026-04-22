@@ -749,6 +749,8 @@ def export_activity_pdf(
         ("Frota", "frota"),
         ("Placa", "placa"),
         ("Modelo", "modelo"),
+        ("Material", "material"),
+        ("Qtd", "quantidade_peca"),
         ("Status da atividade", "status"),
         ("Instalado em", "instalado_em"),
         ("Executado por", "executado_por"),
@@ -756,11 +758,14 @@ def export_activity_pdf(
     summary_rows = []
     for item in itens:
         veiculo = item.get("veiculo", {})
+        material = item.get("material") or {}
         summary_rows.append(
             {
                 "frota": veiculo.get("frota") or "-",
                 "placa": veiculo.get("placa") or "-",
                 "modelo": veiculo.get("modelo") or "-",
+                "material": item.get("descricao_peca") or material.get("descricao") or item.get("codigo_peca") or "-",
+                "quantidade_peca": str(item.get("quantidade_peca") or activity.get("quantidade_por_equipamento") or 1),
                 "status": _activity_item_status_text(item.get("status_execucao")),
                 "instalado_em": _format_datetime(item.get("instalado_em")),
                 "executado_por": item.get("executado_por_nome") or "-",
@@ -800,6 +805,7 @@ def export_activity_pdf(
 
     for index, item in enumerate(itens):
         veiculo = item.get("veiculo", {})
+        material = item.get("material") or {}
         images = item_images.get(item.get("id"), {})
         before_image = images.get("before")
         after_image = images.get("after")
@@ -833,6 +839,10 @@ def export_activity_pdf(
                     ["Frota", veiculo.get("frota") or "-"],
                     ["Placa", veiculo.get("placa") or "-"],
                     ["Modelo", veiculo.get("modelo") or "-"],
+                    ["Material", item.get("descricao_peca") or material.get("descricao") or item.get("codigo_peca") or "-"],
+                    ["Qtd. peça", str(item.get("quantidade_peca") or activity.get("quantidade_por_equipamento") or 1)],
+                    ["Código da peça", item.get("codigo_peca") or activity.get("codigo_peca") or "-"],
+                    ["Descrição da peça", item.get("descricao_peca") or activity.get("descricao_peca") or "-"],
                     ["Status da atividade", status_text],
                     ["Executado em", _format_datetime(item.get("instalado_em"))],
                     ["Executado por", item.get("executado_por_nome") or "-"],

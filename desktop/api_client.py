@@ -217,6 +217,9 @@ class APIClient:
     def update_activity_item(self, activity_id: int, item_id: int, payload: dict):
         return self._request("PUT", f"/atividades/{activity_id}/itens/{item_id}", json=payload)
 
+    def update_activity_materials(self, activity_id: int, payload: dict):
+        return self._request("PUT", f"/atividades/{activity_id}/materiais", json=payload)
+
     def get_catalog(self):
         return self._request("GET", "/config/checklists")
 

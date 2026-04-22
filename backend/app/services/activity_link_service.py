@@ -76,6 +76,10 @@ def ensure_activity_item(activity: Activity, vehicle_id: int) -> ActivityItem:
     item = ActivityItem(
         activity_id=activity.id,
         vehicle_id=vehicle_id,
+        material_id=activity.material_id,
+        quantidade_peca=max(1, int(activity.quantidade_por_equipamento or 1)),
+        codigo_peca=activity.codigo_peca,
+        descricao_peca=activity.descricao_peca,
         status_execucao="PENDENTE",
     )
     db.session.add(item)

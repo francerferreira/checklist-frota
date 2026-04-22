@@ -42,4 +42,19 @@ def ensure_runtime_schema() -> None:
             db.session.execute(text("ALTER TABLE activities ADD COLUMN auto_link_nc BOOLEAN DEFAULT FALSE"))
             db.session.commit()
 
+    if "activity_items" in inspector.get_table_names():
+        columns = {column["name"] for column in inspector.get_columns("activity_items")}
+        if "material_id" not in columns:
+            db.session.execute(text("ALTER TABLE activity_items ADD COLUMN material_id INTEGER"))
+            db.session.commit()
+        if "quantidade_peca" not in columns:
+            db.session.execute(text("ALTER TABLE activity_items ADD COLUMN quantidade_peca INTEGER DEFAULT 1"))
+            db.session.commit()
+        if "codigo_peca" not in columns:
+            db.session.execute(text("ALTER TABLE activity_items ADD COLUMN codigo_peca VARCHAR(80)"))
+            db.session.commit()
+        if "descricao_peca" not in columns:
+            db.session.execute(text("ALTER TABLE activity_items ADD COLUMN descricao_peca VARCHAR(255)"))
+            db.session.commit()
+
     ActivityNonConformityLink.__table__.create(bind=db.engine, checkfirst=True)
