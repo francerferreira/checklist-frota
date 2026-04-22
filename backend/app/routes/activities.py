@@ -100,17 +100,37 @@ def _has_nc_origin_tag(activity: Activity) -> bool:
     return "[ORIGEM:NC#" in observation
 
 
-def _is_origin_photo_locked(activity: Activity, item: ActivityItem) -> bool:
+def _is_origin_photo_locked(activity: Activity, item: ActivityItem, *, linked_item_ids: set[int] | None = None) -> bool:
     source_type = str(activity.source_type or "").strip().upper()
     if source_type == "NC_ITEM":
         return True
     if _has_nc_origin_tag(activity):
         return True
+    if linked_item_ids is not None:
+        return item.id in linked_item_ids
     link_exists = ActivityNonConformityLink.query.filter_by(
         activity_id=activity.id,
         activity_item_id=item.id,
     ).first()
     return bool(link_exists)
+
+
+def _serialize_activity(activity: Activity, *, include_items: bool = False) -> dict:
+    payload = activity.to_dict(include_items=include_items)
+    if not include_items:
+        return payload
+
+    linked_item_ids = {link.activity_item_id for link in (activity.non_conformity_links or [])}
+    payload_by_id = {int(row.get("id")): row for row in payload.get("itens", []) if row.get("id") is not None}
+    for item in activity.items:
+        item_payload = payload_by_id.get(item.id)
+        if not item_payload:
+            continue
+        origin_locked = _is_origin_photo_locked(activity, item, linked_item_ids=linked_item_ids)
+        item_payload["foto_origem"] = item_payload.get("foto_antes")
+        item_payload["foto_resolucao"] = item_payload.get("foto_depois")
+        item_payload["foto_origem_bloqueada"] = bool(origin_locked)
+    return payload
 
 
 def _activity_query():
@@ -150,7 +170,7 @@ def list_activities():
 @auth_required
 def get_activity(activity_id: int):
     activity = Activity.query.get_or_404(activity_id)
-    return jsonify(activity.to_dict(include_items=True))
+    return jsonify(_serialize_activity(activity, include_items=True))
 
 
 @bp.post("/atividades")
@@ -229,7 +249,7 @@ def create_activity():
         )
 
     db.session.commit()
-    return jsonify(activity.to_dict(include_items=True)), 201
+    return jsonify(_serialize_activity(activity, include_items=True)), 201
 
 
 @bp.post("/atividades/nao_conformidades/lote")
@@ -373,7 +393,7 @@ def create_mass_activity_from_non_conformity_item():
             linked_total += 1
 
     db.session.commit()
-    response = activity.to_dict(include_items=True)
+    response = _serialize_activity(activity, include_items=True)
     response["nao_conformidades_iniciais"] = int(linked_total)
     response["equipamentos_iniciais"] = int(len(vehicle_map))
     return jsonify(response), 201
@@ -417,7 +437,14 @@ def update_activity_item(activity_id: int, item_id: int):
 
     item.status_execucao = status_execucao
     item.observacao = _clean(payload.get("observacao")) or item.observacao
-    origin_photo_locked = _is_origin_photo_locked(activity, item)
+    linked_item_ids = {link.activity_item_id for link in (activity.non_conformity_links or [])}
+    origin_photo_locked = _is_origin_photo_locked(activity, item, linked_item_ids=linked_item_ids)
+    requested_origin_photo = _clean(payload.get("foto_antes")) if "foto_antes" in payload else None
+    origin_photo_preserved = bool(
+        origin_photo_locked
+        and requested_origin_photo
+        and requested_origin_photo != (item.foto_antes or "")
+    )
     if not origin_photo_locked:
         item.foto_antes = _clean(payload.get("foto_antes")) or item.foto_antes
     item.foto_depois = _clean(payload.get("foto_depois")) or item.foto_depois
@@ -451,7 +478,11 @@ def update_activity_item(activity_id: int, item_id: int):
     activity.finalized_at = datetime.utcnow() if all_done else None
 
     db.session.commit()
-    return jsonify(activity.to_dict(include_items=True))
+    response = _serialize_activity(activity, include_items=True)
+    if origin_photo_preserved:
+        response["aviso_foto_origem_preservada"] = True
+        response["mensagem_foto_origem"] = "Evidência de origem preservada. Use foto de resolução para a tratativa."
+    return jsonify(response)
 
 
 @bp.put("/atividades/<int:activity_id>/materiais")
@@ -510,6 +541,6 @@ def update_activity_item_materials(activity_id: int):
             activity.descricao_peca = target_items[0].descricao_peca
 
     db.session.commit()
-    response = activity.to_dict(include_items=True)
+    response = _serialize_activity(activity, include_items=True)
     response["itens_atualizados"] = len(target_items)
     return jsonify(response)

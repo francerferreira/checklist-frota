@@ -398,9 +398,13 @@ class ActivityItemUpdateDialog(QDialog):
         self.activity = activity
         self.item = item
         self.allow_material_edit = bool(allow_material_edit)
-        source_type = str(activity.get("source_type") or "").strip().upper()
-        observation = str(activity.get("observacao") or "").upper()
-        self.origin_photo_locked = source_type == "NC_ITEM" or "[ORIGEM:NC#" in observation
+        origin_locked_flag = item.get("foto_origem_bloqueada")
+        if isinstance(origin_locked_flag, bool):
+            self.origin_photo_locked = origin_locked_flag
+        else:
+            source_type = str(activity.get("source_type") or "").strip().upper()
+            observation = str(activity.get("observacao") or "").upper()
+            self.origin_photo_locked = source_type == "NC_ITEM" or "[ORIGEM:NC#" in observation
         self.before_file = ""
         self.after_file = ""
         self.result_payload = None
@@ -506,10 +510,10 @@ class ActivityItemUpdateDialog(QDialog):
             self.codigo_input.setEnabled(False)
             self.descricao_input.setEnabled(False)
 
-        self.before_label = QLabel(item.get("foto_antes") or "Sem foto antes vinculada.")
+        self.before_label = QLabel(item.get("foto_origem") or item.get("foto_antes") or "Sem foto antes vinculada.")
         self.before_label.setObjectName("MutedText")
         self.before_label.setWordWrap(True)
-        self.after_label = QLabel(item.get("foto_depois") or "Sem foto depois vinculada.")
+        self.after_label = QLabel(item.get("foto_resolucao") or item.get("foto_depois") or "Sem foto depois vinculada.")
         self.after_label.setObjectName("MutedText")
         self.after_label.setWordWrap(True)
 
@@ -677,14 +681,14 @@ class ActivityItemUpdateDialog(QDialog):
                 if self.before_file:
                     upload = self.api_client.upload_file(self.before_file, vehicle_name, item_nome, user_login)
                     payload["foto_antes"] = upload["path"]
-                elif self.item.get("foto_antes"):
-                    payload["foto_antes"] = self.item.get("foto_antes")
+                elif self.item.get("foto_origem") or self.item.get("foto_antes"):
+                    payload["foto_antes"] = self.item.get("foto_origem") or self.item.get("foto_antes")
 
             if self.after_file:
                 upload = self.api_client.upload_file(self.after_file, vehicle_name, f"{item_nome}_depois", user_login)
                 payload["foto_depois"] = upload["path"]
-            elif self.item.get("foto_depois"):
-                payload["foto_depois"] = self.item.get("foto_depois")
+            elif self.item.get("foto_resolucao") or self.item.get("foto_depois"):
+                payload["foto_depois"] = self.item.get("foto_resolucao") or self.item.get("foto_depois")
 
             self.result_payload = payload
             self.accept()
@@ -1095,13 +1099,11 @@ class ActivityDetailDialog(QDialog):
             allow_material_edit=self.can_manage_materials,
         )
         if dialog.exec():
-            self.api_client.update_activity_item(self.activity_id, item["id"], dialog.result_payload)
-            show_notice(
-                self,
-                "Atividade atualizada",
-                "Registro da atividade atualizado com sucesso.",
-                icon_name="dashboard",
-            )
+            response = self.api_client.update_activity_item(self.activity_id, item["id"], dialog.result_payload)
+            message = "Registro da atividade atualizado com sucesso."
+            if isinstance(response, dict) and response.get("aviso_foto_origem_preservada"):
+                message = response.get("mensagem_foto_origem") or "Evidência de origem preservada e atualização concluída."
+            show_notice(self, "Atividade atualizada", message, icon_name="dashboard")
             self.updated = True
             self.refresh()
 
