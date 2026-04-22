@@ -16,10 +16,13 @@ from PySide6.QtWidgets import (
     QLabel,
     QLineEdit,
     QPushButton,
+    QSizePolicy,
     QSpinBox,
+    QTabWidget,
     QTableWidget,
     QTextEdit,
     QVBoxLayout,
+    QWidget,
 )
 
 from components import StatCard, TableSkeletonOverlay, show_notice, start_export_task
@@ -331,7 +334,7 @@ class MaintenancePage(QFrame):
         title = QLabel("Programacao de manutencao")
         title.setObjectName("PageTitle")
         subtitle = QLabel(
-            "Fase 3 no desktop: governanca de cronograma com responsavel mecanico e materiais por programacao."
+            "Tela organizada por abas: programacoes, execucao, governanca e relatorios."
         )
         subtitle.setObjectName("PageSubtitle")
         subtitle.setWordWrap(True)
@@ -702,16 +705,48 @@ class MaintenancePage(QFrame):
         calendar_layout.addLayout(calendar_title_row)
         calendar_layout.addWidget(self.calendar_table)
 
+        self.tabs = QTabWidget()
+        self.tabs.setDocumentMode(True)
+        self.tabs.setMinimumHeight(760)
+        self.tabs.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
+
+        programacoes_tab = QWidget()
+        programacoes_layout = QVBoxLayout(programacoes_tab)
+        programacoes_layout.setContentsMargins(0, 0, 0, 0)
+        programacoes_layout.setSpacing(14)
+        programacoes_layout.addWidget(schedules_card)
+        programacoes_layout.addWidget(calendar_card, 1)
+
+        execucao_tab = QWidget()
+        execucao_layout = QVBoxLayout(execucao_tab)
+        execucao_layout.setContentsMargins(0, 0, 0, 0)
+        execucao_layout.setSpacing(14)
+        execucao_layout.addWidget(action_card)
+        execucao_layout.addWidget(details_card, 1)
+
+        governanca_tab = QWidget()
+        governanca_layout = QVBoxLayout(governanca_tab)
+        governanca_layout.setContentsMargins(0, 0, 0, 0)
+        governanca_layout.setSpacing(14)
+        governanca_layout.addWidget(governance_card)
+        governanca_layout.addWidget(materials_card, 1)
+
+        relatorios_tab = QWidget()
+        relatorios_layout = QVBoxLayout(relatorios_tab)
+        relatorios_layout.setContentsMargins(0, 0, 0, 0)
+        relatorios_layout.setSpacing(14)
+        relatorios_layout.addWidget(reports_card)
+        relatorios_layout.addStretch(1)
+
+        self.tabs.addTab(programacoes_tab, "Programacoes")
+        self.tabs.addTab(execucao_tab, "Execucao")
+        self.tabs.addTab(governanca_tab, "Governanca")
+        self.tabs.addTab(relatorios_tab, "Relatorios")
+
         layout.addLayout(header)
         layout.addLayout(cards_layout)
         layout.addWidget(filter_card)
-        layout.addWidget(reports_card)
-        layout.addWidget(schedules_card)
-        layout.addWidget(action_card)
-        layout.addWidget(governance_card)
-        layout.addWidget(materials_card)
-        layout.addWidget(details_card)
-        layout.addWidget(calendar_card, 1)
+        layout.addWidget(self.tabs, 1)
 
         self._set_action_controls_enabled(False)
         self._set_management_controls_enabled(False)
