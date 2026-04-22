@@ -510,10 +510,10 @@ class ActivityItemUpdateDialog(QDialog):
             self.codigo_input.setEnabled(False)
             self.descricao_input.setEnabled(False)
 
-        self.before_label = QLabel(item.get("foto_origem") or item.get("foto_antes") or "Sem foto antes vinculada.")
+        self.before_label = QLabel(item.get("foto_origem") or item.get("foto_antes") or "Sem foto de origem vinculada.")
         self.before_label.setObjectName("MutedText")
         self.before_label.setWordWrap(True)
-        self.after_label = QLabel(item.get("foto_resolucao") or item.get("foto_depois") or "Sem foto depois vinculada.")
+        self.after_label = QLabel(item.get("foto_resolucao") or item.get("foto_depois") or "Sem foto de resolução vinculada.")
         self.after_label.setObjectName("MutedText")
         self.after_label.setWordWrap(True)
 
@@ -957,8 +957,8 @@ class ActivityDetailDialog(QDialog):
                 "Status da atividade",
                 "Executado em",
                 "Executado por",
-                "Foto antes",
-                "Foto depois",
+                "Foto origem",
+                "Foto resolução",
                 "Observação",
             ]
         )
@@ -989,8 +989,8 @@ class ActivityDetailDialog(QDialog):
         header.setSectionResizeMode(5, QHeaderView.ResizeToContents)  # Status da atividade
         header.setSectionResizeMode(6, QHeaderView.ResizeToContents)  # Executado em
         header.setSectionResizeMode(7, QHeaderView.ResizeToContents)  # Executado por
-        header.setSectionResizeMode(8, QHeaderView.ResizeToContents)  # Foto antes
-        header.setSectionResizeMode(9, QHeaderView.ResizeToContents)  # Foto depois
+        header.setSectionResizeMode(8, QHeaderView.ResizeToContents)  # Foto origem
+        header.setSectionResizeMode(9, QHeaderView.ResizeToContents)  # Foto resolução
         header.setSectionResizeMode(10, QHeaderView.Stretch)  # Observação
 
     def refresh(self):
@@ -1032,8 +1032,8 @@ class ActivityDetailDialog(QDialog):
                     self._format_item_status(item.get("status_execucao")),
                     self._format(item.get("instalado_em")),
                     item.get("executado_por_nome") or "-",
-                    "Sim" if item.get("foto_antes") else "Não",
-                    "Sim" if item.get("foto_depois") else "Não",
+                    "Sim" if self._origin_photo_path(item) else "Não",
+                    "Sim" if self._resolution_photo_path(item) else "Não",
                     item.get("observacao") or "-",
                 ]
                 for column, value in enumerate(values):
@@ -1153,8 +1153,8 @@ class ActivityDetailDialog(QDialog):
                     "status_execucao": self._format_item_status(item.get("status_execucao")),
                     "instalado_em": self._format(item.get("instalado_em")),
                     "executado_por": item.get("executado_por_nome") or "-",
-                    "foto_antes": "Sim" if item.get("foto_antes") else "Não",
-                    "foto_depois": "Sim" if item.get("foto_depois") else "Não",
+                    "foto_origem": "Sim" if self._origin_photo_path(item) else "Não",
+                    "foto_resolucao": "Sim" if self._resolution_photo_path(item) else "Não",
                     "observacao": item.get("observacao") or "-",
                 }
             )
@@ -1168,8 +1168,8 @@ class ActivityDetailDialog(QDialog):
             ("Status da atividade", "status_execucao"),
             ("Instalado em", "instalado_em"),
             ("Executado por", "executado_por"),
-            ("Foto antes", "foto_antes"),
-            ("Foto depois", "foto_depois"),
+            ("Foto origem", "foto_origem"),
+            ("Foto resolução", "foto_resolucao"),
             ("Observação", "observacao"),
         ]
 
@@ -1198,8 +1198,8 @@ class ActivityDetailDialog(QDialog):
                     for index, activity_item in enumerate(activity_items, start=1):
                         progress(12 + int(((index - 1) / total) * 62), f"Carregando evidências {index}/{len(activity_items)}")
                         item_images[activity_item["id"]] = {
-                            "before": self.api_client.fetch_image(activity_item.get("foto_antes")),
-                            "after": self.api_client.fetch_image(activity_item.get("foto_depois")),
+                            "before": self.api_client.fetch_image(self._origin_photo_path(activity_item)),
+                            "after": self.api_client.fetch_image(self._resolution_photo_path(activity_item)),
                         }
                     progress(82, "Montando páginas do PDF")
                     export_activity_pdf(
@@ -1259,6 +1259,16 @@ class ActivityDetailDialog(QDialog):
             "PENDENTE": {"background": "#FEF3C7", "color": "#B45309"},
         }
         return mapping.get(value or "", {"background": "#E2E8F0", "color": "#334155"})
+
+    @staticmethod
+    def _origin_photo_path(item: dict | None) -> str | None:
+        payload = item or {}
+        return payload.get("foto_origem") or payload.get("foto_antes")
+
+    @staticmethod
+    def _resolution_photo_path(item: dict | None) -> str | None:
+        payload = item or {}
+        return payload.get("foto_resolucao") or payload.get("foto_depois")
 
 
 class ActivitiesPage(QFrame):

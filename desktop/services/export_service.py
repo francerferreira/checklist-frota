@@ -46,6 +46,16 @@ def make_default_export_path(prefix: str, suffix: str) -> str:
     return str(_default_export_path(prefix, suffix))
 
 
+def _origin_photo_path(record: dict | None) -> str | None:
+    payload = record or {}
+    return payload.get("foto_origem") or payload.get("foto_antes")
+
+
+def _resolution_photo_path(record: dict | None) -> str | None:
+    payload = record or {}
+    return payload.get("foto_resolucao") or payload.get("foto_depois")
+
+
 def export_rows_to_csv(
     columns: list[tuple[str, str]],
     rows: list[dict],
@@ -254,17 +264,17 @@ def export_non_conformity_pdf(
     if before_image:
         image_block.append(_reportlab_image(before_image, 86 * mm, 76 * mm))
     else:
-        image_block.append(Paragraph("Sem foto antes", styles["muted_box"]))
+        image_block.append(Paragraph("Sem foto de origem", styles["muted_box"]))
     if after_image:
         image_block.append(_reportlab_image(after_image, 86 * mm, 76 * mm))
     else:
-        image_block.append(Paragraph("Sem foto depois", styles["muted_box"]))
+        image_block.append(Paragraph("Sem foto de resolução", styles["muted_box"]))
 
     image_table = Table(
         [
             [
-                Paragraph("Foto antes", styles["section"]),
-                Paragraph("Foto depois", styles["section"]),
+                Paragraph("Foto de origem", styles["section"]),
+                Paragraph("Foto de resolução", styles["section"]),
             ],
             image_block,
         ],
@@ -629,8 +639,8 @@ def export_item_audit_pdf(
             ("Status", "status"),
             ("Motorista", "driver"),
             ("Resolvido em", "resolved_at"),
-            ("Foto antes", "before"),
-            ("Foto depois", "after"),
+            ("Foto origem", "before"),
+            ("Foto resolução", "after"),
         ]
         group_rows = []
         for occurrence in group_occurrences:
@@ -645,8 +655,8 @@ def export_item_audit_pdf(
                     "status": "Resolvida" if occurrence.get("resolvido") else "Aberta",
                     "driver": user.get("nome") or "-",
                     "resolved_at": resolved_at,
-                    "before": "Sim" if occurrence.get("foto_antes") else "Não",
-                    "after": "Sim" if occurrence.get("foto_depois") else "Não",
+                    "before": "Sim" if _origin_photo_path(occurrence) else "Não",
+                    "after": "Sim" if _resolution_photo_path(occurrence) else "Não",
                 }
             )
         group_table = Table(
@@ -855,11 +865,11 @@ def export_activity_pdf(
         story.append(Spacer(1, 6))
 
         image_block = []
-        image_block.append(_reportlab_image(before_image, 86 * mm, 76 * mm) if before_image else Paragraph("Sem foto antes", styles["muted_box"]))
-        image_block.append(_reportlab_image(after_image, 86 * mm, 76 * mm) if after_image else Paragraph("Sem foto depois", styles["muted_box"]))
+        image_block.append(_reportlab_image(before_image, 86 * mm, 76 * mm) if before_image else Paragraph("Sem foto de origem", styles["muted_box"]))
+        image_block.append(_reportlab_image(after_image, 86 * mm, 76 * mm) if after_image else Paragraph("Sem foto de resolução", styles["muted_box"]))
         image_table = Table(
             [
-                [Paragraph("Foto antes", styles["section"]), Paragraph("Foto depois", styles["section"])],
+                [Paragraph("Foto de origem", styles["section"]), Paragraph("Foto de resolução", styles["section"])],
                 image_block,
             ],
             colWidths=[89 * mm, 89 * mm],
@@ -1895,14 +1905,14 @@ def _append_occurrence_evidence_section(
         before = images.get("before")
         after = images.get("after")
         image_block = [
-            _reportlab_image(before, 86 * mm, 76 * mm) if before else Paragraph("Sem foto antes", styles["muted_box"]),
-            _reportlab_image(after, 86 * mm, 76 * mm) if after else Paragraph("Sem foto depois", styles["muted_box"]),
+            _reportlab_image(before, 86 * mm, 76 * mm) if before else Paragraph("Sem foto de origem", styles["muted_box"]),
+            _reportlab_image(after, 86 * mm, 76 * mm) if after else Paragraph("Sem foto de resolução", styles["muted_box"]),
         ]
         image_table = Table(
             [
                 [
-                    Paragraph("Foto antes", styles["section"]),
-                    Paragraph("Foto depois / resolução", styles["section"]),
+                    Paragraph("Foto de origem", styles["section"]),
+                    Paragraph("Foto de resolução", styles["section"]),
                 ],
                 image_block,
             ],

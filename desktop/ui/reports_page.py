@@ -643,7 +643,7 @@ class ReportsPage(QFrame):
 
         self.item_table = QTableWidget(0, 8)
         self.item_table.setHorizontalHeaderLabels(
-            ["Veículo", "Item", "Data", "Motorista", "Status", "Prioridade", "Foto antes", "Foto depois"]
+            ["Veículo", "Item", "Data", "Motorista", "Status", "Prioridade", "Foto origem", "Foto resolução"]
         )
         configure_table(self.item_table, stretch_last=False)
         self.item_table.setMinimumHeight(520)
@@ -672,7 +672,7 @@ class ReportsPage(QFrame):
         top.setSpacing(12)
         title = QLabel("Não conformidades resolvidas")
         title.setObjectName("SectionTitle")
-        caption = QLabel("Área dedicada aos resolvidos com data de resolução, fotos antes/depois e filtros operacionais.")
+        caption = QLabel("Área dedicada aos resolvidos com data de resolução, foto de origem, foto de resolução e filtros operacionais.")
         caption.setObjectName("SectionCaption")
         caption.setWordWrap(True)
         text_wrap = QVBoxLayout()
@@ -697,7 +697,7 @@ class ReportsPage(QFrame):
 
         self.resolved_table = QTableWidget(0, 8)
         self.resolved_table.setHorizontalHeaderLabels(
-            ["Não conformidade", "Veículo", "Resolvido em", "Motorista", "Resolvido por", "Módulo", "Foto antes", "Foto depois"]
+            ["Não conformidade", "Veículo", "Resolvido em", "Motorista", "Resolvido por", "Módulo", "Foto origem", "Foto resolução"]
         )
         configure_table(self.resolved_table, stretch_last=False)
         self.resolved_table.setMinimumHeight(520)
@@ -798,8 +798,8 @@ class ReportsPage(QFrame):
                     item["usuario"]["nome"],
                     "Resolvida" if item["resolvido"] else "Aberta",
                     severity["label"],
-                    "Sim" if item.get("foto_antes") else "Não",
-                    "Sim" if item.get("foto_depois") else "Não",
+                    "Sim" if self._origin_photo_path(item) else "Não",
+                    "Sim" if self._resolution_photo_path(item) else "Não",
                 ]
                 for column, value in enumerate(values):
                     cell = make_table_item(value)
@@ -847,8 +847,8 @@ class ReportsPage(QFrame):
                     user.get("nome") or "-",
                     resolved_by.get("nome") or "-",
                     str(vehicle.get("tipo") or "-").title(),
-                    "Sim" if item.get("foto_antes") else "Não",
-                    "Sim" if item.get("foto_depois") else "Não",
+                    "Sim" if self._origin_photo_path(item) else "Não",
+                    "Sim" if self._resolution_photo_path(item) else "Não",
                 ]
                 for column, value in enumerate(values):
                     cell = make_table_item(value)
@@ -1317,8 +1317,8 @@ class ReportsPage(QFrame):
                     "motorista": user.get("nome") or "-",
                     "resolved_by": resolved_by.get("nome") or "-",
                     "modulo": str(vehicle.get("tipo") or "-").title(),
-                    "foto_antes": "Sim" if item.get("foto_antes") else "Não",
-                    "foto_depois": "Sim" if item.get("foto_depois") else "Não",
+                    "foto_origem": "Sim" if self._origin_photo_path(item) else "Não",
+                    "foto_resolucao": "Sim" if self._resolution_photo_path(item) else "Não",
                 }
             )
 
@@ -1329,8 +1329,8 @@ class ReportsPage(QFrame):
             ("Motorista", "motorista"),
             ("Resolvido por", "resolved_by"),
             ("Módulo", "modulo"),
-            ("Foto antes", "foto_antes"),
-            ("Foto depois", "foto_depois"),
+            ("Foto origem", "foto_origem"),
+            ("Foto resolução", "foto_resolucao"),
         ]
         self._export_dataset(
             "relatorio_resolvidos",
@@ -1415,8 +1415,8 @@ class ReportsPage(QFrame):
             if not item_id:
                 continue
             images[item_id] = {
-                "before": self.api_client.fetch_image(item.get("foto_antes")),
-                "after": self.api_client.fetch_image(item.get("foto_depois")),
+                "before": self.api_client.fetch_image(self._origin_photo_path(item)),
+                "after": self.api_client.fetch_image(self._resolution_photo_path(item)),
             }
         return images
 
@@ -1442,11 +1442,21 @@ class ReportsPage(QFrame):
             if not item_id:
                 continue
             images[item_id] = {
-                "before": self.api_client.fetch_image(item.get("foto_antes")),
-                "after": self.api_client.fetch_image(item.get("foto_depois")),
+                "before": self.api_client.fetch_image(self._origin_photo_path(item)),
+                "after": self.api_client.fetch_image(self._resolution_photo_path(item)),
             }
         progress(end, "Evidências fotográficas carregadas")
         return images
+
+    @staticmethod
+    def _origin_photo_path(item: dict | None) -> str | None:
+        payload = item or {}
+        return payload.get("foto_origem") or payload.get("foto_antes")
+
+    @staticmethod
+    def _resolution_photo_path(item: dict | None) -> str | None:
+        payload = item or {}
+        return payload.get("foto_resolucao") or payload.get("foto_depois")
 
     def _run_pdf_export(self, title: str, task):
         dialog = ExportProgressDialog(title, self)
