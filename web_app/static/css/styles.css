@@ -322,6 +322,14 @@ textarea {
     min-width: 0;
 }
 
+.screen-actions {
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    flex-wrap: wrap;
+    gap: 8px;
+}
+
 .screen-heading.compact {
     display: grid;
     grid-template-columns: 86px minmax(0, 1fr);
@@ -1494,6 +1502,10 @@ textarea {
     .screen-heading {
         min-height: auto;
         padding: 8px 0 12px;
+    }
+
+    .screen-actions {
+        width: 100%;
     }
 
     .screen-heading h2 {

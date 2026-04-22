@@ -116,6 +116,7 @@ const elements = {
     cloudStorageSummary: document.getElementById("cloud-storage-summary"),
     cloudStorageDetail: document.getElementById("cloud-storage-detail"),
     cloudBackupButton: document.getElementById("cloud-backup-button"),
+    homeChangePasswordButton: document.getElementById("home-change-password-button"),
     homeLogoutButton: document.getElementById("home-logout-button"),
     openChecklistMenu: document.getElementById("open-checklist-menu"),
     openActivitiesMenu: document.getElementById("open-activities-menu"),
@@ -3398,6 +3399,59 @@ function logout() {
     setActiveScreen("login");
 }
 
+async function requestPasswordReset() {
+    const currentPassword = window.prompt("Informe sua senha atual:");
+    if (currentPassword === null) {
+        return;
+    }
+    if (!currentPassword) {
+        showToast("INFORME A SENHA ATUAL.", true);
+        return;
+    }
+
+    const newPassword = window.prompt("Informe a nova senha:");
+    if (newPassword === null) {
+        return;
+    }
+    if (!newPassword) {
+        showToast("INFORME A NOVA SENHA.", true);
+        return;
+    }
+
+    const confirmPassword = window.prompt("Confirme a nova senha:");
+    if (confirmPassword === null) {
+        return;
+    }
+    if (newPassword !== confirmPassword) {
+        showToast("AS SENHAS NÃO CONFEREM.", true);
+        return;
+    }
+
+    const button = elements.homeChangePasswordButton;
+    if (button) {
+        button.disabled = true;
+        button.textContent = "SALVANDO...";
+    }
+    try {
+        await apiFetch("/usuarios/me/senha", {
+            method: "PUT",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+                senha_atual: currentPassword,
+                nova_senha: newPassword,
+            }),
+        });
+        showToast("SENHA ATUALIZADA COM SUCESSO.");
+    } catch (error) {
+        showToast(error.message || "NÃO FOI POSSÍVEL ATUALIZAR A SENHA.", true);
+    } finally {
+        if (button) {
+            button.disabled = false;
+            button.textContent = "ALTERAR SENHA";
+        }
+    }
+}
+
 function escapeHtml(value) {
     return String(value ?? "")
         .replace(/&/g, "&amp;")
@@ -3456,6 +3510,7 @@ on(elements.maintenanceProgramButton, "click", programSelectedMaintenanceSchedul
 on(elements.maintenanceExportPdfButton, "click", exportMaintenancePdf);
 on(elements.syncNowButton, "click", () => syncPendingChecklists({ silent: false }));
 on(elements.cloudBackupButton, "click", createCloudBackup);
+on(elements.homeChangePasswordButton, "click", requestPasswordReset);
 on(elements.homeLogoutButton, "click", logout);
 on(elements.vehiclesBackButton, "click", () => {
     renderHome();
