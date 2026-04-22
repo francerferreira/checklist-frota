@@ -16,6 +16,20 @@ from services import overall_executive_status, severity_from_counts
 from theme import configure_table, make_table_item, style_card, style_table_card
 
 
+def _format_minutes(value) -> str:
+    try:
+        minutes = float(value)
+    except (TypeError, ValueError):
+        return "-"
+    if minutes < 0:
+        return "-"
+    rounded = int(round(minutes))
+    hours, rem_minutes = divmod(rounded, 60)
+    if hours > 0:
+        return f"{hours}h {rem_minutes:02d}m"
+    return f"{rem_minutes}m"
+
+
 class DashboardPage(QFrame):
     def __init__(self, api_client, parent=None):
         super().__init__(parent)
@@ -106,6 +120,40 @@ class DashboardPage(QFrame):
         cards_layout.addWidget(self.open_nc_card, 0, 1)
         cards_layout.addWidget(self.vehicles_card, 0, 2)
 
+        conversion_layout = QGridLayout()
+        conversion_layout.setSpacing(16)
+        for column in range(4):
+            conversion_layout.setColumnStretch(column, 1)
+
+        self.converted_nc_card = StatCard(
+            "NC convertidas em atividade",
+            "0",
+            "Ocorrencias com tratativa formal iniciada",
+            icon_name="activities",
+        )
+        self.unlinked_nc_card = StatCard(
+            "NC sem atividade",
+            "0",
+            "Ocorrencias sem abertura no modulo de atividades",
+            icon_name="warning",
+        )
+        self.nc_to_activity_time_card = StatCard(
+            "Tempo medio NC -> atividade",
+            "-",
+            "Velocidade media para iniciar tratativa",
+            icon_name="dashboard",
+        )
+        self.activity_to_resolution_time_card = StatCard(
+            "Tempo medio atividade -> resolucao",
+            "-",
+            "Tempo medio da atividade ate a finalizacao",
+            icon_name="reports",
+        )
+        conversion_layout.addWidget(self.converted_nc_card, 0, 0)
+        conversion_layout.addWidget(self.unlinked_nc_card, 0, 1)
+        conversion_layout.addWidget(self.nc_to_activity_time_card, 0, 2)
+        conversion_layout.addWidget(self.activity_to_resolution_time_card, 0, 3)
+
         self.table_card = QFrame()
         style_table_card(self.table_card)
         self.table_skeleton = TableSkeletonOverlay(self.table_card, rows=6)
@@ -149,6 +197,7 @@ class DashboardPage(QFrame):
         layout.addWidget(subtitle)
         layout.addWidget(hero_card)
         layout.addLayout(cards_layout)
+        layout.addLayout(conversion_layout)
         layout.addWidget(self.table_card, 1)
 
     def set_loading_state(self, loading: bool):
@@ -173,6 +222,26 @@ class DashboardPage(QFrame):
             "Ve\u00edculos com falha",
             str(dashboard["veiculos_com_falha"]),
             "Ativos impactados por n\u00e3o conformidades",
+        )
+        self.converted_nc_card.set_content(
+            "NC convertidas em atividade",
+            str(dashboard.get("nc_convertidas_em_atividade", 0)),
+            "Ocorrencias com tratativa formal iniciada",
+        )
+        self.unlinked_nc_card.set_content(
+            "NC sem atividade",
+            str(dashboard.get("nc_sem_atividade", 0)),
+            "Ocorrencias sem abertura no modulo de atividades",
+        )
+        self.nc_to_activity_time_card.set_content(
+            "Tempo medio NC -> atividade",
+            _format_minutes(dashboard.get("tempo_medio_nc_para_atividade_minutos")),
+            "Velocidade media para iniciar tratativa",
+        )
+        self.activity_to_resolution_time_card.set_content(
+            "Tempo medio atividade -> resolucao",
+            _format_minutes(dashboard.get("tempo_medio_atividade_para_resolucao_minutos")),
+            "Tempo medio da atividade ate a finalizacao",
         )
 
         critical_items = dashboard.get("itens_criticos", [])

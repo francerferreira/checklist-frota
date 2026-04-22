@@ -1,11 +1,14 @@
 from __future__ import annotations
 
 from datetime import datetime, timedelta
+import re
 
 from sqlalchemy import case, desc, func, or_
 
 from app.extensions import db
 from app.models import Activity, ActivityItem, Checklist, ChecklistItem, MaintenanceScheduleItem, MechanicNonConformity, User, Vehicle, WashRecord
+
+_ORIGIN_PATTERN = re.compile(r"\[ORIGEM:(?P<type>[A-Z_]+)#(?P<id>\d+)\]")
 
 
 def _active_vehicle_filter():
@@ -15,6 +18,26 @@ def _active_vehicle_filter():
         Vehicle.retirado_em.is_(None),
         normalized_status.notin_(["RETIRADO", "OFF"]),
     )
+
+
+def _extract_non_conformity_origin_id(observation: str | None) -> int | None:
+    if not observation:
+        return None
+    match = _ORIGIN_PATTERN.search(observation)
+    if not match:
+        return None
+    if (match.group("type") or "").strip().upper() not in {"NC", "NAO_CONFORMIDADE"}:
+        return None
+    try:
+        return int(match.group("id"))
+    except (TypeError, ValueError):
+        return None
+
+
+def _average_minutes(values: list[float]) -> float | None:
+    if not values:
+        return None
+    return round(sum(values) / len(values), 2)
 
 
 def build_macro_report() -> list[dict]:
@@ -162,7 +185,9 @@ def build_vehicle_history(vehicle_id: int) -> dict:
 
 
 def build_dashboard_summary() -> dict:
-    total_nc = ChecklistItem.query.filter_by(status="NC").count()
+    non_conformity_rows = ChecklistItem.query.with_entities(ChecklistItem.id, ChecklistItem.created_at).filter_by(status="NC").all()
+    non_conformity_created_at = {row_id: created_at for row_id, created_at in non_conformity_rows}
+    total_nc = len(non_conformity_rows)
     open_nc = ChecklistItem.query.filter_by(status="NC", resolvido=False).count()
     vehicles_with_failures = (
         db.session.query(func.count(func.distinct(Checklist.vehicle_id)))
@@ -170,11 +195,46 @@ def build_dashboard_summary() -> dict:
         .filter(ChecklistItem.status == "NC")
         .scalar()
     )
+    linked_activities = (
+        Activity.query.with_entities(Activity.created_at, Activity.finalized_at, Activity.observacao)
+        .filter(Activity.observacao.isnot(None))
+        .all()
+    )
+    first_activity_at_by_nc: dict[int, datetime] = {}
+    activity_to_resolution_minutes: list[float] = []
+
+    for activity_created_at, activity_finalized_at, activity_observation in linked_activities:
+        non_conformity_id = _extract_non_conformity_origin_id(activity_observation)
+        if non_conformity_id is None:
+            continue
+
+        previous_created_at = first_activity_at_by_nc.get(non_conformity_id)
+        if previous_created_at is None or activity_created_at < previous_created_at:
+            first_activity_at_by_nc[non_conformity_id] = activity_created_at
+
+        if activity_finalized_at and activity_finalized_at >= activity_created_at:
+            elapsed_minutes = (activity_finalized_at - activity_created_at).total_seconds() / 60
+            activity_to_resolution_minutes.append(elapsed_minutes)
+
+    linked_non_conformity_ids = set(first_activity_at_by_nc).intersection(non_conformity_created_at)
+    nc_to_activity_minutes: list[float] = []
+    for non_conformity_id in linked_non_conformity_ids:
+        nc_created_at = non_conformity_created_at.get(non_conformity_id)
+        activity_created_at = first_activity_at_by_nc.get(non_conformity_id)
+        if not nc_created_at or not activity_created_at or activity_created_at < nc_created_at:
+            continue
+        elapsed_minutes = (activity_created_at - nc_created_at).total_seconds() / 60
+        nc_to_activity_minutes.append(elapsed_minutes)
+
     critical_items = build_macro_report()[:5]
     return {
         "total_nc": total_nc,
         "nc_abertas": open_nc,
         "veiculos_com_falha": int(vehicles_with_failures or 0),
+        "nc_convertidas_em_atividade": len(linked_non_conformity_ids),
+        "nc_sem_atividade": max(total_nc - len(linked_non_conformity_ids), 0),
+        "tempo_medio_nc_para_atividade_minutos": _average_minutes(nc_to_activity_minutes),
+        "tempo_medio_atividade_para_resolucao_minutos": _average_minutes(activity_to_resolution_minutes),
         "itens_criticos": critical_items,
     }
 
