@@ -14,10 +14,10 @@
     <title>CHECKLIST DE FROTA</title>
     <link rel="icon" type="image/png" sizes="192x192" href="./static/icons/icon-192.png?v=20260421-02">
     <link rel="apple-touch-icon" href="./static/icons/icon-192.png?v=20260421-02">
-    <link rel="stylesheet" href="./static/css/styles.css?v=20260421-03">
+    <link rel="stylesheet" href="./static/css/styles.css?v=20260422-01">
     <script>
         (function () {
-            var cssUrl = "./static/css/styles.css?v=20260421-03";
+            var cssUrl = "./static/css/styles.css?v=20260422-01";
             var style = document.createElement("style");
             style.setAttribute("data-inline-fallback", "styles.css");
             document.head.appendChild(style);
@@ -410,6 +410,34 @@
         </main>
     </div>
 
+    <div id="password-modal" class="app-modal hidden" role="dialog" aria-modal="true" aria-labelledby="password-modal-title">
+        <div class="app-modal-backdrop" data-close-password-modal="true"></div>
+        <div class="app-modal-card" role="document">
+            <div class="app-modal-header">
+                <h3 id="password-modal-title">Alterar senha</h3>
+                <p>Informe sua senha atual e defina a nova senha de acesso.</p>
+            </div>
+            <form id="password-change-form" class="password-change-form">
+                <label class="modal-field">
+                    <span>Senha atual</span>
+                    <input id="password-current-input" type="password" autocomplete="current-password" required>
+                </label>
+                <label class="modal-field">
+                    <span>Nova senha</span>
+                    <input id="password-new-input" type="password" autocomplete="new-password" required>
+                </label>
+                <label class="modal-field">
+                    <span>Confirmar nova senha</span>
+                    <input id="password-confirm-input" type="password" autocomplete="new-password" required>
+                </label>
+                <div class="password-change-actions">
+                    <button id="password-change-cancel" class="icon-button" type="button">Cancelar</button>
+                    <button id="password-change-submit" class="primary-button" type="submit">Salvar senha</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
     <div id="toast" class="toast hidden"></div>
     <script>
         // Login de contingência: roda antes do app principal e não depende do bundle externo.
@@ -466,7 +494,7 @@
         });
     </script>
     <script src="./static/js/config.js?v=20260421-01"></script>
-    <script src="./static/js/app-20260419-25.js?v=20260421-01"></script>
+    <script src="./static/js/app-20260419-25.js?v=20260422-01"></script>
 </body>
 </html>
 

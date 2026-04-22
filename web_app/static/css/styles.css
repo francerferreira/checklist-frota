@@ -40,6 +40,10 @@ body.entry-screen {
     background: var(--page);
 }
 
+body.modal-open {
+    overflow: hidden;
+}
+
 button,
 input,
 textarea {
@@ -1390,6 +1394,72 @@ textarea {
     color: var(--muted);
 }
 
+.app-modal {
+    position: fixed;
+    inset: 0;
+    z-index: 35;
+    display: grid;
+    place-items: center;
+    padding: 18px;
+}
+
+.app-modal-backdrop {
+    position: absolute;
+    inset: 0;
+    background: rgba(8, 17, 31, 0.62);
+}
+
+.app-modal-card {
+    position: relative;
+    z-index: 1;
+    width: min(100%, 520px);
+    border-radius: 20px;
+    background: #ffffff;
+    border: 1px solid rgba(122, 140, 166, 0.22);
+    box-shadow: 0 28px 56px rgba(9, 26, 52, 0.28);
+    padding: 20px;
+    display: grid;
+    gap: 14px;
+}
+
+.app-modal-header h3 {
+    margin: 0;
+    font-size: 1.32rem;
+    color: var(--ink);
+}
+
+.app-modal-header p {
+    margin: 4px 0 0;
+    color: var(--muted);
+    font-size: 0.92rem;
+}
+
+.password-change-form {
+    display: grid;
+    gap: 12px;
+}
+
+.modal-field span {
+    display: block;
+    margin-bottom: 6px;
+    color: var(--ink);
+    font-size: 0.82rem;
+    font-weight: 850;
+}
+
+.password-change-actions {
+    display: flex;
+    justify-content: flex-end;
+    flex-wrap: wrap;
+    gap: 10px;
+    margin-top: 6px;
+}
+
+.password-change-actions .icon-button,
+.password-change-actions .primary-button {
+    min-width: 140px;
+}
+
 .toast {
     position: fixed;
     left: 50%;
@@ -1436,6 +1506,25 @@ textarea {
 
     .nc-photo-grid {
         grid-template-columns: 1fr;
+    }
+
+    .app-modal {
+        padding: 12px;
+    }
+
+    .app-modal-card {
+        border-radius: 16px;
+        padding: 16px;
+    }
+
+    .password-change-actions {
+        grid-template-columns: 1fr;
+        display: grid;
+    }
+
+    .password-change-actions .icon-button,
+    .password-change-actions .primary-button {
+        width: 100%;
     }
 }
 

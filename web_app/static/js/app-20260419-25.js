@@ -118,6 +118,13 @@ const elements = {
     cloudBackupButton: document.getElementById("cloud-backup-button"),
     homeChangePasswordButton: document.getElementById("home-change-password-button"),
     homeLogoutButton: document.getElementById("home-logout-button"),
+    passwordModal: document.getElementById("password-modal"),
+    passwordChangeForm: document.getElementById("password-change-form"),
+    passwordCurrentInput: document.getElementById("password-current-input"),
+    passwordNewInput: document.getElementById("password-new-input"),
+    passwordConfirmInput: document.getElementById("password-confirm-input"),
+    passwordChangeCancel: document.getElementById("password-change-cancel"),
+    passwordChangeSubmit: document.getElementById("password-change-submit"),
     openChecklistMenu: document.getElementById("open-checklist-menu"),
     openActivitiesMenu: document.getElementById("open-activities-menu"),
     openWashesMenu: document.getElementById("open-washes-menu"),
@@ -182,6 +189,8 @@ const elements = {
     newChecklistButton: document.getElementById("new-checklist-button"),
     connectionStatus: document.getElementById("connection-status"),
 };
+
+let passwordModalFocusOrigin = null;
 
 elements.apiBaseUrl.value = state.apiBaseUrl;
 updateConnectionStatus();
@@ -3395,43 +3404,88 @@ function logout() {
     state.token = "";
     state.user = null;
     state.selectedVehicle = null;
+    closePasswordResetModal();
     clearSession();
     setActiveScreen("login");
 }
 
-async function requestPasswordReset() {
-    const currentPassword = window.prompt("Informe sua senha atual:");
-    if (currentPassword === null) {
+function resetPasswordModalFields() {
+    if (elements.passwordChangeForm) {
+        elements.passwordChangeForm.reset();
+    }
+}
+
+function openPasswordResetModal() {
+    if (!elements.passwordModal) {
+        showToast("TELA DE SENHA INDISPONIVEL.", true);
         return;
     }
+    passwordModalFocusOrigin = document.activeElement instanceof HTMLElement ? document.activeElement : null;
+    resetPasswordModalFields();
+    elements.passwordModal.classList.remove("hidden");
+    document.body.classList.add("modal-open");
+    window.setTimeout(() => {
+        elements.passwordCurrentInput?.focus();
+    }, 0);
+}
+
+function closePasswordResetModal() {
+    if (!elements.passwordModal || elements.passwordModal.classList.contains("hidden")) {
+        return;
+    }
+    elements.passwordModal.classList.add("hidden");
+    document.body.classList.remove("modal-open");
+    resetPasswordModalFields();
+    if (passwordModalFocusOrigin && document.contains(passwordModalFocusOrigin)) {
+        passwordModalFocusOrigin.focus();
+    }
+    passwordModalFocusOrigin = null;
+}
+
+function requestPasswordReset() {
+    openPasswordResetModal();
+}
+
+async function submitPasswordReset(event) {
+    event.preventDefault();
+
+    const currentPassword = elements.passwordCurrentInput?.value || "";
+    const newPassword = elements.passwordNewInput?.value || "";
+    const confirmPassword = elements.passwordConfirmInput?.value || "";
+
     if (!currentPassword) {
         showToast("INFORME A SENHA ATUAL.", true);
-        return;
-    }
-
-    const newPassword = window.prompt("Informe a nova senha:");
-    if (newPassword === null) {
+        elements.passwordCurrentInput?.focus();
         return;
     }
     if (!newPassword) {
         showToast("INFORME A NOVA SENHA.", true);
+        elements.passwordNewInput?.focus();
         return;
     }
-
-    const confirmPassword = window.prompt("Confirme a nova senha:");
-    if (confirmPassword === null) {
+    if (!confirmPassword) {
+        showToast("CONFIRME A NOVA SENHA.", true);
+        elements.passwordConfirmInput?.focus();
         return;
     }
     if (newPassword !== confirmPassword) {
-        showToast("AS SENHAS NÃO CONFEREM.", true);
+        showToast("AS SENHAS NAO CONFEREM.", true);
+        elements.passwordConfirmInput?.focus();
         return;
     }
 
-    const button = elements.homeChangePasswordButton;
-    if (button) {
-        button.disabled = true;
-        button.textContent = "SALVANDO...";
+    if (elements.homeChangePasswordButton) {
+        elements.homeChangePasswordButton.disabled = true;
+        elements.homeChangePasswordButton.textContent = "SALVANDO...";
     }
+    if (elements.passwordChangeSubmit) {
+        elements.passwordChangeSubmit.disabled = true;
+        elements.passwordChangeSubmit.textContent = "SALVANDO...";
+    }
+    if (elements.passwordChangeCancel) {
+        elements.passwordChangeCancel.disabled = true;
+    }
+
     try {
         await apiFetch("/usuarios/me/senha", {
             method: "PUT",
@@ -3442,12 +3496,20 @@ async function requestPasswordReset() {
             }),
         });
         showToast("SENHA ATUALIZADA COM SUCESSO.");
+        closePasswordResetModal();
     } catch (error) {
-        showToast(error.message || "NÃO FOI POSSÍVEL ATUALIZAR A SENHA.", true);
+        showToast(error.message || "NAO FOI POSSIVEL ATUALIZAR A SENHA.", true);
     } finally {
-        if (button) {
-            button.disabled = false;
-            button.textContent = "ALTERAR SENHA";
+        if (elements.homeChangePasswordButton) {
+            elements.homeChangePasswordButton.disabled = false;
+            elements.homeChangePasswordButton.textContent = "ALTERAR SENHA";
+        }
+        if (elements.passwordChangeSubmit) {
+            elements.passwordChangeSubmit.disabled = false;
+            elements.passwordChangeSubmit.textContent = "Salvar senha";
+        }
+        if (elements.passwordChangeCancel) {
+            elements.passwordChangeCancel.disabled = false;
         }
     }
 }
@@ -3512,6 +3574,13 @@ on(elements.syncNowButton, "click", () => syncPendingChecklists({ silent: false 
 on(elements.cloudBackupButton, "click", createCloudBackup);
 on(elements.homeChangePasswordButton, "click", requestPasswordReset);
 on(elements.homeLogoutButton, "click", logout);
+on(elements.passwordChangeForm, "submit", submitPasswordReset);
+on(elements.passwordChangeCancel, "click", closePasswordResetModal);
+on(elements.passwordModal, "click", (event) => {
+    if (event.target?.dataset?.closePasswordModal === "true") {
+        closePasswordResetModal();
+    }
+});
 on(elements.vehiclesBackButton, "click", () => {
     renderHome();
     setActiveScreen("home");
@@ -3597,6 +3666,12 @@ window.addEventListener("online", () => {
     syncPendingChecklists({ silent: true });
 });
 window.addEventListener("offline", updateConnectionStatus);
+window.addEventListener("keydown", (event) => {
+    if (event.key === "Escape" && elements.passwordModal && !elements.passwordModal.classList.contains("hidden")) {
+        event.preventDefault();
+        closePasswordResetModal();
+    }
+});
 
 unregisterServiceWorkers();
 registerServiceWorker();
