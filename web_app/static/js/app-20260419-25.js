@@ -1035,6 +1035,7 @@ function makeMaintenanceItemCard(item, index) {
         card.querySelector(".maintenance-not-executed-button")?.addEventListener("click", () => submitMaintenanceItem(card, item, "NAO_EXECUTADO"));
         card.querySelector(".maintenance-reprogram-button")?.addEventListener("click", () => reprogramMaintenanceItem(card, item));
     }
+    attachCollapsibleCard(card);
     return card;
 }
 
@@ -1194,6 +1195,7 @@ function makeChecklistNonConformityCard(item, index) {
         fileInput?.addEventListener("change", () => bindPhotoPreview(fileInput, preview));
         card.querySelector(".nc-resolve-button")?.addEventListener("click", () => resolveChecklistNonConformity(card, item));
     }
+    attachCollapsibleCard(card);
     return card;
 }
 
@@ -1270,6 +1272,7 @@ function makeMechanicNonConformityCard(item, index) {
         fileInput?.addEventListener("change", () => bindPhotoPreview(fileInput, preview));
         card.querySelector(".nc-resolve-button")?.addEventListener("click", () => resolveMechanicNonConformity(card, item));
     }
+    attachCollapsibleCard(card);
     return card;
 }
 
@@ -1463,6 +1466,62 @@ function clearPreview(previewElement) {
         URL.revokeObjectURL(previewElement.dataset.objectUrl);
         delete previewElement.dataset.objectUrl;
     }
+}
+
+function attachCollapsibleCard(card, options = {}) {
+    if (!card) {
+        return;
+    }
+    const summarySelectors = options.summarySelectors || [".item-topline", ".activity-meta"];
+    const summaryNodes = summarySelectors
+        .map((selector) => card.querySelector(selector))
+        .filter((node) => node && node.parentElement === card);
+    if (!summaryNodes.length) {
+        return;
+    }
+
+    const detailNodes = Array.from(card.children).filter((node) => !summaryNodes.includes(node));
+    if (!detailNodes.length) {
+        return;
+    }
+
+    const toggleButton = document.createElement("button");
+    toggleButton.type = "button";
+    toggleButton.className = "card-toggle-header";
+
+    const summaryWrap = document.createElement("div");
+    summaryWrap.className = "card-toggle-summary";
+    summaryNodes.forEach((node) => summaryWrap.appendChild(node));
+
+    const indicator = document.createElement("span");
+    indicator.className = "card-toggle-indicator";
+
+    const detailWrap = document.createElement("div");
+    detailWrap.className = "card-toggle-content";
+    detailNodes.forEach((node) => detailWrap.appendChild(node));
+
+    toggleButton.appendChild(summaryWrap);
+    toggleButton.appendChild(indicator);
+
+    const defaultExpanded = Boolean(options.defaultExpanded);
+    const setExpanded = (expanded) => {
+        detailWrap.hidden = !expanded;
+        toggleButton.setAttribute("aria-expanded", expanded ? "true" : "false");
+        indicator.textContent = expanded ? "OCULTAR DETALHES" : "VER DETALHES";
+        card.classList.toggle("card-collapsible-open", expanded);
+    };
+
+    toggleButton.addEventListener("click", () => {
+        setExpanded(detailWrap.hidden);
+    });
+
+    card.classList.add("card-collapsible");
+    while (card.firstChild) {
+        card.removeChild(card.firstChild);
+    }
+    card.appendChild(toggleButton);
+    card.appendChild(detailWrap);
+    setExpanded(defaultExpanded);
 }
 
 function formatDateTime(value) {
@@ -2028,6 +2087,7 @@ function makeActivityItemCard(activity, item, index) {
     });
     card.querySelector(".activity-save-button").addEventListener("click", () => submitActivityItem(card, activity, item));
     card.querySelector(".activity-share-button")?.addEventListener("click", () => shareActivityItem(activity, item));
+    attachCollapsibleCard(card);
     return card;
 }
 
@@ -2779,6 +2839,7 @@ function makeWashCard(item, index) {
 
     if (isWashed) {
         card.querySelector(".wash-share-button")?.addEventListener("click", () => shareWashItem(item));
+        attachCollapsibleCard(card);
         return card;
     }
 
@@ -2815,6 +2876,7 @@ function makeWashCard(item, index) {
     });
 
     card.querySelector(".wash-save-button").addEventListener("click", () => submitWashEvidence(card, item));
+    attachCollapsibleCard(card);
     return card;
 }
 

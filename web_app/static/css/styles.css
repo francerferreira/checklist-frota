@@ -1031,6 +1031,48 @@ textarea {
     max-width: 100%;
 }
 
+.card-toggle-header {
+    display: grid;
+    gap: 10px;
+    width: 100%;
+    border: none;
+    padding: 0;
+    margin: 0;
+    text-align: left;
+    background: transparent;
+}
+
+.card-toggle-header:focus-visible {
+    outline: 2px solid rgba(37, 99, 235, 0.42);
+    border-radius: 12px;
+}
+
+.card-toggle-summary {
+    display: grid;
+    gap: 12px;
+    min-width: 0;
+}
+
+.card-toggle-indicator {
+    justify-self: end;
+    padding: 5px 10px;
+    border-radius: 999px;
+    background: var(--blue-soft);
+    color: var(--blue);
+    font-size: 0.7rem;
+    font-weight: 900;
+    letter-spacing: 0.03em;
+}
+
+.card-toggle-content {
+    display: grid;
+    gap: 12px;
+}
+
+.card-toggle-content[hidden] {
+    display: none !important;
+}
+
 .checklist-card.has-nc {
     border-color: rgba(239, 68, 68, 0.42);
     background: linear-gradient(180deg, #ffffff, #fffafa);
