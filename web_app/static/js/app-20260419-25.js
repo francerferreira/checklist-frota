@@ -104,6 +104,7 @@ const elements = {
     checklistProgress: document.getElementById("checklist-progress"),
     progressBar: document.getElementById("progress-bar"),
     moduleTabs: document.getElementById("module-tabs"),
+    resetChecklist: document.getElementById("reset-checklist"),
     submitChecklist: document.getElementById("submit-checklist"),
     successSummary: document.getElementById("success-summary"),
     toast: document.getElementById("toast"),
@@ -2983,6 +2984,64 @@ function updateProgress() {
     elements.progressBar.style.width = `${percent}%`;
 }
 
+function resetChecklistCardState(card) {
+    card.dataset.status = "";
+    card.classList.remove("has-nc");
+    card.querySelectorAll(".status-button").forEach((button) => button.classList.remove("active"));
+    card.querySelector(".nc-fields")?.classList.remove("visible");
+
+    const textarea = card.querySelector("textarea");
+    if (textarea) {
+        textarea.value = "";
+    }
+
+    const fileInput = card.querySelector("input[type='file']");
+    if (fileInput) {
+        fileInput.value = "";
+        delete fileInput.dataset.restoredFile;
+    }
+
+    const preview = card.querySelector(".photo-preview");
+    if (preview) {
+        preview.classList.remove("visible");
+        preview.removeAttribute("src");
+        if (preview.dataset.objectUrl) {
+            URL.revokeObjectURL(preview.dataset.objectUrl);
+            delete preview.dataset.objectUrl;
+        }
+    }
+}
+
+async function resetChecklist() {
+    if (!state.selectedVehicle) {
+        showToast("SELECIONE UM EQUIPAMENTO ANTES DE RESETAR.", true);
+        return;
+    }
+
+    const vehicleLabel = state.selectedVehicle?.frota || "EQUIPAMENTO";
+    const shouldReset = window.confirm(`Deseja resetar o checklist do ${vehicleLabel}?`);
+    if (!shouldReset) {
+        return;
+    }
+
+    Array.from(document.querySelectorAll(".checklist-item-card")).forEach((card) => {
+        resetChecklistCardState(card);
+    });
+
+    state.currentModule = "TODOS";
+    document.querySelectorAll(".module-tab").forEach((button) => {
+        const isAll = button.querySelector("span")?.textContent === "TODOS";
+        button.classList.toggle("active", isAll);
+    });
+    document.querySelectorAll(".module-section").forEach((section) => {
+        section.classList.remove("hidden-by-filter");
+    });
+
+    await deleteChecklistDraft(state.selectedVehicle.id).catch(() => {});
+    updateProgress();
+    showToast("CHECKLIST RESETADO.");
+}
+
 function classifyModule(itemName) {
     const name = normalizeText(itemName);
     if (includesAny(name, ["farol", "lanterna", "luz", "seta", "pisca", "milha", "posicao"])) {
@@ -3498,6 +3557,7 @@ on(elements.nonConformitiesBackButton, "click", () => {
     setActiveScreen("home");
 });
 on(elements.activityDetailBackButton, "click", openActivitiesMenu);
+on(elements.resetChecklist, "click", resetChecklist);
 on(elements.submitChecklist, "click", submitChecklist);
 on(elements.backButton, "click", () => setActiveScreen("vehicles"));
 on(elements.newChecklistButton, "click", () => {

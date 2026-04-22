@@ -1350,10 +1350,23 @@ textarea {
     z-index: 5;
     padding: 12px 0 4px;
     background: linear-gradient(180deg, rgba(237, 244, 251, 0), var(--page) 42%);
+    display: grid;
+    gap: 10px;
 }
 
 .submit-bar .primary-button {
     width: 100%;
+}
+
+.submit-bar .reset-checklist-button {
+    width: 100%;
+    background: #ffffff;
+    border: 1px solid rgba(185, 28, 28, 0.3);
+    color: #991b1b;
+}
+
+.submit-bar .reset-checklist-button:hover {
+    background: #fef2f2;
 }
 
 .success-screen {
