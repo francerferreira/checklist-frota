@@ -186,6 +186,7 @@ def create_activity_from_non_conformity(item_id: int):
         ActivityItem(
             activity_id=activity.id,
             vehicle_id=vehicle.id,
+            foto_antes=item.foto_antes,
             status_execucao="PENDENTE",
         )
     )

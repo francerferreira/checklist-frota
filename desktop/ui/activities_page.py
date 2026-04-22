@@ -398,6 +398,9 @@ class ActivityItemUpdateDialog(QDialog):
         self.activity = activity
         self.item = item
         self.allow_material_edit = bool(allow_material_edit)
+        source_type = str(activity.get("source_type") or "").strip().upper()
+        observation = str(activity.get("observacao") or "").upper()
+        self.origin_photo_locked = source_type == "NC_ITEM" or "[ORIGEM:NC#" in observation
         self.before_file = ""
         self.after_file = ""
         self.result_payload = None
@@ -513,6 +516,9 @@ class ActivityItemUpdateDialog(QDialog):
         before_button = QPushButton("Selecionar foto de origem")
         before_button.setMinimumHeight(42)
         before_button.clicked.connect(lambda: self._select_file("before"))
+        if self.origin_photo_locked:
+            before_button.setText("Foto de origem preservada")
+            before_button.setEnabled(False)
         after_button = QPushButton("Selecionar foto de resolução")
         after_button.setMinimumHeight(42)
         after_button.clicked.connect(lambda: self._select_file("after"))
@@ -667,11 +673,12 @@ class ActivityItemUpdateDialog(QDialog):
             user_login = (self.api_client.user or {}).get("login", "sistema")
             vehicle_name = veiculo.get("frota") or "equipamento"
 
-            if self.before_file:
-                upload = self.api_client.upload_file(self.before_file, vehicle_name, item_nome, user_login)
-                payload["foto_antes"] = upload["path"]
-            elif self.item.get("foto_antes"):
-                payload["foto_antes"] = self.item.get("foto_antes")
+            if not self.origin_photo_locked:
+                if self.before_file:
+                    upload = self.api_client.upload_file(self.before_file, vehicle_name, item_nome, user_login)
+                    payload["foto_antes"] = upload["path"]
+                elif self.item.get("foto_antes"):
+                    payload["foto_antes"] = self.item.get("foto_antes")
 
             if self.after_file:
                 upload = self.api_client.upload_file(self.after_file, vehicle_name, f"{item_nome}_depois", user_login)

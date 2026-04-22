@@ -5,7 +5,7 @@ from datetime import datetime
 from flask import Blueprint, g, jsonify, request
 
 from app.extensions import db
-from app.models import Activity, ActivityItem, Material, User, Vehicle
+from app.models import Activity, ActivityItem, ActivityNonConformityLink, Material, User, Vehicle
 from app.services.activity_link_service import (
     get_non_conformities_for_mass_activity,
     link_non_conformity_to_activity,
@@ -93,6 +93,24 @@ def _apply_item_material_payload(item: ActivityItem, activity: Activity, payload
 
     if not item.quantidade_peca:
         item.quantidade_peca = max(1, int(activity.quantidade_por_equipamento or 1))
+
+
+def _has_nc_origin_tag(activity: Activity) -> bool:
+    observation = str(activity.observacao or "").upper()
+    return "[ORIGEM:NC#" in observation
+
+
+def _is_origin_photo_locked(activity: Activity, item: ActivityItem) -> bool:
+    source_type = str(activity.source_type or "").strip().upper()
+    if source_type == "NC_ITEM":
+        return True
+    if _has_nc_origin_tag(activity):
+        return True
+    link_exists = ActivityNonConformityLink.query.filter_by(
+        activity_id=activity.id,
+        activity_item_id=item.id,
+    ).first()
+    return bool(link_exists)
 
 
 def _activity_query():
@@ -399,7 +417,9 @@ def update_activity_item(activity_id: int, item_id: int):
 
     item.status_execucao = status_execucao
     item.observacao = _clean(payload.get("observacao")) or item.observacao
-    item.foto_antes = _clean(payload.get("foto_antes")) or item.foto_antes
+    origin_photo_locked = _is_origin_photo_locked(activity, item)
+    if not origin_photo_locked:
+        item.foto_antes = _clean(payload.get("foto_antes")) or item.foto_antes
     item.foto_depois = _clean(payload.get("foto_depois")) or item.foto_depois
     if status_execucao == "PENDENTE":
         item.instalado_em = None

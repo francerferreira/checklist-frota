@@ -100,6 +100,9 @@ def link_non_conformity_to_activity(activity: Activity, checklist_item: Checklis
         return False
 
     activity_item = ensure_activity_item(activity, vehicle.id)
+    if not activity_item.foto_antes and checklist_item.foto_antes:
+        activity_item.foto_antes = checklist_item.foto_antes
+
     link = ActivityNonConformityLink(
         activity_id=activity.id,
         activity_item_id=activity_item.id,
