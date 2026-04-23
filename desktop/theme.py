@@ -260,34 +260,50 @@ QLabel#DialogBodyText {
     font-weight: 700;
 }
 QPushButton {
-    border: 1px solid #8FB0D1;
+    border: 1px solid #1D67B8;
     border-radius: 2px;
-    background: #E5F0FF;
-    color: #0F3964;
+    background: #2C78D3;
+    color: #FFFFFF;
     padding: 6px 10px;
     font-weight: 700;
 }
 QPushButton:hover {
-    background: #D6E9FF;
+    background: #1E67BF;
 }
 QPushButton:disabled {
-    background: #D7E6F8;
-    color: #6F8FB2;
+    background: #CFE1F5;
+    border: 1px solid #9CB9DB;
+    color: #EEF5FD;
 }
 QPushButton[variant="primary"] {
-    background: #1F6FCA;
-    border: 1px solid #185DAA;
+    background: #115FC0;
+    border: 1px solid #0E4E9E;
     color: #FFFFFF;
+}
+QPushButton[variant="primary"]:disabled {
+    background: #C6DBF3;
+    border: 1px solid #97B8DE;
+    color: #E9F2FC;
 }
 QPushButton[variant="success"] {
-    background: #1E8792;
-    border: 1px solid #1A727B;
+    background: #159789;
+    border: 1px solid #0F756A;
     color: #FFFFFF;
 }
+QPushButton[variant="success"]:disabled {
+    background: #C9E9E5;
+    border: 1px solid #91CDC6;
+    color: #EAF7F5;
+}
 QPushButton[variant="danger"] {
-    background: #B14B4B;
-    border: 1px solid #973E3E;
+    background: #D06A6A;
+    border: 1px solid #B65858;
     color: #FFFFFF;
+}
+QPushButton[variant="danger"]:disabled {
+    background: #EFD7D7;
+    border: 1px solid #D8AFAF;
+    color: #F8EFEF;
 }
 QPushButton[moduleNav="true"] {
     padding: 5px 8px;
@@ -295,20 +311,20 @@ QPushButton[moduleNav="true"] {
     font-weight: 720;
 }
 QPushButton[compactAction="ok"] {
-    background: #E6F2FF;
-    color: #1D5B8D;
-    border: 1px solid #B7CCE3;
+    background: #2272CC;
+    color: #FFFFFF;
+    border: 1px solid #185DAA;
 }
 QPushButton[compactAction="ok"]:hover {
-    background: #D9EAFF;
+    background: #1A62B3;
 }
 QPushButton[compactAction="no"] {
-    background: #F2E8E8;
-    color: #6A4A4A;
-    border: 1px solid #C9B8B8;
+    background: #CF7B7B;
+    color: #FFFFFF;
+    border: 1px solid #B66868;
 }
 QPushButton[compactAction="no"]:hover {
-    background: #EADDDD;
+    background: #BB6B6B;
 }
 QLineEdit, QTextEdit, QComboBox {
     background: #FFFFFF;
@@ -487,16 +503,16 @@ QTableWidget#WashCalendarTable QHeaderView::section {
     font-weight: 760;
 }
 QHeaderView::section {
-    background: #DAE7F7;
-    color: #163F6A;
+    background: #2B73C6;
+    color: #FFFFFF;
     border: none;
-    border-right: 1px solid rgba(124, 154, 188, 0.20);
-    border-bottom: 1px solid rgba(124, 154, 188, 0.24);
+    border-right: 1px solid #1F5FA7;
+    border-bottom: 1px solid #1F5FA7;
     padding: 7px 9px;
     font-weight: 760;
 }
 QHeaderView::section:hover {
-    background: #E4EFFC;
+    background: #3A81D3;
 }
 QScrollBar:vertical {
     width: 11px;

@@ -246,7 +246,7 @@ class MainWindow(QMainWindow):
         self._build_mdi_placeholder_logo()
 
         self.showMaximized()
-        self.switch_page("dashboard")
+        QTimer.singleShot(0, lambda: self.switch_page("dashboard"))
 
     def _build_pages(self):
         self.dashboard_page = DashboardPage(self.api_client)
@@ -428,7 +428,9 @@ class MainWindow(QMainWindow):
 
         self.mdi_area.viewport().installEventFilter(self)
         self._resize_mdi_placeholder_logo()
-        self._refresh_mdi_placeholder_logo()
+        self.mdi_logo_label.lower()
+        QTimer.singleShot(0, self._resize_mdi_placeholder_logo)
+        QTimer.singleShot(120, self._resize_mdi_placeholder_logo)
 
     def _build_status_bar(self):
         status = self.statusBar()
@@ -460,6 +462,9 @@ class MainWindow(QMainWindow):
 
     def _ensure_subwindow(self, page_key: str, *, show_if_hidden: bool = True):
         sub = self.page_subwindows.get(page_key)
+        if sub is not None and sub.widget() is None:
+            self.page_subwindows.pop(page_key, None)
+            sub = None
         if sub is None:
             sub = QMdiSubWindow(self.mdi_area)
             sub.setAttribute(Qt.WA_DeleteOnClose, False)
@@ -474,6 +479,7 @@ class MainWindow(QMainWindow):
             )
             sub.setWidget(self.page_map[page_key])
             self.mdi_area.addSubWindow(sub)
+            sub.destroyed.connect(lambda *_: self.page_subwindows.pop(page_key, None))
             self.page_subwindows[page_key] = sub
 
         if show_if_hidden and sub.isHidden():
@@ -484,14 +490,12 @@ class MainWindow(QMainWindow):
     def _on_subwindow_activated(self, subwindow):
         if subwindow is None:
             self.current_page_key = ""
-            self._refresh_mdi_placeholder_logo()
             return
         for key, sub in self.page_subwindows.items():
             if sub is subwindow:
                 self.current_page_key = key
                 self._sync_tree_selection(key)
                 break
-        self._refresh_mdi_placeholder_logo()
 
     def _sync_tree_selection(self, page_key: str):
         item = self.tree_items.get(page_key)
@@ -517,9 +521,13 @@ class MainWindow(QMainWindow):
         self.mdi_area.setActiveSubWindow(sub)
         sub.setWindowState(Qt.WindowNoState)
         sub.show()
+        if sub.widget() is not None:
+            sub.widget().show()
+            sub.widget().raise_()
+        sub.raise_()
         sub.showMaximized()
         QTimer.singleShot(0, lambda s=sub: s.showMaximized() if s and not s.isHidden() else None)
-        self._refresh_mdi_placeholder_logo()
+        self.mdi_logo_label.lower()
 
         page = self.page_map[page_key]
         if not same_page:
@@ -541,17 +549,10 @@ class MainWindow(QMainWindow):
             self._mdi_logo_pixmap.scaled(target_w, target_h, Qt.KeepAspectRatio, Qt.SmoothTransformation)
         )
 
-    def _refresh_mdi_placeholder_logo(self):
-        if not hasattr(self, "mdi_logo_label"):
-            return
-        has_visible_page = any(sub is not None and not sub.isHidden() for sub in self.page_subwindows.values())
-        self.mdi_logo_label.setVisible(not has_visible_page)
-        if not has_visible_page:
-            self.mdi_logo_label.raise_()
-
     def eventFilter(self, watched, event):
         if watched is self.mdi_area.viewport() and event.type() == QEvent.Resize:
             self._resize_mdi_placeholder_logo()
+            self.mdi_logo_label.lower()
             active = self.mdi_area.activeSubWindow()
             if active and not active.isHidden():
                 active.showMaximized()
