@@ -3,7 +3,7 @@
 from datetime import datetime
 
 from PySide6.QtCore import QEasingCurve, QPropertyAnimation, QTimer, Qt
-from PySide6.QtGui import QIcon
+from PySide6.QtGui import QIcon, QKeySequence, QShortcut
 from PySide6.QtWidgets import (
     QDialog,
     QFrame,
@@ -217,6 +217,9 @@ class MainWindow(QMainWindow):
 
         self._build_pages()
         self._build_menu_bar()
+        self.toggle_sidebar_shortcut = QShortcut(QKeySequence("F9"), self)
+        self.toggle_sidebar_shortcut.setContext(Qt.ApplicationShortcut)
+        self.toggle_sidebar_shortcut.activated.connect(self.toggle_sidebar)
 
         container = QWidget()
         container.setObjectName("MainContainer")
@@ -416,6 +419,10 @@ class MainWindow(QMainWindow):
             return label
 
         current_user = (self.api_client.user or self.user or {})
+        toggle_button = QPushButton("☰ Navegação")
+        toggle_button.setMinimumHeight(24)
+        toggle_button.clicked.connect(self.toggle_sidebar)
+        status.addPermanentWidget(toggle_button)
         status.addPermanentWidget(make_cell("REV 1.0.0.0", 120))
         status.addPermanentWidget(
             make_cell(((current_user.get("nome") or current_user.get("login") or "-").upper()), 160)
@@ -586,15 +593,26 @@ class MainWindow(QMainWindow):
         if not hasattr(self, "main_splitter"):
             return
         if self.sidebar_visible:
-            self.tree_panel.setMinimumWidth(0)
-            self.tree_panel.setMaximumWidth(0)
+            left_size = 0
+            try:
+                sizes = self.main_splitter.sizes()
+                left_size = int(sizes[0]) if sizes else 0
+            except Exception:
+                left_size = 0
+            if left_size > 80:
+                self._last_sidebar_width = left_size
+            self.tree_panel.hide()
             self.main_splitter.setSizes([0, max(1, self.width())])
             self.sidebar_visible = False
             return
 
         self.tree_panel.setMinimumWidth(280)
         self.tree_panel.setMaximumWidth(380)
-        self.main_splitter.setSizes([300, max(1, self.width() - 300)])
+        self.tree_panel.show()
+        target = int(getattr(self, "_last_sidebar_width", 300) or 300)
+        if target < 280 or target > 380:
+            target = 300
+        self.main_splitter.setSizes([target, max(1, self.width() - target)])
         self.sidebar_visible = True
 
 

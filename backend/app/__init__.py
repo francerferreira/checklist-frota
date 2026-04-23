@@ -33,6 +33,10 @@ def create_app() -> Flask:
     migrate.init_app(app, db)
     cors.init_app(app, resources={r"/*": {"origins": "*"}})
 
+    @app.get("/health")
+    def health():
+        return {"status": "ok"}, 200
+
     register_blueprints(app)
 
     with app.app_context():

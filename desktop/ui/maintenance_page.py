@@ -17,6 +17,7 @@ from PySide6.QtWidgets import (
     QLabel,
     QLineEdit,
     QPushButton,
+    QScrollArea,
     QSizePolicy,
     QSpinBox,
     QTabWidget,
@@ -330,7 +331,22 @@ class MaintenancePage(QFrame):
         self.report_vehicles: list[dict] = []
         self.setObjectName("ContentSurface")
 
-        layout = QVBoxLayout(self)
+        shell = QVBoxLayout(self)
+        shell.setContentsMargins(0, 0, 0, 0)
+        shell.setSpacing(0)
+
+        scroll = QScrollArea()
+        scroll.setWidgetResizable(True)
+        scroll.setHorizontalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
+        scroll.setFrameShape(QFrame.NoFrame)
+        scroll.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
+
+        content = QWidget()
+        content.setAttribute(Qt.WA_StyledBackground, False)
+        scroll.setWidget(content)
+        shell.addWidget(scroll)
+
+        layout = QVBoxLayout(content)
         layout.setContentsMargins(14, 12, 14, 12)
         layout.setSpacing(10)
 
@@ -740,7 +756,7 @@ class MaintenancePage(QFrame):
 
         self.tabs = QTabWidget()
         self.tabs.setDocumentMode(True)
-        self.tabs.setMinimumHeight(560)
+        self.tabs.setMinimumHeight(760)
         self.tabs.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
 
         programacoes_tab = QWidget()
@@ -797,16 +813,13 @@ class MaintenancePage(QFrame):
         self._refresh_calendar_selection_badge()
 
     def set_loading_state(self, loading: bool):
-        if loading:
-            self.schedules_skeleton.show_skeleton("Carregando programação de manutenção")
-            self.materials_skeleton.show_skeleton("Carregando governanca de materiais")
-            self.details_skeleton.show_skeleton("Carregando itens da programação")
-            self.calendar_skeleton.show_skeleton("Carregando calendário da manutenção")
-        else:
-            self.schedules_skeleton.hide_skeleton()
-            self.materials_skeleton.hide_skeleton()
-            self.details_skeleton.hide_skeleton()
-            self.calendar_skeleton.hide_skeleton()
+        # Nesta tela o skeleton animado atrapalha leitura operacional.
+        # Mantemos sempre oculto para priorizar visibilidade das tabelas.
+        _ = loading
+        self.schedules_skeleton.hide_skeleton()
+        self.materials_skeleton.hide_skeleton()
+        self.details_skeleton.hide_skeleton()
+        self.calendar_skeleton.hide_skeleton()
 
     def refresh(self):
         month = self.month_input.date()
