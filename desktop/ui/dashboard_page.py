@@ -126,25 +126,25 @@ class DashboardPage(QFrame):
         self.converted_nc_card = StatCard(
             "NC convertidas em atividade",
             "0",
-            "Ocorrencias com tratativa formal iniciada",
+            "Ocorrências com tratativa formal iniciada",
             icon_name="activities",
         )
         self.unlinked_nc_card = StatCard(
             "NC sem atividade",
             "0",
-            "Ocorrencias sem abertura no modulo de atividades",
+            "Ocorrências sem abertura no módulo de atividades",
             icon_name="warning",
         )
         self.nc_to_activity_time_card = StatCard(
-            "Tempo medio NC -> atividade",
+            "Tempo médio NC -> atividade",
             "-",
-            "Velocidade media para iniciar tratativa",
+            "Velocidade média para iniciar tratativa",
             icon_name="dashboard",
         )
         self.activity_to_resolution_time_card = StatCard(
-            "Tempo medio atividade -> resolucao",
+            "Tempo médio atividade -> resolução",
             "-",
-            "Tempo medio da atividade ate a finalizacao",
+            "Tempo médio da atividade até a finalização",
             icon_name="reports",
         )
         conversion_layout.addWidget(self.converted_nc_card, 0, 0)
@@ -222,22 +222,22 @@ class DashboardPage(QFrame):
         self.converted_nc_card.set_content(
             "NC convertidas em atividade",
             str(dashboard.get("nc_convertidas_em_atividade", 0)),
-            "Ocorrencias com tratativa formal iniciada",
+            "Ocorrências com tratativa formal iniciada",
         )
         self.unlinked_nc_card.set_content(
             "NC sem atividade",
             str(dashboard.get("nc_sem_atividade", 0)),
-            "Ocorrencias sem abertura no modulo de atividades",
+            "Ocorrências sem abertura no módulo de atividades",
         )
         self.nc_to_activity_time_card.set_content(
-            "Tempo medio NC -> atividade",
+            "Tempo médio NC -> atividade",
             _format_minutes(dashboard.get("tempo_medio_nc_para_atividade_minutos")),
-            "Velocidade media para iniciar tratativa",
+            "Velocidade média para iniciar tratativa",
         )
         self.activity_to_resolution_time_card.set_content(
-            "Tempo medio atividade -> resolucao",
+            "Tempo médio atividade -> resolução",
             _format_minutes(dashboard.get("tempo_medio_atividade_para_resolucao_minutos")),
-            "Tempo medio da atividade ate a finalizacao",
+            "Tempo médio da atividade até a finalização",
         )
 
         critical_items = dashboard.get("itens_criticos", [])

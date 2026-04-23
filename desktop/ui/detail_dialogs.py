@@ -56,7 +56,7 @@ class NonConformityDetailDialog(QDialog):
         title = QLabel(f"{item['veiculo']['frota']} - {item['item_nome']}")
         title.setObjectName("DialogHeaderTitle")
         subtitle = QLabel(
-            f"Ocorrencia registrada em {self._format(item.get('created_at'))} - "
+            f"Ocorrência registrada em {self._format(item.get('created_at'))} - "
             f"{'Resolvida' if item.get('resolvido') else 'Aberta'}"
         )
         subtitle.setObjectName("DialogHeaderSubtitle")
@@ -111,7 +111,7 @@ class NonConformityDetailDialog(QDialog):
                     f"Status: {'Resolvida' if item.get('resolvido') else 'Aberta'}",
                     f"Código da peça: {item.get('codigo_peca') or '-'}",
                     f"Descrição da peça: {item.get('descricao_peca') or '-'}",
-                    f"Data de resolucao: {self._format(item.get('data_resolucao'))}",
+                    f"Data de resolução: {self._format(item.get('data_resolucao'))}",
                     f"Observação: {item.get('observacao') or '-'}",
                 ]
             )

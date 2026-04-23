@@ -22,7 +22,7 @@ class ImagePreviewDialog(QDialog):
         self._normal_geometry = None
         self._is_full_screen = False
 
-        self.setWindowTitle(title or "Visualizacao da imagem")
+        self.setWindowTitle(title or "Visualização da imagem")
         configure_dialog_window(self, width=1080, height=760, min_width=820, min_height=600)
         style_card(self)
 
@@ -43,7 +43,7 @@ class ImagePreviewDialog(QDialog):
 
         title_label = QLabel(title or "Imagem")
         title_label.setObjectName("DialogHeaderTitle")
-        subtitle_label = QLabel("Visualizacao ampliada. Use duplo clique ou F11 para tela cheia; Esc para sair.")
+        subtitle_label = QLabel("Visualização ampliada. Use duplo clique ou F11 para tela cheia; Esc para sair.")
         subtitle_label.setObjectName("DialogHeaderSubtitle")
         subtitle_label.setWordWrap(True)
         title_wrap.addWidget(title_label)

@@ -982,7 +982,7 @@ def export_material_report_pdf(
     periodo = report.get("periodo", {})
     resumo = report.get("resumo", {})
     subtitle = (
-        f"Período {periodo.get('data_inicial') or '-'} a {periodo.get('data_final') or datetime.now().strftime('%Y-%m-%d')}"
+        f"Período {periodo.get('data_inicial') or '-'} a {periodo.get('data_final') or datetime.now().strftime('%d/%m/%Y')}"
     )
 
     doc = SimpleDocTemplate(

@@ -53,9 +53,9 @@ class ChecklistItemDialog(QDialog):
         icon_layout.addWidget(icon_label)
 
         title_wrap = QVBoxLayout()
-        title = QLabel("ConfiguraÃ§Ã£o de item")
+        title = QLabel("Configuração de item")
         title.setObjectName("DialogHeaderTitle")
-        subtitle = QLabel("Cadastre o nome, tipo de equipamento, ordem e foto de referÃªncia mostrada no celular.")
+        subtitle = QLabel("Cadastre o nome, tipo de equipamento, ordem e foto de referência mostrada no celular.")
         subtitle.setObjectName("DialogHeaderSubtitle")
         subtitle.setWordWrap(True)
         title_wrap.addWidget(title)
@@ -121,7 +121,7 @@ class ChecklistItemDialog(QDialog):
         photo_layout = QVBoxLayout(photo_field)
         photo_layout.setContentsMargins(12, 12, 12, 12)
         photo_layout.setSpacing(8)
-        photo_title = QLabel("Foto de referÃªncia")
+        photo_title = QLabel("Foto de referência")
         photo_title.setObjectName("SectionCaption")
         photo_actions = QHBoxLayout()
         photo_actions.setContentsMargins(0, 0, 0, 0)
@@ -178,7 +178,7 @@ class ChecklistItemDialog(QDialog):
                 "ativo": self.active_checkbox.isChecked(),
             }
             if not payload["item_nome"]:
-                show_notice(self, "Nome obrigatÃ³rio", "Informe o nome do item do checklist.", icon_name="warning")
+                show_notice(self, "Nome obrigatório", "Informe o nome do item do checklist.", icon_name="warning")
                 return
             if self.selected_file:
                 upload = self.api_client.upload_file(
@@ -217,7 +217,7 @@ class ChecklistItemsPage(QFrame):
         text_wrap = QVBoxLayout()
         title = QLabel("Itens do checklist")
         title.setObjectName("PageTitle")
-        subtitle = QLabel("Configure os itens de cavalo e carreta, incluindo fotos de referÃªncia para o motorista.")
+        subtitle = QLabel("Configure os itens de cavalo e carreta, incluindo fotos de referência para o motorista.")
         subtitle.setObjectName("SectionCaption")
         subtitle.setWordWrap(True)
         text_wrap.addWidget(title)
@@ -276,7 +276,7 @@ class ChecklistItemsPage(QFrame):
         table_layout.setSpacing(8)
 
         top = QHBoxLayout()
-        title_label = QLabel("CatÃ¡logo de itens")
+        title_label = QLabel("Catálogo de itens")
         title_label.setObjectName("SectionTitle")
         self.summary_badge = QLabel("Nenhum item carregado")
         self.summary_badge.setObjectName("TopBarPill")
@@ -321,8 +321,8 @@ class ChecklistItemsPage(QFrame):
                     str(item.get("position") or ""),
                     (item.get("tipo") or item.get("vehicle_type") or "-").title(),
                     item.get("item_nome") or "-",
-                    "Sim" if item.get("foto_path") else "NÃ£o",
-                    "Sim" if item.get("ativo") else "NÃ£o",
+                    "Sim" if item.get("foto_path") else "Não",
+                    "Sim" if item.get("ativo") else "Não",
                     str(item.get("id") or ""),
                 ]
                 for col, value in enumerate(values):
@@ -388,7 +388,7 @@ class ChecklistItemsPage(QFrame):
             "Inativar item",
             f"Deseja retirar o item {self.current_item['item_nome']} do checklist ativo?",
             confirm_text="Sim",
-            cancel_text="NÃ£o",
+            cancel_text="Não",
             icon_name="warning",
         )
         if confirm:

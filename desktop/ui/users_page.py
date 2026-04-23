@@ -322,7 +322,7 @@ class UsersPage(QFrame):
             show_notice(self, "Acesso restrito", "Somente o administrador pode excluir logins.", icon_name="warning")
             return
         if not self.current_user_item:
-            show_notice(self, "Selecao obrigatoria", "Selecione um login para excluir.", icon_name="warning")
+            show_notice(self, "Seleção obrigatória", "Selecione um login para excluir.", icon_name="warning")
             return
 
         user = self.current_user_item

@@ -1081,17 +1081,19 @@ class WashesPage(QFrame):
         subtitle.setWordWrap(True)
         text_wrap.addWidget(title)
         text_wrap.addWidget(subtitle)
-        context_hint = QLabel("Operacao diaria - Cronograma - Fila - Historico")
+        context_hint = QLabel("Operação diária - Cronograma - Fila - Histórico")
         context_hint.setObjectName("ContextHint")
         text_wrap.addWidget(context_hint)
 
         buttons = QHBoxLayout()
         buttons.setSpacing(6)
         self.sync_button = QPushButton("Sincronizar frota")
+        self.sync_button.setProperty("variant", "primary")
         self.sync_button.clicked.connect(self.sync_queue)
         self.reclassify_button = QPushButton("Reclassificar fila")
         self.reclassify_button.clicked.connect(self.reclassify_queue)
         self.message_button = QPushButton("Gerar mensagem")
+        self.message_button.setProperty("variant", "primary")
         self.message_button.clicked.connect(self.generate_tomorrow_message)
         self.pdf_button = QPushButton("PDF mensal")
         self.pdf_button.clicked.connect(self.export_month_pdf)
@@ -1101,11 +1103,19 @@ class WashesPage(QFrame):
         self.values_manage_button = QPushButton("Configurar valores")
         self.values_manage_button.clicked.connect(self.open_values_dialog)
         self.values_manage_button.setVisible(self.can_view_values)
+        self.register_button = QPushButton("Registrar lavagem")
+        self.register_button.setProperty("variant", "primary")
+        self.register_button.clicked.connect(self.register_selected_wash)
+        self.preventive_button = QPushButton("Programar preventiva")
+        self.preventive_button.clicked.connect(self.schedule_preventive)
         self.refresh_button = QPushButton("Atualizar")
+        self.refresh_button.setProperty("variant", "success")
         self.refresh_button.clicked.connect(self.refresh)
         for action_button in (
             self.sync_button,
             self.reclassify_button,
+            self.register_button,
+            self.preventive_button,
             self.message_button,
             self.pdf_button,
             self.schedule_pdf_button,
@@ -1369,19 +1379,6 @@ class WashesPage(QFrame):
         queue_top.addLayout(queue_text, 1)
         queue_top.addWidget(self.selection_badge)
 
-        queue_actions = QHBoxLayout()
-        queue_actions.setSpacing(8)
-        self.register_button = QPushButton("Registrar lavagem")
-        self.register_button.setProperty("variant", "primary")
-        self.register_button.setMinimumHeight(34)
-        self.register_button.clicked.connect(self.register_selected_wash)
-        self.preventive_button = QPushButton("Programar preventiva")
-        self.preventive_button.setMinimumHeight(34)
-        self.preventive_button.clicked.connect(self.schedule_preventive)
-        queue_actions.addWidget(self.register_button)
-        queue_actions.addWidget(self.preventive_button)
-        queue_actions.addStretch()
-
         self.queue_table = QTableWidget(0, 10)
         self.queue_table.setHorizontalHeaderLabels(
             [
@@ -1405,7 +1402,6 @@ class WashesPage(QFrame):
         self.queue_table.itemSelectionChanged.connect(self._queue_selection_changed)
 
         queue_layout.addLayout(queue_top)
-        queue_layout.addLayout(queue_actions)
         queue_layout.addWidget(self.queue_table)
 
         queue_tab_layout.addWidget(queue_filter)
@@ -2104,11 +2100,11 @@ class WashesPage(QFrame):
     def confirm_schedule_success(self, schedule_item: dict):
         queue_item_id = schedule_item.get("queue_item_id")
         if not queue_item_id:
-            show_notice(self, "Item invalido", "Nao foi possivel identificar o item da fila para esta lavagem.", icon_name="warning")
+            show_notice(self, "Item inválido", "Não foi possível identificar o item da fila para esta lavagem.", icon_name="warning")
             return
         queue_item = next((item for item in self.overview.get("fila", []) if item.get("id") == queue_item_id), None)
         if not queue_item:
-            show_notice(self, "Item invalido", "O item nao esta mais disponivel na fila atual.", icon_name="warning")
+            show_notice(self, "Item inválido", "O item não está mais disponível na fila atual.", icon_name="warning")
             return
 
         dialog = ScheduleQuickConfirmDialog(schedule_item, queue_item, self.trailers, self)
@@ -2166,7 +2162,7 @@ class WashesPage(QFrame):
                     "motivo": dialog.result_payload.get("motivo"),
                 }
             )
-            show_notice(self, "Cronograma atualizado", "A lavagem foi marcada como nao cumprida nesse turno.", icon_name="warning")
+            show_notice(self, "Cronograma atualizado", "A lavagem foi marcada como não cumprida nesse turno.", icon_name="warning")
             self.refresh()
         except Exception as exc:
             show_notice(self, "Falha ao atualizar", str(exc), icon_name="warning")

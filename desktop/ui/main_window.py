@@ -207,8 +207,9 @@ class MainWindow(QMainWindow):
         self.page_subwindows: dict[str, QWidget] = {}
         self.tree_items: dict[str, QWidget] = {}
         self._syncing_tree = False
+        self.sidebar_visible = True
 
-        self.setWindowTitle("Sistema Portuario")
+        self.setWindowTitle("Sistema de Checklist de Frota")
         self.setMinimumSize(1280, 760)
         self.setStyleSheet(APP_STYLE)
         if self.app_icon_path.exists():
@@ -224,7 +225,7 @@ class MainWindow(QMainWindow):
         root.setSpacing(6)
 
         splitter = QSplitter(Qt.Horizontal)
-        splitter.setChildrenCollapsible(False)
+        splitter.setChildrenCollapsible(True)
         self.tree_panel = self._build_tree_panel()
         self.mdi_area = self._build_mdi_area()
         splitter.addWidget(self.tree_panel)
@@ -232,6 +233,7 @@ class MainWindow(QMainWindow):
         splitter.setStretchFactor(0, 0)
         splitter.setStretchFactor(1, 1)
         splitter.setSizes([300, 1200])
+        self.main_splitter = splitter
 
         root.addWidget(splitter, 1)
 
@@ -275,15 +277,15 @@ class MainWindow(QMainWindow):
 
         self.page_titles = {
             "dashboard": "Dashboard",
-            "nc": "Ocorrencias",
+            "nc": "Ocorrências",
             "productivity": "Produtividade",
             "equipment": "Frota",
             "checklist_items": "Checklist",
             "materials": "Materiais",
             "washes": "Lavagens",
             "activities": "Atividades",
-            "maintenance": "Manutencao",
-            "reports": "Relatorios",
+            "maintenance": "Manutenção",
+            "reports": "Relatórios",
             "users": "Logins",
             "cloud_backup": "Backup",
         }
@@ -308,9 +310,9 @@ class MainWindow(QMainWindow):
             "Cadastro": ["equipment", "checklist_items", "materials", "users"],
             "Tabelas": ["checklist_items", "materials"],
             "Movimento": ["nc", "activities", "washes", "maintenance"],
-            "Relatorios": ["reports", "productivity"],
+            "Relatórios": ["reports", "productivity"],
             "Sistema": ["dashboard", "cloud_backup"],
-            "Utilitarios": ["dashboard"],
+            "Utilitários": ["dashboard"],
         }
 
         for menu_title, keys in menu_groups.items():
@@ -326,9 +328,12 @@ class MainWindow(QMainWindow):
                 menu.setEnabled(False)
 
         account_menu = menubar.addMenu("Conta")
+        toggle_nav_action = account_menu.addAction("Ocultar/mostrar navegação")
+        toggle_nav_action.setShortcut("F9")
+        toggle_nav_action.triggered.connect(self.toggle_sidebar)
         access_action = account_menu.addAction("Meu acesso")
         access_action.triggered.connect(self.open_access_dialog)
-        exit_action = account_menu.addAction("Encerrar sessao")
+        exit_action = account_menu.addAction("Encerrar sessão")
         exit_action.triggered.connect(self.close)
 
     def _build_tree_panel(self):
@@ -340,7 +345,7 @@ class MainWindow(QMainWindow):
         panel_layout.setContentsMargins(6, 6, 6, 6)
         panel_layout.setSpacing(6)
 
-        title = QLabel("Modulo Portuario")
+        title = QLabel("Módulo Checklist de Frota")
         title.setObjectName("SectionTitle")
         panel_layout.addWidget(title)
 
@@ -357,13 +362,13 @@ class MainWindow(QMainWindow):
         self.nav_tree.clear()
         self.tree_items = {}
 
-        root = self._make_tree_item(self.nav_tree, "Modulo Portuario", icon_name="dashboard")
+        root = self._make_tree_item(self.nav_tree, "Módulo Checklist de Frota", icon_name="dashboard")
         sections = [
             ("1 - Cadastro", ["equipment", "checklist_items", "materials", "users"]),
             ("2 - Tabelas", ["checklist_items", "materials"]),
             ("3 - Movimento", ["nc", "activities", "washes", "maintenance"]),
-            ("4 - Relatorios", ["reports", "productivity"]),
-            ("5 - Utilitarios", ["dashboard", "cloud_backup"]),
+            ("4 - Relatórios", ["reports", "productivity"]),
+            ("5 - Utilitários", ["dashboard", "cloud_backup"]),
         ]
 
         for section_label, keys in sections:
@@ -410,8 +415,11 @@ class MainWindow(QMainWindow):
             )
             return label
 
-        status.addPermanentWidget(make_cell("V:2.0.10.37", 120))
-        status.addPermanentWidget(make_cell((self.user.get("nome") or "-").upper(), 160))
+        current_user = (self.api_client.user or self.user or {})
+        status.addPermanentWidget(make_cell("REV 1.0.0.0", 120))
+        status.addPermanentWidget(
+            make_cell(((current_user.get("nome") or current_user.get("login") or "-").upper()), 160)
+        )
         status.addPermanentWidget(make_cell("CHIBATAO NAVEGACAO E COMERCIO LTDA", 360), 1)
         status.addPermanentWidget(make_cell("Manual ISO", 120))
 
@@ -560,9 +568,9 @@ class MainWindow(QMainWindow):
         context_map = {
             "dashboard": ("Atualizando dashboard", "Preparando indicadores, prioridades e visão executiva."),
             "nc": ("Carregando ocorrências", "Buscando não conformidades, filtros e histórico visual."),
-            "productivity": ("Carregando produtividade", "Consolidando checklists, manutencoes, lavagens e resolucoes."),
+            "productivity": ("Carregando produtividade", "Consolidando checklists, manutenções, lavagens e resoluções."),
             "equipment": ("Carregando equipamentos", "Organizando a base da frota e os detalhes técnicos."),
-            "checklist_items": ("Carregando itens", "Atualizando catalogo, ordem e fotos de referencia do checklist."),
+            "checklist_items": ("Carregando itens", "Atualizando catálogo, ordem e fotos de referência do checklist."),
             "materials": ("Carregando materiais", "Atualizando saldo, alertas de estoque e itens cadastrados."),
             "washes": ("Carregando lavagens", "Montando fila, histórico mensal e programação preventiva."),
             "activities": ("Carregando atividades", "Montando auditorias em massa, seleção e execução."),
@@ -573,5 +581,20 @@ class MainWindow(QMainWindow):
         }
         title, subtitle = context_map.get(page_key, ("Carregando painel", "Preparando dados da tela atual."))
         self.loading_overlay.show_loading(title, subtitle)
+
+    def toggle_sidebar(self):
+        if not hasattr(self, "main_splitter"):
+            return
+        if self.sidebar_visible:
+            self.tree_panel.setMinimumWidth(0)
+            self.tree_panel.setMaximumWidth(0)
+            self.main_splitter.setSizes([0, max(1, self.width())])
+            self.sidebar_visible = False
+            return
+
+        self.tree_panel.setMinimumWidth(280)
+        self.tree_panel.setMaximumWidth(380)
+        self.main_splitter.setSizes([300, max(1, self.width() - 300)])
+        self.sidebar_visible = True
 
 

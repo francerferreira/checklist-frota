@@ -260,33 +260,33 @@ QLabel#DialogBodyText {
     font-weight: 700;
 }
 QPushButton {
-    border: 1px solid #9FB7D3;
+    border: 1px solid #8FB0D1;
     border-radius: 2px;
-    background: #ECF3FC;
-    color: #113A67;
+    background: #E5F0FF;
+    color: #0F3964;
     padding: 6px 10px;
     font-weight: 700;
 }
 QPushButton:hover {
-    background: #E1E5EA;
+    background: #D6E9FF;
 }
 QPushButton:disabled {
-    background: #DCE8F7;
-    color: #7A95B4;
+    background: #D7E6F8;
+    color: #6F8FB2;
 }
 QPushButton[variant="primary"] {
-    background: #2F6FB2;
-    border: 1px solid #245F97;
+    background: #1F6FCA;
+    border: 1px solid #185DAA;
     color: #FFFFFF;
 }
 QPushButton[variant="success"] {
-    background: #2D7D8D;
-    border: 1px solid #296D7B;
+    background: #1E8792;
+    border: 1px solid #1A727B;
     color: #FFFFFF;
 }
 QPushButton[variant="danger"] {
-    background: #8A5B5B;
-    border: 1px solid #724B4B;
+    background: #B14B4B;
+    border: 1px solid #973E3E;
     color: #FFFFFF;
 }
 QPushButton[moduleNav="true"] {

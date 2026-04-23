@@ -15,7 +15,7 @@ class ConfirmationDialog(QDialog):
         message: str,
         *,
         confirm_text: str = "Yes",
-        cancel_text: str = "Nao",
+        cancel_text: str = "Não",
         icon_name: str = "warning",
     ):
         super().__init__(parent)
@@ -91,7 +91,7 @@ class ConfirmationDialog(QDialog):
         title_wrap.setSpacing(4)
         title_label = QLabel(title)
         title_label.setObjectName("DialogHeaderTitle")
-        subtitle_label = QLabel("Confirme esta acao para continuar.")
+        subtitle_label = QLabel("Confirme esta ação para continuar.")
         subtitle_label.setObjectName("DialogHeaderSubtitle")
         subtitle_label.setWordWrap(True)
         title_wrap.addWidget(title_label)
@@ -215,7 +215,7 @@ class NoticeDialog(QDialog):
         title_wrap.setSpacing(4)
         title_label = QLabel(title)
         title_label.setObjectName("DialogHeaderTitle")
-        subtitle_label = QLabel("Operacao concluida com sucesso.")
+        subtitle_label = QLabel("Operação concluída com sucesso.")
         subtitle_label.setObjectName("DialogHeaderSubtitle")
         subtitle_label.setWordWrap(True)
         title_wrap.addWidget(title_label)
@@ -266,7 +266,7 @@ def ask_confirmation(
     message: str,
     *,
     confirm_text: str = "Sim",
-    cancel_text: str = "Nao",
+    cancel_text: str = "Não",
     icon_name: str = "warning",
 ) -> bool:
     dialog = ConfirmationDialog(

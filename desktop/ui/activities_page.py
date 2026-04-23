@@ -362,12 +362,12 @@ class ActivityDialog(QDialog):
         item_nome = self.item_input.text().strip()
         vehicle_ids = self.selected_vehicle_ids()
         if not item_nome:
-            show_notice(self, "Modulo obrigatorio", "Informe o modulo ou componente da atividade.", icon_name="warning")
+            show_notice(self, "Módulo obrigatório", "Informe o módulo ou componente da atividade.", icon_name="warning")
             return
         if not vehicle_ids:
             show_notice(
                 self,
-                "Selecao obrigatoria",
+                "Seleção obrigatória",
                 "Selecione ao menos um equipamento para abrir a atividade.",
                 icon_name="warning",
             )
@@ -1364,7 +1364,7 @@ class ActivitiesPage(QFrame):
         filter_layout.setSpacing(8)
 
         self.item_filter = QLineEdit()
-        self.item_filter.setPlaceholderText("Buscar por titulo, modulo ou componente")
+        self.item_filter.setPlaceholderText("Buscar por título, módulo ou componente")
         self.item_filter.setMinimumHeight(34)
         self.item_filter.returnPressed.connect(self.refresh)
         self.item_filter.textChanged.connect(self._schedule_live_refresh)

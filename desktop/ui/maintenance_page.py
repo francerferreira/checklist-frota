@@ -40,7 +40,7 @@ from theme import (
 
 
 SOURCE_LABELS = {
-    "CHECKLIST_NC": "Nao conformidade",
+    "CHECKLIST_NC": "Não conformidade",
     "ATIVIDADE": "Atividade",
     "PREVENTIVA": "Preventiva",
 }
@@ -49,8 +49,8 @@ SCHEDULE_STATUS_LABELS = {
     "ABERTA": "Aberta",
     "AGUARDANDO_MATERIAL": "Aguardando material",
     "PROGRAMADA": "Programada",
-    "EM_EXECUCAO": "Em execucao",
-    "CONCLUIDA": "Concluida",
+    "EM_EXECUCAO": "Em execução",
+    "CONCLUIDA": "Concluída",
     "CANCELADA": "Cancelada",
 }
 
@@ -59,7 +59,7 @@ ITEM_STATUS_LABELS = {
     "PROGRAMADO": "Programado",
     "AGUARDANDO_MATERIAL": "Aguardando material",
     "INSTALADO": "Instalado",
-    "NAO_EXECUTADO": "Nao executado",
+    "NAO_EXECUTADO": "Não executado",
     "REPROGRAMADO": "Reprogramado",
     "CANCELADO": "Cancelado",
 }
@@ -67,18 +67,18 @@ ITEM_STATUS_LABELS = {
 MATERIAL_STATUS_LABELS = {
     "AGUARDANDO_MATERIAL": "Aguardando material",
     "EM_COMPRAS": "Em compras",
-    "DISPONIVEL_EM_ESTOQUE": "Disponivel em estoque",
+    "DISPONIVEL_EM_ESTOQUE": "Disponível em estoque",
     "RESERVADO": "Reservado",
     "UTILIZADO": "Utilizado",
 }
 
 REPORT_TYPE_LABELS = {
-    "mensal": "Manutencao mensal",
+    "mensal": "Manutenção mensal",
     "preventiva": "Preventiva",
-    "mecanico": "Por mecanico",
-    "veiculo": "Por veiculo",
+    "mecanico": "Por mecânico",
+    "veiculo": "Por veículo",
     "material": "Materiais utilizados",
-    "pendencias": "Pendencias",
+    "pendencias": "Pendências",
 }
 
 WEEKDAY_HEADERS = ["DOM", "SEG", "TER", "QUA", "QUI", "SEX", "SAB"]
@@ -92,7 +92,7 @@ class MaintenanceScheduleCreateDialog(QDialog):
         self.vehicles: list[dict] = []
         self.result_payload: dict | None = None
 
-        self.setWindowTitle("Nova programacao de manutencao")
+        self.setWindowTitle("Nova programação de manutenção")
         configure_dialog_window(self, width=1060, height=760, min_width=900, min_height=640)
         style_card(self)
         layout = build_dialog_layout(self, max_content_width=1120)
@@ -103,10 +103,10 @@ class MaintenanceScheduleCreateDialog(QDialog):
         header_layout = QVBoxLayout(header)
         header_layout.setContentsMargins(18, 18, 18, 18)
         header_layout.setSpacing(4)
-        title = QLabel("Criar programacao de manutencao")
+        title = QLabel("Criar programação de manutenção")
         title.setObjectName("DialogHeaderTitle")
         subtitle = QLabel(
-            "Fase 2: abrir cronograma por atividades abertas ou preventiva por veiculos, com distribuicao diaria."
+            "Fase 2: abrir cronograma por atividades abertas ou preventiva por veículos, com distribuição diária."
         )
         subtitle.setObjectName("DialogHeaderSubtitle")
         subtitle.setWordWrap(True)
@@ -123,10 +123,10 @@ class MaintenanceScheduleCreateDialog(QDialog):
 
         self.source_combo = QComboBox()
         self.source_combo.addItem("Atividades abertas", "ATIVIDADE")
-        self.source_combo.addItem("Preventiva por veiculos", "PREVENTIVA")
+        self.source_combo.addItem("Preventiva por veículos", "PREVENTIVA")
         self.source_combo.currentIndexChanged.connect(self._render_source_rows)
 
-        self.title_input = QLineEdit("Programacao de manutencao")
+        self.title_input = QLineEdit("Programação de manutenção")
         self.start_date_input = QDateEdit()
         self.start_date_input.setCalendarPopup(True)
         self.start_date_input.setDate(QDate.currentDate())
@@ -139,20 +139,20 @@ class MaintenanceScheduleCreateDialog(QDialog):
         self.daily_capacity_input.valueChanged.connect(self._update_selection_summary)
 
         self.observation_input = QTextEdit()
-        self.observation_input.setPlaceholderText("Contexto da programacao, prioridade e observacoes.")
+        self.observation_input.setPlaceholderText("Contexto da programação, prioridade e observações.")
 
         self.selection_badge = QLabel("0 selecionados | estimativa 0 dia(s)")
         self.selection_badge.setObjectName("TopBarPill")
 
         form.addWidget(QLabel("Origem"), 0, 0)
         form.addWidget(self.source_combo, 1, 0)
-        form.addWidget(QLabel("Titulo"), 0, 1)
+        form.addWidget(QLabel("Título"), 0, 1)
         form.addWidget(self.title_input, 1, 1)
         form.addWidget(QLabel("Data inicial"), 0, 2)
         form.addWidget(self.start_date_input, 1, 2)
-        form.addWidget(QLabel("Capacidade diaria"), 0, 3)
+        form.addWidget(QLabel("Capacidade diária"), 0, 3)
         form.addWidget(self.daily_capacity_input, 1, 3)
-        form.addWidget(QLabel("Observacao"), 2, 0, 1, 4)
+        form.addWidget(QLabel("Observação"), 2, 0, 1, 4)
         form.addWidget(self.observation_input, 3, 0, 1, 4)
         form.addWidget(self.selection_badge, 4, 0, 1, 4)
 
@@ -163,11 +163,11 @@ class MaintenanceScheduleCreateDialog(QDialog):
         table_layout.setSpacing(10)
 
         actions = QHBoxLayout()
-        self.source_title = QLabel("Base de selecao")
+        self.source_title = QLabel("Base de seleção")
         self.source_title.setObjectName("SectionTitle")
         select_all_button = QPushButton("Selecionar todos")
         select_all_button.clicked.connect(self._select_all_rows)
-        clear_button = QPushButton("Limpar selecao")
+        clear_button = QPushButton("Limpar seleção")
         clear_button.clicked.connect(self._clear_selection)
         actions.addWidget(self.source_title)
         actions.addStretch()
@@ -190,7 +190,7 @@ class MaintenanceScheduleCreateDialog(QDialog):
         footer_layout.addStretch()
         close_button = QPushButton("Cancelar")
         close_button.clicked.connect(self.reject)
-        create_button = QPushButton("Criar programacao")
+        create_button = QPushButton("Criar programação")
         create_button.setProperty("variant", "primary")
         create_button.clicked.connect(self._submit)
         footer_layout.addWidget(close_button)
@@ -214,9 +214,9 @@ class MaintenanceScheduleCreateDialog(QDialog):
     def _render_source_rows(self):
         source_type = self.source_combo.currentData()
         if source_type == "ATIVIDADE":
-            self.source_title.setText("Atividades abertas para programacao")
+            self.source_title.setText("Atividades abertas para programação")
             self.source_table.setColumnCount(5)
-            self.source_table.setHorizontalHeaderLabels(["ID", "Atividade", "Modulo", "Tipo", "Abertas"])
+            self.source_table.setHorizontalHeaderLabels(["ID", "Atividade", "Módulo", "Tipo", "Abertas"])
             rows = self.activities
             self.source_table.setRowCount(len(rows))
             for row_index, row in enumerate(rows):
@@ -288,10 +288,10 @@ class MaintenanceScheduleCreateDialog(QDialog):
         source_type = self.source_combo.currentData()
         selected = self._selected_payloads()
         if not selected:
-            show_notice(self, "Selecao obrigatoria", "Selecione pelo menos um registro para criar a programacao.", icon_name="warning")
+            show_notice(self, "Seleção obrigatória", "Selecione pelo menos um registro para criar a programação.", icon_name="warning")
             return
 
-        title = (self.title_input.text() or "").strip() or "Programacao de manutencao"
+        title = (self.title_input.text() or "").strip() or "Programação de manutenção"
         start_date = self.start_date_input.date().toString("yyyy-MM-dd")
         daily_capacity = int(self.daily_capacity_input.value())
         observation = (self.observation_input.toPlainText() or "").strip()
@@ -341,29 +341,31 @@ class MaintenancePage(QFrame):
         header.setSpacing(10)
         text_wrap = QVBoxLayout()
         text_wrap.setSpacing(3)
-        title = QLabel("Programacao de manutencao")
+        title = QLabel("Programação de manutenção")
         title.setObjectName("PageTitle")
         subtitle = QLabel(
-            "Tela organizada por abas: programacoes, execucao, governanca e relatorios."
+            "Tela organizada por abas: programações, execução, governança e relatórios."
         )
         subtitle.setObjectName("PageSubtitle")
         subtitle.setWordWrap(True)
         text_wrap.addWidget(title)
         text_wrap.addWidget(subtitle)
-        context_hint = QLabel("Operacao diaria - Programacoes - Execucao - Governanca")
+        context_hint = QLabel("Operação diária - Programações - Execução - Governança")
         context_hint.setObjectName("ContextHint")
         text_wrap.addWidget(context_hint)
 
-        self.new_schedule_button = QPushButton("Nova programacao")
+        self.new_schedule_button = QPushButton("Nova programação")
         self.new_schedule_button.setProperty("variant", "primary")
         self.new_schedule_button.setMinimumHeight(34)
         self.new_schedule_button.clicked.connect(self.create_schedule)
 
         self.sync_nc_button = QPushButton("Sincronizar NC")
+        self.sync_nc_button.setProperty("variant", "success")
         self.sync_nc_button.setMinimumHeight(34)
         self.sync_nc_button.clicked.connect(self.sync_non_conformities)
 
         refresh_button = QPushButton("Atualizar")
+        refresh_button.setProperty("variant", "success")
         refresh_button.setMinimumHeight(34)
         refresh_button.clicked.connect(self.refresh)
 
@@ -397,7 +399,7 @@ class MaintenancePage(QFrame):
 
         self.source_filter = QComboBox()
         self.source_filter.addItem("Todas as origens", "ALL")
-        self.source_filter.addItem("Nao conformidade", "CHECKLIST_NC")
+        self.source_filter.addItem("Não conformidade", "CHECKLIST_NC")
         self.source_filter.addItem("Atividade", "ATIVIDADE")
         self.source_filter.addItem("Preventiva", "PREVENTIVA")
 
@@ -406,8 +408,8 @@ class MaintenancePage(QFrame):
         self.status_filter.addItem("Aberta", "ABERTA")
         self.status_filter.addItem("Aguardando material", "AGUARDANDO_MATERIAL")
         self.status_filter.addItem("Programada", "PROGRAMADA")
-        self.status_filter.addItem("Em execucao", "EM_EXECUCAO")
-        self.status_filter.addItem("Concluida", "CONCLUIDA")
+        self.status_filter.addItem("Em execução", "EM_EXECUCAO")
+        self.status_filter.addItem("Concluída", "CONCLUIDA")
         self.status_filter.addItem("Cancelada", "CANCELADA")
 
         apply_button = QPushButton("Aplicar")
@@ -436,7 +438,7 @@ class MaintenancePage(QFrame):
         reports_layout.setHorizontalSpacing(8)
         reports_layout.setVerticalSpacing(6)
 
-        self.report_badge = QLabel("Fase 4: relatorio PDF da manutencao")
+        self.report_badge = QLabel("Fase 4: relatório PDF da manutenção")
         self.report_badge.setObjectName("TopBarPill")
 
         self.report_type_combo = QComboBox()
@@ -455,7 +457,7 @@ class MaintenancePage(QFrame):
         reports_layout.addWidget(self.report_badge, 0, 0, 1, 5)
         reports_layout.addWidget(QLabel("Tipo de relatorio"), 1, 0)
         reports_layout.addWidget(self.report_type_combo, 1, 1)
-        reports_layout.addWidget(QLabel("Mecanico"), 1, 2)
+        reports_layout.addWidget(QLabel("Mecânico"), 1, 2)
         reports_layout.addWidget(self.report_mechanic_combo, 1, 3)
         reports_layout.addWidget(self.export_report_button, 1, 4)
         reports_layout.addWidget(QLabel("Veiculo"), 2, 0)
@@ -470,19 +472,23 @@ class MaintenancePage(QFrame):
         schedules_layout.setSpacing(8)
 
         schedules_title_row = QHBoxLayout()
-        schedules_title = QLabel("Programacoes de manutencao")
+        schedules_title = QLabel("Programações de manutenção")
         schedules_title.setObjectName("SectionTitle")
         self.schedules_badge = QLabel("0 registros")
         self.schedules_badge.setObjectName("TopBarPill")
+        self.open_cronograma_button = QPushButton("Abrir cronograma")
+        self.open_cronograma_button.setMinimumHeight(32)
+        self.open_cronograma_button.clicked.connect(lambda: self.tabs.setCurrentIndex(self.tab_cronograma_index))
         schedules_title_row.addWidget(schedules_title)
         schedules_title_row.addStretch()
         schedules_title_row.addWidget(self.schedules_badge)
+        schedules_title_row.addWidget(self.open_cronograma_button)
 
         self.schedules_table = QTableWidget(0, 10)
         self.schedules_table.setHorizontalHeaderLabels(
             [
                 "ID",
-                "Titulo",
+                "Título",
                 "Origem",
                 "Status",
                 "Itens",
@@ -507,7 +513,7 @@ class MaintenancePage(QFrame):
         action_layout.setHorizontalSpacing(8)
         action_layout.setVerticalSpacing(6)
 
-        self.selected_schedule_badge = QLabel("Nenhuma programacao selecionada")
+        self.selected_schedule_badge = QLabel("Nenhuma programação selecionada")
         self.selected_schedule_badge.setObjectName("TopBarPill")
 
         self.item_status_filter = QComboBox()
@@ -517,7 +523,7 @@ class MaintenancePage(QFrame):
         self.item_status_filter.addItem("Programado", "PROGRAMADO")
         self.item_status_filter.addItem("Aguardando material", "AGUARDANDO_MATERIAL")
         self.item_status_filter.addItem("Instalado", "INSTALADO")
-        self.item_status_filter.addItem("Nao executado", "NAO_EXECUTADO")
+        self.item_status_filter.addItem("Não executado", "NAO_EXECUTADO")
         self.item_status_filter.addItem("Reprogramado", "REPROGRAMADO")
         self.item_status_filter.addItem("Cancelado", "CANCELADO")
         self.item_status_filter.currentIndexChanged.connect(self.render_selected_schedule_items)
@@ -528,6 +534,7 @@ class MaintenancePage(QFrame):
         self.move_date_input.setDate(QDate.currentDate())
 
         self.move_button = QPushButton("Mover selecionados")
+        self.move_button.setProperty("variant", "primary")
         self.move_button.setMinimumHeight(34)
         self.move_button.clicked.connect(self.move_selected_items)
 
@@ -557,12 +564,12 @@ class MaintenancePage(QFrame):
         action_layout.addWidget(QLabel("Nova data"), 1, 2)
         action_layout.addWidget(self.move_date_input, 1, 3)
         action_layout.addWidget(self.move_button, 1, 4)
-        action_layout.addWidget(self.remove_button, 2, 0, 1, 2)
-        action_layout.addWidget(QLabel("Inicio da redistribuicao"), 2, 2)
-        action_layout.addWidget(self.redistribute_start_input, 2, 3)
-        action_layout.addWidget(QLabel("Cap./dia"), 3, 2)
-        action_layout.addWidget(self.redistribute_capacity_input, 3, 3)
-        action_layout.addWidget(self.redistribute_button, 2, 4, 2, 1)
+        action_layout.addWidget(self.remove_button, 2, 4)
+        action_layout.addWidget(QLabel("Início da redistribuição"), 2, 0)
+        action_layout.addWidget(self.redistribute_start_input, 2, 1)
+        action_layout.addWidget(QLabel("Cap./dia"), 2, 2)
+        action_layout.addWidget(self.redistribute_capacity_input, 2, 3)
+        action_layout.addWidget(self.redistribute_button, 3, 3, 1, 2)
         action_layout.setColumnStretch(1, 1)
         action_layout.setColumnStretch(4, 1)
 
@@ -573,11 +580,12 @@ class MaintenancePage(QFrame):
         governance_layout.setHorizontalSpacing(8)
         governance_layout.setVerticalSpacing(6)
 
-        self.governance_badge = QLabel("Governanca: selecione uma programacao")
+        self.governance_badge = QLabel("Governança: selecione uma programação")
         self.governance_badge.setObjectName("TopBarPill")
 
         self.mechanic_combo = QComboBox()
-        self.assign_mechanic_button = QPushButton("Aplicar mecanico")
+        self.assign_mechanic_button = QPushButton("Aplicar mecânico")
+        self.assign_mechanic_button.setProperty("variant", "primary")
         self.assign_mechanic_button.setMinimumHeight(34)
         self.assign_mechanic_button.clicked.connect(self.assign_schedule_mechanic)
 
@@ -590,18 +598,18 @@ class MaintenancePage(QFrame):
         self.material_status_combo = QComboBox()
         self.material_status_combo.addItem("Aguardando material", "AGUARDANDO_MATERIAL")
         self.material_status_combo.addItem("Em compras", "EM_COMPRAS")
-        self.material_status_combo.addItem("Disponivel em estoque", "DISPONIVEL_EM_ESTOQUE")
+        self.material_status_combo.addItem("Disponível em estoque", "DISPONIVEL_EM_ESTOQUE")
         self.material_status_combo.addItem("Reservado", "RESERVADO")
         self.material_status_combo.addItem("Utilizado", "UTILIZADO")
         self.material_observation_input = QLineEdit()
-        self.material_observation_input.setPlaceholderText("Observacao da peca para esta programacao.")
+        self.material_observation_input.setPlaceholderText("Observação da peça para esta programação.")
         self.link_material_button = QPushButton("Vincular/atualizar material")
         self.link_material_button.setProperty("variant", "primary")
         self.link_material_button.setMinimumHeight(34)
         self.link_material_button.clicked.connect(self.link_material_for_selected_schedule)
 
         governance_layout.addWidget(self.governance_badge, 0, 0, 1, 6)
-        governance_layout.addWidget(QLabel("Mecanico responsavel"), 1, 0)
+        governance_layout.addWidget(QLabel("Mecânico responsável"), 1, 0)
         governance_layout.addWidget(self.mechanic_combo, 1, 1, 1, 2)
         governance_layout.addWidget(self.assign_mechanic_button, 1, 3)
         governance_layout.addWidget(QLabel("Material"), 2, 0)
@@ -623,7 +631,7 @@ class MaintenancePage(QFrame):
         materials_layout.setSpacing(8)
 
         materials_top = QHBoxLayout()
-        materials_title = QLabel("Materiais da programacao selecionada")
+        materials_title = QLabel("Materiais da programação selecionada")
         materials_title.setObjectName("SectionTitle")
         self.materials_badge = QLabel("0 materiais")
         self.materials_badge.setObjectName("TopBarPill")
@@ -642,7 +650,7 @@ class MaintenancePage(QFrame):
                 "Qtd necessaria",
                 "Qtd reservada",
                 "Status",
-                "Observacao",
+                "Observação",
             ]
         )
         configure_table(self.materials_table, stretch_last=True)
@@ -659,7 +667,7 @@ class MaintenancePage(QFrame):
         details_layout.setSpacing(8)
 
         detail_top = QHBoxLayout()
-        detail_title = QLabel("Tabela por programacao")
+        detail_title = QLabel("Tabela por programação")
         detail_title.setObjectName("SectionTitle")
         self.items_badge = QLabel("0 itens")
         self.items_badge.setObjectName("TopBarPill")
@@ -680,7 +688,7 @@ class MaintenancePage(QFrame):
                 "Executado em",
                 "Material",
                 "Atividade/NC",
-                "Observacao",
+                "Observação",
             ]
         )
         configure_table(self.items_table, stretch_last=True)
@@ -700,7 +708,7 @@ class MaintenancePage(QFrame):
         calendar_layout.setSpacing(8)
 
         calendar_title_row = QHBoxLayout()
-        calendar_title = QLabel("Cronograma mensal da manutencao")
+        calendar_title = QLabel("Cronograma mensal da manutenção")
         calendar_title.setObjectName("SectionTitle")
         self.calendar_badge = QLabel("0 dias")
         self.calendar_badge.setObjectName("TopBarPill")
@@ -732,7 +740,7 @@ class MaintenancePage(QFrame):
 
         self.tabs = QTabWidget()
         self.tabs.setDocumentMode(True)
-        self.tabs.setMinimumHeight(820)
+        self.tabs.setMinimumHeight(560)
         self.tabs.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
 
         programacoes_tab = QWidget()
@@ -740,9 +748,12 @@ class MaintenancePage(QFrame):
         programacoes_layout.setContentsMargins(0, 0, 0, 0)
         programacoes_layout.setSpacing(10)
         programacoes_layout.addWidget(schedules_card)
-        programacoes_layout.addWidget(calendar_card, 1)
-        programacoes_layout.setStretch(0, 4)
-        programacoes_layout.setStretch(1, 5)
+
+        cronograma_tab = QWidget()
+        cronograma_layout = QVBoxLayout(cronograma_tab)
+        cronograma_layout.setContentsMargins(0, 0, 0, 0)
+        cronograma_layout.setSpacing(10)
+        cronograma_layout.addWidget(calendar_card, 1)
 
         execucao_tab = QWidget()
         execucao_layout = QVBoxLayout(execucao_tab)
@@ -765,10 +776,11 @@ class MaintenancePage(QFrame):
         relatorios_layout.addWidget(reports_card)
         relatorios_layout.addStretch(1)
 
-        self.tabs.addTab(programacoes_tab, "Programacoes")
-        self.tabs.addTab(execucao_tab, "Execucao")
-        self.tabs.addTab(governanca_tab, "Governanca")
-        self.tabs.addTab(relatorios_tab, "Relatorios")
+        self.tab_programacoes_index = self.tabs.addTab(programacoes_tab, "Programações")
+        self.tab_cronograma_index = self.tabs.addTab(cronograma_tab, "Cronograma")
+        self.tab_execucao_index = self.tabs.addTab(execucao_tab, "Execução")
+        self.tab_governanca_index = self.tabs.addTab(governanca_tab, "Governança")
+        self.tab_relatorios_index = self.tabs.addTab(relatorios_tab, "Relatórios")
 
         layout.addWidget(header_frame)
         layout.addLayout(cards_layout)
@@ -786,10 +798,10 @@ class MaintenancePage(QFrame):
 
     def set_loading_state(self, loading: bool):
         if loading:
-            self.schedules_skeleton.show_skeleton("Carregando programacao de manutencao")
+            self.schedules_skeleton.show_skeleton("Carregando programação de manutenção")
             self.materials_skeleton.show_skeleton("Carregando governanca de materiais")
-            self.details_skeleton.show_skeleton("Carregando itens da programacao")
-            self.calendar_skeleton.show_skeleton("Carregando calendario da manutencao")
+            self.details_skeleton.show_skeleton("Carregando itens da programação")
+            self.calendar_skeleton.show_skeleton("Carregando calendário da manutenção")
         else:
             self.schedules_skeleton.hide_skeleton()
             self.materials_skeleton.hide_skeleton()
@@ -822,9 +834,9 @@ class MaintenancePage(QFrame):
 
     def _handle_summary_card_click(self, key: str):
         if key == "PROGRAMACOES":
-            self.tabs.setCurrentIndex(0)
+            self.tabs.setCurrentIndex(self.tab_programacoes_index)
             return
-        self.tabs.setCurrentIndex(1)
+        self.tabs.setCurrentIndex(self.tab_execucao_index)
         if key == "PENDENTES":
             self._set_item_status_filter("PENDENTES")
         elif key == "INSTALADOS":
@@ -863,9 +875,9 @@ class MaintenancePage(QFrame):
         self.mechanic_combo.blockSignals(True)
         try:
             self.mechanic_combo.clear()
-            self.mechanic_combo.addItem("Sem mecanico fixo", None)
+            self.mechanic_combo.addItem("Sem mecânico fixo", None)
             for mechanic in sorted(self.mechanics, key=lambda row: (row.get("nome") or row.get("login") or "").upper()):
-                name = mechanic.get("nome") or mechanic.get("login") or f"Mecanico {mechanic.get('id')}"
+                name = mechanic.get("nome") or mechanic.get("login") or f"Mecânico {mechanic.get('id')}"
                 self.mechanic_combo.addItem(name, int(mechanic.get("id")))
             index = self.mechanic_combo.findData(current_value)
             if index < 0:
@@ -906,13 +918,13 @@ class MaintenancePage(QFrame):
         self.report_vehicle_combo.blockSignals(True)
         try:
             self.report_mechanic_combo.clear()
-            self.report_mechanic_combo.addItem("Todos os mecanicos", None)
+            self.report_mechanic_combo.addItem("Todos os mecânicos", None)
             for mechanic in sorted(self.mechanics, key=lambda row: (row.get("nome") or row.get("login") or "").upper()):
-                name = mechanic.get("nome") or mechanic.get("login") or f"Mecanico {mechanic.get('id')}"
+                name = mechanic.get("nome") or mechanic.get("login") or f"Mecânico {mechanic.get('id')}"
                 self.report_mechanic_combo.addItem(name, int(mechanic.get("id")))
 
             self.report_vehicle_combo.clear()
-            self.report_vehicle_combo.addItem("Todos os veiculos", None)
+            self.report_vehicle_combo.addItem("Todos os veículos", None)
             for vehicle in sorted(self.report_vehicles, key=lambda row: (row.get("frota") or "").upper()):
                 label = f"{vehicle.get('frota') or '-'} | {vehicle.get('placa') or '-'} | {vehicle.get('modelo') or '-'}"
                 self.report_vehicle_combo.addItem(label, int(vehicle.get("id")))
@@ -947,7 +959,7 @@ class MaintenancePage(QFrame):
 
         filename, _ = QFileDialog.getSaveFileName(
             self,
-            "Exportar relatorio de manutencao",
+            "Exportar relatório de manutenção",
             default_name,
             "PDF (*.pdf)",
         )
@@ -973,10 +985,10 @@ class MaintenancePage(QFrame):
 
         start_export_task(
             self,
-            "Exportando PDF da manutencao",
+            "Exportando PDF da manutenção",
             task,
-            success_title="Exportacao concluida",
-            failure_title="Falha na exportacao",
+            success_title="Exportação concluída",
+            failure_title="Falha na exportação",
         )
 
     def apply_filters(self):
@@ -1006,7 +1018,7 @@ class MaintenancePage(QFrame):
         try:
             dialog = MaintenanceScheduleCreateDialog(self.api_client, self)
         except Exception as exc:
-            show_notice(self, "Falha ao abrir criacao", str(exc), icon_name="warning")
+            show_notice(self, "Falha ao abrir criação", str(exc), icon_name="warning")
             return
         if not dialog.exec() or not dialog.result_payload:
             return
@@ -1026,12 +1038,12 @@ class MaintenancePage(QFrame):
                     self.month_input.setDate(date_value)
             self.refresh()
             self.data_changed.emit()
-            show_notice(self, "Programacao criada", "Cronograma criado e pronto para gestao na tabela.", icon_name="dashboard")
+            show_notice(self, "Programação criada", "Cronograma criado e pronto para gestão na tabela.", icon_name="dashboard")
         except Exception as exc:
-            show_notice(self, "Falha ao criar programacao", str(exc), icon_name="warning")
+            show_notice(self, "Falha ao criar programação", str(exc), icon_name="warning")
         finally:
             button.setEnabled(True)
-            button.setText("Nova programacao")
+            button.setText("Nova programação")
 
     def sync_non_conformities(self):
         button = self.sync_nc_button
@@ -1043,8 +1055,8 @@ class MaintenancePage(QFrame):
             self.data_changed.emit()
             show_notice(
                 self,
-                "Sincronizacao concluida",
-                f"{int(payload.get('updated') or 0)} programacao(oes) atualizada(s) a partir das NC.",
+                "Sincronização concluída",
+                f"{int(payload.get('updated') or 0)} programação(ões) atualizada(s) a partir das NC.",
                 icon_name="dashboard",
             )
         except Exception as exc:
@@ -1056,7 +1068,7 @@ class MaintenancePage(QFrame):
     def redistribute_selected_schedule(self):
         schedule = self._selected_schedule()
         if not schedule:
-            show_notice(self, "Selecao obrigatoria", "Selecione uma programacao para redistribuir.", icon_name="warning")
+            show_notice(self, "Seleção obrigatória", "Selecione uma programação para redistribuir.", icon_name="warning")
             return
 
         start_date = self.redistribute_start_input.date().toString("yyyy-MM-dd")
@@ -1081,7 +1093,7 @@ class MaintenancePage(QFrame):
     def move_selected_items(self):
         selected_items = self._selected_item_payloads()
         if not selected_items:
-            show_notice(self, "Selecao obrigatoria", "Selecione um ou mais itens para mover.", icon_name="warning")
+            show_notice(self, "Seleção obrigatória", "Selecione um ou mais itens para mover.", icon_name="warning")
             return
 
         target_date = self.move_date_input.date().toString("yyyy-MM-dd")
@@ -1106,12 +1118,12 @@ class MaintenancePage(QFrame):
         if errors:
             summary += f" | falhas: {len(errors)}"
         icon = "dashboard" if moved else "warning"
-        show_notice(self, "Reprogramacao em lote", summary, icon_name=icon)
+        show_notice(self, "Reprogramação em lote", summary, icon_name=icon)
 
     def remove_selected_items(self):
         selected_items = self._selected_item_payloads()
         if not selected_items:
-            show_notice(self, "Selecao obrigatoria", "Selecione um ou mais itens para retirar.", icon_name="warning")
+            show_notice(self, "Seleção obrigatória", "Selecione um ou mais itens para retirar.", icon_name="warning")
             return
 
         removed = 0
@@ -1146,7 +1158,7 @@ class MaintenancePage(QFrame):
     def assign_schedule_mechanic(self):
         schedule = self._selected_schedule()
         if not schedule:
-            show_notice(self, "Selecao obrigatoria", "Selecione uma programacao para definir o mecanico.", icon_name="warning")
+            show_notice(self, "Seleção obrigatória", "Selecione uma programação para definir o mecânico.", icon_name="warning")
             return
 
         start_date = str(schedule.get("start_date") or QDate.currentDate().toString("yyyy-MM-dd"))
@@ -1164,17 +1176,17 @@ class MaintenancePage(QFrame):
             self.api_client.program_maintenance_schedule(int(schedule.get("id")), payload)
             self.refresh()
             self.data_changed.emit()
-            show_notice(self, "Mecanico aplicado", "Responsavel atualizado na programacao selecionada.", icon_name="dashboard")
+            show_notice(self, "Mecânico aplicado", "Responsável atualizado na programação selecionada.", icon_name="dashboard")
         except Exception as exc:
-            show_notice(self, "Falha ao aplicar mecanico", str(exc), icon_name="warning")
+            show_notice(self, "Falha ao aplicar mecânico", str(exc), icon_name="warning")
         finally:
             button.setEnabled(True)
-            button.setText("Aplicar mecanico")
+            button.setText("Aplicar mecânico")
 
     def link_material_for_selected_schedule(self):
         schedule = self._selected_schedule()
         if not schedule:
-            show_notice(self, "Selecao obrigatoria", "Selecione uma programacao para vincular material.", icon_name="warning")
+            show_notice(self, "Seleção obrigatória", "Selecione uma programação para vincular material.", icon_name="warning")
             return
 
         material = self.material_combo.currentData()
@@ -1195,7 +1207,7 @@ class MaintenancePage(QFrame):
             self.api_client.link_maintenance_schedule_material(int(schedule.get("id")), payload)
             self.refresh()
             self.data_changed.emit()
-            show_notice(self, "Material vinculado", "Governanca de pecas atualizada na programacao.", icon_name="dashboard")
+            show_notice(self, "Material vinculado", "Governança de peças atualizada na programação.", icon_name="dashboard")
         except Exception as exc:
             show_notice(self, "Falha ao vincular material", str(exc), icon_name="warning")
         finally:
@@ -1207,12 +1219,12 @@ class MaintenancePage(QFrame):
         if not schedule:
             self.materials_table.setRowCount(0)
             self.materials_badge.setText("0 materiais")
-            self.governance_badge.setText("Governanca: selecione uma programacao")
+            self.governance_badge.setText("Governança: selecione uma programação")
             self._set_management_controls_enabled(False)
             return
 
         self._set_management_controls_enabled(True)
-        title = str(schedule.get("title") or f"Programacao #{schedule.get('id')}")
+        title = str(schedule.get("title") or f"Programação #{schedule.get('id')}")
         self.governance_badge.setText(f"#{schedule.get('id')} | {title}")
 
         assigned_id = schedule.get("assigned_mechanic_user_id")
@@ -1292,7 +1304,7 @@ class MaintenancePage(QFrame):
         self.installed_card.set_content(
             "Instalados",
             str(summary.get("instalados", 0)),
-            f"Nao executados: {summary.get('nao_executados', 0)}",
+            f"Não executados: {summary.get('nao_executados', 0)}",
         )
         self.schedules_badge.setText(f"{len(self.filtered_schedules)} registros")
 
@@ -1446,7 +1458,7 @@ class MaintenancePage(QFrame):
         lines.append(f"Instalados: {instalados}")
         lines.append(f"Aguardando material: {aguardando}")
         if nao_exec:
-            lines.append(f"Nao executados: {nao_exec}")
+            lines.append(f"Não executados: {nao_exec}")
         return "\n".join(lines)
 
     def _calendar_rows_for_selected_schedule(self) -> list[dict]:
@@ -1541,14 +1553,14 @@ class MaintenancePage(QFrame):
     def render_selected_schedule_items(self):
         schedule = self._selected_schedule()
         if not schedule:
-            self.selected_schedule_badge.setText("Nenhuma programacao selecionada")
+            self.selected_schedule_badge.setText("Nenhuma programação selecionada")
             self.items_table.setRowCount(0)
             self._set_action_controls_enabled(False)
             self._update_items_badge()
             return
 
         self._set_action_controls_enabled(True)
-        title = str(schedule.get("title") or f"Programacao #{schedule.get('id')}")
+        title = str(schedule.get("title") or f"Programação #{schedule.get('id')}")
         day_suffix = f" | Dia {self._format_date(self.selected_calendar_day_iso)}" if self.selected_calendar_day_iso else ""
         self.selected_schedule_badge.setText(f"#{schedule.get('id')} | {title}{day_suffix}")
 
@@ -1676,7 +1688,7 @@ class MaintenancePage(QFrame):
             counters[str(link.get("status") or "").upper()] += 1
         parts = []
         if counters.get("DISPONIVEL_EM_ESTOQUE"):
-            parts.append(f"Disponivel {counters['DISPONIVEL_EM_ESTOQUE']}")
+            parts.append(f"Disponível {counters['DISPONIVEL_EM_ESTOQUE']}")
         if counters.get("AGUARDANDO_MATERIAL"):
             parts.append(f"Aguardando {counters['AGUARDANDO_MATERIAL']}")
         if counters.get("EM_COMPRAS"):
