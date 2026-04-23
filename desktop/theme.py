@@ -88,7 +88,12 @@ QFrame#Sidebar {
     border: 1px solid #97AFCB;
     border-radius: 2px;
 }
-QWidget#ContentSurface, QWidget#PanelCard, QWidget#ImagePanel, QWidget#HeaderCard, QWidget#FilterBar, QWidget#TableCard {
+QWidget#ContentSurface {
+    background: #FFFFFF;
+    border: 1px solid #AFC3DA;
+    border-radius: 2px;
+}
+QWidget#PanelCard, QWidget#ImagePanel, QWidget#HeaderCard, QWidget#FilterBar, QWidget#TableCard {
     background: #F2F7FE;
     border: 1px solid #AFC3DA;
     border-radius: 2px;
