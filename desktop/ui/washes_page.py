@@ -1070,7 +1070,7 @@ class WashesPage(QFrame):
 
         scroll = QScrollArea()
         scroll.setWidgetResizable(True)
-        scroll.setHorizontalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
+        scroll.setHorizontalScrollBarPolicy(Qt.ScrollBarAsNeeded)
         scroll.setFrameShape(QFrame.NoFrame)
         scroll.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
 
@@ -1101,8 +1101,11 @@ class WashesPage(QFrame):
         context_hint.setObjectName("ContextHint")
         text_wrap.addWidget(context_hint)
 
-        buttons = QHBoxLayout()
-        buttons.setSpacing(6)
+        buttons_wrap = QWidget()
+        buttons = QGridLayout(buttons_wrap)
+        buttons.setContentsMargins(0, 0, 0, 0)
+        buttons.setHorizontalSpacing(6)
+        buttons.setVerticalSpacing(6)
         self.sync_button = QPushButton("Sincronizar frota")
         self.sync_button.setProperty("variant", "primary")
         self.sync_button.clicked.connect(self.sync_queue)
@@ -1127,7 +1130,7 @@ class WashesPage(QFrame):
         self.refresh_button = QPushButton("Atualizar")
         self.refresh_button.setProperty("variant", "success")
         self.refresh_button.clicked.connect(self.refresh)
-        for action_button in (
+        action_buttons = [
             self.sync_button,
             self.reclassify_button,
             self.register_button,
@@ -1137,13 +1140,18 @@ class WashesPage(QFrame):
             self.schedule_pdf_button,
             self.values_manage_button,
             self.refresh_button,
-        ):
+        ]
+        visible_buttons = [button for button in action_buttons if button.isVisible()]
+        columns = 4
+        for index, action_button in enumerate(visible_buttons):
             action_button.setMinimumHeight(34)
-            buttons.addWidget(action_button)
-        buttons.setAlignment(Qt.AlignRight | Qt.AlignTop)
+            action_button.setSizePolicy(QSizePolicy.Preferred, QSizePolicy.Fixed)
+            row = index // columns
+            col = index % columns
+            buttons.addWidget(action_button, row, col)
 
         header.addLayout(text_wrap, 1)
-        header.addLayout(buttons)
+        header.addWidget(buttons_wrap, 0, Qt.AlignTop)
 
         summary_grid = QGridLayout()
         summary_grid.setHorizontalSpacing(6)
@@ -1176,7 +1184,7 @@ class WashesPage(QFrame):
             card_layout.addWidget(subtitle_label)
             self.summary_cards[key] = (value_label, subtitle_label)
             self.summary_card_frames[key] = card
-            summary_grid.addWidget(card, 0, index)
+            summary_grid.addWidget(card, index // 3, index % 3)
             card.setMinimumHeight(86)
             card.setMaximumHeight(94)
         self.summary_card_frames["valor_total"].setVisible(self.can_view_values)
@@ -1228,14 +1236,17 @@ class WashesPage(QFrame):
         plan_layout.addWidget(self.period_badge, 0, 1)
         plan_layout.addWidget(self.current_month_button, 0, 2)
         plan_layout.addWidget(self.next_month_button, 0, 3)
-        plan_layout.addWidget(self._caption_field("Capacidade manhã", self.morning_capacity), 0, 4)
-        plan_layout.addWidget(self._caption_field("Capacidade tarde", self.afternoon_capacity), 0, 5)
-        plan_layout.addWidget(self._caption_field("Auxiliares a cada (dias)", self.aux_interval), 0, 6)
-        plan_layout.addWidget(self.save_plan_button, 0, 7)
+        plan_layout.addWidget(self._caption_field("Capacidade manhã", self.morning_capacity), 0, 4, 1, 2)
+        plan_layout.addWidget(self._caption_field("Capacidade tarde", self.afternoon_capacity), 0, 6, 1, 2)
+        plan_layout.addWidget(self._caption_field("Auxiliares a cada (dias)", self.aux_interval), 1, 4, 1, 2)
+        plan_layout.addWidget(self.save_plan_button, 1, 6, 1, 2)
         plan_layout.addWidget(self._caption_field("Bloquear turno", self.block_shift_combo), 1, 0, 1, 2)
-        plan_layout.addWidget(self._caption_field("Motivo", self.block_reason), 1, 2, 1, 3)
-        plan_layout.addWidget(self.block_button, 1, 5)
-        plan_layout.addWidget(self.unblock_button, 1, 6)
+        plan_layout.addWidget(self._caption_field("Motivo", self.block_reason), 1, 2, 1, 2)
+        plan_layout.addWidget(self.block_button, 2, 4, 1, 2)
+        plan_layout.addWidget(self.unblock_button, 2, 6, 1, 2)
+
+        for column, stretch in enumerate((0, 1, 0, 0, 1, 1, 1, 1)):
+            plan_layout.setColumnStretch(column, stretch)
 
         root.addWidget(self.plan_card)
 
