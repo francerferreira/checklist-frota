@@ -12,7 +12,7 @@ def make_icon(name: str, bg: str = "#E7EBF0", fg: str = "#4F5B69", size: int = 2
     painter.setRenderHint(QPainter.Antialiasing)
     painter.setPen(Qt.NoPen)
     painter.setBrush(QColor(bg))
-    painter.drawRoundedRect(QRectF(0, 0, size, size), 7, 7)
+    painter.drawRoundedRect(QRectF(0, 0, size, size), 4, 4)
 
     pen = QPen(QColor(fg))
     pen.setWidthF(max(1.6, size / 13))

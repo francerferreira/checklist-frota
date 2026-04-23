@@ -230,7 +230,7 @@ class WashRegisterDialog(QDialog):
         icon_layout = QVBoxLayout(icon_badge)
         icon_layout.setContentsMargins(10, 10, 10, 10)
         icon_label = QLabel()
-        icon_label.setPixmap(make_icon("activities", "#FFFFFF", "#1D4ED8", 28).pixmap(28, 28))
+        icon_label.setPixmap(make_icon("activities", "#E7EBF0", "#5B6571", 28).pixmap(28, 28))
         icon_layout.addWidget(icon_label)
 
         text_wrap = QVBoxLayout()
@@ -899,6 +899,7 @@ class ScheduleDetailDialog(QDialog):
 
         headers = ["Turno", "Referencia", "Categoria", "Valor", "Status", "Foto", "OK", "X", "Reeditar"]
         self.table = QTableWidget(len(schedule_items), len(headers))
+        self.table.setObjectName("DialogScheduleGrid")
         self.table.setHorizontalHeaderLabels(headers)
         configure_table(self.table, stretch_last=False, auto_fit=False)
         self.table.setColumnHidden(3, not self.host_page.can_view_values)
@@ -912,13 +913,6 @@ class ScheduleDetailDialog(QDialog):
         self.table.horizontalHeader().setDefaultSectionSize(136)
         self.table.horizontalHeader().setMinimumSectionSize(82)
         self.table.horizontalHeader().setFixedHeight(56)
-        self.table.setStyleSheet(
-            """
-            QTableWidget { font-size: 15px; }
-            QHeaderView::section { font-size: 15px; font-weight: 760; }
-            QTableWidget::item { padding: 6px 8px; }
-            """
-        )
 
         for row_index, item in enumerate(schedule_items):
             values = [
@@ -1272,35 +1266,6 @@ class WashesPage(QFrame):
         self.calendar_table.verticalHeader().setVisible(False)
         self.calendar_table.horizontalHeader().setSectionResizeMode(QHeaderView.Stretch)
         self.calendar_table.viewport().installEventFilter(self)
-        self.calendar_table.setStyleSheet(
-            """
-            QTableWidget#WashCalendarTable {
-                background: #F0F1F3;
-                border: 1px solid #B8BDC3;
-                border-radius: 2px;
-                gridline-color: rgba(182, 189, 197, 0.55);
-                selection-background-color: #6D7783;
-                selection-color: #FFFFFF;
-            }
-            QTableWidget#WashCalendarTable::item {
-                border: 1px solid #D2D6DB;
-                padding: 8px 8px;
-            }
-            QTableWidget#WashCalendarTable::item:selected {
-                border: 1px solid #6D7783;
-                background: #6D7783;
-                color: #FFFFFF;
-            }
-            QHeaderView::section {
-                background: #E3E6EA;
-                color: #2C3E50;
-                border-right: 1px solid #C5CCD3;
-                border-bottom: 1px solid #C5CCD3;
-                padding: 8px 6px;
-                font-weight: 760;
-            }
-            """
-        )
         self._resize_calendar_cells()
 
         calendar_card_layout.addLayout(calendar_top)
@@ -2419,3 +2384,4 @@ class WashesPage(QFrame):
             return datetime.fromisoformat(value.replace("Z", "")).strftime("%d/%m/%Y %H:%M")
         except ValueError:
             return value
+

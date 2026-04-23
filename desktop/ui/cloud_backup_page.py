@@ -102,7 +102,7 @@ class CloudBackupPage(QFrame):
         overline = QLabel("NUVEM E BACKUP")
         overline.setObjectName("CardTitle")
         self.summary_label = QLabel("CARREGANDO STATUS DA NUVEM...")
-        self.summary_label.setStyleSheet("font-size:18px; font-weight:800; color:#1F2D3D;")
+        self.summary_label.setObjectName("CloudSummaryLabel")
         self.generated_label = QLabel("")
         self.generated_label.setObjectName("MutedText")
 

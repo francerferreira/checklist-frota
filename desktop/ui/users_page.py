@@ -48,7 +48,7 @@ class UserDialog(QDialog):
         icon_layout = QVBoxLayout(icon_badge)
         icon_layout.setContentsMargins(10, 10, 10, 10)
         icon_label = QLabel()
-        icon_label.setPixmap(make_icon("users", "#FFFFFF", "#1D4ED8", 28).pixmap(28, 28))
+        icon_label.setPixmap(make_icon("users", "#E7EBF0", "#5B6571", 28).pixmap(28, 28))
         icon_layout.addWidget(icon_label)
         title_wrap = QVBoxLayout()
         title_wrap.setContentsMargins(0, 0, 0, 0)
@@ -344,5 +344,6 @@ class UsersPage(QFrame):
             self.data_changed.emit()
         except Exception as exc:
             show_notice(self, "Falha ao excluir", str(exc), icon_name="warning")
+
 
 

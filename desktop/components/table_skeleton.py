@@ -60,15 +60,15 @@ class TableSkeletonOverlay(QWidget):
         self._sync_geometry()
         self.raise_()
         self.show()
-        self._fade_to(1.0)
-        self._start_animation()
+        self._fade_to(1.0, duration=90)
 
     def hide_skeleton(self):
         if not self.isVisible():
             return
         if self._animation:
             self._animation.stop()
-        self._fade_to(0.0, on_finished=self.hide)
+            self._animation = None
+        self._fade_to(0.0, duration=80, on_finished=self.hide)
 
     def _fade_to(self, target: float, duration: int = 180, on_finished=None):
         animation = QPropertyAnimation(self.opacity_effect, b"opacity", self)
@@ -81,13 +81,7 @@ class TableSkeletonOverlay(QWidget):
         animation.start()
 
     def _start_animation(self):
-        self._animation = QPropertyAnimation(self, b"progress", self)
-        self._animation.setDuration(1400)
-        self._animation.setStartValue(0.0)
-        self._animation.setEndValue(1.0)
-        self._animation.setLoopCount(-1)
-        self._animation.setEasingCurve(QEasingCurve.InOutSine)
-        self._animation.start()
+        return
 
     def get_progress(self) -> float:
         return self._progress
@@ -104,7 +98,7 @@ class TableSkeletonOverlay(QWidget):
         painter.setRenderHint(QPainter.Antialiasing)
 
         base = QColor("#EAF0F8")
-        shimmer = QColor("#DBEAFE")
+        shimmer = QColor("#DDE2E8")
 
         left = 22
         top = 22
@@ -128,8 +122,8 @@ class TableSkeletonOverlay(QWidget):
         painter.setBrush(base)
         painter.drawRoundedRect(x, y, width, height, radius, radius)
 
-        glow_width = max(84, int(width * 0.22))
-        shimmer_x = x - glow_width + int((width + glow_width * 2) * self._progress)
+        glow_width = max(68, int(width * 0.18))
+        shimmer_x = x + int((width - glow_width) * 0.32)
         painter.setBrush(shimmer)
         painter.setOpacity(0.42)
         painter.drawRoundedRect(shimmer_x, y, glow_width, height, radius, radius)

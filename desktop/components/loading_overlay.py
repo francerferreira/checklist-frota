@@ -1,10 +1,8 @@
 from __future__ import annotations
 
 from PySide6.QtCore import QEasingCurve, QEvent, QPropertyAnimation, QTimer, Qt
-from PySide6.QtGui import QColor
 from PySide6.QtWidgets import (
     QFrame,
-    QGraphicsDropShadowEffect,
     QGraphicsOpacityEffect,
     QHBoxLayout,
     QLabel,
@@ -27,39 +25,39 @@ class LoadingOverlay(QWidget):
         self._fade_animation = None
 
         self._timer = QTimer(self)
-        self._timer.setInterval(220)
+        self._timer.setInterval(320)
         self._timer.timeout.connect(self._advance_dots)
         self._dot_index = 0
 
         self.setStyleSheet(
             """
             QWidget#LoadingOverlay {
-                background: rgba(28, 34, 41, 0.14);
+                background: rgba(28, 34, 41, 0.10);
             }
             QFrame#LoadingCard {
-                background: rgba(255, 255, 255, 0.95);
+                background: rgba(243, 243, 243, 0.97);
                 border: 1px solid rgba(91, 101, 113, 0.24);
-                border-radius: 10px;
+                border-radius: 2px;
             }
             QFrame#LoadingOrb {
-                background: qlineargradient(x1:0, y1:0, x2:1, y2:1, stop:0 #5A6470, stop:1 #66717D);
-                border-radius: 12px;
-                border: 1px solid rgba(255, 255, 255, 0.24);
+                background: #DDE2E8;
+                border-radius: 2px;
+                border: 1px solid #B8BDC3;
             }
             QLabel#LoadingTitle {
                 color: #0B1220;
-                font-size: 19px;
-                font-weight: 780;
+                font-size: 16px;
+                font-weight: 760;
             }
             QLabel#LoadingSubtitle {
                 color: #64748B;
-                font-size: 13px;
+                font-size: 12px;
             }
             QLabel#LoadingPulse {
                 color: #5B6571;
-                font-size: 14px;
-                font-weight: 800;
-                letter-spacing: 0.22em;
+                font-size: 12px;
+                font-weight: 700;
+                letter-spacing: 0.10em;
             }
             """
         )
@@ -82,11 +80,7 @@ class LoadingOverlay(QWidget):
 
         self.card = QFrame()
         self.card.setObjectName("LoadingCard")
-        shadow = QGraphicsDropShadowEffect(self.card)
-        shadow.setBlurRadius(16)
-        shadow.setOffset(0, 4)
-        shadow.setColor(QColor(36, 43, 50, 16))
-        self.card.setGraphicsEffect(shadow)
+        self.card.setGraphicsEffect(None)
 
         card_layout = QHBoxLayout(self.card)
         card_layout.setContentsMargins(20, 18, 20, 18)
@@ -152,13 +146,13 @@ class LoadingOverlay(QWidget):
         self.raise_()
         self.show()
 
-        self._fade_to(1.0, 180)
+        self._fade_to(1.0, 90)
 
     def hide_loading(self):
         if not self.isVisible():
             return
         self._timer.stop()
-        self._fade_to(0.0, 180, on_finished=self.hide)
+        self._fade_to(0.0, 80, on_finished=self.hide)
 
     def _advance_dots(self):
         dots = "." * ((self._dot_index % 3) + 1)

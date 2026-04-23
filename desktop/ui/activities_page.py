@@ -70,7 +70,7 @@ class ActivityDialog(QDialog):
         icon_layout = QVBoxLayout(icon_badge)
         icon_layout.setContentsMargins(10, 10, 10, 10)
         icon_label = QLabel()
-        icon_label.setPixmap(make_icon("activities", "#FFFFFF", "#1D4ED8", 28).pixmap(28, 28))
+        icon_label.setPixmap(make_icon("activities", "#E7EBF0", "#5B6571", 28).pixmap(28, 28))
         icon_layout.addWidget(icon_label)
 
         title_wrap = QVBoxLayout()
@@ -434,7 +434,7 @@ class ActivityItemUpdateDialog(QDialog):
         icon_layout = QVBoxLayout(icon_badge)
         icon_layout.setContentsMargins(10, 10, 10, 10)
         icon_label = QLabel()
-        icon_label.setPixmap(make_icon("activities", "#FFFFFF", "#1D4ED8", 28).pixmap(28, 28))
+        icon_label.setPixmap(make_icon("activities", "#E7EBF0", "#5B6571", 28).pixmap(28, 28))
         icon_layout.addWidget(icon_label)
 
         title_wrap = QVBoxLayout()
@@ -893,7 +893,7 @@ class ActivityDetailDialog(QDialog):
         icon_layout = QVBoxLayout(icon_badge)
         icon_layout.setContentsMargins(10, 10, 10, 10)
         icon_label = QLabel()
-        icon_label.setPixmap(make_icon("activities", "#FFFFFF", "#1D4ED8", 28).pixmap(28, 28))
+        icon_label.setPixmap(make_icon("activities", "#E7EBF0", "#5B6571", 28).pixmap(28, 28))
         icon_layout.addWidget(icon_label)
 
         title_wrap = QVBoxLayout()
@@ -1597,5 +1597,6 @@ class ActivitiesPage(QFrame):
             "FINALIZADA": {"background": "#DCFCE7", "color": "#166534"},
         }
         return mapping.get(value or "", {"background": "#E2E8F0", "color": "#334155"})
+
 
 

@@ -60,7 +60,7 @@ class ResolveDialog(QDialog):
         icon_layout = QVBoxLayout(icon_badge)
         icon_layout.setContentsMargins(10, 10, 10, 10)
         icon_label = QLabel()
-        icon_label.setPixmap(make_icon("warning", "#FFFFFF", "#1D4ED8", 28).pixmap(28, 28))
+        icon_label.setPixmap(make_icon("warning", "#E7EBF0", "#5B6571", 28).pixmap(28, 28))
         icon_layout.addWidget(icon_label)
         title_wrap = QVBoxLayout()
         title_wrap.setContentsMargins(0, 0, 0, 0)
@@ -633,11 +633,11 @@ class NonConformitiesPage(QFrame):
                     cell = make_table_item(value)
                     if column == 2:
                         if item.get("resolvido"):
-                            cell.setBackground(QBrush(QColor("#DCFCE7")))
-                            cell.setForeground(QBrush(QColor("#166534")))
+                            cell.setBackground(QBrush(QColor("#E5ECE5")))
+                            cell.setForeground(QBrush(QColor("#3F5643")))
                         else:
-                            cell.setBackground(QBrush(QColor("#FEF3C7")))
-                            cell.setForeground(QBrush(QColor("#B45309")))
+                            cell.setBackground(QBrush(QColor("#ECE7D8")))
+                            cell.setForeground(QBrush(QColor("#5F563F")))
                     self.mechanic_table.setItem(row, column, cell)
         finally:
             self.mechanic_table.blockSignals(False)
@@ -729,5 +729,6 @@ class NonConformitiesPage(QFrame):
                     parent_window.switch_page("activities")
                 except Exception:
                     pass
+
 
 

@@ -72,9 +72,7 @@ class DashboardPage(QFrame):
         hero_text.addWidget(hero_caption)
 
         self.hero_badge = QLabel("Status operacional")
-        self.hero_badge.setStyleSheet(
-            "background:#5B6571; color:#FFFFFF; border-radius:8px; padding:8px 12px; font-size:12px; font-weight:700;"
-        )
+        self.hero_badge.setObjectName("BadgeStrong")
 
         hero_layout.addLayout(hero_text, 1)
         semaforo_wrap = QVBoxLayout()
@@ -169,9 +167,7 @@ class DashboardPage(QFrame):
         table_title.setObjectName("SectionTitle")
 
         self.table_badge = QLabel("Top recorr\u00eancia")
-        self.table_badge.setStyleSheet(
-            "background:#E9EDF2; color:#3E4A58; border-radius:8px; padding:6px 10px; font-size:12px; font-weight:700;"
-        )
+        self.table_badge.setObjectName("BadgeSoft")
 
         top_row.addWidget(table_title)
         top_row.addStretch()
@@ -251,9 +247,7 @@ class DashboardPage(QFrame):
             open_total=dashboard.get("nc_abertas", 0),
         )
         self.hero_badge.setText(executive["label"])
-        self.hero_badge.setStyleSheet(
-            "background:#5B6571; color:#FFFFFF; border-radius:8px; padding:8px 12px; font-size:12px; font-weight:700;"
-        )
+        self.hero_badge.setStyleSheet(executive["style"])
 
         severity_counts = {"Alta": 0, "Moderada": 0, "Controlada": 0}
         for item in critical_items:

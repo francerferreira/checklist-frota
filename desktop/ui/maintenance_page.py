@@ -716,6 +716,7 @@ class MaintenancePage(QFrame):
         calendar_title_row.addWidget(self.clear_calendar_filter_button)
 
         self.calendar_table = QTableWidget(6, 7)
+        self.calendar_table.setObjectName("CalendarGrid")
         self.calendar_table.setHorizontalHeaderLabels(WEEKDAY_HEADERS)
         configure_table(self.calendar_table, stretch_last=False, auto_fit=False)
         self.calendar_table.setSortingEnabled(False)
@@ -726,34 +727,6 @@ class MaintenancePage(QFrame):
         self.calendar_table.itemSelectionChanged.connect(self._on_calendar_day_selection_changed)
         self.calendar_table.verticalHeader().setVisible(False)
         self.calendar_table.setMinimumHeight(520)
-        self.calendar_table.setStyleSheet(
-            """
-            QTableWidget {
-                background: #F0F1F3;
-                border: 1px solid #B8BDC3;
-                border-radius: 2px;
-                gridline-color: rgba(182, 189, 197, 0.55);
-            }
-            QTableWidget::item {
-                border: 1px solid #D2D6DB;
-                padding: 7px 8px;
-            }
-            QTableWidget::item:selected {
-                border: 1px solid #6D7783;
-                background: #6D7783;
-                color: #FFFFFF;
-            }
-            QHeaderView::section {
-                background: #E3E6EA;
-                color: #2C3E50;
-                border-right: 1px solid #C5CCD3;
-                border-bottom: 1px solid #C5CCD3;
-                padding: 8px 6px;
-                font-weight: 760;
-            }
-            """
-        )
-
         calendar_layout.addLayout(calendar_title_row)
         calendar_layout.addWidget(self.calendar_table)
 

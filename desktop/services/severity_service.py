@@ -1,12 +1,12 @@
 from __future__ import annotations
 
 
-SEVERITY_RED = "#B91C1C"
-SEVERITY_RED_BG = "#FEE2E2"
-SEVERITY_YELLOW = "#B45309"
-SEVERITY_YELLOW_BG = "#FEF3C7"
-SEVERITY_GREEN = "#166534"
-SEVERITY_GREEN_BG = "#DCFCE7"
+SEVERITY_RED = "#5F4949"
+SEVERITY_RED_BG = "#ECE2E2"
+SEVERITY_YELLOW = "#5F563F"
+SEVERITY_YELLOW_BG = "#ECE7D8"
+SEVERITY_GREEN = "#3F5643"
+SEVERITY_GREEN_BG = "#E5ECE5"
 
 
 def severity_from_counts(total: float, open_count: float = 0.0) -> dict:
@@ -42,6 +42,6 @@ def _build(label: str, color: str, background: str) -> dict:
         "background": background,
         "style": (
             f"background:{background}; color:{color}; border:1px solid {color}; "
-            "border-radius:14px; padding:6px 10px; font-size:12px; font-weight:700;"
+            "border-radius:2px; padding:4px 8px; font-size:12px; font-weight:700;"
         ),
     }

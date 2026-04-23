@@ -16,18 +16,18 @@ class StatCard(QFrame):
         self.icon_name = icon_name
 
         self.shadow = QGraphicsDropShadowEffect(self)
-        self.shadow.setBlurRadius(24)
-        self.shadow.setOffset(0, 8)
-        self.shadow.setColor(QColor(15, 23, 42, 28))
+        self.shadow.setBlurRadius(0)
+        self.shadow.setOffset(0, 0)
+        self.shadow.setColor(QColor(0, 0, 0, 0))
         self.setGraphicsEffect(self.shadow)
 
         self.animation = QPropertyAnimation(self, b"lift", self)
-        self.animation.setDuration(200)
+        self.animation.setDuration(90)
         self.animation.setEasingCurve(QEasingCurve.OutCubic)
 
         layout = QVBoxLayout(self)
-        layout.setContentsMargins(22, 22, 22, 22)
-        layout.setSpacing(10)
+        layout.setContentsMargins(16, 16, 16, 16)
+        layout.setSpacing(8)
 
         header_row = QHBoxLayout()
         header_row.setContentsMargins(0, 0, 0, 0)
@@ -75,7 +75,7 @@ class StatCard(QFrame):
 
     def set_lift(self, value: float):
         self._lift = value
-        self.shadow.setBlurRadius(24 + (12 * value))
-        self.shadow.setOffset(0, 8 + (4 * value))
+        self.shadow.setBlurRadius(0)
+        self.shadow.setOffset(0, 0)
 
     lift = Property(float, get_lift, set_lift)

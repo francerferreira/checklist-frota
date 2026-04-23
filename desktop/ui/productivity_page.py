@@ -145,8 +145,8 @@ class ProductivityPage(QFrame):
                 for column, value in enumerate(values):
                     cell = make_table_item(value)
                     if column == 2:
-                        cell.setBackground(QBrush(QColor("#DBEAFE")))
-                        cell.setForeground(QBrush(QColor("#1D4ED8")))
+                        cell.setBackground(QBrush(QColor("#E9EDF2")))
+                        cell.setForeground(QBrush(QColor("#3E4A58")))
                     self.table.setItem(row_index, column, cell)
         finally:
             self.table.blockSignals(False)

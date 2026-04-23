@@ -1,4 +1,4 @@
-from __future__ import annotations
+﻿from __future__ import annotations
 
 from PySide6.QtCore import QTimer, Qt
 from PySide6.QtWidgets import (
@@ -41,7 +41,7 @@ class MessageComposerDialog(QDialog):
         icon_layout = QVBoxLayout(icon_badge)
         icon_layout.setContentsMargins(10, 10, 10, 10)
         icon_label = QLabel()
-        icon_label.setPixmap(make_icon("reports", "#FFFFFF", "#1D4ED8", 28).pixmap(28, 28))
+        icon_label.setPixmap(make_icon("reports", "#E7EBF0", "#5B6571", 28).pixmap(28, 28))
         icon_layout.addWidget(icon_label)
 
         title_wrap = QVBoxLayout()
@@ -171,3 +171,4 @@ class MessageComposerDialog(QDialog):
             f"E-mail:\n{self.message.email_body}"
         )
         self._copy(combined, "Texto completo copiado")
+
