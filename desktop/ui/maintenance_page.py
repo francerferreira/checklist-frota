@@ -1,4 +1,4 @@
-from __future__ import annotations
+﻿from __future__ import annotations
 
 from collections import defaultdict
 from math import ceil
@@ -343,18 +343,15 @@ class MaintenancePage(QFrame):
         text_wrap.setSpacing(3)
         title = QLabel("Programacao de manutencao")
         title.setObjectName("PageTitle")
-        title.setStyleSheet("font-size:24px; font-weight:760;")
         subtitle = QLabel(
             "Tela organizada por abas: programacoes, execucao, governanca e relatorios."
         )
         subtitle.setObjectName("PageSubtitle")
-        subtitle.setStyleSheet("font-size:12px;")
         subtitle.setWordWrap(True)
         text_wrap.addWidget(title)
         text_wrap.addWidget(subtitle)
-        context_hint = QLabel("Operação diária • Programações • Execução • Governança")
-        context_hint.setObjectName("SectionCaption")
-        context_hint.setStyleSheet("font-size:11px; color:#4F657D;")
+        context_hint = QLabel("Operacao diaria - Programacoes - Execucao - Governanca")
+        context_hint.setObjectName("ContextHint")
         text_wrap.addWidget(context_hint)
 
         self.new_schedule_button = QPushButton("Nova programacao")

@@ -1,8 +1,8 @@
 from __future__ import annotations
 
 from PySide6.QtCore import QEasingCurve, Property, QPropertyAnimation, Qt
-from PySide6.QtGui import QColor, QCursor
-from PySide6.QtWidgets import QGraphicsDropShadowEffect, QPushButton
+from PySide6.QtGui import QCursor
+from PySide6.QtWidgets import QPushButton
 
 
 class AnimatedButton(QPushButton):
@@ -13,16 +13,10 @@ class AnimatedButton(QPushButton):
         self._tone = tone
         self._hovered = False
         self.setCursor(QCursor(Qt.PointingHandCursor))
-        self.setMinimumHeight(46)
-
-        self.shadow = QGraphicsDropShadowEffect(self)
-        self.shadow.setBlurRadius(0)
-        self.shadow.setOffset(0, 0)
-        self.shadow.setColor(QColor(0, 0, 0, 0))
-        self.setGraphicsEffect(self.shadow)
+        self.setMinimumHeight(30)
 
         self.animation = QPropertyAnimation(self, b"elevation", self)
-        self.animation.setDuration(90)
+        self.animation.setDuration(80)
         self.animation.setEasingCurve(QEasingCurve.OutCubic)
 
         self.pressed.connect(self._handle_pressed)
@@ -56,8 +50,6 @@ class AnimatedButton(QPushButton):
 
     def set_elevation(self, value: float):
         self._elevation = value
-        self.shadow.setBlurRadius(0)
-        self.shadow.setOffset(0, 0)
         self._apply_style()
 
     elevation = Property(float, get_elevation, set_elevation)
@@ -68,42 +60,24 @@ class AnimatedButton(QPushButton):
 
     def _apply_style(self):
         if self._tone == "danger":
-            background = (
-                "qlineargradient(x1:0, y1:0, x2:1, y2:0, "
-                "stop:0 #866565, stop:0.55 #8C6A6A, stop:1 #785A5A)"
-            )
-            hover_background = (
-                "qlineargradient(x1:0, y1:0, x2:1, y2:0, "
-                "stop:0 #785A5A, stop:0.60 #805F5F, stop:1 #6E5353)"
-            )
-            border = "rgba(113, 84, 84, 0.40)"
+            background = "#866565" if not self._hovered else "#7B5D5D"
+            border = "#715454"
             color = "#FFFFFF"
             bottom_border = "1px solid #694F4F"
-            shadow_color = QColor(0, 0, 0, 0)
             padding_left = 10
         else:
             if self._active:
-                background = (
-                    "qlineargradient(x1:0, y1:0, x2:0, y2:1, "
-                    "stop:0 #E7EAEE, stop:1 #DCE1E7)"
-                )
-                border = "#8F98A2"
-                color = "#2E3F52"
-                bottom_border = "1px solid #87919B"
-                shadow_color = QColor(0, 0, 0, 0)
+                background = "#DEE3E9"
+                border = "#88929D"
+                color = "#213547"
+                bottom_border = "1px solid #7A8490"
             else:
-                background = "#ECEFF2"
-                border = "rgba(143, 152, 162, 0.85)"
+                background = "#ECEFF2" if not self._hovered else "#E1E5EA"
+                border = "#A1A9B2"
                 color = "#33475C"
                 bottom_border = "1px solid #A1A9B2"
-                shadow_color = QColor(0, 0, 0, 0)
             padding_left = 10
-            hover_background = (
-                "qlineargradient(x1:0, y1:0, x2:0, y2:1, "
-                "stop:0 #E8EBEF, stop:1 #DEE3E9)"
-            )
-
-        self.shadow.setColor(shadow_color)
+        font_size = 11 if self.property("moduleNav") == "true" else 12
         self.setStyleSheet(
             f"""
             QPushButton {{
@@ -114,11 +88,11 @@ class AnimatedButton(QPushButton):
                 border-bottom: {bottom_border};
                 padding: 6px 8px 6px {padding_left}px;
                 text-align: left;
-                font-size: 11px;
+                font-size: {font_size}px;
                 font-weight: 700;
             }}
             QPushButton:hover {{
-                background: {hover_background};
+                background: {background};
                 color: {color};
             }}
             """

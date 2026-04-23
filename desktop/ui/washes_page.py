@@ -953,23 +953,17 @@ class ScheduleDetailDialog(QDialog):
                 self.table.setItem(row_index, 5, make_table_item("-"))
 
             ok_button = QPushButton()
-            ok_button.setIcon(make_icon("ok", "#ECFDF5", "#16A34A", 20))
+            ok_button.setIcon(make_icon("ok", "#E7EBF0", "#4D6A55", 20))
             ok_button.setToolTip("Confirmar que lavou")
             ok_button.setFixedSize(40, 34)
-            ok_button.setStyleSheet(
-                "QPushButton {background:#FFFFFF; border:1px solid rgba(22,163,74,0.45); border-radius:10px;}"
-                "QPushButton:hover {background:#ECFDF5;}"
-            )
+            ok_button.setProperty("compactAction", "ok")
             ok_button.clicked.connect(lambda checked=False, payload=item: self._handle_ok(payload))
 
             no_button = QPushButton()
-            no_button.setIcon(make_icon("cancel", "#FEF2F2", "#DC2626", 20))
+            no_button.setIcon(make_icon("cancel", "#E7EBF0", "#7E6363", 20))
             no_button.setToolTip("Marcar que não lavou")
             no_button.setFixedSize(40, 34)
-            no_button.setStyleSheet(
-                "QPushButton {background:#FFFFFF; border:1px solid rgba(220,38,38,0.45); border-radius:10px;}"
-                "QPushButton:hover {background:#FEF2F2;}"
-            )
+            no_button.setProperty("compactAction", "no")
             no_button.clicked.connect(lambda checked=False, payload=item: self._handle_no(payload))
 
             ok_button.setEnabled(item.get("status_execucao") != "LAVADO")
@@ -1088,16 +1082,13 @@ class WashesPage(QFrame):
         text_wrap.setSpacing(4)
         title = QLabel("Gerenciamento de lavagem")
         title.setObjectName("PageTitle")
-        title.setStyleSheet("font-size:24px; font-weight:760;")
         subtitle = QLabel("Controle a fila do CV, monte o cronograma mensal e acompanhe os indicadores do período.")
         subtitle.setObjectName("PageSubtitle")
-        subtitle.setStyleSheet("font-size:12px;")
         subtitle.setWordWrap(True)
         text_wrap.addWidget(title)
         text_wrap.addWidget(subtitle)
-        context_hint = QLabel("Operação diária • Cronograma • Fila • Histórico")
-        context_hint.setObjectName("SectionCaption")
-        context_hint.setStyleSheet("font-size:11px; color:#4F657D;")
+        context_hint = QLabel("Operacao diaria - Cronograma - Fila - Historico")
+        context_hint.setObjectName("ContextHint")
         text_wrap.addWidget(context_hint)
 
         buttons = QHBoxLayout()
@@ -1156,13 +1147,9 @@ class WashesPage(QFrame):
             card_title = QLabel(title_text)
             card_title.setObjectName("CardTitle")
             value_label = QLabel("-")
-            value_label.setStyleSheet(
-                "font-size:18px; font-weight:760; color:#0F2A42; background: transparent;"
-            )
+            value_label.setObjectName("SummaryMetric")
             subtitle_label = QLabel("")
-            subtitle_label.setStyleSheet(
-                "font-size:10px; color:#5E738A; background: transparent;"
-            )
+            subtitle_label.setObjectName("SummaryMeta")
             subtitle_label.setWordWrap(True)
             card_layout.addWidget(card_title)
             card_layout.addWidget(value_label)
@@ -2015,23 +2002,17 @@ class WashesPage(QFrame):
                 )
 
                 ok_button = QPushButton()
-                ok_button.setIcon(make_icon("ok", "#ECFDF5", "#16A34A", 20))
+                ok_button.setIcon(make_icon("ok", "#E7EBF0", "#4D6A55", 20))
                 ok_button.setToolTip("Confirmar que lavou")
                 ok_button.setFixedSize(40, 34)
-                ok_button.setStyleSheet(
-                    "QPushButton {background:#FFFFFF; border:1px solid rgba(22,163,74,0.45); border-radius:10px;}"
-                    "QPushButton:hover {background:#ECFDF5;}"
-                )
+                ok_button.setProperty("compactAction", "ok")
                 ok_button.clicked.connect(lambda checked=False, payload=item: self.confirm_schedule_success(payload))
 
                 no_button = QPushButton()
-                no_button.setIcon(make_icon("cancel", "#FEF2F2", "#DC2626", 20))
+                no_button.setIcon(make_icon("cancel", "#E7EBF0", "#7E6363", 20))
                 no_button.setToolTip("Marcar que não lavou")
                 no_button.setFixedSize(40, 34)
-                no_button.setStyleSheet(
-                    "QPushButton {background:#FFFFFF; border:1px solid rgba(220,38,38,0.45); border-radius:10px;}"
-                    "QPushButton:hover {background:#FEF2F2;}"
-                )
+                no_button.setProperty("compactAction", "no")
                 no_button.clicked.connect(lambda checked=False, payload=item: self.mark_schedule_not_completed(payload))
 
                 ok_button.setEnabled(item.get("status_execucao") != "LAVADO")

@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from datetime import datetime
 
-from PySide6.QtCore import QEasingCurve, QPropertyAnimation, QTimer, Qt
+from PySide6.QtCore import QTimer, Qt
 from PySide6.QtGui import QColor, QGuiApplication
 from PySide6.QtWidgets import (
     QAbstractItemView,
@@ -164,6 +164,11 @@ QFrame#TopNavStrip {
     border: 1px solid #B8BDC3;
     border-radius: 2px;
 }
+QFrame#TopNavGridHost {
+    background: #E9EDF2;
+    border: 1px solid #B8BDC3;
+    border-radius: 2px;
+}
 QFrame#TopBar {
     background: #D4D9DF;
     border: 1px solid #AEB5BC;
@@ -184,9 +189,23 @@ QLabel#TopBarPill {
     color: #2C3E50;
     border: 1px solid #B8BDC3;
     border-radius: 2px;
-    padding: 4px 8px;
-    font-size: 11px;
+    padding: 3px 8px;
+    font-size: 10px;
     font-weight: 700;
+}
+QLabel#TopBarSessionText {
+    color: #647B92;
+    font-size: 10px;
+}
+QLabel#TopBarBadgeTitle {
+    color: #0B1220;
+    font-size: 12px;
+    font-weight: 700;
+}
+QLabel#CompactTitle {
+    font-size: 13px;
+    font-weight: 760;
+    color: #23374B;
 }
 QLabel#SidebarTitle {
     color: #FFFFFF;
@@ -214,8 +233,8 @@ QLabel#TopBarSubtitle {
     font-size: 12px;
 }
 QLabel#PageTitle {
-    font-size: 20px;
-    font-weight: 760;
+    font-size: 22px;
+    font-weight: 780;
     color: #1E2F43;
 }
 QLabel#PageSubtitle {
@@ -224,12 +243,21 @@ QLabel#PageSubtitle {
 }
 QLabel#SectionTitle {
     color: #2F3E50;
-    font-size: 14px;
-    font-weight: 720;
+    font-size: 15px;
+    font-weight: 760;
 }
 QLabel#SectionCaption {
-    color: #667A90;
+    color: #5B6F84;
     font-size: 11px;
+}
+QLabel#ContextHint {
+    color: #4F657D;
+    font-size: 11px;
+}
+QLabel#DialogBodyText {
+    color: #1F2D3D;
+    font-size: 14px;
+    font-weight: 700;
 }
 QPushButton {
     border: 1px solid #AEB5BC;
@@ -260,6 +288,27 @@ QPushButton[variant="danger"] {
     background: #866565;
     border: 1px solid #715454;
     color: #FFFFFF;
+}
+QPushButton[moduleNav="true"] {
+    padding: 5px 8px;
+    font-size: 11px;
+    font-weight: 720;
+}
+QPushButton[compactAction="ok"] {
+    background: #E5ECE5;
+    color: #365440;
+    border: 1px solid #B7C4B9;
+}
+QPushButton[compactAction="ok"]:hover {
+    background: #DCE6DC;
+}
+QPushButton[compactAction="no"] {
+    background: #ECE2E2;
+    color: #5F4949;
+    border: 1px solid #C7B3B3;
+}
+QPushButton[compactAction="no"]:hover {
+    background: #E4D6D6;
 }
 QLineEdit, QTextEdit, QComboBox {
     background: #FFFFFF;
@@ -293,9 +342,10 @@ QTableWidget {
     selection-background-color: #6D7783;
     selection-color: #FFFFFF;
     alternate-background-color: #F2F3F5;
+    font-size: 12px;
 }
 QTableWidget::item {
-    padding: 6px 8px;
+    padding: 7px 9px;
     border: none;
 }
 QTableWidget::item:selected,
@@ -317,11 +367,45 @@ QHeaderView::section {
     border: none;
     border-right: 1px solid rgba(148, 163, 184, 0.16);
     border-bottom: 1px solid rgba(148, 163, 184, 0.20);
-    padding: 6px 8px;
-    font-weight: 720;
+    padding: 7px 9px;
+    font-weight: 760;
 }
 QHeaderView::section:hover {
     background: #E7EDF4;
+}
+QScrollBar:vertical {
+    width: 11px;
+    background: #E5E8EC;
+    margin: 0;
+}
+QScrollBar::handle:vertical {
+    background: #A8B0B8;
+    min-height: 28px;
+    border-radius: 2px;
+}
+QScrollBar::add-line:vertical,
+QScrollBar::sub-line:vertical,
+QScrollBar::add-page:vertical,
+QScrollBar::sub-page:vertical {
+    background: transparent;
+    height: 0;
+}
+QScrollBar:horizontal {
+    height: 11px;
+    background: #E5E8EC;
+    margin: 0;
+}
+QScrollBar::handle:horizontal {
+    background: #A8B0B8;
+    min-width: 28px;
+    border-radius: 2px;
+}
+QScrollBar::add-line:horizontal,
+QScrollBar::sub-line:horizontal,
+QScrollBar::add-page:horizontal,
+QScrollBar::sub-page:horizontal {
+    background: transparent;
+    width: 0;
 }
 QScrollArea, QStackedWidget {
     border: none;
@@ -362,6 +446,15 @@ QLabel#CardValue {
 QLabel#CardSubtitle {
     color: #64748B;
     font-size: 12px;
+}
+QLabel#SummaryMetric {
+    font-size: 18px;
+    font-weight: 760;
+    color: #0F2A42;
+}
+QLabel#SummaryMeta {
+    font-size: 10px;
+    color: #5E738A;
 }
 QLabel#ImageTitle {
     font-size: 16px;
@@ -477,7 +570,6 @@ def build_dialog_layout(
 
 
 def animate_dialog_in(dialog: QDialog) -> None:
-    _ = (QEasingCurve, QPropertyAnimation)
     dialog.setWindowOpacity(1.0)
 
 
@@ -532,7 +624,7 @@ def configure_table(table: QTableWidget, stretch_last: bool = True, auto_fit: bo
     table.setEditTriggers(QAbstractItemView.NoEditTriggers)
     table.setFrameShape(QFrame.NoFrame)
     table.verticalHeader().setVisible(False)
-    table.verticalHeader().setDefaultSectionSize(44)
+    table.verticalHeader().setDefaultSectionSize(40)
     table.horizontalHeader().setHighlightSections(False)
     table.horizontalHeader().setDefaultAlignment(Qt.AlignLeft | Qt.AlignVCenter)
     table.horizontalHeader().setStretchLastSection(stretch_last)

@@ -1,4 +1,4 @@
-from __future__ import annotations
+﻿from __future__ import annotations
 
 from PySide6.QtCore import Qt
 from PySide6.QtWidgets import QDialog, QFrame, QHBoxLayout, QLabel, QPushButton, QVBoxLayout
@@ -15,7 +15,7 @@ class ConfirmationDialog(QDialog):
         message: str,
         *,
         confirm_text: str = "Yes",
-        cancel_text: str = "Não",
+        cancel_text: str = "Nao",
         icon_name: str = "warning",
     ):
         super().__init__(parent)
@@ -24,36 +24,36 @@ class ConfirmationDialog(QDialog):
         self.setStyleSheet(
             """
             QDialog {
-                background: #D9DDE2;
+                background: #D8D8D8;
             }
             QFrame#ConfirmationCard {
-                background: #FFFFFF;
-                border: 1px solid rgba(148, 163, 184, 0.18);
-                border-radius: 24px;
+                background: #F3F3F3;
+                border: 1px solid #B8BDC3;
+                border-radius: 2px;
             }
             QPushButton#ConfirmButton {
-                background: #5B6571;
+                background: #6D7783;
                 color: #FFFFFF;
-                border: none;
-                border-radius: 16px;
-                padding: 12px 22px;
-                font-size: 14px;
-                font-weight: 800;
+                border: 1px solid #5D6671;
+                border-radius: 2px;
+                padding: 8px 12px;
+                font-size: 12px;
+                font-weight: 700;
             }
             QPushButton#ConfirmButton:hover {
-                background: #4F5964;
+                background: #626C77;
             }
             QPushButton#CancelButton {
-                background: #FFFFFF;
-                color: #0F172A;
-                border: 1px solid rgba(148, 163, 184, 0.30);
-                border-radius: 16px;
-                padding: 12px 22px;
-                font-size: 14px;
-                font-weight: 800;
+                background: #ECEFF2;
+                color: #223447;
+                border: 1px solid #AEB5BC;
+                border-radius: 2px;
+                padding: 8px 12px;
+                font-size: 12px;
+                font-weight: 700;
             }
             QPushButton#CancelButton:hover {
-                background: #F8FAFC;
+                background: #E1E5EA;
             }
             """
         )
@@ -83,7 +83,7 @@ class ConfirmationDialog(QDialog):
         icon_layout = QVBoxLayout(icon_badge)
         icon_layout.setContentsMargins(10, 10, 10, 10)
         icon_label = QLabel()
-        icon_label.setPixmap(make_icon(icon_name, "#FFFFFF", "#5B6571", 28).pixmap(28, 28))
+        icon_label.setPixmap(make_icon(icon_name, "#E7EBF0", "#5B6571", 28).pixmap(28, 28))
         icon_layout.addWidget(icon_label)
 
         title_wrap = QVBoxLayout()
@@ -108,8 +108,8 @@ class ConfirmationDialog(QDialog):
         body_layout.setSpacing(8)
 
         body_label = QLabel(message)
+        body_label.setObjectName("DialogBodyText")
         body_label.setWordWrap(True)
-        body_label.setStyleSheet("color:#1F2D3D; font-size:15px; font-weight:600;")
         body_layout.addWidget(body_label)
 
         footer = QFrame()
@@ -122,13 +122,13 @@ class ConfirmationDialog(QDialog):
 
         cancel_button = QPushButton(cancel_text)
         cancel_button.setObjectName("CancelButton")
-        cancel_button.setMinimumHeight(50)
+        cancel_button.setMinimumHeight(40)
         cancel_button.setMinimumWidth(132)
         cancel_button.clicked.connect(self.reject)
 
         confirm_button = QPushButton(confirm_text)
         confirm_button.setObjectName("ConfirmButton")
-        confirm_button.setMinimumHeight(50)
+        confirm_button.setMinimumHeight(40)
         confirm_button.setMinimumWidth(132)
         confirm_button.clicked.connect(self.accept)
 
@@ -160,24 +160,24 @@ class NoticeDialog(QDialog):
         self.setStyleSheet(
             """
             QDialog {
-                background: #D9DDE2;
+                background: #D8D8D8;
             }
             QFrame#NoticeCard {
-                background: #FFFFFF;
-                border: 1px solid rgba(148, 163, 184, 0.18);
-                border-radius: 24px;
+                background: #F3F3F3;
+                border: 1px solid #B8BDC3;
+                border-radius: 2px;
             }
             QPushButton#NoticeButton {
-                background: #5B6571;
+                background: #6D7783;
                 color: #FFFFFF;
-                border: none;
-                border-radius: 16px;
-                padding: 12px 22px;
-                font-size: 14px;
-                font-weight: 800;
+                border: 1px solid #5D6671;
+                border-radius: 2px;
+                padding: 8px 12px;
+                font-size: 12px;
+                font-weight: 700;
             }
             QPushButton#NoticeButton:hover {
-                background: #4F5964;
+                background: #626C77;
             }
             """
         )
@@ -207,7 +207,7 @@ class NoticeDialog(QDialog):
         icon_layout = QVBoxLayout(icon_badge)
         icon_layout.setContentsMargins(10, 10, 10, 10)
         icon_label = QLabel()
-        icon_label.setPixmap(make_icon(icon_name, "#FFFFFF", "#5B6571", 28).pixmap(28, 28))
+        icon_label.setPixmap(make_icon(icon_name, "#E7EBF0", "#5B6571", 28).pixmap(28, 28))
         icon_layout.addWidget(icon_label)
 
         title_wrap = QVBoxLayout()
@@ -232,8 +232,8 @@ class NoticeDialog(QDialog):
         body_layout.setSpacing(8)
 
         body_label = QLabel(message)
+        body_label.setObjectName("DialogBodyText")
         body_label.setWordWrap(True)
-        body_label.setStyleSheet("color:#1F2D3D; font-size:15px; font-weight:600;")
         body_layout.addWidget(body_label)
 
         footer = QFrame()
@@ -246,7 +246,7 @@ class NoticeDialog(QDialog):
 
         ok_button = QPushButton(button_text)
         ok_button.setObjectName("NoticeButton")
-        ok_button.setMinimumHeight(50)
+        ok_button.setMinimumHeight(40)
         ok_button.setMinimumWidth(132)
         ok_button.clicked.connect(self.accept)
         footer_layout.addWidget(ok_button)
@@ -266,7 +266,7 @@ def ask_confirmation(
     message: str,
     *,
     confirm_text: str = "Sim",
-    cancel_text: str = "Não",
+    cancel_text: str = "Nao",
     icon_name: str = "warning",
 ) -> bool:
     dialog = ConfirmationDialog(

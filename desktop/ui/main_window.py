@@ -269,11 +269,9 @@ class MainWindow(QMainWindow):
 
         title = QLabel("Sistema de Checklist de Frota")
         title.setObjectName("TopBarTitle")
-        title.setStyleSheet("font-size:16px; font-weight:760; color:#203447;")
 
         subtitle = QLabel("Gestão de Frota")
         subtitle.setObjectName("TopBarSubtitle")
-        subtitle.setStyleSheet("font-size:11px; color:#4E6278;")
 
         login_started = getattr(self.api_client, "login_started_at", None)
         started_label = (
@@ -282,8 +280,7 @@ class MainWindow(QMainWindow):
             else "Sessão ativa"
         )
         self.top_bar_session_label = QLabel(started_label)
-        self.top_bar_session_label.setObjectName("TopBarSubtitle")
-        self.top_bar_session_label.setStyleSheet("font-size:10px; color:#647B92;")
+        self.top_bar_session_label.setObjectName("TopBarSessionText")
 
         text_wrap.addWidget(self.top_bar_pill, 0, Qt.AlignLeft)
         text_wrap.addWidget(title)
@@ -300,9 +297,7 @@ class MainWindow(QMainWindow):
         badge_layout.setSpacing(2)
 
         badge_title = QLabel(self.user["nome"])
-        badge_title.setStyleSheet(
-            "font-size:12px; font-weight:700; color:#0B1220; background: transparent;"
-        )
+        badge_title.setObjectName("TopBarBadgeTitle")
         badge_subtitle = QLabel(f"Acesso {self.user['tipo']}")
         badge_subtitle.setObjectName("MutedText")
         badge_layout.addWidget(badge_title)
@@ -343,9 +338,8 @@ class MainWindow(QMainWindow):
         nav_wrap.setSpacing(0)
 
         nav_grid_host = QFrame()
-        nav_grid_host.setStyleSheet(
-            "QFrame { background: #E9EDF2; border: 1px solid #B8BDC3; border-radius: 2px; }"
-        )
+        nav_grid_host.setObjectName("TopNavGridHost")
+        nav_grid_host.setAttribute(Qt.WA_StyledBackground, True)
         nav_layout = QGridLayout(nav_grid_host)
         nav_layout.setContentsMargins(4, 4, 4, 4)
         nav_layout.setHorizontalSpacing(4)
@@ -372,6 +366,7 @@ class MainWindow(QMainWindow):
         max_columns = 11
         for index, (key, label, icon) in enumerate(nav_items):
             button = AnimatedButton(label)
+            button.setProperty("moduleNav", "true")
             button.setIcon(icon)
             button.setMinimumWidth(108)
             button.setMaximumWidth(126)
@@ -416,7 +411,7 @@ class MainWindow(QMainWindow):
         self.compact_context_label.setObjectName("TopBarPill")
 
         self.compact_title_label = QLabel("Sistema de Checklist de Frota")
-        self.compact_title_label.setStyleSheet("font-size:13px; font-weight:760; color:#23374B;")
+        self.compact_title_label.setObjectName("CompactTitle")
 
         user_label = QPushButton(f"{self.user['nome']} • {self.user['tipo']}")
         user_label.setMinimumHeight(30)
