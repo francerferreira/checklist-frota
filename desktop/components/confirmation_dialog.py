@@ -24,36 +24,36 @@ class ConfirmationDialog(QDialog):
         self.setStyleSheet(
             """
             QDialog {
-                background: #D8D8D8;
+                background: #D4E1F2;
             }
             QFrame#ConfirmationCard {
-                background: #F3F3F3;
-                border: 1px solid #B8BDC3;
+                background: #F2F7FE;
+                border: 1px solid #AFC3DA;
                 border-radius: 2px;
             }
             QPushButton#ConfirmButton {
-                background: #6D7783;
+                background: #2F6FB2;
                 color: #FFFFFF;
-                border: 1px solid #5D6671;
+                border: 1px solid #245F97;
                 border-radius: 2px;
                 padding: 8px 12px;
                 font-size: 12px;
                 font-weight: 700;
             }
             QPushButton#ConfirmButton:hover {
-                background: #626C77;
+                background: #285F98;
             }
             QPushButton#CancelButton {
-                background: #ECEFF2;
-                color: #223447;
-                border: 1px solid #AEB5BC;
+                background: #ECF3FC;
+                color: #113A67;
+                border: 1px solid #9FB7D3;
                 border-radius: 2px;
                 padding: 8px 12px;
                 font-size: 12px;
                 font-weight: 700;
             }
             QPushButton#CancelButton:hover {
-                background: #E1E5EA;
+                background: #DFEBF9;
             }
             """
         )
@@ -83,7 +83,7 @@ class ConfirmationDialog(QDialog):
         icon_layout = QVBoxLayout(icon_badge)
         icon_layout.setContentsMargins(10, 10, 10, 10)
         icon_label = QLabel()
-        icon_label.setPixmap(make_icon(icon_name, "#E7EBF0", "#5B6571", 28).pixmap(28, 28))
+        icon_label.setPixmap(make_icon(icon_name, "#DDEBFA", "#1E5E98", 28).pixmap(28, 28))
         icon_layout.addWidget(icon_label)
 
         title_wrap = QVBoxLayout()
@@ -160,24 +160,24 @@ class NoticeDialog(QDialog):
         self.setStyleSheet(
             """
             QDialog {
-                background: #D8D8D8;
+                background: #D4E1F2;
             }
             QFrame#NoticeCard {
-                background: #F3F3F3;
-                border: 1px solid #B8BDC3;
+                background: #F2F7FE;
+                border: 1px solid #AFC3DA;
                 border-radius: 2px;
             }
             QPushButton#NoticeButton {
-                background: #6D7783;
+                background: #2F6FB2;
                 color: #FFFFFF;
-                border: 1px solid #5D6671;
+                border: 1px solid #245F97;
                 border-radius: 2px;
                 padding: 8px 12px;
                 font-size: 12px;
                 font-weight: 700;
             }
             QPushButton#NoticeButton:hover {
-                background: #626C77;
+                background: #285F98;
             }
             """
         )
@@ -207,7 +207,7 @@ class NoticeDialog(QDialog):
         icon_layout = QVBoxLayout(icon_badge)
         icon_layout.setContentsMargins(10, 10, 10, 10)
         icon_label = QLabel()
-        icon_label.setPixmap(make_icon(icon_name, "#E7EBF0", "#5B6571", 28).pixmap(28, 28))
+        icon_label.setPixmap(make_icon(icon_name, "#DDEBFA", "#1E5E98", 28).pixmap(28, 28))
         icon_layout.addWidget(icon_label)
 
         title_wrap = QVBoxLayout()

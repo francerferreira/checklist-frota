@@ -60,22 +60,22 @@ class AnimatedButton(QPushButton):
 
     def _apply_style(self):
         if self._tone == "danger":
-            background = "#866565" if not self._hovered else "#7B5D5D"
-            border = "#715454"
+            background = "#8A5B5B" if not self._hovered else "#7A4F4F"
+            border = "#724B4B"
             color = "#FFFFFF"
-            bottom_border = "1px solid #694F4F"
+            bottom_border = "1px solid #6A4343"
             padding_left = 10
         else:
             if self._active:
-                background = "#DEE3E9"
-                border = "#88929D"
-                color = "#213547"
-                bottom_border = "1px solid #7A8490"
+                background = "#D8E6F7"
+                border = "#7EA2C6"
+                color = "#15416D"
+                bottom_border = "1px solid #6D93B8"
             else:
-                background = "#ECEFF2" if not self._hovered else "#E1E5EA"
-                border = "#A1A9B2"
-                color = "#33475C"
-                bottom_border = "1px solid #A1A9B2"
+                background = "#EDF4FD" if not self._hovered else "#E3EEFB"
+                border = "#A2BCD8"
+                color = "#1F4F80"
+                bottom_border = "1px solid #97B3D0"
             padding_left = 10
         font_size = 11 if self.property("moduleNav") == "true" else 12
         self.setStyleSheet(

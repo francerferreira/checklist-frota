@@ -378,7 +378,7 @@ class MainWindow(QMainWindow):
 
     def _make_tree_item(self, parent, label: str, *, page_key: str | None = None, icon_name: str = "dashboard"):
         item = QTreeWidgetItem(parent, [label])
-        item.setIcon(0, make_icon(icon_name, "#E7EBF0", "#4F5B69", 14))
+        item.setIcon(0, make_icon(icon_name, "#DDEBFA", "#1E5E98", 14))
         if page_key:
             item.setData(0, Qt.UserRole, page_key)
         return item
@@ -406,7 +406,7 @@ class MainWindow(QMainWindow):
             label = QLabel(text)
             label.setMinimumWidth(min_width)
             label.setStyleSheet(
-                "padding: 2px 8px; border-right: 1px solid #B8BDC3; color: #2F3E50; background: #E7EAEE;"
+                "padding: 2px 8px; border-right: 1px solid #AFC3DA; color: #1D4C7D; background: #E6EFFA;"
             )
             return label
 
@@ -424,7 +424,7 @@ class MainWindow(QMainWindow):
             sub = QMdiSubWindow(self.mdi_area)
             sub.setAttribute(Qt.WA_DeleteOnClose, False)
             sub.setWindowTitle(self.page_titles.get(page_key, page_key))
-            sub.setWindowIcon(make_icon("dashboard", "#E7EBF0", "#4F5B69"))
+            sub.setWindowIcon(make_icon("dashboard", "#DDEBFA", "#1E5E98"))
             sub.setWindowFlags(
                 Qt.SubWindow
                 | Qt.CustomizeWindowHint
