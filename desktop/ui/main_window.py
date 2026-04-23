@@ -243,6 +243,7 @@ class MainWindow(QMainWindow):
         self.setCentralWidget(container)
         self._build_status_bar()
         self.loading_overlay = LoadingOverlay(self.mdi_area.viewport())
+        self._initialize_mdi_subwindows()
 
         self.showMaximized()
         self.switch_page("dashboard")
@@ -398,10 +399,19 @@ class MainWindow(QMainWindow):
         if page_key:
             self.switch_page(page_key)
 
+    def _initialize_mdi_subwindows(self):
+        for page_key in self.page_map:
+            sub = self._ensure_subwindow(page_key, show_if_hidden=False)
+            sub.hide()
+
     def _build_mdi_area(self):
         mdi = QMdiArea()
-        mdi.setViewMode(QMdiArea.SubWindowView)
-        mdi.setActivationOrder(QMdiArea.ActivationHistoryOrder)
+        # Mantém o ERP em padrão de abas MDI: sem janelas se cobrindo e sem reordenação manual.
+        mdi.setViewMode(QMdiArea.TabbedView)
+        mdi.setTabsClosable(True)
+        mdi.setTabsMovable(False)
+        mdi.setDocumentMode(True)
+        mdi.setActivationOrder(QMdiArea.CreationOrder)
         mdi.subWindowActivated.connect(self._on_subwindow_activated)
         return mdi
 
@@ -433,7 +443,7 @@ class MainWindow(QMainWindow):
     def open_access_dialog(self):
         AccessDialog(self.api_client, self.user, self).exec()
 
-    def _ensure_subwindow(self, page_key: str):
+    def _ensure_subwindow(self, page_key: str, *, show_if_hidden: bool = True):
         sub = self.page_subwindows.get(page_key)
         if sub is None:
             sub = QMdiSubWindow(self.mdi_area)
@@ -451,7 +461,8 @@ class MainWindow(QMainWindow):
             self.mdi_area.addSubWindow(sub)
             self.page_subwindows[page_key] = sub
 
-        if sub.isHidden():
+        if show_if_hidden and sub.isHidden():
+            sub.setWindowState(Qt.WindowNoState)
             sub.show()
         return sub
 
@@ -483,7 +494,10 @@ class MainWindow(QMainWindow):
 
         sub = self._ensure_subwindow(page_key)
         self.mdi_area.setActiveSubWindow(sub)
-        sub.showMaximized()
+        if self.mdi_area.viewMode() == QMdiArea.SubWindowView:
+            sub.showMaximized()
+        else:
+            sub.show()
 
         page = self.page_map[page_key]
         if not same_page:
