@@ -4,7 +4,7 @@ from PySide6.QtCore import Qt
 from PySide6.QtWidgets import QDialog, QFrame, QHBoxLayout, QLabel, QPushButton, QVBoxLayout
 
 from components.icon_factory import make_icon
-from theme import configure_dialog_window, style_card
+from theme import style_card
 
 
 class ConfirmationDialog(QDialog):
@@ -20,7 +20,11 @@ class ConfirmationDialog(QDialog):
     ):
         super().__init__(parent)
         self.setWindowTitle(title)
-        configure_dialog_window(self, width=640, height=320, min_width=540, min_height=260)
+        self.resize(620, 300)
+        self.setMinimumSize(520, 250)
+        self.setMaximumSize(820, 420)
+        self.setWindowFlag(Qt.WindowContextHelpButtonHint, False)
+        self.setWindowFlag(Qt.WindowMinMaxButtonsHint, False)
         self.setStyleSheet(
             """
             QDialog {
@@ -156,9 +160,21 @@ class NoticeDialog(QDialog):
     ):
         super().__init__(parent)
         self.setWindowTitle(title)
-        configure_dialog_window(self, width=640, height=300, min_width=540, min_height=260)
+        self.resize(600, 270)
+        self.setMinimumSize(500, 230)
+        self.setMaximumSize(800, 390)
+        self.setWindowFlag(Qt.WindowContextHelpButtonHint, False)
+        self.setWindowFlag(Qt.WindowMinMaxButtonsHint, False)
+        is_warning = icon_name in {"warning", "cancel"}
+        icon_bg = "#FBE7E7" if is_warning else "#DDEBFA"
+        icon_fg = "#B14B4B" if is_warning else "#1E5E98"
+        subtitle_text = "Atenção: revise a mensagem abaixo." if is_warning else "Operação concluída."
+        body_text_color = "#8E2F2F" if is_warning else "#123A64"
+        button_bg = "#B14B4B" if is_warning else "#2F6FB2"
+        button_hover = "#973E3E" if is_warning else "#285F98"
+        button_border = "#973E3E" if is_warning else "#245F97"
         self.setStyleSheet(
-            """
+            f"""
             QDialog {
                 background: #D4E1F2;
             }
@@ -168,17 +184,26 @@ class NoticeDialog(QDialog):
                 border-radius: 2px;
             }
             QPushButton#NoticeButton {
-                background: #2F6FB2;
+                background: {button_bg};
                 color: #FFFFFF;
-                border: 1px solid #245F97;
+                border: 1px solid {button_border};
                 border-radius: 2px;
                 padding: 8px 12px;
                 font-size: 12px;
                 font-weight: 700;
             }
             QPushButton#NoticeButton:hover {
-                background: #285F98;
+                background: {button_hover};
             }
+            QLabel#NoticeSubtitle {{
+                color: #3E5C7D;
+                font-size: 12px;
+            }}
+            QLabel#NoticeBody {{
+                color: {body_text_color};
+                font-size: 13px;
+                font-weight: 760;
+            }}
             """
         )
         style_card(self)
@@ -207,7 +232,7 @@ class NoticeDialog(QDialog):
         icon_layout = QVBoxLayout(icon_badge)
         icon_layout.setContentsMargins(10, 10, 10, 10)
         icon_label = QLabel()
-        icon_label.setPixmap(make_icon(icon_name, "#DDEBFA", "#1E5E98", 28).pixmap(28, 28))
+        icon_label.setPixmap(make_icon(icon_name, icon_bg, icon_fg, 28).pixmap(28, 28))
         icon_layout.addWidget(icon_label)
 
         title_wrap = QVBoxLayout()
@@ -215,8 +240,8 @@ class NoticeDialog(QDialog):
         title_wrap.setSpacing(4)
         title_label = QLabel(title)
         title_label.setObjectName("DialogHeaderTitle")
-        subtitle_label = QLabel("Operação concluída com sucesso.")
-        subtitle_label.setObjectName("DialogHeaderSubtitle")
+        subtitle_label = QLabel(subtitle_text)
+        subtitle_label.setObjectName("NoticeSubtitle")
         subtitle_label.setWordWrap(True)
         title_wrap.addWidget(title_label)
         title_wrap.addWidget(subtitle_label)
@@ -232,7 +257,7 @@ class NoticeDialog(QDialog):
         body_layout.setSpacing(8)
 
         body_label = QLabel(message)
-        body_label.setObjectName("DialogBodyText")
+        body_label.setObjectName("NoticeBody")
         body_label.setWordWrap(True)
         body_layout.addWidget(body_label)
 

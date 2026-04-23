@@ -78,37 +78,53 @@ def apply_date_popup_style(date_edit: QDateEdit):
         return
     calendar_widget.setStyleSheet(
         """
+        QCalendarWidget {
+            background: #F4F8FE;
+            color: #0F3A68;
+        }
         QCalendarWidget QWidget {
-            background: #E6E8EB;
-            color: #1F2D3D;
+            background: #F4F8FE;
+            color: #0F3A68;
         }
         QCalendarWidget QToolButton {
-            background: #F3F3F3;
-            color: #1F2D3D;
-            border: 1px solid #B8BDC3;
+            background: #E8F1FC;
+            color: #0F3A68;
+            border: 1px solid #8FB2D9;
             border-radius: 2px;
             padding: 4px 8px;
             font-weight: 700;
         }
+        QCalendarWidget QToolButton:hover {
+            background: #D9EAFF;
+            border: 1px solid #5F92C9;
+        }
         QCalendarWidget QMenu {
-            background: #F3F3F3;
-            color: #1F2D3D;
+            background: #FFFFFF;
+            color: #0F3A68;
         }
         QCalendarWidget QSpinBox {
             background: #FFFFFF;
-            color: #1F2D3D;
-            border: 1px solid #B8BDC3;
+            color: #0F3A68;
+            border: 1px solid #8FB2D9;
             border-radius: 2px;
         }
-        QCalendarWidget QAbstractItemView:enabled {
-            selection-background-color: #6D7783;
+        QCalendarWidget QAbstractItemView {
+            background: #FFFFFF;
+            color: #0F3A68;
+            selection-background-color: #1F6FCA;
             selection-color: #FFFFFF;
-            background: #F3F3F3;
-            color: #1F2D3D;
+            border: 1px solid #9FBFE1;
+            outline: 0;
+        }
+        QCalendarWidget QAbstractItemView:enabled {
+            selection-background-color: #1F6FCA;
+            selection-color: #FFFFFF;
+            background: #FFFFFF;
+            color: #0F3A68;
             outline: 0;
         }
         QCalendarWidget QAbstractItemView:disabled {
-            color: #8F9DAA;
+            color: #8AA2BC;
         }
         """
     )

@@ -677,14 +677,13 @@ def configure_dialog_window(
         available = screen.availableGeometry()
         max_width = max(640, available.width() - 40)
         max_height = max(520, available.height() - 40)
-
-        target_width = min(max(width, int(max_width * 0.86)), max_width)
-        target_height = min(max(height, int(max_height * 0.86)), max_height)
+        target_width = min(max(640, width), max_width)
+        target_height = min(max(520, height), max_height)
 
         dialog.resize(target_width, target_height)
         dialog.setMinimumSize(
-            min(max(min_width, int(max_width * 0.68)), max_width),
-            min(max(min_height, int(max_height * 0.68)), max_height),
+            min(max(520, min_width), max_width),
+            min(max(420, min_height), max_height),
         )
     else:
         dialog.resize(width, height)
@@ -718,13 +717,8 @@ def build_dialog_layout(
     viewport_layout.setSpacing(0)
 
     content = QWidget()
-    if max_content_width > 0:
-        content.setMaximumWidth(max_content_width)
-        viewport_layout.addStretch(1)
-        viewport_layout.addWidget(content, 0)
-        viewport_layout.addStretch(1)
-    else:
-        viewport_layout.addWidget(content, 1)
+    # Padrão clássico ERP: conteúdo ocupa toda a janela redimensionável.
+    viewport_layout.addWidget(content, 1)
 
     layout = QVBoxLayout(content)
     layout.setContentsMargins(0, 0, 0, 0)
