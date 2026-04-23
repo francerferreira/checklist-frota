@@ -1,4 +1,4 @@
-from __future__ import annotations
+﻿from __future__ import annotations
 
 from pathlib import Path
 
@@ -81,7 +81,7 @@ class CloudBackupPage(QFrame):
         heading = QLabel("Nuvem e Backup")
         heading.setObjectName("PageTitle")
 
-        subtitle = QLabel("Acompanhe o uso da nuvem e gere uma cópia completa do banco e das fotos.")
+        subtitle = QLabel("Acompanhe o uso da nuvem e gere uma cÃ³pia completa do banco e das fotos.")
         subtitle.setObjectName("PageSubtitle")
         subtitle.setWordWrap(True)
 
@@ -143,7 +143,7 @@ class CloudBackupPage(QFrame):
         hero_layout.addLayout(top_row)
         hero_layout.addLayout(cards)
 
-        note = QLabel("O backup baixa um arquivo ZIP com os dados do banco, fotos e manifesto de restauração.")
+        note = QLabel("O backup baixa um arquivo ZIP com os dados do banco, fotos e manifesto de restauraÃ§Ã£o.")
         note.setObjectName("SectionCaption")
         note.setWordWrap(True)
 
@@ -182,7 +182,7 @@ class CloudBackupPage(QFrame):
             self.status_payload = backup.get("storage_status") or self.status_payload
             if self.status_payload:
                 self._render_status(self.status_payload)
-            show_notice(self, "Backup concluído", f"Arquivo salvo em:\n{output_path}", icon_name="reports")
+            show_notice(self, "Backup concluÃ­do", f"Arquivo salvo em:\n{output_path}", icon_name="reports")
         except Exception as exc:
             show_notice(self, "Falha no backup", str(exc), icon_name="warning")
             if self.status_payload:
@@ -199,7 +199,7 @@ class CloudBackupPage(QFrame):
         db_percent = float(database.get("percent") or 0)
         storage_percent = float(storage.get("percent") or 0)
         levels = {database.get("level") or "ok", storage.get("level") or "ok"}
-        state = "OK" if levels == {"ok"} else "ATENÇÃO"
+        state = "OK" if levels == {"ok"} else "ATENÃ‡ÃƒO"
         self.summary_label.setText(f"{state} | BANCO {db_percent:.2f}% | FOTOS {storage_percent:.2f}%")
 
         backend = str(payload.get("storage_backend") or "storage")
@@ -211,7 +211,7 @@ def _level_label(level: str) -> str:
         "ok": "OK",
         "amarelo": "ALERTA",
         "vermelho": "ALTO",
-        "critico": "CRÍTICO",
+        "critico": "CRÃTICO",
     }.get(level, "OK")
 
 
@@ -244,3 +244,4 @@ def _progress_style(color: str) -> str:
             border-radius: 6px;
         }}
     """
+

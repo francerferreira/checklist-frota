@@ -532,13 +532,13 @@ class ActivityItemUpdateDialog(QDialog):
         self.after_preview.setMinimumHeight(300)
 
         before_button = QPushButton("Selecionar foto de origem")
-        before_button.setMinimumHeight(42)
+        before_button.setMinimumHeight(34)
         before_button.clicked.connect(lambda: self._select_file("before"))
         if self.origin_photo_locked:
             before_button.setText("Foto de origem preservada")
             before_button.setEnabled(False)
         after_button = QPushButton("Selecionar foto de resolução")
-        after_button.setMinimumHeight(42)
+        after_button.setMinimumHeight(34)
         after_button.clicked.connect(lambda: self._select_file("after"))
 
         def add_field(row: int, label_text: str, widget, *, highlight: bool = False):
@@ -1341,13 +1341,13 @@ class ActivitiesPage(QFrame):
         buttons.setSpacing(8)
         self.add_button = QPushButton("Nova atividade")
         self.add_button.setProperty("variant", "primary")
-        self.add_button.setMinimumHeight(42)
+        self.add_button.setMinimumHeight(34)
         self.add_button.clicked.connect(self.add_activity)
         self.open_button = QPushButton("Abrir selecionada")
-        self.open_button.setMinimumHeight(42)
+        self.open_button.setMinimumHeight(34)
         self.open_button.clicked.connect(self.open_selected)
         self.refresh_button = QPushButton("Atualizar")
-        self.refresh_button.setMinimumHeight(42)
+        self.refresh_button.setMinimumHeight(34)
         self.refresh_button.clicked.connect(self.refresh)
         buttons.addWidget(self.add_button)
         buttons.addWidget(self.open_button)
@@ -1365,7 +1365,7 @@ class ActivitiesPage(QFrame):
 
         self.item_filter = QLineEdit()
         self.item_filter.setPlaceholderText("Buscar por titulo, modulo ou componente")
-        self.item_filter.setMinimumHeight(40)
+        self.item_filter.setMinimumHeight(34)
         self.item_filter.returnPressed.connect(self.refresh)
         self.item_filter.textChanged.connect(self._schedule_live_refresh)
 
@@ -1373,23 +1373,23 @@ class ActivitiesPage(QFrame):
         self.type_filter.addItem("Todos os tipos", "")
         self.type_filter.addItem("Cavalos", "cavalo")
         self.type_filter.addItem("Carretas", "carreta")
-        self.type_filter.setMinimumHeight(40)
+        self.type_filter.setMinimumHeight(34)
         self.type_filter.currentIndexChanged.connect(self._schedule_live_refresh)
 
         self.status_filter = QComboBox()
         self.status_filter.addItem("Todas", "")
         self.status_filter.addItem("Abertas", "ABERTA")
         self.status_filter.addItem("Finalizadas", "FINALIZADA")
-        self.status_filter.setMinimumHeight(40)
+        self.status_filter.setMinimumHeight(34)
         self.status_filter.currentIndexChanged.connect(self._schedule_live_refresh)
 
         self.mechanic_filter = QComboBox()
         self.mechanic_filter.addItem("Todos os mecânicos", None)
-        self.mechanic_filter.setMinimumHeight(40)
+        self.mechanic_filter.setMinimumHeight(34)
         self.mechanic_filter.currentIndexChanged.connect(self._schedule_live_refresh)
 
         filter_button = QPushButton("Aplicar filtros")
-        filter_button.setMinimumHeight(40)
+        filter_button.setMinimumHeight(34)
         filter_button.clicked.connect(self.refresh)
 
         filter_layout.addWidget(self.item_filter, 1)
@@ -1597,4 +1597,5 @@ class ActivitiesPage(QFrame):
             "FINALIZADA": {"background": "#DCFCE7", "color": "#166534"},
         }
         return mapping.get(value or "", {"background": "#E2E8F0", "color": "#334155"})
+
 

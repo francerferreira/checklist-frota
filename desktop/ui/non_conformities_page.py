@@ -419,14 +419,14 @@ class NonConformitiesPage(QFrame):
         actions = QHBoxLayout()
         actions.setSpacing(8)
         self.open_button = QPushButton("Abrir ocorrência")
-        self.open_button.setMinimumHeight(42)
+        self.open_button.setMinimumHeight(34)
         self.open_button.clicked.connect(self.open_selected_item)
         self.create_activity_button = QPushButton("Criar atividade")
-        self.create_activity_button.setMinimumHeight(42)
+        self.create_activity_button.setMinimumHeight(34)
         self.create_activity_button.setProperty("variant", "primary")
         self.create_activity_button.clicked.connect(self.create_activity_from_current_item)
         self.resolve_button = QPushButton("Resolver")
-        self.resolve_button.setMinimumHeight(42)
+        self.resolve_button.setMinimumHeight(34)
         self.resolve_button.setProperty("variant", "success")
         self.resolve_button.clicked.connect(self.resolve_current_item)
         actions.addWidget(self.open_button)
@@ -445,13 +445,13 @@ class NonConformitiesPage(QFrame):
 
         self.vehicle_filter = QLineEdit()
         self.vehicle_filter.setPlaceholderText("Filtrar por veículo")
-        self.vehicle_filter.setMinimumHeight(40)
+        self.vehicle_filter.setMinimumHeight(34)
         self.vehicle_filter.returnPressed.connect(self.refresh)
         self.vehicle_filter.textChanged.connect(self._schedule_live_refresh)
 
         self.item_filter = QLineEdit()
         self.item_filter.setPlaceholderText("Filtrar por item")
-        self.item_filter.setMinimumHeight(40)
+        self.item_filter.setMinimumHeight(34)
         self.item_filter.returnPressed.connect(self.refresh)
         self.item_filter.textChanged.connect(self._schedule_live_refresh)
 
@@ -459,12 +459,12 @@ class NonConformitiesPage(QFrame):
         self.status_filter.addItem("Todas", "")
         self.status_filter.addItem("Abertas", "abertas")
         self.status_filter.addItem("Resolvidas", "resolvidas")
-        self.status_filter.setMinimumHeight(40)
+        self.status_filter.setMinimumHeight(34)
         self.status_filter.currentIndexChanged.connect(self.refresh)
 
         refresh_button = QPushButton("Atualizar")
         refresh_button.setProperty("variant", "primary")
-        refresh_button.setMinimumHeight(40)
+        refresh_button.setMinimumHeight(34)
         refresh_button.clicked.connect(self.refresh)
 
         filters.addWidget(self.vehicle_filter, 1)
@@ -729,4 +729,5 @@ class NonConformitiesPage(QFrame):
                     parent_window.switch_page("activities")
                 except Exception:
                     pass
+
 

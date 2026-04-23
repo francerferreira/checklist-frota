@@ -1,4 +1,4 @@
-from __future__ import annotations
+﻿from __future__ import annotations
 
 from PySide6.QtCore import QTimer, Qt, Signal
 from PySide6.QtWidgets import (
@@ -53,9 +53,9 @@ class ChecklistItemDialog(QDialog):
         icon_layout.addWidget(icon_label)
 
         title_wrap = QVBoxLayout()
-        title = QLabel("Configuração de item")
+        title = QLabel("ConfiguraÃ§Ã£o de item")
         title.setObjectName("DialogHeaderTitle")
-        subtitle = QLabel("Cadastre o nome, tipo de equipamento, ordem e foto de referência mostrada no celular.")
+        subtitle = QLabel("Cadastre o nome, tipo de equipamento, ordem e foto de referÃªncia mostrada no celular.")
         subtitle.setObjectName("DialogHeaderSubtitle")
         subtitle.setWordWrap(True)
         title_wrap.addWidget(title)
@@ -121,7 +121,7 @@ class ChecklistItemDialog(QDialog):
         photo_layout = QVBoxLayout(photo_field)
         photo_layout.setContentsMargins(12, 12, 12, 12)
         photo_layout.setSpacing(8)
-        photo_title = QLabel("Foto de referência")
+        photo_title = QLabel("Foto de referÃªncia")
         photo_title.setObjectName("SectionCaption")
         photo_actions = QHBoxLayout()
         photo_actions.setContentsMargins(0, 0, 0, 0)
@@ -178,7 +178,7 @@ class ChecklistItemDialog(QDialog):
                 "ativo": self.active_checkbox.isChecked(),
             }
             if not payload["item_nome"]:
-                show_notice(self, "Nome obrigatório", "Informe o nome do item do checklist.", icon_name="warning")
+                show_notice(self, "Nome obrigatÃ³rio", "Informe o nome do item do checklist.", icon_name="warning")
                 return
             if self.selected_file:
                 upload = self.api_client.upload_file(
@@ -217,7 +217,7 @@ class ChecklistItemsPage(QFrame):
         text_wrap = QVBoxLayout()
         title = QLabel("Itens do checklist")
         title.setObjectName("PageTitle")
-        subtitle = QLabel("Configure os itens de cavalo e carreta, incluindo fotos de referência para o motorista.")
+        subtitle = QLabel("Configure os itens de cavalo e carreta, incluindo fotos de referÃªncia para o motorista.")
         subtitle.setObjectName("SectionCaption")
         subtitle.setWordWrap(True)
         text_wrap.addWidget(title)
@@ -227,14 +227,14 @@ class ChecklistItemsPage(QFrame):
         buttons.setSpacing(8)
         self.add_button = QPushButton("Adicionar")
         self.add_button.setProperty("variant", "primary")
-        self.add_button.setMinimumHeight(42)
+        self.add_button.setMinimumHeight(34)
         self.add_button.clicked.connect(self.add_item)
         self.edit_button = QPushButton("Editar")
-        self.edit_button.setMinimumHeight(42)
+        self.edit_button.setMinimumHeight(34)
         self.edit_button.clicked.connect(self.edit_selected)
         self.delete_button = QPushButton("Inativar")
         self.delete_button.setProperty("variant", "danger")
-        self.delete_button.setMinimumHeight(42)
+        self.delete_button.setMinimumHeight(34)
         self.delete_button.clicked.connect(self.delete_selected)
         for button in (self.add_button, self.edit_button, self.delete_button):
             buttons.addWidget(button)
@@ -253,15 +253,15 @@ class ChecklistItemsPage(QFrame):
         self.type_filter.addItem("Todos", "")
         self.type_filter.addItem("Cavalo", "cavalo")
         self.type_filter.addItem("Carreta", "carreta")
-        self.type_filter.setMinimumHeight(40)
+        self.type_filter.setMinimumHeight(34)
         self.active_filter = QComboBox()
         self.active_filter.addItem("Ativos", "true")
         self.active_filter.addItem("Todos", "all")
-        self.active_filter.setMinimumHeight(40)
+        self.active_filter.setMinimumHeight(34)
         self.type_filter.currentIndexChanged.connect(self._schedule_live_refresh)
         self.active_filter.currentIndexChanged.connect(self._schedule_live_refresh)
         filter_button = QPushButton("Aplicar filtros")
-        filter_button.setMinimumHeight(40)
+        filter_button.setMinimumHeight(34)
         filter_button.clicked.connect(self.refresh)
         filters.addWidget(self.type_filter)
         filters.addWidget(self.active_filter)
@@ -276,7 +276,7 @@ class ChecklistItemsPage(QFrame):
         table_layout.setSpacing(8)
 
         top = QHBoxLayout()
-        title_label = QLabel("Catálogo de itens")
+        title_label = QLabel("CatÃ¡logo de itens")
         title_label.setObjectName("SectionTitle")
         self.summary_badge = QLabel("Nenhum item carregado")
         self.summary_badge.setObjectName("TopBarPill")
@@ -321,8 +321,8 @@ class ChecklistItemsPage(QFrame):
                     str(item.get("position") or ""),
                     (item.get("tipo") or item.get("vehicle_type") or "-").title(),
                     item.get("item_nome") or "-",
-                    "Sim" if item.get("foto_path") else "Não",
-                    "Sim" if item.get("ativo") else "Não",
+                    "Sim" if item.get("foto_path") else "NÃ£o",
+                    "Sim" if item.get("ativo") else "NÃ£o",
                     str(item.get("id") or ""),
                 ]
                 for col, value in enumerate(values):
@@ -388,7 +388,7 @@ class ChecklistItemsPage(QFrame):
             "Inativar item",
             f"Deseja retirar o item {self.current_item['item_nome']} do checklist ativo?",
             confirm_text="Sim",
-            cancel_text="Não",
+            cancel_text="NÃ£o",
             icon_name="warning",
         )
         if confirm:
@@ -402,3 +402,4 @@ class ChecklistItemsPage(QFrame):
             self.table_skeleton.show_skeleton("Carregando itens do checklist")
         else:
             self.table_skeleton.hide_skeleton()
+

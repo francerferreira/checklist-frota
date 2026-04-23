@@ -40,7 +40,7 @@ class ProductivityPage(QFrame):
         text_wrap.addWidget(subtitle)
 
         refresh_button = QPushButton("Atualizar")
-        refresh_button.setMinimumHeight(42)
+        refresh_button.setMinimumHeight(34)
         refresh_button.clicked.connect(self.refresh)
 
         header.addLayout(text_wrap, 1)
@@ -152,4 +152,5 @@ class ProductivityPage(QFrame):
             self.table.blockSignals(False)
             self.table.setUpdatesEnabled(True)
             self.table.setSortingEnabled(True)
+
 

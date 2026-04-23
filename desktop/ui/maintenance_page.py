@@ -4,6 +4,7 @@ from collections import defaultdict
 from math import ceil
 
 from PySide6.QtCore import QDate, Qt, Signal
+from PySide6.QtGui import QColor
 from PySide6.QtWidgets import (
     QAbstractItemView,
     QComboBox,
@@ -79,6 +80,8 @@ REPORT_TYPE_LABELS = {
     "material": "Materiais utilizados",
     "pendencias": "Pendencias",
 }
+
+WEEKDAY_HEADERS = ["DOM", "SEG", "TER", "QUA", "QUI", "SEX", "SAB"]
 
 
 class MaintenanceScheduleCreateDialog(QDialog):
@@ -320,38 +323,51 @@ class MaintenancePage(QFrame):
         self.overview: dict = {"resumo": {}, "cronograma": {"days": []}, "programacoes": []}
         self.filtered_schedules: list[dict] = []
         self.selected_schedule_id: int | None = None
+        self.selected_calendar_day_iso: str | None = None
+        self.calendar_day_index: dict[str, dict] = {}
         self.material_catalog: list[dict] = []
         self.mechanics: list[dict] = []
         self.report_vehicles: list[dict] = []
         self.setObjectName("ContentSurface")
 
         layout = QVBoxLayout(self)
-        layout.setContentsMargins(16, 16, 16, 16)
-        layout.setSpacing(14)
+        layout.setContentsMargins(14, 12, 14, 12)
+        layout.setSpacing(10)
 
-        header = QHBoxLayout()
+        header_frame = QFrame()
+        style_filter_bar(header_frame)
+        header = QHBoxLayout(header_frame)
+        header.setContentsMargins(12, 10, 12, 10)
+        header.setSpacing(10)
         text_wrap = QVBoxLayout()
+        text_wrap.setSpacing(3)
         title = QLabel("Programacao de manutencao")
         title.setObjectName("PageTitle")
+        title.setStyleSheet("font-size:24px; font-weight:760;")
         subtitle = QLabel(
             "Tela organizada por abas: programacoes, execucao, governanca e relatorios."
         )
         subtitle.setObjectName("PageSubtitle")
+        subtitle.setStyleSheet("font-size:12px;")
         subtitle.setWordWrap(True)
         text_wrap.addWidget(title)
         text_wrap.addWidget(subtitle)
+        context_hint = QLabel("Operação diária • Programações • Execução • Governança")
+        context_hint.setObjectName("SectionCaption")
+        context_hint.setStyleSheet("font-size:11px; color:#4F657D;")
+        text_wrap.addWidget(context_hint)
 
         self.new_schedule_button = QPushButton("Nova programacao")
         self.new_schedule_button.setProperty("variant", "primary")
-        self.new_schedule_button.setMinimumHeight(42)
+        self.new_schedule_button.setMinimumHeight(34)
         self.new_schedule_button.clicked.connect(self.create_schedule)
 
         self.sync_nc_button = QPushButton("Sincronizar NC")
-        self.sync_nc_button.setMinimumHeight(42)
+        self.sync_nc_button.setMinimumHeight(34)
         self.sync_nc_button.clicked.connect(self.sync_non_conformities)
 
         refresh_button = QPushButton("Atualizar")
-        refresh_button.setMinimumHeight(42)
+        refresh_button.setMinimumHeight(34)
         refresh_button.clicked.connect(self.refresh)
 
         header.addLayout(text_wrap, 1)
@@ -360,7 +376,7 @@ class MaintenancePage(QFrame):
         header.addWidget(refresh_button)
 
         cards_layout = QGridLayout()
-        cards_layout.setSpacing(14)
+        cards_layout.setSpacing(8)
         self.schedules_card = StatCard("Programacoes", "0", "Cronogramas ativos e historicos", icon_name="activities")
         self.items_card = StatCard("Itens no mes", "0", "Planejados no periodo selecionado", icon_name="reports")
         self.pending_card = StatCard("Pendentes", "0", "Programados, reprogramados e aguardando", icon_name="warning")
@@ -373,9 +389,9 @@ class MaintenancePage(QFrame):
         filter_card = QFrame()
         style_filter_bar(filter_card)
         filter_layout = QGridLayout(filter_card)
-        filter_layout.setContentsMargins(14, 14, 14, 14)
-        filter_layout.setHorizontalSpacing(12)
-        filter_layout.setVerticalSpacing(10)
+        filter_layout.setContentsMargins(12, 10, 12, 10)
+        filter_layout.setHorizontalSpacing(8)
+        filter_layout.setVerticalSpacing(6)
 
         self.month_input = QDateEdit()
         self.month_input.setCalendarPopup(True)
@@ -399,11 +415,11 @@ class MaintenancePage(QFrame):
 
         apply_button = QPushButton("Aplicar")
         apply_button.setProperty("variant", "primary")
-        apply_button.setMinimumHeight(40)
+        apply_button.setMinimumHeight(34)
         apply_button.clicked.connect(self.apply_filters)
 
         clear_button = QPushButton("Limpar filtros")
-        clear_button.setMinimumHeight(40)
+        clear_button.setMinimumHeight(34)
         clear_button.clicked.connect(self.clear_filters)
 
         filter_layout.addWidget(QLabel("Mes"), 0, 0)
@@ -419,9 +435,9 @@ class MaintenancePage(QFrame):
         reports_card = QFrame()
         style_filter_bar(reports_card)
         reports_layout = QGridLayout(reports_card)
-        reports_layout.setContentsMargins(14, 14, 14, 14)
-        reports_layout.setHorizontalSpacing(12)
-        reports_layout.setVerticalSpacing(10)
+        reports_layout.setContentsMargins(12, 10, 12, 10)
+        reports_layout.setHorizontalSpacing(8)
+        reports_layout.setVerticalSpacing(6)
 
         self.report_badge = QLabel("Fase 4: relatorio PDF da manutencao")
         self.report_badge.setObjectName("TopBarPill")
@@ -436,6 +452,7 @@ class MaintenancePage(QFrame):
 
         self.export_report_button = QPushButton("PDF")
         self.export_report_button.setProperty("variant", "primary")
+        self.export_report_button.setMinimumHeight(34)
         self.export_report_button.clicked.connect(self.export_maintenance_report_pdf)
 
         reports_layout.addWidget(self.report_badge, 0, 0, 1, 5)
@@ -452,8 +469,8 @@ class MaintenancePage(QFrame):
         style_table_card(schedules_card)
         self.schedules_skeleton = TableSkeletonOverlay(schedules_card, rows=7)
         schedules_layout = QVBoxLayout(schedules_card)
-        schedules_layout.setContentsMargins(14, 14, 14, 14)
-        schedules_layout.setSpacing(10)
+        schedules_layout.setContentsMargins(12, 10, 12, 10)
+        schedules_layout.setSpacing(8)
 
         schedules_title_row = QHBoxLayout()
         schedules_title = QLabel("Programacoes de manutencao")
@@ -480,7 +497,7 @@ class MaintenancePage(QFrame):
             ]
         )
         configure_table(self.schedules_table, stretch_last=False)
-        self.schedules_table.setMinimumHeight(240)
+        self.schedules_table.setMinimumHeight(300)
         self.schedules_table.itemSelectionChanged.connect(self._on_schedule_selection_changed)
 
         schedules_layout.addLayout(schedules_title_row)
@@ -489,15 +506,16 @@ class MaintenancePage(QFrame):
         action_card = QFrame()
         style_filter_bar(action_card)
         action_layout = QGridLayout(action_card)
-        action_layout.setContentsMargins(14, 14, 14, 14)
-        action_layout.setHorizontalSpacing(12)
-        action_layout.setVerticalSpacing(10)
+        action_layout.setContentsMargins(12, 10, 12, 10)
+        action_layout.setHorizontalSpacing(8)
+        action_layout.setVerticalSpacing(6)
 
         self.selected_schedule_badge = QLabel("Nenhuma programacao selecionada")
         self.selected_schedule_badge.setObjectName("TopBarPill")
 
         self.item_status_filter = QComboBox()
         self.item_status_filter.addItem("Itens: todos", "ALL")
+        self.item_status_filter.addItem("Pendentes (todos)", "PENDENTES")
         self.item_status_filter.addItem("Pendente", "PENDENTE")
         self.item_status_filter.addItem("Programado", "PROGRAMADO")
         self.item_status_filter.addItem("Aguardando material", "AGUARDANDO_MATERIAL")
@@ -513,10 +531,12 @@ class MaintenancePage(QFrame):
         self.move_date_input.setDate(QDate.currentDate())
 
         self.move_button = QPushButton("Mover selecionados")
+        self.move_button.setMinimumHeight(34)
         self.move_button.clicked.connect(self.move_selected_items)
 
         self.remove_button = QPushButton("Retirar selecionados")
         self.remove_button.setProperty("variant", "danger")
+        self.remove_button.setMinimumHeight(34)
         self.remove_button.clicked.connect(self.remove_selected_items)
 
         self.redistribute_start_input = QDateEdit()
@@ -531,6 +551,7 @@ class MaintenancePage(QFrame):
 
         self.redistribute_button = QPushButton("Redistribuir cronograma")
         self.redistribute_button.setProperty("variant", "primary")
+        self.redistribute_button.setMinimumHeight(34)
         self.redistribute_button.clicked.connect(self.redistribute_selected_schedule)
 
         action_layout.addWidget(self.selected_schedule_badge, 0, 0, 1, 5)
@@ -551,15 +572,16 @@ class MaintenancePage(QFrame):
         governance_card = QFrame()
         style_filter_bar(governance_card)
         governance_layout = QGridLayout(governance_card)
-        governance_layout.setContentsMargins(14, 14, 14, 14)
-        governance_layout.setHorizontalSpacing(12)
-        governance_layout.setVerticalSpacing(10)
+        governance_layout.setContentsMargins(12, 10, 12, 10)
+        governance_layout.setHorizontalSpacing(8)
+        governance_layout.setVerticalSpacing(6)
 
         self.governance_badge = QLabel("Governanca: selecione uma programacao")
         self.governance_badge.setObjectName("TopBarPill")
 
         self.mechanic_combo = QComboBox()
         self.assign_mechanic_button = QPushButton("Aplicar mecanico")
+        self.assign_mechanic_button.setMinimumHeight(34)
         self.assign_mechanic_button.clicked.connect(self.assign_schedule_mechanic)
 
         self.material_combo = QComboBox()
@@ -578,6 +600,7 @@ class MaintenancePage(QFrame):
         self.material_observation_input.setPlaceholderText("Observacao da peca para esta programacao.")
         self.link_material_button = QPushButton("Vincular/atualizar material")
         self.link_material_button.setProperty("variant", "primary")
+        self.link_material_button.setMinimumHeight(34)
         self.link_material_button.clicked.connect(self.link_material_for_selected_schedule)
 
         governance_layout.addWidget(self.governance_badge, 0, 0, 1, 6)
@@ -599,8 +622,8 @@ class MaintenancePage(QFrame):
         style_table_card(materials_card)
         self.materials_skeleton = TableSkeletonOverlay(materials_card, rows=5)
         materials_layout = QVBoxLayout(materials_card)
-        materials_layout.setContentsMargins(14, 14, 14, 14)
-        materials_layout.setSpacing(10)
+        materials_layout.setContentsMargins(12, 10, 12, 10)
+        materials_layout.setSpacing(8)
 
         materials_top = QHBoxLayout()
         materials_title = QLabel("Materiais da programacao selecionada")
@@ -626,7 +649,7 @@ class MaintenancePage(QFrame):
             ]
         )
         configure_table(self.materials_table, stretch_last=True)
-        self.materials_table.setMinimumHeight(190)
+        self.materials_table.setMinimumHeight(260)
 
         materials_layout.addLayout(materials_top)
         materials_layout.addWidget(self.materials_table)
@@ -635,8 +658,8 @@ class MaintenancePage(QFrame):
         style_table_card(details_card)
         self.details_skeleton = TableSkeletonOverlay(details_card, rows=8)
         details_layout = QVBoxLayout(details_card)
-        details_layout.setContentsMargins(14, 14, 14, 14)
-        details_layout.setSpacing(10)
+        details_layout.setContentsMargins(12, 10, 12, 10)
+        details_layout.setSpacing(8)
 
         detail_top = QHBoxLayout()
         detail_title = QLabel("Tabela por programacao")
@@ -667,7 +690,7 @@ class MaintenancePage(QFrame):
         self.items_table.setSelectionBehavior(QAbstractItemView.SelectRows)
         self.items_table.setSelectionMode(QAbstractItemView.ExtendedSelection)
         self.items_table.itemSelectionChanged.connect(self._update_items_badge)
-        self.items_table.setMinimumHeight(260)
+        self.items_table.setMinimumHeight(360)
 
         details_layout.addLayout(detail_top)
         details_layout.addWidget(self.items_table)
@@ -676,65 +699,99 @@ class MaintenancePage(QFrame):
         style_table_card(calendar_card)
         self.calendar_skeleton = TableSkeletonOverlay(calendar_card, rows=6)
         calendar_layout = QVBoxLayout(calendar_card)
-        calendar_layout.setContentsMargins(14, 14, 14, 14)
-        calendar_layout.setSpacing(10)
+        calendar_layout.setContentsMargins(10, 10, 10, 10)
+        calendar_layout.setSpacing(8)
 
         calendar_title_row = QHBoxLayout()
-        calendar_title = QLabel("Tabela diaria do cronograma")
+        calendar_title = QLabel("Cronograma mensal da manutencao")
         calendar_title.setObjectName("SectionTitle")
         self.calendar_badge = QLabel("0 dias")
         self.calendar_badge.setObjectName("TopBarPill")
+        self.calendar_selected_badge = QLabel("Clique em um dia para filtrar a tabela")
+        self.calendar_selected_badge.setObjectName("TopBarPill")
+        self.clear_calendar_filter_button = QPushButton("Limpar dia")
+        self.clear_calendar_filter_button.setMinimumHeight(34)
+        self.clear_calendar_filter_button.clicked.connect(self._clear_calendar_day_filter)
         calendar_title_row.addWidget(calendar_title)
         calendar_title_row.addStretch()
         calendar_title_row.addWidget(self.calendar_badge)
+        calendar_title_row.addWidget(self.calendar_selected_badge)
+        calendar_title_row.addWidget(self.clear_calendar_filter_button)
 
-        self.calendar_table = QTableWidget(0, 6)
-        self.calendar_table.setHorizontalHeaderLabels(
-            [
-                "Data",
-                "Programados",
-                "Pendentes",
-                "Instalados",
-                "Nao executados",
-                "Aguardando material",
-            ]
+        self.calendar_table = QTableWidget(6, 7)
+        self.calendar_table.setHorizontalHeaderLabels(WEEKDAY_HEADERS)
+        configure_table(self.calendar_table, stretch_last=False, auto_fit=False)
+        self.calendar_table.setSortingEnabled(False)
+        self.calendar_table.horizontalHeader().setSectionsClickable(False)
+        self.calendar_table.horizontalHeader().setSortIndicatorShown(False)
+        self.calendar_table.setSelectionBehavior(QAbstractItemView.SelectItems)
+        self.calendar_table.setSelectionMode(QAbstractItemView.SingleSelection)
+        self.calendar_table.itemSelectionChanged.connect(self._on_calendar_day_selection_changed)
+        self.calendar_table.verticalHeader().setVisible(False)
+        self.calendar_table.setMinimumHeight(520)
+        self.calendar_table.setStyleSheet(
+            """
+            QTableWidget {
+                background: #F4F8FC;
+                border: 1px solid rgba(15, 94, 132, 0.24);
+                border-radius: 8px;
+                gridline-color: rgba(115, 132, 156, 0.30);
+            }
+            QTableWidget::item {
+                border: 1px solid rgba(205, 216, 230, 0.88);
+                padding: 7px 8px;
+            }
+            QTableWidget::item:selected {
+                border: 1px solid #0F5E84;
+                background: #0F5E84;
+                color: #FFFFFF;
+            }
+            QHeaderView::section {
+                background: #E8EEF5;
+                color: #25364A;
+                border-right: 1px solid rgba(115, 132, 156, 0.20);
+                border-bottom: 1px solid rgba(115, 132, 156, 0.24);
+                padding: 8px 6px;
+                font-weight: 760;
+            }
+            """
         )
-        configure_table(self.calendar_table, stretch_last=True)
-        self.calendar_table.setMinimumHeight(220)
 
         calendar_layout.addLayout(calendar_title_row)
         calendar_layout.addWidget(self.calendar_table)
 
         self.tabs = QTabWidget()
         self.tabs.setDocumentMode(True)
-        self.tabs.setMinimumHeight(760)
+        self.tabs.setMinimumHeight(820)
         self.tabs.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
 
         programacoes_tab = QWidget()
         programacoes_layout = QVBoxLayout(programacoes_tab)
         programacoes_layout.setContentsMargins(0, 0, 0, 0)
-        programacoes_layout.setSpacing(14)
+        programacoes_layout.setSpacing(10)
         programacoes_layout.addWidget(schedules_card)
         programacoes_layout.addWidget(calendar_card, 1)
+        programacoes_layout.setStretch(0, 4)
+        programacoes_layout.setStretch(1, 5)
 
         execucao_tab = QWidget()
         execucao_layout = QVBoxLayout(execucao_tab)
         execucao_layout.setContentsMargins(0, 0, 0, 0)
-        execucao_layout.setSpacing(14)
+        execucao_layout.setSpacing(10)
         execucao_layout.addWidget(action_card)
         execucao_layout.addWidget(details_card, 1)
 
         governanca_tab = QWidget()
         governanca_layout = QVBoxLayout(governanca_tab)
         governanca_layout.setContentsMargins(0, 0, 0, 0)
-        governanca_layout.setSpacing(14)
+        governanca_layout.setSpacing(10)
         governanca_layout.addWidget(governance_card)
         governanca_layout.addWidget(materials_card, 1)
 
         relatorios_tab = QWidget()
         relatorios_layout = QVBoxLayout(relatorios_tab)
         relatorios_layout.setContentsMargins(0, 0, 0, 0)
-        relatorios_layout.setSpacing(14)
+        relatorios_layout.setSpacing(10)
         relatorios_layout.addWidget(reports_card)
         relatorios_layout.addStretch(1)
 
@@ -743,7 +800,7 @@ class MaintenancePage(QFrame):
         self.tabs.addTab(governanca_tab, "Governanca")
         self.tabs.addTab(relatorios_tab, "Relatorios")
 
-        layout.addLayout(header)
+        layout.addWidget(header_frame)
         layout.addLayout(cards_layout)
         layout.addWidget(filter_card)
         layout.addWidget(self.tabs, 1)
@@ -754,6 +811,8 @@ class MaintenancePage(QFrame):
         self._populate_mechanic_combo()
         self._populate_report_filters()
         self._update_report_filter_visibility()
+        self._bind_summary_cards_to_actions()
+        self._refresh_calendar_selection_badge()
 
     def set_loading_state(self, loading: bool):
         if loading:
@@ -779,6 +838,36 @@ class MaintenancePage(QFrame):
         self.source_filter.setCurrentIndex(0)
         self.status_filter.setCurrentIndex(0)
         self.apply_filters()
+
+    def _bind_summary_cards_to_actions(self):
+        self.schedules_card.setToolTip("Abrir aba Programacoes")
+        self.items_card.setToolTip("Abrir aba Execucao com todos os itens")
+        self.pending_card.setToolTip("Abrir aba Execucao com pendentes")
+        self.installed_card.setToolTip("Abrir aba Execucao com instalados")
+
+        self.schedules_card.mousePressEvent = lambda event: self._handle_summary_card_click("PROGRAMACOES")
+        self.items_card.mousePressEvent = lambda event: self._handle_summary_card_click("ITENS")
+        self.pending_card.mousePressEvent = lambda event: self._handle_summary_card_click("PENDENTES")
+        self.installed_card.mousePressEvent = lambda event: self._handle_summary_card_click("INSTALADOS")
+
+    def _handle_summary_card_click(self, key: str):
+        if key == "PROGRAMACOES":
+            self.tabs.setCurrentIndex(0)
+            return
+        self.tabs.setCurrentIndex(1)
+        if key == "PENDENTES":
+            self._set_item_status_filter("PENDENTES")
+        elif key == "INSTALADOS":
+            self._set_item_status_filter("INSTALADO")
+        else:
+            self._set_item_status_filter("ALL")
+        self.render_selected_schedule_items()
+
+    def _set_item_status_filter(self, status_code: str):
+        index = self.item_status_filter.findData(status_code)
+        if index < 0:
+            index = 0
+        self.item_status_filter.setCurrentIndex(index)
 
     def _load_reference_data(self):
         try:
@@ -931,6 +1020,7 @@ class MaintenancePage(QFrame):
             schedules = [row for row in schedules if str(row.get("status") or "").upper() == status_filter]
 
         self.filtered_schedules = schedules
+        self.selected_calendar_day_iso = None
         if self.selected_schedule_id and not any(int(row.get("id") or 0) == self.selected_schedule_id for row in schedules):
             self.selected_schedule_id = None
         if self.selected_schedule_id is None and schedules:
@@ -1275,27 +1365,119 @@ class MaintenancePage(QFrame):
 
     def _render_calendar_table(self):
         rows = self._calendar_rows_for_selected_schedule()
-        self.calendar_badge.setText(f"{len(rows)} dias")
+        self.calendar_day_index = {
+            str(row.get("date")): row
+            for row in rows
+            if row.get("date")
+        }
+        self.calendar_badge.setText(f"{len(rows)} dias com agenda")
+
+        current_month = self.month_input.date()
+        year = current_month.year()
+        month = current_month.month()
+        if year <= 0 or month <= 0:
+            year = QDate.currentDate().year()
+            month = QDate.currentDate().month()
+        first_day = QDate(year, month, 1)
+        if not first_day.isValid():
+            first_day = QDate.currentDate()
+            year = first_day.year()
+            month = first_day.month()
+        days_in_month = first_day.daysInMonth()
+        first_column = first_day.dayOfWeek() % 7  # DOM=0 ... SAB=6
+        today_iso = QDate.currentDate().toString("yyyy-MM-dd")
+
         self.calendar_table.setSortingEnabled(False)
         self.calendar_table.setUpdatesEnabled(False)
         self.calendar_table.blockSignals(True)
         try:
-            self.calendar_table.setRowCount(len(rows))
-            for row_index, row in enumerate(rows):
-                values = [
-                    self._format_date(row.get("date")),
-                    row.get("total", 0),
-                    row.get("pendentes", 0),
-                    row.get("instalados", 0),
-                    row.get("nao_executados", 0),
-                    row.get("aguardando_material", 0),
-                ]
-                for column, value in enumerate(values):
-                    self.calendar_table.setItem(row_index, column, make_table_item(value))
+            self.calendar_table.clearContents()
+            self.calendar_table.setRowCount(6)
+            for row in range(6):
+                self.calendar_table.setRowHeight(row, 74)
+            for column in range(7):
+                self.calendar_table.setColumnWidth(column, 154)
+
+            table_row = 0
+            table_column = first_column
+            for day in range(1, days_in_month + 1):
+                day_iso = f"{year:04d}-{month:02d}-{day:02d}"
+                payload = self.calendar_day_index.get(day_iso) or {
+                    "date": day_iso,
+                    "total": 0,
+                    "pendentes": 0,
+                    "instalados": 0,
+                    "nao_executados": 0,
+                    "aguardando_material": 0,
+                }
+                text = self._build_calendar_day_text(day, payload, day_iso == today_iso)
+                day_item = make_table_item(text, payload=day_iso, sort_value=day)
+                day_item.setTextAlignment(Qt.AlignLeft | Qt.AlignTop)
+                day_item.setBackground(self._calendar_cell_background(payload, day_iso == today_iso))
+                day_item.setToolTip(self._calendar_cell_tooltip(payload, day_iso == today_iso))
+                self.calendar_table.setItem(table_row, table_column, day_item)
+
+                table_column += 1
+                if table_column >= 7:
+                    table_column = 0
+                    table_row += 1
+                    if table_row >= 6:
+                        break
         finally:
             self.calendar_table.blockSignals(False)
             self.calendar_table.setUpdatesEnabled(True)
-            self.calendar_table.setSortingEnabled(True)
+            self.calendar_table.setSortingEnabled(False)
+        self._refresh_calendar_selection_badge()
+
+    def _build_calendar_day_text(self, day: int, payload: dict, is_today: bool) -> str:
+        prefix = f"{day:02d} HOJE" if is_today else f"{day:02d}"
+        total = int(payload.get("total") or 0)
+        pendentes = int(payload.get("pendentes") or 0)
+        instalados = int(payload.get("instalados") or 0)
+        aguardando = int(payload.get("aguardando_material") or 0)
+        if total <= 0:
+            return f"{prefix}\nSem agenda"
+        return (
+            f"{prefix}\n"
+            f"Prog {total} | Pend {pendentes}\n"
+            f"Inst {instalados} | Aguar {aguardando}"
+        )
+
+    @staticmethod
+    def _calendar_cell_background(payload: dict, is_today: bool = False) -> QColor:
+        total = int(payload.get("total") or 0)
+        pendentes = int(payload.get("pendentes") or 0)
+        instalados = int(payload.get("instalados") or 0)
+        aguardando = int(payload.get("aguardando_material") or 0)
+
+        if total <= 0:
+            return QColor("#BAD8EC") if is_today else QColor("#E5F1FA")
+        if aguardando > 0 and instalados == 0:
+            return QColor("#E3DDAE") if is_today else QColor("#F7F1D1")
+        if pendentes == 0 and instalados > 0:
+            return QColor("#A5D8BC") if is_today else QColor("#DFF2E8")
+        if instalados > 0 and pendentes > 0:
+            return QColor("#C6DDB1") if is_today else QColor("#ECF3D7")
+        return QColor("#D5D1A7") if is_today else QColor("#F2EED3")
+
+    @staticmethod
+    def _calendar_cell_tooltip(payload: dict, is_today: bool) -> str:
+        total = int(payload.get("total") or 0)
+        pendentes = int(payload.get("pendentes") or 0)
+        instalados = int(payload.get("instalados") or 0)
+        aguardando = int(payload.get("aguardando_material") or 0)
+        nao_exec = int(payload.get("nao_executados") or 0)
+
+        lines = []
+        if is_today:
+            lines.append("HOJE")
+        lines.append(f"Programados: {total}")
+        lines.append(f"Pendentes: {pendentes}")
+        lines.append(f"Instalados: {instalados}")
+        lines.append(f"Aguardando material: {aguardando}")
+        if nao_exec:
+            lines.append(f"Nao executados: {nao_exec}")
+        return "\n".join(lines)
 
     def _calendar_rows_for_selected_schedule(self) -> list[dict]:
         schedule = self._selected_schedule()
@@ -1342,9 +1524,40 @@ class MaintenancePage(QFrame):
         if not payload:
             return
         self.selected_schedule_id = int(payload.get("id"))
+        self.selected_calendar_day_iso = None
         self.render_selected_schedule_items()
         self.render_selected_schedule_materials()
         self._render_calendar_table()
+
+    def _on_calendar_day_selection_changed(self):
+        selected_items = self.calendar_table.selectedItems()
+        if not selected_items:
+            self.selected_calendar_day_iso = None
+        else:
+            day_iso = selected_items[0].data(Qt.UserRole)
+            self.selected_calendar_day_iso = day_iso if day_iso else None
+        self._refresh_calendar_selection_badge()
+        self.render_selected_schedule_items()
+
+    def _clear_calendar_day_filter(self):
+        self.selected_calendar_day_iso = None
+        self.calendar_table.clearSelection()
+        self._refresh_calendar_selection_badge()
+        self.render_selected_schedule_items()
+
+    def _refresh_calendar_selection_badge(self):
+        if not self.selected_calendar_day_iso:
+            self.calendar_selected_badge.setText("Clique em um dia para filtrar a tabela")
+            self.clear_calendar_filter_button.setEnabled(False)
+            return
+        payload = self.calendar_day_index.get(self.selected_calendar_day_iso) or {}
+        self.calendar_selected_badge.setText(
+            f"Dia {self._format_date(self.selected_calendar_day_iso)} | "
+            f"Prog {int(payload.get('total') or 0)} | "
+            f"Pend {int(payload.get('pendentes') or 0)} | "
+            f"Inst {int(payload.get('instalados') or 0)}"
+        )
+        self.clear_calendar_filter_button.setEnabled(True)
 
     def _selected_schedule(self) -> dict | None:
         schedule_id = self.selected_schedule_id
@@ -1366,7 +1579,8 @@ class MaintenancePage(QFrame):
 
         self._set_action_controls_enabled(True)
         title = str(schedule.get("title") or f"Programacao #{schedule.get('id')}")
-        self.selected_schedule_badge.setText(f"#{schedule.get('id')} | {title}")
+        day_suffix = f" | Dia {self._format_date(self.selected_calendar_day_iso)}" if self.selected_calendar_day_iso else ""
+        self.selected_schedule_badge.setText(f"#{schedule.get('id')} | {title}{day_suffix}")
 
         start_date = str(schedule.get("start_date") or "")
         start_qdate = QDate.fromString(start_date, "yyyy-MM-dd")
@@ -1377,8 +1591,17 @@ class MaintenancePage(QFrame):
 
         status_filter = self.item_status_filter.currentData()
         items = list(schedule.get("itens") or [])
-        if status_filter and status_filter != "ALL":
+        if status_filter == "PENDENTES":
+            pending_statuses = {"PENDENTE", "PROGRAMADO", "AGUARDANDO_MATERIAL", "REPROGRAMADO"}
+            items = [item for item in items if str(item.get("status") or "").upper() in pending_statuses]
+        elif status_filter and status_filter != "ALL":
             items = [item for item in items if str(item.get("status") or "").upper() == status_filter]
+        if self.selected_calendar_day_iso:
+            items = [
+                item
+                for item in items
+                if str(item.get("scheduled_date") or "")[:10] == self.selected_calendar_day_iso
+            ]
 
         material_text = self._material_summary_for_schedule(schedule)
         self.items_table.setSortingEnabled(False)
@@ -1447,6 +1670,7 @@ class MaintenancePage(QFrame):
         self.redistribute_start_input.setEnabled(enabled)
         self.redistribute_capacity_input.setEnabled(enabled)
         self.redistribute_button.setEnabled(enabled)
+        self.clear_calendar_filter_button.setEnabled(enabled and bool(self.selected_calendar_day_iso))
 
     def _set_management_controls_enabled(self, enabled: bool):
         self.mechanic_combo.setEnabled(enabled)

@@ -258,20 +258,20 @@ class EquipmentPage(QFrame):
 
         self.add_button = QPushButton("Adicionar")
         self.add_button.setProperty("variant", "primary")
-        self.add_button.setMinimumHeight(42)
+        self.add_button.setMinimumHeight(34)
         self.add_button.clicked.connect(self.add_equipment)
 
         self.edit_button = QPushButton("Editar")
-        self.edit_button.setMinimumHeight(42)
+        self.edit_button.setMinimumHeight(34)
         self.edit_button.clicked.connect(self.edit_selected)
 
         self.open_button = QPushButton("Abrir ficha")
-        self.open_button.setMinimumHeight(42)
+        self.open_button.setMinimumHeight(34)
         self.open_button.clicked.connect(self.open_selected)
 
         self.retire_button = QPushButton("Retirar")
         self.retire_button.setProperty("variant", "danger")
-        self.retire_button.setMinimumHeight(42)
+        self.retire_button.setMinimumHeight(34)
         self.retire_button.clicked.connect(self.retire_selected)
 
         buttons.addWidget(self.add_button)
@@ -291,7 +291,7 @@ class EquipmentPage(QFrame):
 
         self.search_input = QLineEdit()
         self.search_input.setPlaceholderText("Buscar por frota, placa, modelo, chassi ou atividade")
-        self.search_input.setMinimumHeight(40)
+        self.search_input.setMinimumHeight(34)
         self.search_input.returnPressed.connect(self.refresh)
         self.search_input.textChanged.connect(self._schedule_live_refresh)
 
@@ -300,11 +300,11 @@ class EquipmentPage(QFrame):
         self.type_filter.addItem("Cavalos", "cavalo")
         self.type_filter.addItem("Carretas", "carreta")
         self.type_filter.addItem("Veículos auxiliares", "auxiliar")
-        self.type_filter.setMinimumHeight(40)
+        self.type_filter.setMinimumHeight(34)
         self.type_filter.currentIndexChanged.connect(self.refresh)
 
         filter_button = QPushButton("Aplicar filtros")
-        filter_button.setMinimumHeight(40)
+        filter_button.setMinimumHeight(34)
         filter_button.clicked.connect(self.refresh)
 
         filters.addWidget(self.search_input, 1)
@@ -493,3 +493,4 @@ class EquipmentPage(QFrame):
             show_notice(self, "Equipamento retirado", "Equipamento removido da lista ativa.", icon_name="dashboard")
             self.refresh()
             self.data_changed.emit()
+

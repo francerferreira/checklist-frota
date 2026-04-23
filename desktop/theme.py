@@ -82,32 +82,32 @@ QLabel {
     background: transparent;
 }
 QMainWindow, QWidget#MainContainer {
-    background: #E9EEF5;
+    background: #E6EBF2;
 }
 QFrame#Sidebar {
-    background: qlineargradient(x1:0, y1:0, x2:0, y2:1, stop:0 #0B1220, stop:0.58 #0F1A2E, stop:1 #16243C);
+    background: qlineargradient(x1:0, y1:0, x2:0, y2:1, stop:0 #17324A, stop:0.58 #123148, stop:1 #0E2A41);
     border: 1px solid rgba(255, 255, 255, 0.08);
-    border-radius: 28px;
+    border-radius: 12px;
 }
-QWidget#ContentSurface, QWidget#PanelCard, QWidget#ImagePanel, QWidget#HeaderCard, QWidget#FilterBar, QWidget#TableCard, QWidget#TopBar {
-    background: qlineargradient(x1:0, y1:0, x2:1, y2:1, stop:0 #FFFFFF, stop:1 #F8FBFF);
-    border: 1px solid rgba(148, 163, 184, 0.18);
-    border-radius: 24px;
+QWidget#ContentSurface, QWidget#PanelCard, QWidget#ImagePanel, QWidget#HeaderCard, QWidget#FilterBar, QWidget#TableCard {
+    background: #FFFFFF;
+    border: 1px solid rgba(115, 132, 156, 0.24);
+    border-radius: 10px;
 }
 QDialog#PanelCard {
     background: #FFFFFF;
-    border: 1px solid rgba(148, 163, 184, 0.18);
-    border-radius: 24px;
+    border: 1px solid rgba(115, 132, 156, 0.24);
+    border-radius: 10px;
 }
 QFrame#DialogHeader {
-    background: qlineargradient(x1:0, y1:0, x2:1, y2:0, stop:0 #1D4ED8, stop:1 #2563EB);
+    background: qlineargradient(x1:0, y1:0, x2:1, y2:0, stop:0 #0F5E84, stop:1 #10719E);
     border: none;
-    border-radius: 20px;
+    border-radius: 8px;
 }
 QFrame#DialogFooter {
-    background: #F8FAFC;
-    border: 1px solid rgba(148, 163, 184, 0.14);
-    border-radius: 18px;
+    background: #F4F7FB;
+    border: 1px solid rgba(115, 132, 156, 0.20);
+    border-radius: 8px;
 }
 QFrame#DialogIconBadge {
     background: rgba(255, 255, 255, 0.18);
@@ -115,14 +115,14 @@ QFrame#DialogIconBadge {
     border-radius: 16px;
 }
 QFrame#DialogInfoBlock {
-    background: #EFF6FF;
-    border: 1px solid rgba(37, 99, 235, 0.14);
-    border-radius: 16px;
+    background: #EDF5FB;
+    border: 1px solid rgba(16, 94, 132, 0.18);
+    border-radius: 8px;
 }
 QFrame#PhotoFrame {
-    background: qlineargradient(x1:0, y1:0, x2:1, y2:1, stop:0 #F8FBFF, stop:1 #EEF5FF);
-    border: 1px solid rgba(37, 99, 235, 0.18);
-    border-radius: 20px;
+    background: #F3F7FC;
+    border: 1px solid rgba(16, 94, 132, 0.18);
+    border-radius: 10px;
 }
 QLabel#DialogHeaderTitle {
     color: #FFFFFF;
@@ -134,15 +134,15 @@ QLabel#DialogHeaderSubtitle {
     font-size: 13px;
 }
 QLabel#DialogInfoValue {
-    color: #1E3A8A;
+    color: #124869;
     font-size: 14px;
     font-weight: 700;
 }
 QLabel#PhotoStatus {
-    background: #DBEAFE;
-    color: #1D4ED8;
-    border: 1px solid rgba(37, 99, 235, 0.20);
-    border-radius: 12px;
+    background: #E1F0FB;
+    color: #0F5E84;
+    border: 1px solid rgba(16, 94, 132, 0.26);
+    border-radius: 8px;
     padding: 6px 10px;
     font-size: 11px;
     font-weight: 700;
@@ -152,37 +152,39 @@ QLabel#PhotoCaption {
     font-size: 12px;
 }
 QLabel#PhotoRibbon {
-    background: #1D4ED8;
+    background: #0F5E84;
     color: #FFFFFF;
-    border-radius: 12px;
+    border-radius: 8px;
     padding: 8px 12px;
     font-size: 11px;
     font-weight: 800;
     letter-spacing: 0.04em;
 }
 QFrame#TopNavStrip {
-    background: qlineargradient(x1:0, y1:0, x2:1, y2:0, stop:0 #F8FBFF, stop:1 #EEF5FF);
-    border: 1px solid rgba(37, 99, 235, 0.10);
-    border-radius: 18px;
+    background: rgba(255, 255, 255, 0.14);
+    border: 1px solid rgba(255, 255, 255, 0.20);
+    border-radius: 8px;
 }
 QFrame#TopBar {
-    border-radius: 28px;
+    background: qlineargradient(x1:0, y1:0, x2:1, y2:0, stop:0 #0D5A7D, stop:1 #0B709B);
+    border: 1px solid rgba(6, 53, 76, 0.65);
+    border-radius: 10px;
 }
 QFrame#TopBarActionCluster {
-    background: qlineargradient(x1:0, y1:0, x2:1, y2:0, stop:0 #F8FAFC, stop:1 #EFF6FF);
-    border: 1px solid rgba(37, 99, 235, 0.10);
-    border-radius: 22px;
+    background: rgba(255, 255, 255, 0.16);
+    border: 1px solid rgba(255, 255, 255, 0.20);
+    border-radius: 8px;
 }
 QFrame#TopBarBadge {
-    background: rgba(255, 255, 255, 0.84);
-    border: 1px solid rgba(148, 163, 184, 0.12);
-    border-radius: 18px;
+    background: rgba(255, 255, 255, 0.94);
+    border: 1px solid rgba(255, 255, 255, 0.36);
+    border-radius: 8px;
 }
 QLabel#TopBarPill {
-    background: #DBEAFE;
-    color: #1D4ED8;
-    border: 1px solid rgba(37, 99, 235, 0.24);
-    border-radius: 16px;
+    background: rgba(255, 255, 255, 0.20);
+    color: #FFFFFF;
+    border: 1px solid rgba(255, 255, 255, 0.32);
+    border-radius: 8px;
     padding: 8px 14px;
     font-size: 12px;
     font-weight: 700;
@@ -204,12 +206,12 @@ QLabel#SidebarSection {
     text-transform: uppercase;
 }
 QLabel#TopBarTitle {
-    color: #0B1220;
+    color: #FFFFFF;
     font-size: 25px;
     font-weight: 760;
 }
 QLabel#TopBarSubtitle {
-    color: #5B6E8A;
+    color: rgba(255, 255, 255, 0.88);
     font-size: 15px;
 }
 QLabel#PageTitle {
@@ -222,7 +224,7 @@ QLabel#PageSubtitle {
     font-size: 13px;
 }
 QLabel#SectionTitle {
-    color: #1D4ED8;
+    color: #0F5E84;
     font-size: 16px;
     font-weight: 720;
 }
@@ -231,36 +233,39 @@ QLabel#SectionCaption {
     font-size: 12px;
 }
 QPushButton {
-    border: none;
-    border-radius: 14px;
-    background: #E2E8F0;
-    color: #0F172A;
+    border: 1px solid rgba(115, 132, 156, 0.28);
+    border-radius: 8px;
+    background: #F4F7FB;
+    color: #1B2A40;
     padding: 11px 18px;
-    font-weight: 650;
+    font-weight: 700;
 }
 QPushButton:hover {
-    background: #DBEAFE;
+    background: #E9F0F8;
 }
 QPushButton:disabled {
-    background: #E5E7EB;
+    background: #E6EBF0;
     color: #94A3B8;
 }
 QPushButton[variant="primary"] {
-    background: #2563EB;
+    background: #0F5E84;
+    border: 1px solid #0E5477;
     color: #FFFFFF;
 }
 QPushButton[variant="success"] {
-    background: #22C55E;
+    background: #1E9F6B;
+    border: 1px solid #198A5C;
     color: #FFFFFF;
 }
 QPushButton[variant="danger"] {
-    background: #EF4444;
+    background: #CC4747;
+    border: 1px solid #B03C3C;
     color: #FFFFFF;
 }
 QLineEdit, QTextEdit, QComboBox {
     background: #FFFFFF;
-    border: 1px solid rgba(148, 163, 184, 0.30);
-    border-radius: 12px;
+    border: 1px solid rgba(115, 132, 156, 0.30);
+    border-radius: 8px;
     padding: 10px 12px;
     min-height: 20px;
 }
@@ -271,27 +276,27 @@ QCheckBox {
 QCheckBox::indicator {
     width: 18px;
     height: 18px;
-    border-radius: 6px;
+    border-radius: 4px;
     border: 1px solid rgba(148, 163, 184, 0.40);
     background: #FFFFFF;
 }
 QCheckBox::indicator:checked {
-    background: #2563EB;
-    border: 1px solid #2563EB;
+    background: #0F5E84;
+    border: 1px solid #0F5E84;
 }
 QLineEdit:focus, QTextEdit:focus, QComboBox:focus {
-    border: 1px solid rgba(37, 99, 235, 0.55);
+    border: 1px solid rgba(15, 94, 132, 0.55);
 }
 QTableWidget {
     background: transparent;
     border: none;
     gridline-color: rgba(226, 232, 240, 0.50);
-    selection-background-color: #2563EB;
+    selection-background-color: #0F5E84;
     selection-color: #FFFFFF;
     alternate-background-color: #FAFCFF;
 }
 QTableWidget::item {
-    padding: 13px 12px;
+    padding: 10px 10px;
     border: none;
 }
 QTableWidget::item:selected,
@@ -300,20 +305,20 @@ QTableWidget::item:selected:!active,
 QTableView::item:selected,
 QTableView::item:selected:active,
 QTableView::item:selected:!active {
-    background: #2563EB;
+    background: #0F5E84;
     color: #FFFFFF;
 }
 QTableWidget::item:hover,
 QTableView::item:hover {
-    background: rgba(37, 99, 235, 0.08);
+    background: rgba(15, 94, 132, 0.08);
 }
 QHeaderView::section {
-    background: #EEF2F6;
-    color: #1E293B;
+    background: #E8EDF4;
+    color: #25364A;
     border: none;
     border-right: 1px solid rgba(148, 163, 184, 0.16);
     border-bottom: 1px solid rgba(148, 163, 184, 0.20);
-    padding: 16px 14px;
+    padding: 10px 10px;
     font-weight: 720;
 }
 QHeaderView::section:hover {
@@ -328,18 +333,18 @@ QTabWidget::pane {
     background: transparent;
 }
 QTabBar::tab {
-    background: #E2E8F0;
-    color: #0F172A;
+    background: #E5EBF3;
+    color: #1B2A40;
     border: none;
-    border-top-left-radius: 14px;
-    border-top-right-radius: 14px;
-    padding: 12px 16px;
+    border-top-left-radius: 8px;
+    border-top-right-radius: 8px;
+    padding: 10px 14px;
     margin-right: 6px;
     font-weight: 700;
 }
 QTabBar::tab:selected {
     background: #FFFFFF;
-    color: #0B1220;
+    color: #12334B;
 }
 QSplitter::handle {
     background: transparent;
@@ -368,14 +373,14 @@ QLabel#MutedText {
     color: #64748B;
 }
 QStatusBar {
-    background: #F8FAFC;
+    background: #F1F5FA;
     color: #334155;
-    border-top: 1px solid rgba(148, 163, 184, 0.12);
+    border-top: 1px solid rgba(115, 132, 156, 0.20);
 }
 """
 
 
-def apply_soft_shadow(widget, blur: int = 28, y_offset: int = 10, alpha: int = 18) -> None:
+def apply_soft_shadow(widget, blur: int = 14, y_offset: int = 4, alpha: int = 10) -> None:
     shadow = QGraphicsDropShadowEffect(widget)
     shadow.setBlurRadius(blur)
     shadow.setOffset(0, y_offset)
@@ -395,17 +400,17 @@ def style_card(frame: QWidget) -> None:
 
 def style_table_card(frame: QWidget) -> None:
     _prepare_styled_widget(frame, "TableCard")
-    apply_soft_shadow(frame, blur=22, y_offset=8, alpha=14)
+    apply_soft_shadow(frame, blur=10, y_offset=3, alpha=8)
 
 
 def style_filter_bar(frame: QWidget) -> None:
     _prepare_styled_widget(frame, "FilterBar")
-    apply_soft_shadow(frame, blur=18, y_offset=6, alpha=12)
+    apply_soft_shadow(frame, blur=8, y_offset=2, alpha=6)
 
 
 def style_top_bar(frame: QWidget) -> None:
     _prepare_styled_widget(frame, "TopBar")
-    apply_soft_shadow(frame, blur=20, y_offset=8, alpha=14)
+    apply_soft_shadow(frame, blur=10, y_offset=2, alpha=8)
 
 
 def configure_dialog_window(
@@ -485,7 +490,7 @@ def animate_dialog_in(dialog: QDialog) -> None:
     dialog._dialog_intro_running = True
     dialog.setWindowOpacity(0.0)
     animation = QPropertyAnimation(dialog, b"windowOpacity", dialog)
-    animation.setDuration(220)
+    animation.setDuration(140)
     animation.setStartValue(0.0)
     animation.setEndValue(1.0)
     animation.setEasingCurve(QEasingCurve.OutCubic)
@@ -544,7 +549,7 @@ def configure_table(table: QTableWidget, stretch_last: bool = True, auto_fit: bo
     table.setEditTriggers(QAbstractItemView.NoEditTriggers)
     table.setFrameShape(QFrame.NoFrame)
     table.verticalHeader().setVisible(False)
-    table.verticalHeader().setDefaultSectionSize(50)
+    table.verticalHeader().setDefaultSectionSize(44)
     table.horizontalHeader().setHighlightSections(False)
     table.horizontalHeader().setDefaultAlignment(Qt.AlignLeft | Qt.AlignVCenter)
     table.horizontalHeader().setStretchLastSection(stretch_last)

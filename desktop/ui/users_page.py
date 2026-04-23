@@ -345,3 +345,4 @@ class UsersPage(QFrame):
         except Exception as exc:
             show_notice(self, "Falha ao excluir", str(exc), icon_name="warning")
 
+

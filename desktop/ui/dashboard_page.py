@@ -290,3 +290,4 @@ class DashboardPage(QFrame):
             self.critical_table.setUpdatesEnabled(True)
             self.critical_table.setSortingEnabled(True)
 
+

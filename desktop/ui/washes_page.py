@@ -122,9 +122,9 @@ class WashCalendarDelegate(QStyledItemDelegate):
         selected = bool(option.state & QStyle.State_Selected)
 
         background = index.data(Qt.BackgroundRole)
-        base_color = background.color() if hasattr(background, "color") else QColor("#E0F2FE")
+        base_color = background.color() if hasattr(background, "color") else QColor("#E5F1FA")
         if selected:
-            base_color = QColor("#1E3A8A")
+            base_color = QColor("#0F5E84")
 
         painter.setPen(Qt.NoPen)
         painter.setBrush(base_color)
@@ -145,7 +145,7 @@ class WashCalendarDelegate(QStyledItemDelegate):
         pill_y = rect.y() + 6
         pill_rect = rect.adjusted(pill_x - rect.x(), pill_y - rect.y(), -(rect.width() - (pill_x - rect.x()) - pill_width), -(rect.height() - (pill_y - rect.y()) - pill_height))
 
-        painter.setBrush(QColor("#1D4ED8") if not selected else QColor("#0F172A"))
+        painter.setBrush(QColor("#0F5E84") if not selected else QColor("#12486A"))
         painter.drawRoundedRect(pill_rect, 9, 9)
 
         date_font = QFont(option.font)
@@ -172,9 +172,9 @@ class WashCalendarDelegate(QStyledItemDelegate):
         x = rect.x()
         y = rect.y()
         base_color = QColor("#FFFFFF") if selected else QColor("#0F172A")
-        orange = QColor("#D97706")
-        green = QColor("#16A34A")
-        red = QColor("#DC2626")
+        orange = QColor("#B56A09")
+        green = QColor("#1D8E5E")
+        red = QColor("#C04343")
 
         summary_re = re.compile(r"●\s*OK\s*(\d+)\s+●\s*X\s*(\d+)\s+●\s*PEND\s*(\d+)")
         for line_index, line in enumerate(detail_lines):
@@ -1076,23 +1076,32 @@ class WashesPage(QFrame):
         shell.addWidget(scroll)
 
         root = QVBoxLayout(content)
-        root.setContentsMargins(20, 18, 20, 18)
-        root.setSpacing(14)
+        root.setContentsMargins(16, 14, 16, 14)
+        root.setSpacing(12)
 
-        header = QHBoxLayout()
-        header.setSpacing(14)
+        header_frame = QFrame()
+        style_filter_bar(header_frame)
+        header = QHBoxLayout(header_frame)
+        header.setContentsMargins(12, 10, 12, 10)
+        header.setSpacing(12)
         text_wrap = QVBoxLayout()
         text_wrap.setSpacing(4)
         title = QLabel("Gerenciamento de lavagem")
         title.setObjectName("PageTitle")
+        title.setStyleSheet("font-size:24px; font-weight:760;")
         subtitle = QLabel("Controle a fila do CV, monte o cronograma mensal e acompanhe os indicadores do período.")
         subtitle.setObjectName("PageSubtitle")
+        subtitle.setStyleSheet("font-size:12px;")
         subtitle.setWordWrap(True)
         text_wrap.addWidget(title)
         text_wrap.addWidget(subtitle)
+        context_hint = QLabel("Operação diária • Cronograma • Fila • Histórico")
+        context_hint.setObjectName("SectionCaption")
+        context_hint.setStyleSheet("font-size:11px; color:#4F657D;")
+        text_wrap.addWidget(context_hint)
 
         buttons = QHBoxLayout()
-        buttons.setSpacing(8)
+        buttons.setSpacing(6)
         self.sync_button = QPushButton("Sincronizar frota")
         self.sync_button.clicked.connect(self.sync_queue)
         self.reclassify_button = QPushButton("Reclassificar fila")
@@ -1118,7 +1127,7 @@ class WashesPage(QFrame):
             self.values_manage_button,
             self.refresh_button,
         ):
-            action_button.setMinimumHeight(38)
+            action_button.setMinimumHeight(34)
             buttons.addWidget(action_button)
         buttons.setAlignment(Qt.AlignRight | Qt.AlignTop)
 
@@ -1126,8 +1135,8 @@ class WashesPage(QFrame):
         header.addLayout(buttons)
 
         summary_grid = QGridLayout()
-        summary_grid.setHorizontalSpacing(8)
-        summary_grid.setVerticalSpacing(8)
+        summary_grid.setHorizontalSpacing(6)
+        summary_grid.setVerticalSpacing(6)
         self.summary_cards: dict[str, tuple[QLabel, QLabel]] = {}
         self.summary_card_frames: dict[str, QFrame] = {}
         for index, (key, title_text) in enumerate(
@@ -1142,17 +1151,17 @@ class WashesPage(QFrame):
             card = QFrame()
             style_table_card(card)
             card_layout = QVBoxLayout(card)
-            card_layout.setContentsMargins(10, 10, 10, 10)
+            card_layout.setContentsMargins(9, 8, 9, 8)
             card_layout.setSpacing(1)
             card_title = QLabel(title_text)
             card_title.setObjectName("CardTitle")
             value_label = QLabel("-")
             value_label.setStyleSheet(
-                "font-size:20px; font-weight:780; color:#0B1220; background: transparent;"
+                "font-size:18px; font-weight:760; color:#0F2A42; background: transparent;"
             )
             subtitle_label = QLabel("")
             subtitle_label.setStyleSheet(
-                "font-size:10px; color:#64748B; background: transparent;"
+                "font-size:10px; color:#5E738A; background: transparent;"
             )
             subtitle_label.setWordWrap(True)
             card_layout.addWidget(card_title)
@@ -1161,19 +1170,19 @@ class WashesPage(QFrame):
             self.summary_cards[key] = (value_label, subtitle_label)
             self.summary_card_frames[key] = card
             summary_grid.addWidget(card, 0, index)
-            card.setMinimumHeight(96)
-            card.setMaximumHeight(102)
+            card.setMinimumHeight(86)
+            card.setMaximumHeight(94)
         self.summary_card_frames["valor_total"].setVisible(self.can_view_values)
 
-        root.addLayout(header)
+        root.addWidget(header_frame)
         root.addLayout(summary_grid)
 
         self.plan_card = QFrame()
         style_filter_bar(self.plan_card)
         plan_layout = QGridLayout(self.plan_card)
-        plan_layout.setContentsMargins(14, 12, 14, 12)
-        plan_layout.setHorizontalSpacing(10)
-        plan_layout.setVerticalSpacing(8)
+        plan_layout.setContentsMargins(12, 10, 12, 10)
+        plan_layout.setHorizontalSpacing(8)
+        plan_layout.setVerticalSpacing(6)
 
         self.prev_month_button = QPushButton("◀")
         self.prev_month_button.clicked.connect(lambda: self.change_month(-1))
@@ -1204,8 +1213,9 @@ class WashesPage(QFrame):
         self.unblock_button = QPushButton("Liberar dia")
         self.unblock_button.clicked.connect(lambda: self.toggle_block(False))
         self.save_plan_button.setMinimumHeight(38)
-        self.block_button.setMinimumHeight(38)
-        self.unblock_button.setMinimumHeight(38)
+        self.block_button.setMinimumHeight(34)
+        self.unblock_button.setMinimumHeight(34)
+        self.save_plan_button.setMinimumHeight(34)
 
         plan_layout.addWidget(self.prev_month_button, 0, 0)
         plan_layout.addWidget(self.period_badge, 0, 1)
@@ -1231,14 +1241,14 @@ class WashesPage(QFrame):
         self.calendar_tab = QWidget()
         calendar_layout = QVBoxLayout(self.calendar_tab)
         calendar_layout.setContentsMargins(0, 0, 0, 0)
-        calendar_layout.setSpacing(14)
+        calendar_layout.setSpacing(10)
 
         self.calendar_card = QFrame()
         style_table_card(self.calendar_card)
         self.calendar_skeleton = TableSkeletonOverlay(self.calendar_card, rows=6)
         calendar_card_layout = QVBoxLayout(self.calendar_card)
-        calendar_card_layout.setContentsMargins(12, 12, 12, 12)
-        calendar_card_layout.setSpacing(8)
+        calendar_card_layout.setContentsMargins(10, 10, 10, 10)
+        calendar_card_layout.setSpacing(6)
 
         calendar_title = QLabel("Cronograma mensal vivo")
         calendar_title.setObjectName("SectionTitle")
@@ -1270,7 +1280,7 @@ class WashesPage(QFrame):
         self.calendar_table.setSelectionMode(QAbstractItemView.SingleSelection)
         self.calendar_table.itemSelectionChanged.connect(self._calendar_selection_changed)
         self.calendar_table.itemDoubleClicked.connect(self._calendar_item_double_clicked)
-        self.calendar_table.setMinimumHeight(580)
+        self.calendar_table.setMinimumHeight(540)
         self.calendar_table.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
         self.calendar_table.verticalHeader().setVisible(False)
         self.calendar_table.horizontalHeader().setSectionResizeMode(QHeaderView.Stretch)
@@ -1278,27 +1288,29 @@ class WashesPage(QFrame):
         self.calendar_table.setStyleSheet(
             """
             QTableWidget#WashCalendarTable {
-                background: #F8FBFF;
-                border: 1px solid rgba(37, 99, 235, 0.18);
-                border-radius: 18px;
-                gridline-color: rgba(148, 163, 184, 0.32);
-                selection-background-color: #2563EB;
+                background: #F4F8FC;
+                border: 1px solid rgba(15, 94, 132, 0.24);
+                border-radius: 8px;
+                gridline-color: rgba(115, 132, 156, 0.30);
+                selection-background-color: #0F5E84;
                 selection-color: #FFFFFF;
             }
             QTableWidget#WashCalendarTable::item {
-                border: 1px solid rgba(226, 232, 240, 0.85);
-                padding: 12px 14px;
+                border: 1px solid rgba(205, 216, 230, 0.88);
+                padding: 8px 8px;
             }
             QTableWidget#WashCalendarTable::item:selected {
-                border: 1px solid #1D4ED8;
-                background: #2563EB;
+                border: 1px solid #0F5E84;
+                background: #0F5E84;
                 color: #FFFFFF;
             }
             QHeaderView::section {
-                background: #EEF2F6;
-                color: #1E293B;
-                border-right: 1px solid rgba(148, 163, 184, 0.16);
-                border-bottom: 1px solid rgba(148, 163, 184, 0.20);
+                background: #E8EEF5;
+                color: #25364A;
+                border-right: 1px solid rgba(115, 132, 156, 0.20);
+                border-bottom: 1px solid rgba(115, 132, 156, 0.24);
+                padding: 8px 6px;
+                font-weight: 760;
             }
             """
         )
@@ -1353,13 +1365,13 @@ class WashesPage(QFrame):
         self.queue_tab = QWidget()
         queue_tab_layout = QVBoxLayout(self.queue_tab)
         queue_tab_layout.setContentsMargins(0, 0, 0, 0)
-        queue_tab_layout.setSpacing(14)
+        queue_tab_layout.setSpacing(10)
 
         queue_filter = QFrame()
         style_filter_bar(queue_filter)
         queue_filter_layout = QHBoxLayout(queue_filter)
-        queue_filter_layout.setContentsMargins(14, 14, 14, 14)
-        queue_filter_layout.setSpacing(10)
+        queue_filter_layout.setContentsMargins(12, 10, 12, 10)
+        queue_filter_layout.setSpacing(8)
         self.search_input = QLineEdit()
         self.search_input.setPlaceholderText("Buscar por referência, placa, modelo ou local")
         self.search_input.returnPressed.connect(self.apply_filters)
@@ -1375,6 +1387,7 @@ class WashesPage(QFrame):
         self.category_filter.addItem("Auxiliares", "auxiliar")
         self.category_filter.currentIndexChanged.connect(self.apply_filters)
         apply_button = QPushButton("Aplicar filtros")
+        apply_button.setMinimumHeight(34)
         apply_button.clicked.connect(self.apply_filters)
         queue_filter_layout.addWidget(self.search_input, 1)
         queue_filter_layout.addWidget(self.status_filter)
@@ -1385,8 +1398,8 @@ class WashesPage(QFrame):
         style_table_card(self.queue_card)
         self.queue_skeleton = TableSkeletonOverlay(self.queue_card, rows=7)
         queue_layout = QVBoxLayout(self.queue_card)
-        queue_layout.setContentsMargins(14, 14, 14, 14)
-        queue_layout.setSpacing(10)
+        queue_layout.setContentsMargins(12, 10, 12, 10)
+        queue_layout.setSpacing(8)
 
         queue_title = QLabel("Fila operacional")
         queue_title.setObjectName("SectionTitle")
@@ -1405,11 +1418,13 @@ class WashesPage(QFrame):
         queue_top.addWidget(self.selection_badge)
 
         queue_actions = QHBoxLayout()
-        queue_actions.setSpacing(10)
+        queue_actions.setSpacing(8)
         self.register_button = QPushButton("Registrar lavagem")
         self.register_button.setProperty("variant", "primary")
+        self.register_button.setMinimumHeight(34)
         self.register_button.clicked.connect(self.register_selected_wash)
         self.preventive_button = QPushButton("Programar preventiva")
+        self.preventive_button.setMinimumHeight(34)
         self.preventive_button.clicked.connect(self.schedule_preventive)
         queue_actions.addWidget(self.register_button)
         queue_actions.addWidget(self.preventive_button)
@@ -1447,14 +1462,14 @@ class WashesPage(QFrame):
         self.history_tab = QWidget()
         history_tab_layout = QVBoxLayout(self.history_tab)
         history_tab_layout.setContentsMargins(0, 0, 0, 0)
-        history_tab_layout.setSpacing(14)
+        history_tab_layout.setSpacing(10)
 
         self.history_card = QFrame()
         style_table_card(self.history_card)
         self.history_skeleton = TableSkeletonOverlay(self.history_card, rows=6)
         history_layout = QVBoxLayout(self.history_card)
-        history_layout.setContentsMargins(14, 14, 14, 14)
-        history_layout.setSpacing(10)
+        history_layout.setContentsMargins(12, 10, 12, 10)
+        history_layout.setSpacing(8)
         history_title = QLabel("Histórico do mês")
         history_title.setObjectName("SectionTitle")
         history_caption = QLabel("Lavagens já realizadas no período selecionado, com valor, categoria e carreta.")
@@ -1462,8 +1477,8 @@ class WashesPage(QFrame):
         history_filter_bar = QFrame()
         style_filter_bar(history_filter_bar)
         history_filter_layout = QHBoxLayout(history_filter_bar)
-        history_filter_layout.setContentsMargins(12, 12, 12, 12)
-        history_filter_layout.setSpacing(10)
+        history_filter_layout.setContentsMargins(10, 8, 10, 8)
+        history_filter_layout.setSpacing(8)
         self.history_filter_mode = QComboBox()
         self.history_filter_mode.addItem("Mês selecionado", "MONTH")
         self.history_filter_mode.addItem("Dia selecionado", "SELECTED_DAY")
@@ -1475,8 +1490,10 @@ class WashesPage(QFrame):
         apply_date_popup_style(self.history_date_filter)
         self.history_date_filter.dateChanged.connect(self._fill_history)
         self.history_today_button = QPushButton("Hoje")
+        self.history_today_button.setMinimumHeight(34)
         self.history_today_button.clicked.connect(self.focus_today)
         self.history_month_button = QPushButton("Mês atual")
+        self.history_month_button.setMinimumHeight(34)
         self.history_month_button.clicked.connect(self.go_to_current_period)
         history_filter_layout.addWidget(self.history_filter_mode)
         history_filter_layout.addWidget(self.history_date_filter)
@@ -2324,19 +2341,19 @@ class WashesPage(QFrame):
     @staticmethod
     def _calendar_cell_background(payload: dict, is_current_day: bool = False) -> QColor:
         if payload.get("blocked"):
-            return QColor("#FCA5A5") if is_current_day else QColor("#FEE2E2")
+            return QColor("#EAA4A4") if is_current_day else QColor("#F9E1E1")
         total_items = len(payload.get("morning") or []) + len(payload.get("afternoon") or [])
         if total_items == 0:
-            return QColor("#BFDBFE") if is_current_day else QColor("#E0F2FE")
+            return QColor("#BBD9EC") if is_current_day else QColor("#E5F1FA")
         ok_count = sum(1 for item in (payload.get("morning") or []) + (payload.get("afternoon") or []) if item.get("status_execucao") == "LAVADO")
         no_count = sum(1 for item in (payload.get("morning") or []) + (payload.get("afternoon") or []) if item.get("status_execucao") == "NAO_CUMPRIDO")
         if no_count > 0 and ok_count == 0:
-            return QColor("#FCA5A5") if is_current_day else QColor("#FEE2E2")
+            return QColor("#EAA4A4") if is_current_day else QColor("#F9E1E1")
         if ok_count == total_items:
-            return QColor("#93C5FD") if is_current_day else QColor("#DCFCE7")
+            return QColor("#A8DCC2") if is_current_day else QColor("#E0F4EA")
         if ok_count > 0 or no_count > 0:
-            return QColor("#93C5FD") if is_current_day else QColor("#FEF3C7")
-        return QColor("#BFDBFE") if is_current_day else QColor("#E0F2FE")
+            return QColor("#D6D2A6") if is_current_day else QColor("#F7F0CF")
+        return QColor("#BBD9EC") if is_current_day else QColor("#E5F1FA")
 
     def _calendar_cell_tooltip(self, payload: dict, is_current_day: bool) -> str:
         ok_count = self._status_count(payload, "LAVADO")
