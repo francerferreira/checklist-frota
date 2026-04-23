@@ -82,10 +82,10 @@ QLabel {
     background: transparent;
 }
 QMainWindow, QWidget#MainContainer {
-    background: #E6EBF2;
+    background: #D9DDE2;
 }
 QFrame#Sidebar {
-    background: qlineargradient(x1:0, y1:0, x2:0, y2:1, stop:0 #17324A, stop:0.58 #123148, stop:1 #0E2A41);
+    background: qlineargradient(x1:0, y1:0, x2:0, y2:1, stop:0 #4F5965, stop:0.58 #46515D, stop:1 #3F4955);
     border: 1px solid rgba(255, 255, 255, 0.08);
     border-radius: 12px;
 }
@@ -100,7 +100,7 @@ QDialog#PanelCard {
     border-radius: 10px;
 }
 QFrame#DialogHeader {
-    background: qlineargradient(x1:0, y1:0, x2:1, y2:0, stop:0 #0F5E84, stop:1 #10719E);
+    background: qlineargradient(x1:0, y1:0, x2:1, y2:0, stop:0 #5A6470, stop:1 #66717D);
     border: none;
     border-radius: 8px;
 }
@@ -115,13 +115,13 @@ QFrame#DialogIconBadge {
     border-radius: 16px;
 }
 QFrame#DialogInfoBlock {
-    background: #EDF5FB;
-    border: 1px solid rgba(16, 94, 132, 0.18);
+    background: #EEF1F5;
+    border: 1px solid rgba(101, 114, 129, 0.24);
     border-radius: 8px;
 }
 QFrame#PhotoFrame {
-    background: #F3F7FC;
-    border: 1px solid rgba(16, 94, 132, 0.18);
+    background: #F1F3F6;
+    border: 1px solid rgba(101, 114, 129, 0.24);
     border-radius: 10px;
 }
 QLabel#DialogHeaderTitle {
@@ -134,14 +134,14 @@ QLabel#DialogHeaderSubtitle {
     font-size: 13px;
 }
 QLabel#DialogInfoValue {
-    color: #124869;
+    color: #2E3B49;
     font-size: 14px;
     font-weight: 700;
 }
 QLabel#PhotoStatus {
-    background: #E1F0FB;
-    color: #0F5E84;
-    border: 1px solid rgba(16, 94, 132, 0.26);
+    background: #E8EDF3;
+    color: #3F4B59;
+    border: 1px solid rgba(101, 114, 129, 0.30);
     border-radius: 8px;
     padding: 6px 10px;
     font-size: 11px;
@@ -152,7 +152,7 @@ QLabel#PhotoCaption {
     font-size: 12px;
 }
 QLabel#PhotoRibbon {
-    background: #0F5E84;
+    background: #5A6470;
     color: #FFFFFF;
     border-radius: 8px;
     padding: 8px 12px;
@@ -161,13 +161,13 @@ QLabel#PhotoRibbon {
     letter-spacing: 0.04em;
 }
 QFrame#TopNavStrip {
-    background: rgba(255, 255, 255, 0.14);
-    border: 1px solid rgba(255, 255, 255, 0.20);
+    background: rgba(255, 255, 255, 0.18);
+    border: 1px solid rgba(255, 255, 255, 0.24);
     border-radius: 8px;
 }
 QFrame#TopBar {
-    background: qlineargradient(x1:0, y1:0, x2:1, y2:0, stop:0 #0D5A7D, stop:1 #0B709B);
-    border: 1px solid rgba(6, 53, 76, 0.65);
+    background: qlineargradient(x1:0, y1:0, x2:1, y2:0, stop:0 #4D5763, stop:1 #596470);
+    border: 1px solid rgba(61, 70, 79, 0.72);
     border-radius: 10px;
 }
 QFrame#TopBarActionCluster {
@@ -224,7 +224,7 @@ QLabel#PageSubtitle {
     font-size: 13px;
 }
 QLabel#SectionTitle {
-    color: #0F5E84;
+    color: #2B3A49;
     font-size: 16px;
     font-weight: 720;
 }
@@ -248,18 +248,18 @@ QPushButton:disabled {
     color: #94A3B8;
 }
 QPushButton[variant="primary"] {
-    background: #0F5E84;
-    border: 1px solid #0E5477;
+    background: #5B6571;
+    border: 1px solid #4F5964;
     color: #FFFFFF;
 }
 QPushButton[variant="success"] {
-    background: #1E9F6B;
-    border: 1px solid #198A5C;
+    background: #667A69;
+    border: 1px solid #566758;
     color: #FFFFFF;
 }
 QPushButton[variant="danger"] {
-    background: #CC4747;
-    border: 1px solid #B03C3C;
+    background: #8A5B5B;
+    border: 1px solid #774D4D;
     color: #FFFFFF;
 }
 QLineEdit, QTextEdit, QComboBox {
@@ -281,17 +281,17 @@ QCheckBox::indicator {
     background: #FFFFFF;
 }
 QCheckBox::indicator:checked {
-    background: #0F5E84;
-    border: 1px solid #0F5E84;
+    background: #5B6571;
+    border: 1px solid #5B6571;
 }
 QLineEdit:focus, QTextEdit:focus, QComboBox:focus {
-    border: 1px solid rgba(15, 94, 132, 0.55);
+    border: 1px solid rgba(91, 101, 113, 0.58);
 }
 QTableWidget {
     background: transparent;
     border: none;
     gridline-color: rgba(226, 232, 240, 0.50);
-    selection-background-color: #0F5E84;
+    selection-background-color: #5B6571;
     selection-color: #FFFFFF;
     alternate-background-color: #FAFCFF;
 }
@@ -305,7 +305,7 @@ QTableWidget::item:selected:!active,
 QTableView::item:selected,
 QTableView::item:selected:active,
 QTableView::item:selected:!active {
-    background: #0F5E84;
+    background: #5B6571;
     color: #FFFFFF;
 }
 QTableWidget::item:hover,

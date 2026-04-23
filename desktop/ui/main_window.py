@@ -39,6 +39,9 @@ from ui.reports_page import ReportsPage
 from ui.users_page import UsersPage
 from ui.washes_page import WashesPage
 
+NEUTRAL_ICON_BG = "#E7EBF0"
+NEUTRAL_ICON_FG = "#4F5B69"
+
 
 class AccessDialog(QDialog):
     def __init__(self, api_client, user: dict, parent=None):
@@ -66,7 +69,7 @@ class AccessDialog(QDialog):
         icon_layout = QVBoxLayout(icon_badge)
         icon_layout.setContentsMargins(10, 10, 10, 10)
         icon_label = QLabel()
-        icon_label.setPixmap(make_icon("users", "#FFFFFF", "#1D4ED8", 28).pixmap(28, 28))
+        icon_label.setPixmap(make_icon("users", "#FFFFFF", "#5B6571", 28).pixmap(28, 28))
         icon_layout.addWidget(icon_label)
 
         title_wrap = QVBoxLayout()
@@ -316,7 +319,7 @@ class MainWindow(QMainWindow):
         collapse_button = QPushButton("Modo compacto")
         collapse_button.setMinimumHeight(44)
         collapse_button.setMinimumWidth(146)
-        collapse_button.setIcon(make_icon("cancel", "#E5F3FA", "#0F5E84"))
+        collapse_button.setIcon(make_icon("cancel", NEUTRAL_ICON_BG, NEUTRAL_ICON_FG))
         collapse_button.clicked.connect(self.toggle_top_bar)
 
         header_row.addWidget(logo_label, 0)
@@ -366,21 +369,21 @@ class MainWindow(QMainWindow):
 
         self.nav_buttons = {}
         nav_items = [
-            ("dashboard", "Dashboard", make_icon("dashboard")),
-            ("nc", "Ocorrências", make_icon("warning", "#FEE2E2", "#B91C1C")),
-            ("productivity", "Produtividade", make_icon("productivity", "#DCFCE7", "#166534")),
+            ("dashboard", "Dashboard", make_icon("dashboard", NEUTRAL_ICON_BG, NEUTRAL_ICON_FG)),
+            ("nc", "Ocorrências", make_icon("warning", NEUTRAL_ICON_BG, NEUTRAL_ICON_FG)),
+            ("productivity", "Produtividade", make_icon("productivity", NEUTRAL_ICON_BG, NEUTRAL_ICON_FG)),
         ]
         if self.can_manage:
-            nav_items.append(("equipment", "Frota", make_icon("equipment", "#E0F2FE", "#0369A1")))
-            nav_items.append(("checklist_items", "Checklist", make_icon("checklist", "#EDE9FE", "#6D28D9")))
-            nav_items.append(("materials", "Materiais", make_icon("materials", "#DBEAFE", "#1D4ED8")))
-            nav_items.append(("washes", "Lavagens", make_icon("washes", "#CCFBF1", "#0F766E")))
-            nav_items.append(("activities", "Atividades", make_icon("activities", "#FEF3C7", "#B45309")))
-            nav_items.append(("maintenance", "Manutenção", make_icon("activities", "#DBEAFE", "#1D4ED8")))
-        nav_items.append(("reports", "Relatórios", make_icon("reports", "#E0E7FF", "#4338CA")))
+            nav_items.append(("equipment", "Frota", make_icon("equipment", NEUTRAL_ICON_BG, NEUTRAL_ICON_FG)))
+            nav_items.append(("checklist_items", "Checklist", make_icon("checklist", NEUTRAL_ICON_BG, NEUTRAL_ICON_FG)))
+            nav_items.append(("materials", "Materiais", make_icon("materials", NEUTRAL_ICON_BG, NEUTRAL_ICON_FG)))
+            nav_items.append(("washes", "Lavagens", make_icon("washes", NEUTRAL_ICON_BG, NEUTRAL_ICON_FG)))
+            nav_items.append(("activities", "Atividades", make_icon("activities", NEUTRAL_ICON_BG, NEUTRAL_ICON_FG)))
+            nav_items.append(("maintenance", "Manutenção", make_icon("activities", NEUTRAL_ICON_BG, NEUTRAL_ICON_FG)))
+        nav_items.append(("reports", "Relatórios", make_icon("reports", NEUTRAL_ICON_BG, NEUTRAL_ICON_FG)))
         if self.is_admin:
-            nav_items.append(("users", "Logins", make_icon("users", "#EEF2FF", "#4338CA")))
-            nav_items.append(("cloud_backup", "Backup", make_icon("cloud", "#DBEAFE", "#1D4ED8")))
+            nav_items.append(("users", "Logins", make_icon("users", NEUTRAL_ICON_BG, NEUTRAL_ICON_FG)))
+            nav_items.append(("cloud_backup", "Backup", make_icon("cloud", NEUTRAL_ICON_BG, NEUTRAL_ICON_FG)))
 
         max_columns = 7
         for index, (key, label, icon) in enumerate(nav_items):
@@ -437,7 +440,7 @@ class MainWindow(QMainWindow):
 
         expand_button = QPushButton("Expandir menu")
         expand_button.setMinimumHeight(38)
-        expand_button.setIcon(make_icon("dashboard", "#E5F3FA", "#0F5E84"))
+        expand_button.setIcon(make_icon("dashboard", NEUTRAL_ICON_BG, NEUTRAL_ICON_FG))
         expand_button.clicked.connect(self.toggle_top_bar)
 
         logout_button = QPushButton("Sair")

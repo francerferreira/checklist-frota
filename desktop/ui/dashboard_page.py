@@ -73,7 +73,7 @@ class DashboardPage(QFrame):
 
         self.hero_badge = QLabel("Status operacional")
         self.hero_badge.setStyleSheet(
-            "background:#0F172A; color:#FFFFFF; border-radius:16px; padding:10px 14px; font-size:12px; font-weight:700;"
+            "background:#5B6571; color:#FFFFFF; border-radius:8px; padding:8px 12px; font-size:12px; font-weight:700;"
         )
 
         hero_layout.addLayout(hero_text, 1)
@@ -170,7 +170,7 @@ class DashboardPage(QFrame):
 
         self.table_badge = QLabel("Top recorr\u00eancia")
         self.table_badge.setStyleSheet(
-            "background:#EFF6FF; color:#1D4ED8; border-radius:14px; padding:7px 12px; font-size:12px; font-weight:700;"
+            "background:#E9EDF2; color:#3E4A58; border-radius:8px; padding:6px 10px; font-size:12px; font-weight:700;"
         )
 
         top_row.addWidget(table_title)
@@ -251,7 +251,9 @@ class DashboardPage(QFrame):
             open_total=dashboard.get("nc_abertas", 0),
         )
         self.hero_badge.setText(executive["label"])
-        self.hero_badge.setStyleSheet(executive["style"])
+        self.hero_badge.setStyleSheet(
+            "background:#5B6571; color:#FFFFFF; border-radius:8px; padding:8px 12px; font-size:12px; font-weight:700;"
+        )
 
         severity_counts = {"Alta": 0, "Moderada": 0, "Controlada": 0}
         for item in critical_items:
@@ -282,8 +284,15 @@ class DashboardPage(QFrame):
                 for column, value in enumerate(values):
                     cell = make_table_item(value)
                     if column == 4:
-                        cell.setBackground(QBrush(QColor(severity["background"])))
-                        cell.setForeground(QBrush(QColor(severity["color"])))
+                        if severity["label"] == "Alta":
+                            cell.setBackground(QBrush(QColor("#E7E9EC")))
+                            cell.setForeground(QBrush(QColor("#2F3A47")))
+                        elif severity["label"] == "Moderada":
+                            cell.setBackground(QBrush(QColor("#EFF1F4")))
+                            cell.setForeground(QBrush(QColor("#44515F")))
+                        else:
+                            cell.setBackground(QBrush(QColor("#F4F5F7")))
+                            cell.setForeground(QBrush(QColor("#5B6775")))
                     self.critical_table.setItem(row, column, cell)
         finally:
             self.critical_table.blockSignals(False)

@@ -4,7 +4,7 @@ from PySide6.QtCore import QPointF, QRectF, Qt
 from PySide6.QtGui import QColor, QFont, QIcon, QPainter, QPainterPath, QPen, QPixmap
 
 
-def make_icon(name: str, bg: str = "#E8F0FE", fg: str = "#1D4ED8", size: int = 22) -> QIcon:
+def make_icon(name: str, bg: str = "#E7EBF0", fg: str = "#4F5B69", size: int = 22) -> QIcon:
     pixmap = QPixmap(size, size)
     pixmap.fill(Qt.transparent)
 

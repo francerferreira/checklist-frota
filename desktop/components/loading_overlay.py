@@ -34,16 +34,16 @@ class LoadingOverlay(QWidget):
         self.setStyleSheet(
             """
             QWidget#LoadingOverlay {
-                background: rgba(5, 16, 31, 0.16);
+                background: rgba(28, 34, 41, 0.14);
             }
             QFrame#LoadingCard {
                 background: rgba(255, 255, 255, 0.95);
-                border: 1px solid rgba(37, 99, 235, 0.16);
-                border-radius: 24px;
+                border: 1px solid rgba(91, 101, 113, 0.24);
+                border-radius: 10px;
             }
             QFrame#LoadingOrb {
-                background: qlineargradient(x1:0, y1:0, x2:1, y2:1, stop:0 #1D4ED8, stop:1 #2563EB);
-                border-radius: 22px;
+                background: qlineargradient(x1:0, y1:0, x2:1, y2:1, stop:0 #5A6470, stop:1 #66717D);
+                border-radius: 12px;
                 border: 1px solid rgba(255, 255, 255, 0.24);
             }
             QLabel#LoadingTitle {
@@ -56,7 +56,7 @@ class LoadingOverlay(QWidget):
                 font-size: 13px;
             }
             QLabel#LoadingPulse {
-                color: #2563EB;
+                color: #5B6571;
                 font-size: 14px;
                 font-weight: 800;
                 letter-spacing: 0.22em;
@@ -83,9 +83,9 @@ class LoadingOverlay(QWidget):
         self.card = QFrame()
         self.card.setObjectName("LoadingCard")
         shadow = QGraphicsDropShadowEffect(self.card)
-        shadow.setBlurRadius(34)
-        shadow.setOffset(0, 14)
-        shadow.setColor(QColor(15, 23, 42, 30))
+        shadow.setBlurRadius(16)
+        shadow.setOffset(0, 4)
+        shadow.setColor(QColor(36, 43, 50, 16))
         self.card.setGraphicsEffect(shadow)
 
         card_layout = QHBoxLayout(self.card)
@@ -98,7 +98,7 @@ class LoadingOverlay(QWidget):
         orb_layout = QVBoxLayout(orb)
         orb_layout.setContentsMargins(8, 8, 8, 8)
         orb_icon = QLabel()
-        orb_icon.setPixmap(make_icon("dashboard", "#FFFFFF", "#1D4ED8", 22).pixmap(22, 22))
+        orb_icon.setPixmap(make_icon("dashboard", "#FFFFFF", "#5B6571", 22).pixmap(22, 22))
         orb_icon.setAlignment(Qt.AlignCenter)
         orb_layout.addWidget(orb_icon)
 

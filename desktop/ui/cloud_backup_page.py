@@ -48,7 +48,7 @@ class UsageCard(QFrame):
         self.progress.setRange(0, 100)
         self.progress.setTextVisible(False)
         self.progress.setFixedHeight(12)
-        self.progress.setStyleSheet(_progress_style("#2563EB"))
+        self.progress.setStyleSheet(_progress_style("#5B6571"))
 
         layout.addLayout(header)
         layout.addWidget(self.detail_label)
@@ -102,7 +102,7 @@ class CloudBackupPage(QFrame):
         overline = QLabel("NUVEM E BACKUP")
         overline.setObjectName("CardTitle")
         self.summary_label = QLabel("CARREGANDO STATUS DA NUVEM...")
-        self.summary_label.setStyleSheet("font-size:18px; font-weight:800; color:#0B1220;")
+        self.summary_label.setStyleSheet("font-size:18px; font-weight:800; color:#1F2D3D;")
         self.generated_label = QLabel("")
         self.generated_label.setObjectName("MutedText")
 
@@ -111,12 +111,12 @@ class CloudBackupPage(QFrame):
         title_wrap.addWidget(self.generated_label)
 
         self.backup_button = AnimatedButton("BACKUP")
-        self.backup_button.setIcon(make_icon("reports", "#DBEAFE", "#1D4ED8"))
+        self.backup_button.setIcon(make_icon("reports", "#E7EBF0", "#4F5B69"))
         self.backup_button.setMinimumWidth(154)
         self.backup_button.clicked.connect(self.create_backup)
 
         self.refresh_button = AnimatedButton("ATUALIZAR")
-        self.refresh_button.setIcon(make_icon("dashboard", "#DCFCE7", "#166534"))
+        self.refresh_button.setIcon(make_icon("dashboard", "#E7EBF0", "#4F5B69"))
         self.refresh_button.setMinimumWidth(154)
         self.refresh_button.clicked.connect(self.refresh)
 
@@ -217,25 +217,25 @@ def _level_label(level: str) -> str:
 
 def _level_color(level: str) -> str:
     return {
-        "ok": "#2563EB",
-        "amarelo": "#F59E0B",
-        "vermelho": "#EF4444",
-        "critico": "#7F1D1D",
-    }.get(level, "#2563EB")
+        "ok": "#5B6571",
+        "amarelo": "#6A7079",
+        "vermelho": "#7A6666",
+        "critico": "#5A4D4D",
+    }.get(level, "#5B6571")
 
 
 def _badge_style(level: str) -> str:
     color = _level_color(level)
     return (
-        f"background:#EFF6FF; color:{color}; border:1px solid rgba(37, 99, 235, 0.16); "
-        "border-radius:14px; padding:7px 12px; font-size:12px; font-weight:800;"
+        f"background:#E9EDF2; color:{color}; border:1px solid rgba(91, 101, 113, 0.24); "
+        "border-radius:8px; padding:6px 10px; font-size:12px; font-weight:800;"
     )
 
 
 def _progress_style(color: str) -> str:
     return f"""
         QProgressBar {{
-            background: #E2E8F0;
+            background: #DEE3E9;
             border: none;
             border-radius: 6px;
         }}

@@ -70,37 +70,37 @@ class AnimatedButton(QPushButton):
         if self._tone == "danger":
             background = (
                 "qlineargradient(x1:0, y1:0, x2:1, y2:0, "
-                "stop:0 #C94C4C, stop:0.55 #D15757, stop:1 #B64040)"
+                "stop:0 #8A5B5B, stop:0.55 #916262, stop:1 #7C5252)"
             )
             hover_background = (
                 "qlineargradient(x1:0, y1:0, x2:1, y2:0, "
-                "stop:0 #B64040, stop:0.60 #BE4949, stop:1 #9F3535)"
+                "stop:0 #7C5252, stop:0.60 #835858, stop:1 #704949)"
             )
-            border = "rgba(159, 53, 53, 0.30)"
+            border = "rgba(122, 82, 82, 0.32)"
             color = "#FFFFFF"
-            bottom_border = "2px solid #973030"
-            shadow_color = QColor(201, 76, 76, 44 if self._hovered else 28)
+            bottom_border = "2px solid #6B4545"
+            shadow_color = QColor(138, 91, 91, 36 if self._hovered else 24)
             padding_left = 14 + int(self._elevation * 2)
         else:
             if self._active:
                 background = (
                     "qlineargradient(x1:0, y1:0, x2:0, y2:1, "
-                    "stop:0 #EFF7FD, stop:1 #DCECF9)"
+                    "stop:0 #EEF1F5, stop:1 #DFE4EA)"
                 )
-                border = "#0F5E84"
-                color = "#0F5E84"
-                bottom_border = "2px solid #0F5E84"
-                shadow_color = QColor(15, 94, 132, 30)
+                border = "#5B6571"
+                color = "#43505E"
+                bottom_border = "2px solid #5B6571"
+                shadow_color = QColor(91, 101, 113, 26)
             else:
                 background = "rgba(255, 255, 255, 0.94)"
-                border = "rgba(15, 94, 132, 0.18)"
-                color = "#0F4E70"
+                border = "rgba(91, 101, 113, 0.22)"
+                color = "#43505E"
                 bottom_border = "2px solid transparent"
-                shadow_color = QColor(15, 94, 132, 18)
+                shadow_color = QColor(91, 101, 113, 14)
             padding_left = 13 + int(self._elevation * 2)
             hover_background = (
                 "qlineargradient(x1:0, y1:0, x2:0, y2:1, "
-                "stop:0 #F1F8FD, stop:1 #E1EFF9)"
+                "stop:0 #F1F4F7, stop:1 #E5E9EE)"
             )
 
         self.shadow.setColor(shadow_color)
