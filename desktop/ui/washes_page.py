@@ -79,36 +79,36 @@ def apply_date_popup_style(date_edit: QDateEdit):
     calendar_widget.setStyleSheet(
         """
         QCalendarWidget QWidget {
-            background: #0B1220;
-            color: #FFFFFF;
+            background: #E6E8EB;
+            color: #1F2D3D;
         }
         QCalendarWidget QToolButton {
-            background: #111827;
-            color: #FFFFFF;
-            border: 1px solid rgba(148, 163, 184, 0.35);
-            border-radius: 8px;
+            background: #F3F3F3;
+            color: #1F2D3D;
+            border: 1px solid #B8BDC3;
+            border-radius: 2px;
             padding: 4px 8px;
             font-weight: 700;
         }
         QCalendarWidget QMenu {
-            background: #111827;
-            color: #FFFFFF;
+            background: #F3F3F3;
+            color: #1F2D3D;
         }
         QCalendarWidget QSpinBox {
-            background: #111827;
-            color: #FFFFFF;
-            border: 1px solid rgba(148, 163, 184, 0.35);
-            border-radius: 8px;
+            background: #FFFFFF;
+            color: #1F2D3D;
+            border: 1px solid #B8BDC3;
+            border-radius: 2px;
         }
         QCalendarWidget QAbstractItemView:enabled {
-            selection-background-color: #2563EB;
+            selection-background-color: #6D7783;
             selection-color: #FFFFFF;
-            background: #0B1220;
-            color: #FFFFFF;
+            background: #F3F3F3;
+            color: #1F2D3D;
             outline: 0;
         }
         QCalendarWidget QAbstractItemView:disabled {
-            color: rgba(255, 255, 255, 0.35);
+            color: #8F9DAA;
         }
         """
     )
@@ -122,9 +122,9 @@ class WashCalendarDelegate(QStyledItemDelegate):
         selected = bool(option.state & QStyle.State_Selected)
 
         background = index.data(Qt.BackgroundRole)
-        base_color = background.color() if hasattr(background, "color") else QColor("#E5F1FA")
+        base_color = background.color() if hasattr(background, "color") else QColor("#ECEFF2")
         if selected:
-            base_color = QColor("#0F5E84")
+            base_color = QColor("#6D7783")
 
         painter.setPen(Qt.NoPen)
         painter.setBrush(base_color)
@@ -145,8 +145,8 @@ class WashCalendarDelegate(QStyledItemDelegate):
         pill_y = rect.y() + 6
         pill_rect = rect.adjusted(pill_x - rect.x(), pill_y - rect.y(), -(rect.width() - (pill_x - rect.x()) - pill_width), -(rect.height() - (pill_y - rect.y()) - pill_height))
 
-        painter.setBrush(QColor("#0F5E84") if not selected else QColor("#12486A"))
-        painter.drawRoundedRect(pill_rect, 9, 9)
+        painter.setBrush(QColor("#7A8591") if not selected else QColor("#626C77"))
+        painter.drawRect(pill_rect)
 
         date_font = QFont(option.font)
         date_font.setBold(True)
@@ -159,7 +159,7 @@ class WashCalendarDelegate(QStyledItemDelegate):
         text_font.setBold(True)
         text_font.setPointSize(9)
         painter.setFont(text_font)
-        painter.setPen(QColor("#FFFFFF") if selected else QColor("#0F172A"))
+        painter.setPen(QColor("#FFFFFF") if selected else QColor("#1E293B"))
 
         text_rect = rect.adjusted(8, pill_height + 13, -8, -4)
         self._draw_detail_lines(painter, text_rect, detail_lines, selected)
@@ -171,10 +171,10 @@ class WashCalendarDelegate(QStyledItemDelegate):
         line_height = max(18, fm.height() + 4)
         x = rect.x()
         y = rect.y()
-        base_color = QColor("#FFFFFF") if selected else QColor("#0F172A")
-        orange = QColor("#B56A09")
-        green = QColor("#1D8E5E")
-        red = QColor("#C04343")
+        base_color = QColor("#FFFFFF") if selected else QColor("#1E293B")
+        orange = QColor("#7A6A45")
+        green = QColor("#4D6A55")
+        red = QColor("#7A5555")
 
         summary_re = re.compile(r"●\s*OK\s*(\d+)\s+●\s*X\s*(\d+)\s+●\s*PEND\s*(\d+)")
         for line_index, line in enumerate(detail_lines):
@@ -1288,27 +1288,27 @@ class WashesPage(QFrame):
         self.calendar_table.setStyleSheet(
             """
             QTableWidget#WashCalendarTable {
-                background: #F4F8FC;
-                border: 1px solid rgba(15, 94, 132, 0.24);
-                border-radius: 8px;
-                gridline-color: rgba(115, 132, 156, 0.30);
-                selection-background-color: #0F5E84;
+                background: #F0F1F3;
+                border: 1px solid #B8BDC3;
+                border-radius: 2px;
+                gridline-color: rgba(182, 189, 197, 0.55);
+                selection-background-color: #6D7783;
                 selection-color: #FFFFFF;
             }
             QTableWidget#WashCalendarTable::item {
-                border: 1px solid rgba(205, 216, 230, 0.88);
+                border: 1px solid #D2D6DB;
                 padding: 8px 8px;
             }
             QTableWidget#WashCalendarTable::item:selected {
-                border: 1px solid #0F5E84;
-                background: #0F5E84;
+                border: 1px solid #6D7783;
+                background: #6D7783;
                 color: #FFFFFF;
             }
             QHeaderView::section {
-                background: #E8EEF5;
-                color: #25364A;
-                border-right: 1px solid rgba(115, 132, 156, 0.20);
-                border-bottom: 1px solid rgba(115, 132, 156, 0.24);
+                background: #E3E6EA;
+                color: #2C3E50;
+                border-right: 1px solid #C5CCD3;
+                border-bottom: 1px solid #C5CCD3;
                 padding: 8px 6px;
                 font-weight: 760;
             }
@@ -2063,26 +2063,26 @@ class WashesPage(QFrame):
 
         dot = QFrame()
         dot.setFixedSize(10, 10)
-        dot.setStyleSheet("QFrame {border-radius:5px; background:#94A3B8;}")
+        dot.setStyleSheet("QFrame {border-radius:5px; background:#9AA3AD;}")
 
         badge = QLabel(status_label.upper())
         badge.setAlignment(Qt.AlignCenter)
         badge.setMinimumHeight(28)
 
         if status_key == "LAVADO":
-            dot.setStyleSheet("QFrame {border-radius:5px; background:#16A34A;}")
+            dot.setStyleSheet("QFrame {border-radius:5px; background:#627A66;}")
             badge.setStyleSheet(
-                "QLabel {background:#DCFCE7; color:#166534; border:1px solid #86EFAC; border-radius:12px; font-weight:900; padding:4px 10px;}"
+                "QLabel {background:#E5ECE5; color:#3F5643; border:1px solid #B6C3B7; border-radius:2px; font-weight:900; padding:4px 10px;}"
             )
         elif status_key == "NAO_CUMPRIDO":
-            dot.setStyleSheet("QFrame {border-radius:5px; background:#DC2626;}")
+            dot.setStyleSheet("QFrame {border-radius:5px; background:#7E6363;}")
             badge.setStyleSheet(
-                "QLabel {background:#FEE2E2; color:#991B1B; border:1px solid #FCA5A5; border-radius:12px; font-weight:900; padding:4px 10px;}"
+                "QLabel {background:#ECE2E2; color:#5F4949; border:1px solid #C7B3B3; border-radius:2px; font-weight:900; padding:4px 10px;}"
             )
         else:
-            dot.setStyleSheet("QFrame {border-radius:5px; background:#F59E0B;}")
+            dot.setStyleSheet("QFrame {border-radius:5px; background:#7C7256;}")
             badge.setStyleSheet(
-                "QLabel {background:#FEF3C7; color:#92400E; border:1px solid #F59E0B; border-radius:12px; font-weight:900; padding:4px 10px;}"
+                "QLabel {background:#ECE7D8; color:#5F563F; border:1px solid #C9BFA3; border-radius:2px; font-weight:900; padding:4px 10px;}"
             )
 
         inner.addWidget(dot, 0, Qt.AlignVCenter)
@@ -2341,19 +2341,19 @@ class WashesPage(QFrame):
     @staticmethod
     def _calendar_cell_background(payload: dict, is_current_day: bool = False) -> QColor:
         if payload.get("blocked"):
-            return QColor("#EAA4A4") if is_current_day else QColor("#F9E1E1")
+            return QColor("#D2BCBC") if is_current_day else QColor("#E7DADB")
         total_items = len(payload.get("morning") or []) + len(payload.get("afternoon") or [])
         if total_items == 0:
-            return QColor("#BBD9EC") if is_current_day else QColor("#E5F1FA")
+            return QColor("#D3D8DE") if is_current_day else QColor("#ECEFF2")
         ok_count = sum(1 for item in (payload.get("morning") or []) + (payload.get("afternoon") or []) if item.get("status_execucao") == "LAVADO")
         no_count = sum(1 for item in (payload.get("morning") or []) + (payload.get("afternoon") or []) if item.get("status_execucao") == "NAO_CUMPRIDO")
         if no_count > 0 and ok_count == 0:
-            return QColor("#EAA4A4") if is_current_day else QColor("#F9E1E1")
+            return QColor("#CDB8B8") if is_current_day else QColor("#E5D8D8")
         if ok_count == total_items:
-            return QColor("#A8DCC2") if is_current_day else QColor("#E0F4EA")
+            return QColor("#C8D4C8") if is_current_day else QColor("#E3EAE3")
         if ok_count > 0 or no_count > 0:
-            return QColor("#D6D2A6") if is_current_day else QColor("#F7F0CF")
-        return QColor("#BBD9EC") if is_current_day else QColor("#E5F1FA")
+            return QColor("#D2CCB8") if is_current_day else QColor("#ECE6D6")
+        return QColor("#D3D8DE") if is_current_day else QColor("#ECEFF2")
 
     def _calendar_cell_tooltip(self, payload: dict, is_current_day: bool) -> str:
         ok_count = self._status_count(payload, "LAVADO")

@@ -8,7 +8,6 @@ from PySide6.QtWidgets import (
     QAbstractItemView,
     QDialog,
     QFrame,
-    QGraphicsDropShadowEffect,
     QHeaderView,
     QHBoxLayout,
     QScrollArea,
@@ -110,9 +109,9 @@ QFrame#DialogFooter {
     border-radius: 2px;
 }
 QFrame#DialogIconBadge {
-    background: rgba(255, 255, 255, 0.18);
-    border: 1px solid rgba(255, 255, 255, 0.22);
-    border-radius: 16px;
+    background: #E3E6EA;
+    border: 1px solid #B8BDC3;
+    border-radius: 2px;
 }
 QFrame#DialogInfoBlock {
     background: #ECEFF2;
@@ -125,13 +124,13 @@ QFrame#PhotoFrame {
     border-radius: 2px;
 }
 QLabel#DialogHeaderTitle {
-    color: #FFFFFF;
-    font-size: 24px;
+    color: #223447;
+    font-size: 20px;
     font-weight: 760;
 }
 QLabel#DialogHeaderSubtitle {
-    color: rgba(255, 255, 255, 0.84);
-    font-size: 13px;
+    color: #4B5D72;
+    font-size: 12px;
 }
 QLabel#DialogInfoValue {
     color: #243447;
@@ -310,7 +309,7 @@ QTableView::item:selected:!active {
 }
 QTableWidget::item:hover,
 QTableView::item:hover {
-    background: rgba(15, 94, 132, 0.08);
+    background: rgba(109, 119, 131, 0.14);
 }
 QHeaderView::section {
     background: #E2E6EB;
@@ -381,11 +380,8 @@ QStatusBar {
 
 
 def apply_soft_shadow(widget, blur: int = 14, y_offset: int = 4, alpha: int = 10) -> None:
-    shadow = QGraphicsDropShadowEffect(widget)
-    shadow.setBlurRadius(blur)
-    shadow.setOffset(0, y_offset)
-    shadow.setColor(QColor(15, 23, 42, alpha))
-    widget.setGraphicsEffect(shadow)
+    _ = (blur, y_offset, alpha)
+    widget.setGraphicsEffect(None)
 
 
 def _prepare_styled_widget(widget: QWidget, object_name: str) -> None:
@@ -395,22 +391,18 @@ def _prepare_styled_widget(widget: QWidget, object_name: str) -> None:
 
 def style_card(frame: QWidget) -> None:
     _prepare_styled_widget(frame, "PanelCard")
-    apply_soft_shadow(frame)
 
 
 def style_table_card(frame: QWidget) -> None:
     _prepare_styled_widget(frame, "TableCard")
-    apply_soft_shadow(frame, blur=10, y_offset=3, alpha=8)
 
 
 def style_filter_bar(frame: QWidget) -> None:
     _prepare_styled_widget(frame, "FilterBar")
-    apply_soft_shadow(frame, blur=8, y_offset=2, alpha=6)
 
 
 def style_top_bar(frame: QWidget) -> None:
     _prepare_styled_widget(frame, "TopBar")
-    apply_soft_shadow(frame, blur=10, y_offset=2, alpha=8)
 
 
 def configure_dialog_window(
@@ -442,7 +434,7 @@ def configure_dialog_window(
     dialog.setWindowFlag(Qt.WindowContextHelpButtonHint, False)
     dialog.setWindowFlag(Qt.WindowMinMaxButtonsHint, True)
     dialog.setWindowFlag(Qt.WindowCloseButtonHint, True)
-    QTimer.singleShot(0, lambda d=dialog: animate_dialog_in(d))
+    QTimer.singleShot(0, lambda d=dialog: d.setWindowOpacity(1.0))
 
 
 def build_dialog_layout(
@@ -485,17 +477,8 @@ def build_dialog_layout(
 
 
 def animate_dialog_in(dialog: QDialog) -> None:
-    if getattr(dialog, "_dialog_intro_running", False):
-        return
-    dialog._dialog_intro_running = True
-    dialog.setWindowOpacity(0.0)
-    animation = QPropertyAnimation(dialog, b"windowOpacity", dialog)
-    animation.setDuration(140)
-    animation.setStartValue(0.0)
-    animation.setEndValue(1.0)
-    animation.setEasingCurve(QEasingCurve.OutCubic)
-    animation.start()
-    dialog._dialog_intro_animation = animation
+    _ = (QEasingCurve, QPropertyAnimation)
+    dialog.setWindowOpacity(1.0)
 
 
 def _apply_table_autofit(table: QTableWidget) -> None:

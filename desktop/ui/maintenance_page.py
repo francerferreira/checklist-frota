@@ -732,25 +732,25 @@ class MaintenancePage(QFrame):
         self.calendar_table.setStyleSheet(
             """
             QTableWidget {
-                background: #F4F8FC;
-                border: 1px solid rgba(15, 94, 132, 0.24);
-                border-radius: 8px;
-                gridline-color: rgba(115, 132, 156, 0.30);
+                background: #F0F1F3;
+                border: 1px solid #B8BDC3;
+                border-radius: 2px;
+                gridline-color: rgba(182, 189, 197, 0.55);
             }
             QTableWidget::item {
-                border: 1px solid rgba(205, 216, 230, 0.88);
+                border: 1px solid #D2D6DB;
                 padding: 7px 8px;
             }
             QTableWidget::item:selected {
-                border: 1px solid #0F5E84;
-                background: #0F5E84;
+                border: 1px solid #6D7783;
+                background: #6D7783;
                 color: #FFFFFF;
             }
             QHeaderView::section {
-                background: #E8EEF5;
-                color: #25364A;
-                border-right: 1px solid rgba(115, 132, 156, 0.20);
-                border-bottom: 1px solid rgba(115, 132, 156, 0.24);
+                background: #E3E6EA;
+                color: #2C3E50;
+                border-right: 1px solid #C5CCD3;
+                border-bottom: 1px solid #C5CCD3;
                 padding: 8px 6px;
                 font-weight: 760;
             }
@@ -1451,14 +1451,14 @@ class MaintenancePage(QFrame):
         aguardando = int(payload.get("aguardando_material") or 0)
 
         if total <= 0:
-            return QColor("#BAD8EC") if is_today else QColor("#E5F1FA")
+            return QColor("#D3D8DE") if is_today else QColor("#ECEFF2")
         if aguardando > 0 and instalados == 0:
-            return QColor("#E3DDAE") if is_today else QColor("#F7F1D1")
+            return QColor("#CFC8B2") if is_today else QColor("#E5DFCD")
         if pendentes == 0 and instalados > 0:
-            return QColor("#A5D8BC") if is_today else QColor("#DFF2E8")
+            return QColor("#C8D4C8") if is_today else QColor("#E3EAE3")
         if instalados > 0 and pendentes > 0:
-            return QColor("#C6DDB1") if is_today else QColor("#ECF3D7")
-        return QColor("#D5D1A7") if is_today else QColor("#F2EED3")
+            return QColor("#CDD3C4") if is_today else QColor("#E7EBDD")
+        return QColor("#D2CCB8") if is_today else QColor("#ECE6D6")
 
     @staticmethod
     def _calendar_cell_tooltip(payload: dict, is_today: bool) -> str:
