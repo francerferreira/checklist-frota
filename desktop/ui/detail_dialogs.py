@@ -84,14 +84,14 @@ class NonConformityDetailDialog(QDialog):
         self.before_panel.set_preview_height(300, minimum=230)
         self.before_panel.set_photo_role("Antes")
         self.before_panel.set_preview_title(f"Foto antes - {item['veiculo']['frota']}")
-        self.before_panel.set_image_data(before_image, item.get("foto_antes") or "Sem foto antes")
+        self.before_panel.set_image_data(before_image, "Sem foto antes")
 
         self.after_panel = ImagePanel("Foto depois")
         self.after_panel.setMinimumHeight(360)
         self.after_panel.set_preview_height(300, minimum=230)
         self.after_panel.set_photo_role("Depois")
         self.after_panel.set_preview_title(f"Foto depois - {item['veiculo']['frota']}")
-        self.after_panel.set_image_data(after_image, item.get("foto_depois") or "Sem foto depois")
+        self.after_panel.set_image_data(after_image, "Sem foto depois")
 
         info_card = QFrame()
         style_table_card(info_card)
@@ -236,7 +236,7 @@ class VehicleDetailDialog(QDialog):
         image_card.set_photo_role("Frota")
         self.vehicle_image = self.api_client.fetch_image(vehicle.get("foto_path"))
         image_card.set_preview_title(f"Equipamento {vehicle.get('frota')}")
-        image_card.set_image_data(self.vehicle_image, vehicle.get("foto_path") or "Sem foto cadastrada")
+        image_card.set_image_data(self.vehicle_image, "Sem foto cadastrada")
 
         info_card = QFrame()
         style_table_card(info_card)

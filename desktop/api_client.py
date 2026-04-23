@@ -52,6 +52,12 @@ class APIClient:
         self._image_cache.clear()
         return payload
 
+    def clear_session(self) -> None:
+        self.session.headers.pop("Authorization", None)
+        self.user = None
+        self.login_started_at = None
+        self._image_cache.clear()
+
     def get_vehicles(self, tipo: str | None = None):
         params = {"tipo": tipo} if tipo else {}
         return self._request("GET", "/veiculos", params=params or None)

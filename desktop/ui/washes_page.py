@@ -122,9 +122,9 @@ class WashCalendarDelegate(QStyledItemDelegate):
         selected = bool(option.state & QStyle.State_Selected)
 
         background = index.data(Qt.BackgroundRole)
-        base_color = background.color() if hasattr(background, "color") else QColor("#ECEFF2")
+        base_color = background.color() if hasattr(background, "color") else QColor("#E9F2FD")
         if selected:
-            base_color = QColor("#6D7783")
+            base_color = QColor("#1F6FCA")
 
         painter.setPen(Qt.NoPen)
         painter.setBrush(base_color)
@@ -145,7 +145,7 @@ class WashCalendarDelegate(QStyledItemDelegate):
         pill_y = rect.y() + 6
         pill_rect = rect.adjusted(pill_x - rect.x(), pill_y - rect.y(), -(rect.width() - (pill_x - rect.x()) - pill_width), -(rect.height() - (pill_y - rect.y()) - pill_height))
 
-        painter.setBrush(QColor("#7A8591") if not selected else QColor("#626C77"))
+        painter.setBrush(QColor("#2F6FB2") if not selected else QColor("#185DAA"))
         painter.drawRect(pill_rect)
 
         date_font = QFont(option.font)
@@ -159,7 +159,7 @@ class WashCalendarDelegate(QStyledItemDelegate):
         text_font.setBold(True)
         text_font.setPointSize(9)
         painter.setFont(text_font)
-        painter.setPen(QColor("#FFFFFF") if selected else QColor("#1E293B"))
+        painter.setPen(QColor("#FFFFFF") if selected else QColor("#0F3A68"))
 
         text_rect = rect.adjusted(8, pill_height + 13, -8, -4)
         self._draw_detail_lines(painter, text_rect, detail_lines, selected)
@@ -171,7 +171,7 @@ class WashCalendarDelegate(QStyledItemDelegate):
         line_height = max(18, fm.height() + 4)
         x = rect.x()
         y = rect.y()
-        base_color = QColor("#FFFFFF") if selected else QColor("#1E293B")
+        base_color = QColor("#FFFFFF") if selected else QColor("#0F3A68")
         orange = QColor("#7A6A45")
         green = QColor("#4D6A55")
         red = QColor("#7A5555")
@@ -1248,7 +1248,7 @@ class WashesPage(QFrame):
         )
         calendar_caption.setObjectName("SectionCaption")
         self.selected_day_badge = QLabel("Selecione um dia no cronograma")
-        self.selected_day_badge.setObjectName("TopBarPill")
+        self.selected_day_badge.setObjectName("BadgeStrong")
 
         calendar_top = QHBoxLayout()
         calendar_text = QVBoxLayout()
@@ -2283,19 +2283,19 @@ class WashesPage(QFrame):
     @staticmethod
     def _calendar_cell_background(payload: dict, is_current_day: bool = False) -> QColor:
         if payload.get("blocked"):
-            return QColor("#D2BCBC") if is_current_day else QColor("#E7DADB")
+            return QColor("#C8DAF2") if is_current_day else QColor("#E2ECF9")
         total_items = len(payload.get("morning") or []) + len(payload.get("afternoon") or [])
         if total_items == 0:
-            return QColor("#D3D8DE") if is_current_day else QColor("#ECEFF2")
+            return QColor("#C3DAF7") if is_current_day else QColor("#E9F2FD")
         ok_count = sum(1 for item in (payload.get("morning") or []) + (payload.get("afternoon") or []) if item.get("status_execucao") == "LAVADO")
         no_count = sum(1 for item in (payload.get("morning") or []) + (payload.get("afternoon") or []) if item.get("status_execucao") == "NAO_CUMPRIDO")
         if no_count > 0 and ok_count == 0:
-            return QColor("#CDB8B8") if is_current_day else QColor("#E5D8D8")
+            return QColor("#CADCF4") if is_current_day else QColor("#E5EEF9")
         if ok_count == total_items:
-            return QColor("#C8D4C8") if is_current_day else QColor("#E3EAE3")
+            return QColor("#BFD8F8") if is_current_day else QColor("#E2EEFD")
         if ok_count > 0 or no_count > 0:
-            return QColor("#D2CCB8") if is_current_day else QColor("#ECE6D6")
-        return QColor("#D3D8DE") if is_current_day else QColor("#ECEFF2")
+            return QColor("#C6DCF6") if is_current_day else QColor("#E7F1FD")
+        return QColor("#C3DAF7") if is_current_day else QColor("#E9F2FD")
 
     def _calendar_cell_tooltip(self, payload: dict, is_current_day: bool) -> str:
         ok_count = self._status_count(payload, "LAVADO")

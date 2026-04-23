@@ -2,8 +2,8 @@
 
 from datetime import datetime
 
-from PySide6.QtCore import QEasingCurve, QPropertyAnimation, QTimer, Qt
-from PySide6.QtGui import QIcon, QKeySequence, QShortcut
+from PySide6.QtCore import QEvent, QEasingCurve, QPropertyAnimation, QTimer, Qt
+from PySide6.QtGui import QIcon, QKeySequence, QPixmap, QShortcut
 from PySide6.QtWidgets import (
     QDialog,
     QFrame,
@@ -243,7 +243,7 @@ class MainWindow(QMainWindow):
         self.setCentralWidget(container)
         self._build_status_bar()
         self.loading_overlay = LoadingOverlay(self.mdi_area.viewport())
-        self._initialize_mdi_subwindows()
+        self._build_mdi_placeholder_logo()
 
         self.showMaximized()
         self.switch_page("dashboard")
@@ -311,12 +311,12 @@ class MainWindow(QMainWindow):
         menubar.clear()
 
         menu_groups = {
-            "Cadastro": ["equipment", "checklist_items", "materials", "users"],
+            "Cadastro": ["equipment", "users"],
             "Tabelas": ["checklist_items", "materials"],
             "Movimento": ["nc", "activities", "washes", "maintenance"],
             "Relatórios": ["reports", "productivity"],
-            "Sistema": ["dashboard", "cloud_backup"],
-            "Utilitários": ["dashboard"],
+            "Sistema": ["dashboard"],
+            "Utilitários": ["cloud_backup"],
         }
 
         for menu_title, keys in menu_groups.items():
@@ -368,7 +368,7 @@ class MainWindow(QMainWindow):
 
         root = self._make_tree_item(self.nav_tree, "Módulo Checklist de Frota", icon_name="dashboard")
         sections = [
-            ("1 - Cadastro", ["equipment", "checklist_items", "materials", "users"]),
+            ("1 - Cadastro", ["equipment", "users"]),
             ("2 - Tabelas", ["checklist_items", "materials"]),
             ("3 - Movimento", ["nc", "activities", "washes", "maintenance"]),
             ("4 - Relatórios", ["reports", "productivity"]),
@@ -399,21 +399,29 @@ class MainWindow(QMainWindow):
         if page_key:
             self.switch_page(page_key)
 
-    def _initialize_mdi_subwindows(self):
-        for page_key in self.page_map:
-            sub = self._ensure_subwindow(page_key, show_if_hidden=False)
-            sub.hide()
-
     def _build_mdi_area(self):
         mdi = QMdiArea()
-        # Mantém o ERP em padrão de abas MDI: sem janelas se cobrindo e sem reordenação manual.
-        mdi.setViewMode(QMdiArea.TabbedView)
-        mdi.setTabsClosable(True)
-        mdi.setTabsMovable(False)
-        mdi.setDocumentMode(True)
+        # Modo clássico de painel único: sem barra de abas no topo.
+        mdi.setViewMode(QMdiArea.SubWindowView)
         mdi.setActivationOrder(QMdiArea.CreationOrder)
         mdi.subWindowActivated.connect(self._on_subwindow_activated)
         return mdi
+
+    def _build_mdi_placeholder_logo(self):
+        self.mdi_logo_label = QLabel(self.mdi_area.viewport())
+        self.mdi_logo_label.setObjectName("MdiPlaceholderLogo")
+        self.mdi_logo_label.setAlignment(Qt.AlignCenter)
+        self.mdi_logo_label.setAttribute(Qt.WA_TransparentForMouseEvents, True)
+        self.mdi_logo_label.setStyleSheet("background: transparent;")
+
+        logo_path = asset_path("cf-logo-cover.png")
+        if not logo_path.exists():
+            logo_path = asset_path("app-logo-cover.png")
+        self._mdi_logo_pixmap = QPixmap(str(logo_path)) if logo_path.exists() else QPixmap()
+
+        self.mdi_area.viewport().installEventFilter(self)
+        self._resize_mdi_placeholder_logo()
+        self._refresh_mdi_placeholder_logo()
 
     def _build_status_bar(self):
         status = self.statusBar()
@@ -468,12 +476,15 @@ class MainWindow(QMainWindow):
 
     def _on_subwindow_activated(self, subwindow):
         if subwindow is None:
+            self.current_page_key = ""
+            self._refresh_mdi_placeholder_logo()
             return
         for key, sub in self.page_subwindows.items():
             if sub is subwindow:
                 self.current_page_key = key
                 self._sync_tree_selection(key)
                 break
+        self._refresh_mdi_placeholder_logo()
 
     def _sync_tree_selection(self, page_key: str):
         item = self.tree_items.get(page_key)
@@ -493,16 +504,45 @@ class MainWindow(QMainWindow):
         self._sync_tree_selection(page_key)
 
         sub = self._ensure_subwindow(page_key)
+        for other_key, other_sub in self.page_subwindows.items():
+            if other_key != page_key and other_sub is not None and not other_sub.isHidden():
+                other_sub.hide()
         self.mdi_area.setActiveSubWindow(sub)
-        if self.mdi_area.viewMode() == QMdiArea.SubWindowView:
-            sub.showMaximized()
-        else:
-            sub.show()
+        sub.showMaximized()
+        self._refresh_mdi_placeholder_logo()
 
         page = self.page_map[page_key]
         if not same_page:
             self._animate_page(page)
         self.request_page_refresh(page_key)
+
+    def _resize_mdi_placeholder_logo(self):
+        if not hasattr(self, "mdi_logo_label"):
+            return
+        viewport = self.mdi_area.viewport()
+        rect = viewport.rect()
+        self.mdi_logo_label.setGeometry(rect)
+        if self._mdi_logo_pixmap.isNull() or rect.width() <= 0 or rect.height() <= 0:
+            self.mdi_logo_label.clear()
+            return
+        target_w = max(220, min(int(rect.width() * 0.52), 960))
+        target_h = max(140, min(int(rect.height() * 0.52), 620))
+        self.mdi_logo_label.setPixmap(
+            self._mdi_logo_pixmap.scaled(target_w, target_h, Qt.KeepAspectRatio, Qt.SmoothTransformation)
+        )
+
+    def _refresh_mdi_placeholder_logo(self):
+        if not hasattr(self, "mdi_logo_label"):
+            return
+        has_visible_page = any(sub is not None and not sub.isHidden() for sub in self.page_subwindows.values())
+        self.mdi_logo_label.setVisible(not has_visible_page)
+        if not has_visible_page:
+            self.mdi_logo_label.raise_()
+
+    def eventFilter(self, watched, event):
+        if watched is self.mdi_area.viewport() and event.type() == QEvent.Resize:
+            self._resize_mdi_placeholder_logo()
+        return super().eventFilter(watched, event)
 
     def request_page_refresh(self, page_key: str):
         if page_key not in self.dirty_pages or page_key in self.pending_refreshes:

@@ -459,30 +459,30 @@ QTableWidget#DialogScheduleGrid QHeaderView::section {
 }
 QTableWidget#CalendarGrid,
 QTableWidget#WashCalendarTable {
-    background: #F0F1F3;
-    border: 1px solid #AFC3DA;
+    background: #EAF2FC;
+    border: 1px solid #8FB2D9;
     border-radius: 2px;
-    gridline-color: rgba(145, 173, 204, 0.55);
-    selection-background-color: #2F6FB2;
+    gridline-color: rgba(126, 165, 209, 0.62);
+    selection-background-color: #1F6FCA;
     selection-color: #FFFFFF;
 }
 QTableWidget#CalendarGrid::item,
 QTableWidget#WashCalendarTable::item {
-    border: 1px solid #C7D8EA;
+    border: 1px solid #B7CDE6;
     padding: 8px 8px;
 }
 QTableWidget#CalendarGrid::item:selected,
 QTableWidget#WashCalendarTable::item:selected {
-    border: 1px solid #2F6FB2;
-    background: #2F6FB2;
+    border: 1px solid #185DAA;
+    background: #1F6FCA;
     color: #FFFFFF;
 }
 QTableWidget#CalendarGrid QHeaderView::section,
 QTableWidget#WashCalendarTable QHeaderView::section {
-    background: #DCE8F7;
-    color: #163F6A;
-    border-right: 1px solid #B8CDE3;
-    border-bottom: 1px solid #B8CDE3;
+    background: #2F6FB2;
+    color: #FFFFFF;
+    border-right: 1px solid #245F9C;
+    border-bottom: 1px solid #245F9C;
     padding: 8px 6px;
     font-weight: 760;
 }

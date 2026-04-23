@@ -65,10 +65,7 @@ class ImagePreviewDialog(QDialog):
         self.image_label.setMinimumHeight(520)
         self.image_label.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding)
         self.image_label.setCursor(Qt.PointingHandCursor)
-        self.image_label.setStyleSheet(
-            "background:qlineargradient(x1:0, y1:0, x2:1, y2:1, stop:0 #0F172A, stop:1 #1E293B); "
-            "border-radius:22px; border:1px solid rgba(37,99,235,0.28);"
-        )
+        self.image_label.setStyleSheet("background:#F2F7FE; border:none;")
         self.image_label.double_clicked.connect(self.toggle_full_screen)
 
         layout.addWidget(header)
@@ -176,6 +173,7 @@ class ImagePanel(QFrame):
         self.caption_label = QLabel("")
         self.caption_label.setObjectName("PhotoCaption")
         self.caption_label.setWordWrap(True)
+        self.caption_label.setVisible(False)
 
         layout.addLayout(header)
         layout.addWidget(self.frame)
@@ -206,7 +204,7 @@ class ImagePanel(QFrame):
             self.image_label.setText("Sem imagem")
             self.status_label.setText("Sem imagem")
             self.preview_button.setVisible(False)
-        self.caption_label.setText(caption)
+        self.caption_label.setText("")
         self._apply_visual_state()
 
     def set_preview_title(self, title: str):
@@ -222,25 +220,8 @@ class ImagePanel(QFrame):
         dialog.exec()
 
     def _apply_visual_state(self):
-        if self._hovered:
-            frame_style = (
-                "background:qlineargradient(x1:0, y1:0, x2:1, y2:1, stop:0 #EFF6FF, stop:1 #DBEAFE);"
-                "border:1px solid rgba(37,99,235,0.34); border-radius:20px;"
-            )
-            image_style = (
-                "background:#FFFFFF; border:1px solid rgba(37,99,235,0.42); border-radius:16px; color:#64748B;"
-            )
-        else:
-            frame_style = (
-                "background:qlineargradient(x1:0, y1:0, x2:1, y2:1, stop:0 #F8FBFF, stop:1 #EEF5FF);"
-                "border:1px solid rgba(37,99,235,0.18); border-radius:20px;"
-            )
-            image_style = (
-                "background:#FFFFFF; border:1px dashed rgba(37,99,235,0.35); border-radius:16px; color:#64748B;"
-            )
-
-        self.frame.setStyleSheet(frame_style)
-        self.image_label.setStyleSheet(image_style)
+        self.frame.setStyleSheet("background:#ECF3FC; border:none;")
+        self.image_label.setStyleSheet("background:#FFFFFF; border:none; color:#64748B;")
 
     def _render_pixmap(self):
         if self._raw_pixmap.isNull():
