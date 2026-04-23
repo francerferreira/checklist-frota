@@ -3,7 +3,7 @@
 from datetime import datetime
 
 from PySide6.QtCore import QEvent, QEasingCurve, QPropertyAnimation, QTimer, Qt
-from PySide6.QtGui import QIcon, QKeySequence, QPixmap, QShortcut
+from PySide6.QtGui import QBrush, QColor, QIcon, QKeySequence, QPixmap, QShortcut
 from PySide6.QtWidgets import (
     QDialog,
     QFrame,
@@ -403,6 +403,13 @@ class MainWindow(QMainWindow):
         mdi = QMdiArea()
         # Modo clássico de painel único: sem barra de abas no topo.
         mdi.setViewMode(QMdiArea.SubWindowView)
+        mdi.setOption(QMdiArea.DontMaximizeSubWindowOnActivation, False)
+        mdi.setBackground(QBrush(QColor("#D9E8F7")))
+        mdi.viewport().setAutoFillBackground(True)
+        palette = mdi.viewport().palette()
+        palette.setColor(mdi.viewport().backgroundRole(), QColor("#D9E8F7"))
+        mdi.viewport().setPalette(palette)
+        mdi.viewport().setStyleSheet("background:#D9E8F7;")
         mdi.setActivationOrder(QMdiArea.CreationOrder)
         mdi.subWindowActivated.connect(self._on_subwindow_activated)
         return mdi
@@ -508,7 +515,10 @@ class MainWindow(QMainWindow):
             if other_key != page_key and other_sub is not None and not other_sub.isHidden():
                 other_sub.hide()
         self.mdi_area.setActiveSubWindow(sub)
+        sub.setWindowState(Qt.WindowNoState)
+        sub.show()
         sub.showMaximized()
+        QTimer.singleShot(0, lambda s=sub: s.showMaximized() if s and not s.isHidden() else None)
         self._refresh_mdi_placeholder_logo()
 
         page = self.page_map[page_key]
@@ -542,6 +552,9 @@ class MainWindow(QMainWindow):
     def eventFilter(self, watched, event):
         if watched is self.mdi_area.viewport() and event.type() == QEvent.Resize:
             self._resize_mdi_placeholder_logo()
+            active = self.mdi_area.activeSubWindow()
+            if active and not active.isHidden():
+                active.showMaximized()
         return super().eventFilter(watched, event)
 
     def request_page_refresh(self, page_key: str):
