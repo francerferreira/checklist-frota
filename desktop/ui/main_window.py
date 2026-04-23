@@ -237,18 +237,18 @@ class MainWindow(QMainWindow):
         style_top_bar(top_bar)
 
         self.top_bar_layout = QVBoxLayout(top_bar)
-        self.top_bar_layout.setContentsMargins(14, 10, 14, 10)
-        self.top_bar_layout.setSpacing(8)
+        self.top_bar_layout.setContentsMargins(6, 6, 6, 6)
+        self.top_bar_layout.setSpacing(4)
 
         self.header_content = QFrame()
         self.header_content.setFrameShape(QFrame.NoFrame)
         header_row = QHBoxLayout()
         self.header_content.setLayout(header_row)
         header_row.setContentsMargins(0, 0, 0, 0)
-        header_row.setSpacing(12)
+        header_row.setSpacing(8)
 
         logo_label = QLabel()
-        logo_label.setFixedSize(118, 64)
+        logo_label.setFixedSize(72, 40)
         logo_label.setAlignment(Qt.AlignCenter)
         if self.logo_path.exists():
             pixmap = QPixmap(str(self.logo_path))
@@ -269,11 +269,11 @@ class MainWindow(QMainWindow):
 
         title = QLabel("Sistema de Checklist de Frota")
         title.setObjectName("TopBarTitle")
-        title.setStyleSheet("font-size:21px; font-weight:760;")
+        title.setStyleSheet("font-size:16px; font-weight:760; color:#203447;")
 
         subtitle = QLabel("Gestão de Frota")
         subtitle.setObjectName("TopBarSubtitle")
-        subtitle.setStyleSheet("font-size:13px;")
+        subtitle.setStyleSheet("font-size:11px; color:#4E6278;")
 
         login_started = getattr(self.api_client, "login_started_at", None)
         started_label = (
@@ -283,9 +283,7 @@ class MainWindow(QMainWindow):
         )
         self.top_bar_session_label = QLabel(started_label)
         self.top_bar_session_label.setObjectName("TopBarSubtitle")
-        self.top_bar_session_label.setStyleSheet(
-            "font-size:11px; color: rgba(255, 255, 255, 0.76);"
-        )
+        self.top_bar_session_label.setStyleSheet("font-size:10px; color:#647B92;")
 
         text_wrap.addWidget(self.top_bar_pill, 0, Qt.AlignLeft)
         text_wrap.addWidget(title)
@@ -311,14 +309,14 @@ class MainWindow(QMainWindow):
         badge_layout.addWidget(badge_subtitle)
 
         logout_button = AnimatedButton("Encerrar sessão", tone="danger")
-        logout_button.setMinimumWidth(170)
-        logout_button.setMinimumHeight(44)
+        logout_button.setMinimumWidth(138)
+        logout_button.setMinimumHeight(30)
         logout_button.setIcon(make_icon("logout", "#26FFFFFF", "#FFFFFF"))
         logout_button.clicked.connect(self.close)
 
-        collapse_button = QPushButton("Modo compacto")
-        collapse_button.setMinimumHeight(44)
-        collapse_button.setMinimumWidth(146)
+        collapse_button = QPushButton("Compacto")
+        collapse_button.setMinimumHeight(30)
+        collapse_button.setMinimumWidth(106)
         collapse_button.setIcon(make_icon("cancel", NEUTRAL_ICON_BG, NEUTRAL_ICON_FG))
         collapse_button.clicked.connect(self.toggle_top_bar)
 
@@ -328,8 +326,8 @@ class MainWindow(QMainWindow):
         header_actions_card = QFrame()
         header_actions_card.setObjectName("TopBarActionCluster")
         header_actions = QHBoxLayout()
-        header_actions.setContentsMargins(10, 8, 10, 8)
-        header_actions.setSpacing(8)
+        header_actions.setContentsMargins(6, 4, 6, 4)
+        header_actions.setSpacing(6)
         header_actions.addWidget(badge, 0)
         header_actions.addWidget(collapse_button, 0)
         header_actions.addWidget(logout_button, 0)
@@ -338,34 +336,20 @@ class MainWindow(QMainWindow):
 
         nav_strip = QFrame()
         nav_strip.setObjectName("TopNavStrip")
-        nav_strip.setMinimumHeight(136)
+        nav_strip.setMinimumHeight(58)
         nav_strip.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Fixed)
         nav_wrap = QVBoxLayout(nav_strip)
-        nav_wrap.setContentsMargins(10, 8, 10, 8)
-        nav_wrap.setSpacing(6)
-
-        ribbon_header = QHBoxLayout()
-        ribbon_header.setContentsMargins(2, 0, 2, 0)
-        ribbon_header.setSpacing(10)
-        ribbon_title = QLabel("Módulos")
-        ribbon_title.setStyleSheet(
-            "color: #FFFFFF; font-size: 11px; font-weight: 800; letter-spacing: 0.08em; text-transform: uppercase;"
-        )
-        ribbon_hint = QLabel("Navegação rápida")
-        ribbon_hint.setStyleSheet("color: rgba(255, 255, 255, 0.78); font-size: 11px;")
-        ribbon_header.addWidget(ribbon_title, 0)
-        ribbon_header.addWidget(ribbon_hint, 0)
-        ribbon_header.addStretch(1)
-        nav_wrap.addLayout(ribbon_header)
+        nav_wrap.setContentsMargins(4, 4, 4, 4)
+        nav_wrap.setSpacing(0)
 
         nav_grid_host = QFrame()
         nav_grid_host.setStyleSheet(
-            "QFrame { background: rgba(255, 255, 255, 0.06); border: 1px solid rgba(255, 255, 255, 0.14); border-radius: 8px; }"
+            "QFrame { background: #E9EDF2; border: 1px solid #B8BDC3; border-radius: 2px; }"
         )
         nav_layout = QGridLayout(nav_grid_host)
-        nav_layout.setContentsMargins(8, 6, 8, 6)
-        nav_layout.setHorizontalSpacing(6)
-        nav_layout.setVerticalSpacing(6)
+        nav_layout.setContentsMargins(4, 4, 4, 4)
+        nav_layout.setHorizontalSpacing(4)
+        nav_layout.setVerticalSpacing(4)
 
         self.nav_buttons = {}
         nav_items = [
@@ -385,13 +369,13 @@ class MainWindow(QMainWindow):
             nav_items.append(("users", "Logins", make_icon("users", NEUTRAL_ICON_BG, NEUTRAL_ICON_FG)))
             nav_items.append(("cloud_backup", "Backup", make_icon("cloud", NEUTRAL_ICON_BG, NEUTRAL_ICON_FG)))
 
-        max_columns = 7
+        max_columns = 11
         for index, (key, label, icon) in enumerate(nav_items):
             button = AnimatedButton(label)
             button.setIcon(icon)
-            button.setMinimumWidth(126)
-            button.setMaximumWidth(162)
-            button.setMinimumHeight(42)
+            button.setMinimumWidth(108)
+            button.setMaximumWidth(126)
+            button.setMinimumHeight(26)
             button.clicked.connect(lambda checked=False, page_key=key: self.switch_page(page_key))
             row = index // max_columns
             column = index % max_columns
@@ -406,8 +390,8 @@ class MainWindow(QMainWindow):
         self.nav_scroll.setHorizontalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
         self.nav_scroll.setVerticalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
         self.nav_scroll.setFrameShape(QFrame.NoFrame)
-        self.nav_scroll.setMinimumHeight(142)
-        self.nav_scroll.setMaximumHeight(142)
+        self.nav_scroll.setMinimumHeight(62)
+        self.nav_scroll.setMaximumHeight(62)
         self.nav_scroll.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Fixed)
         self.nav_scroll.setWidget(nav_strip)
 
@@ -432,19 +416,19 @@ class MainWindow(QMainWindow):
         self.compact_context_label.setObjectName("TopBarPill")
 
         self.compact_title_label = QLabel("Sistema de Checklist de Frota")
-        self.compact_title_label.setStyleSheet("font-size:15px; font-weight:760; color:#FFFFFF;")
+        self.compact_title_label.setStyleSheet("font-size:13px; font-weight:760; color:#23374B;")
 
         user_label = QPushButton(f"{self.user['nome']} • {self.user['tipo']}")
-        user_label.setMinimumHeight(38)
+        user_label.setMinimumHeight(30)
         user_label.clicked.connect(self.open_access_dialog)
 
         expand_button = QPushButton("Expandir menu")
-        expand_button.setMinimumHeight(38)
+        expand_button.setMinimumHeight(30)
         expand_button.setIcon(make_icon("dashboard", NEUTRAL_ICON_BG, NEUTRAL_ICON_FG))
         expand_button.clicked.connect(self.toggle_top_bar)
 
         logout_button = QPushButton("Sair")
-        logout_button.setMinimumHeight(38)
+        logout_button.setMinimumHeight(30)
         logout_button.setProperty("variant", "danger")
         logout_button.setIcon(make_icon("logout", "#26FFFFFF", "#FFFFFF"))
         logout_button.clicked.connect(self.close)
@@ -465,10 +449,10 @@ class MainWindow(QMainWindow):
         self.nav_scroll.setVisible(not self.top_bar_collapsed)
         self.compact_top_bar.setVisible(self.top_bar_collapsed)
         if self.top_bar_collapsed:
-            self.top_bar_layout.setContentsMargins(10, 8, 10, 8)
-            self.top_bar.setMaximumHeight(74)
+            self.top_bar_layout.setContentsMargins(4, 4, 4, 4)
+            self.top_bar.setMaximumHeight(46)
         else:
-            self.top_bar_layout.setContentsMargins(14, 10, 14, 10)
+            self.top_bar_layout.setContentsMargins(6, 6, 6, 6)
             self.top_bar.setMaximumHeight(16777215)
         self.top_bar.updateGeometry()
 

@@ -16,13 +16,13 @@ class AnimatedButton(QPushButton):
         self.setMinimumHeight(46)
 
         self.shadow = QGraphicsDropShadowEffect(self)
-        self.shadow.setBlurRadius(8)
-        self.shadow.setOffset(0, 2)
-        self.shadow.setColor(QColor(0, 0, 0, 18))
+        self.shadow.setBlurRadius(0)
+        self.shadow.setOffset(0, 0)
+        self.shadow.setColor(QColor(0, 0, 0, 0))
         self.setGraphicsEffect(self.shadow)
 
         self.animation = QPropertyAnimation(self, b"elevation", self)
-        self.animation.setDuration(120)
+        self.animation.setDuration(90)
         self.animation.setEasingCurve(QEasingCurve.OutCubic)
 
         self.pressed.connect(self._handle_pressed)
@@ -56,8 +56,8 @@ class AnimatedButton(QPushButton):
 
     def set_elevation(self, value: float):
         self._elevation = value
-        self.shadow.setBlurRadius(8 + (6 * value))
-        self.shadow.setOffset(0, 2 + (1.2 * value))
+        self.shadow.setBlurRadius(0)
+        self.shadow.setOffset(0, 0)
         self._apply_style()
 
     elevation = Property(float, get_elevation, set_elevation)
@@ -70,37 +70,37 @@ class AnimatedButton(QPushButton):
         if self._tone == "danger":
             background = (
                 "qlineargradient(x1:0, y1:0, x2:1, y2:0, "
-                "stop:0 #8A5B5B, stop:0.55 #916262, stop:1 #7C5252)"
+                "stop:0 #866565, stop:0.55 #8C6A6A, stop:1 #785A5A)"
             )
             hover_background = (
                 "qlineargradient(x1:0, y1:0, x2:1, y2:0, "
-                "stop:0 #7C5252, stop:0.60 #835858, stop:1 #704949)"
+                "stop:0 #785A5A, stop:0.60 #805F5F, stop:1 #6E5353)"
             )
-            border = "rgba(122, 82, 82, 0.32)"
+            border = "rgba(113, 84, 84, 0.40)"
             color = "#FFFFFF"
-            bottom_border = "2px solid #6B4545"
-            shadow_color = QColor(138, 91, 91, 36 if self._hovered else 24)
-            padding_left = 14 + int(self._elevation * 2)
+            bottom_border = "1px solid #694F4F"
+            shadow_color = QColor(0, 0, 0, 0)
+            padding_left = 10
         else:
             if self._active:
                 background = (
                     "qlineargradient(x1:0, y1:0, x2:0, y2:1, "
-                    "stop:0 #EEF1F5, stop:1 #DFE4EA)"
+                    "stop:0 #E7EAEE, stop:1 #DCE1E7)"
                 )
-                border = "#5B6571"
-                color = "#43505E"
-                bottom_border = "2px solid #5B6571"
-                shadow_color = QColor(91, 101, 113, 26)
+                border = "#8F98A2"
+                color = "#2E3F52"
+                bottom_border = "1px solid #87919B"
+                shadow_color = QColor(0, 0, 0, 0)
             else:
-                background = "rgba(255, 255, 255, 0.94)"
-                border = "rgba(91, 101, 113, 0.22)"
-                color = "#43505E"
-                bottom_border = "2px solid transparent"
-                shadow_color = QColor(91, 101, 113, 14)
-            padding_left = 13 + int(self._elevation * 2)
+                background = "#ECEFF2"
+                border = "rgba(143, 152, 162, 0.85)"
+                color = "#33475C"
+                bottom_border = "1px solid #A1A9B2"
+                shadow_color = QColor(0, 0, 0, 0)
+            padding_left = 10
             hover_background = (
                 "qlineargradient(x1:0, y1:0, x2:0, y2:1, "
-                "stop:0 #F1F4F7, stop:1 #E5E9EE)"
+                "stop:0 #E8EBEF, stop:1 #DEE3E9)"
             )
 
         self.shadow.setColor(shadow_color)
@@ -109,12 +109,12 @@ class AnimatedButton(QPushButton):
             QPushButton {{
                 background: {background};
                 color: {color};
-                border-radius: 7px;
+                border-radius: 2px;
                 border: 1px solid {border};
                 border-bottom: {bottom_border};
-                padding: 8px 10px 7px {padding_left}px;
+                padding: 6px 8px 6px {padding_left}px;
                 text-align: left;
-                font-size: 12px;
+                font-size: 11px;
                 font-weight: 700;
             }}
             QPushButton:hover {{
