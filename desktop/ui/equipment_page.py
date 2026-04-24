@@ -460,11 +460,15 @@ class EquipmentPage(QFrame):
     def add_equipment(self):
         dialog = EquipmentDialog(self.api_client, parent=self)
         if dialog.exec():
-            self.api_client.create_vehicle(dialog.result_payload)
-            from components import show_notice
-            show_notice(self, "Equipamento salvo", "Cadastro realizado com sucesso.", icon_name="dashboard")
-            self.refresh()
-            self.data_changed.emit()
+            try:
+                self.api_client.create_vehicle(dialog.result_payload)
+                from components import show_notice
+                show_notice(self, "Equipamento salvo", "Cadastro realizado com sucesso.", icon_name="dashboard")
+                self.refresh()
+                self.data_changed.emit()
+            except Exception as exc:
+                from components import show_notice
+                show_notice(self, "Falha ao salvar", str(exc), icon_name="warning")
 
     def edit_selected(self):
         target_item = self._selected_item()

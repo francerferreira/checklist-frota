@@ -41,7 +41,7 @@ from services.export_service import (
     export_vehicle_detail_pdf,
     make_default_export_path,
 )
-from components import ExportProgressDialog, ExportWorker, MessageComposerDialog, TableSkeletonOverlay
+from components import ExportProgressDialog, ExportWorker, MessageComposerDialog, TableSkeletonOverlay, open_exported_pdf
 from components import show_notice
 from runtime_paths import asset_path
 from theme import (
@@ -1503,6 +1503,7 @@ class ReportsPage(QFrame):
         if thread and thread.isRunning():
             thread.quit()
         show_notice(self, "PDF gerado", f"Arquivo salvo em:\n{path}", icon_name="reports")
+        open_exported_pdf(path)
         if dialog:
             dialog.accept()
 

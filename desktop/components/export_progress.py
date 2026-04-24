@@ -1,8 +1,10 @@
 from __future__ import annotations
 
 from collections.abc import Callable
+from pathlib import Path
 
-from PySide6.QtCore import QObject, QThread, QTimer, Qt, Signal, Slot
+from PySide6.QtCore import QObject, QThread, QTimer, Qt, Signal, Slot, QUrl
+from PySide6.QtGui import QDesktopServices
 from PySide6.QtWidgets import QDialog, QHBoxLayout, QLabel, QProgressBar, QVBoxLayout
 
 from components.confirmation_dialog import show_notice
@@ -11,6 +13,17 @@ from theme import configure_dialog_window, style_card
 
 ProgressCallback = Callable[[int, str], None]
 ExportTask = Callable[[ProgressCallback], object]
+
+
+def open_exported_pdf(result: object) -> bool:
+    if not isinstance(result, (str, Path)):
+        return False
+    path = Path(result)
+    if path.suffix.lower() != ".pdf":
+        return False
+    if not path.exists():
+        return False
+    return QDesktopServices.openUrl(QUrl.fromLocalFile(str(path.resolve())))
 
 
 class ExportWorker(QObject):
@@ -92,6 +105,7 @@ class ExportTaskController(QObject):
             self.success_template.format(result=result),
             icon_name=self.icon_name,
         )
+        open_exported_pdf(result)
         self.dialog.accept()
 
     def _handle_failed(self, message: str):

@@ -1140,13 +1140,16 @@ class ActivityDetailDialog(QDialog):
             allow_material_edit=self.can_manage_materials,
         )
         if dialog.exec():
-            response = self.api_client.update_activity_item(self.activity_id, item["id"], dialog.result_payload)
-            message = "Registro da atividade atualizado com sucesso."
-            if isinstance(response, dict) and response.get("aviso_foto_origem_preservada"):
-                message = response.get("mensagem_foto_origem") or "Evidência de origem preservada e atualização concluída."
-            show_notice(self, "Atividade atualizada", message, icon_name="dashboard")
-            self.updated = True
-            self.refresh()
+            try:
+                response = self.api_client.update_activity_item(self.activity_id, item["id"], dialog.result_payload)
+                message = "Registro da atividade atualizado com sucesso."
+                if isinstance(response, dict) and response.get("aviso_foto_origem_preservada"):
+                    message = response.get("mensagem_foto_origem") or "Evidência de origem preservada e atualização concluída."
+                show_notice(self, "Atividade atualizada", message, icon_name="dashboard")
+                self.updated = True
+                self.refresh()
+            except Exception as exc:
+                show_notice(self, "Falha ao atualizar atividade", str(exc), icon_name="warning")
 
     def edit_material_for_selected(self):
         if not self.can_manage_materials:
@@ -1552,15 +1555,18 @@ class ActivitiesPage(QFrame):
     def add_activity(self):
         dialog = ActivityDialog(self.api_client, self)
         if dialog.exec():
-            self.api_client.create_activity(dialog.result_payload)
-            show_notice(
-                self,
-                "Atividade aberta",
-                "Atividade em massa criada com sucesso.",
-                icon_name="dashboard",
-            )
-            self.refresh()
-            self.data_changed.emit()
+            try:
+                self.api_client.create_activity(dialog.result_payload)
+                show_notice(
+                    self,
+                    "Atividade aberta",
+                    "Atividade em massa criada com sucesso.",
+                    icon_name="dashboard",
+                )
+                self.refresh()
+                self.data_changed.emit()
+            except Exception as exc:
+                show_notice(self, "Falha ao abrir atividade", str(exc), icon_name="warning")
 
     def open_selected(self, *_args):
         self.open_activity_details()

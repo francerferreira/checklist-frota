@@ -796,10 +796,13 @@ class MaterialsPage(QFrame):
     def add_material(self):
         dialog = MaterialDialog(self.api_client, parent=self)
         if dialog.exec():
-            self.api_client.create_material(dialog.result_payload)
-            show_notice(self, "Material salvo", "Material cadastrado com sucesso.", icon_name="dashboard")
-            self.refresh()
-            self.data_changed.emit()
+            try:
+                self.api_client.create_material(dialog.result_payload)
+                show_notice(self, "Material salvo", "Material cadastrado com sucesso.", icon_name="dashboard")
+                self.refresh()
+                self.data_changed.emit()
+            except Exception as exc:
+                show_notice(self, "Falha ao salvar", str(exc), icon_name="warning")
 
     def edit_selected(self):
         target_item = self._selected_item()
