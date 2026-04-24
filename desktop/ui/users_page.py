@@ -239,7 +239,7 @@ class UsersPage(QFrame):
         else:
             self.table_skeleton.hide_skeleton()
 
-    def refresh(self):
+    def refresh(self, preferred_user_id: int | None = None):
         self.users = self.api_client.get_users()
         self.table.setSortingEnabled(False)
         self.table.setUpdatesEnabled(False)
@@ -260,7 +260,16 @@ class UsersPage(QFrame):
         self.edit_button.setEnabled(enable_actions)
         self.delete_button.setEnabled(enable_actions)
         if self.users:
-            self.table.selectRow(0)
+            selected_row = 0
+            if preferred_user_id is not None:
+                for row_index, user_item in enumerate(self.users):
+                    if int(user_item.get("id") or 0) == int(preferred_user_id):
+                        selected_row = row_index
+                        break
+            self.table.selectRow(selected_row)
+            self.current_user_item = self._selected_user()
+        else:
+            self.current_user_item = None
 
     def _selection_changed(self):
         selected = self.table.selectedRanges()
@@ -312,9 +321,9 @@ class UsersPage(QFrame):
         dialog = UserDialog(self.api_client, parent=self)
         if dialog.exec():
             try:
-                self.api_client.create_user(dialog.result_payload)
+                created = self.api_client.create_user(dialog.result_payload)
                 show_notice(self, "Login criado", "Novo login cadastrado com sucesso.", icon_name="dashboard")
-                self.refresh()
+                self.refresh((created or {}).get("id") if isinstance(created, dict) else None)
                 self.data_changed.emit()
             except Exception as exc:
                 show_notice(self, "Falha ao criar", str(exc), icon_name="warning")
@@ -332,7 +341,7 @@ class UsersPage(QFrame):
             try:
                 self.api_client.update_user(target_user["id"], dialog.result_payload)
                 show_notice(self, "Login atualizado", "Dados do login atualizados com sucesso.", icon_name="dashboard")
-                self.refresh()
+                self.refresh(target_user.get("id"))
                 self.data_changed.emit()
             except Exception as exc:
                 show_notice(self, "Falha ao atualizar", str(exc), icon_name="warning")

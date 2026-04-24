@@ -137,6 +137,36 @@ def _default_items_for_type(vehicle_type: str) -> list[str]:
     return list(CHECKLIST_CATALOG[_normalize_vehicle_type(vehicle_type)])
 
 
+def _normalize_row_item_name(item_name: str | None) -> str:
+    return (item_name or "").strip().upper()
+
+
+def _deduplicate_active_rows_by_position(rows: list[ChecklistCatalogItem]) -> bool:
+    changed = False
+    rows_by_position: dict[int, list[ChecklistCatalogItem]] = {}
+    for row in rows:
+        rows_by_position.setdefault(int(row.position or 0), []).append(row)
+
+    for position_rows in rows_by_position.values():
+        active_rows = [row for row in position_rows if row.ativo]
+        if len(active_rows) <= 1:
+            continue
+
+        active_rows.sort(
+            key=lambda row: (
+                row.updated_at or row.created_at,
+                row.id or 0,
+            ),
+            reverse=True,
+        )
+        for duplicate in active_rows[1:]:
+            if duplicate.ativo:
+                duplicate.ativo = False
+                changed = True
+
+    return changed
+
+
 def _add_default_items() -> None:
     for vehicle_type, items in CHECKLIST_CATALOG.items():
         for position, item_name in enumerate(items, 1):
@@ -156,49 +186,49 @@ def seed_checklist_catalog_items() -> None:
         db.session.commit()
         return
 
+    changed = False
     for vehicle_type, default_items in CHECKLIST_CATALOG.items():
-        default_keys = {normalize_item_name(item_name): item_name for item_name in default_items}
+        default_keys = {normalize_item_name(item_name) for item_name in default_items}
         deprecated_keys = {
             normalize_item_name(item_name)
             for item_name in DEPRECATED_CATALOG_ITEMS.get(vehicle_type, [])
         }
-        rows = ChecklistCatalogItem.query.filter_by(vehicle_type=vehicle_type).all()
-        rows_by_key: dict[str, list[ChecklistCatalogItem]] = {}
-        for row in rows:
-            rows_by_key.setdefault(normalize_item_name(row.item_nome), []).append(row)
+        rows = (
+            ChecklistCatalogItem.query.filter_by(vehicle_type=vehicle_type)
+            .order_by(ChecklistCatalogItem.position.asc(), ChecklistCatalogItem.id.asc())
+            .all()
+        )
 
-        for position, item_name in enumerate(default_items, 1):
-            key = normalize_item_name(item_name)
-            matching_rows = rows_by_key.get(key, [])
-            row = next((item for item in matching_rows if item.item_nome == item_name), None)
-            if row is None and matching_rows:
-                row = matching_rows[0]
-            if row:
-                row.item_nome = item_name
-                row.position = position
-                row.ativo = True
-                for duplicate in matching_rows:
-                    if duplicate.id != row.id:
-                        duplicate.ativo = False
-                continue
-
-            db.session.add(
-                ChecklistCatalogItem(
-                    vehicle_type=vehicle_type,
-                    item_nome=item_name,
-                    position=position,
-                    ativo=True,
+        # Tipo sem base ainda: cria catálogo padrão apenas uma vez.
+        if not rows:
+            for position, item_name in enumerate(default_items, 1):
+                db.session.add(
+                    ChecklistCatalogItem(
+                        vehicle_type=vehicle_type,
+                        item_nome=item_name,
+                        position=position,
+                        ativo=True,
+                    )
                 )
-            )
+            changed = True
+            continue
 
         for row in rows:
-            key = normalize_item_name(row.item_nome)
-            if key in deprecated_keys and key not in default_keys:
-                row.ativo = False
-            elif key not in default_keys and row.ativo:
-                row.item_nome = row.item_nome.strip().upper()
+            normalized_name = _normalize_row_item_name(row.item_nome)
+            if row.item_nome != normalized_name:
+                row.item_nome = normalized_name
+                changed = True
 
-    db.session.commit()
+            key = normalize_item_name(row.item_nome)
+            if key in deprecated_keys and key not in default_keys and row.ativo:
+                row.ativo = False
+                changed = True
+
+        if _deduplicate_active_rows_by_position(rows):
+            changed = True
+
+    if changed:
+        db.session.commit()
 
 
 def get_catalog_rows(vehicle_type: str | None = None, *, include_inactive: bool = False) -> list[ChecklistCatalogItem]:

@@ -724,7 +724,7 @@ class MaterialsPage(QFrame):
         self.history_button.setEnabled(enabled)
         self.delete_button.setEnabled(enabled)
 
-    def refresh(self):
+    def refresh(self, preferred_item_id: int | None = None):
         self.items = self.api_client.get_materials(
             tipo=self.type_filter.currentData() or None,
             search=self.search_input.text().strip() or None,
@@ -761,7 +761,15 @@ class MaterialsPage(QFrame):
             self.table.setSortingEnabled(True)
         self.summary_badge.setText(f"{len(self.items)} materiais")
         if self.items:
-            self.table.selectRow(0)
+            selected_row = 0
+            if preferred_item_id is not None:
+                for row_index, row_item in enumerate(self.items):
+                    if int(row_item.get("id") or 0) == int(preferred_item_id):
+                        selected_row = row_index
+                        break
+            self.table.selectRow(selected_row)
+            self.current_item = self._item_for_row(selected_row)
+            self._set_action_state(self.current_item is not None)
         else:
             self.current_item = None
             self._set_action_state(False)
@@ -797,9 +805,9 @@ class MaterialsPage(QFrame):
         dialog = MaterialDialog(self.api_client, parent=self)
         if dialog.exec():
             try:
-                self.api_client.create_material(dialog.result_payload)
+                created = self.api_client.create_material(dialog.result_payload)
                 show_notice(self, "Material salvo", "Material cadastrado com sucesso.", icon_name="dashboard")
-                self.refresh()
+                self.refresh((created or {}).get("id") if isinstance(created, dict) else None)
                 self.data_changed.emit()
             except Exception as exc:
                 show_notice(self, "Falha ao salvar", str(exc), icon_name="warning")
@@ -814,7 +822,7 @@ class MaterialsPage(QFrame):
             try:
                 self.api_client.update_material(target_item["id"], dialog.result_payload)
                 show_notice(self, "Material atualizado", "Material atualizado com sucesso.", icon_name="dashboard")
-                self.refresh()
+                self.refresh(target_item.get("id"))
                 self.data_changed.emit()
             except Exception as exc:
                 show_notice(self, "Falha ao atualizar", str(exc), icon_name="warning")
@@ -829,7 +837,7 @@ class MaterialsPage(QFrame):
             try:
                 self.api_client.adjust_material_stock(target_item["id"], dialog.result_payload)
                 show_notice(self, "Estoque atualizado", "Movimentação registrada com sucesso.", icon_name="dashboard")
-                self.refresh()
+                self.refresh(target_item.get("id"))
                 self.data_changed.emit()
             except Exception as exc:
                 show_notice(self, "Falha no ajuste", str(exc), icon_name="warning")

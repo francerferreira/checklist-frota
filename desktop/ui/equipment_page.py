@@ -383,7 +383,7 @@ class EquipmentPage(QFrame):
                 filtered.append(item)
         return filtered
 
-    def refresh(self):
+    def refresh(self, preferred_item_id: int | None = None):
         rows = self.api_client.get_equipment(self.type_filter.currentData() or None, True)
         self.items = self._filtered_rows(rows)
         self.table.setSortingEnabled(False)
@@ -410,7 +410,15 @@ class EquipmentPage(QFrame):
 
         self.summary_badge.setText(f"{len(self.items)} registros")
         if self.items:
-            self.table.selectRow(0)
+            selected_row = 0
+            if preferred_item_id is not None:
+                for row_index, row_item in enumerate(self.items):
+                    if int(row_item.get("id") or 0) == int(preferred_item_id):
+                        selected_row = row_index
+                        break
+            self.table.selectRow(selected_row)
+            self.current_item = self._item_for_row(selected_row)
+            self._set_action_state(self.current_item is not None)
         else:
             self.current_item = None
             self._set_action_state(False)
@@ -461,10 +469,10 @@ class EquipmentPage(QFrame):
         dialog = EquipmentDialog(self.api_client, parent=self)
         if dialog.exec():
             try:
-                self.api_client.create_vehicle(dialog.result_payload)
+                created = self.api_client.create_vehicle(dialog.result_payload)
                 from components import show_notice
                 show_notice(self, "Equipamento salvo", "Cadastro realizado com sucesso.", icon_name="dashboard")
-                self.refresh()
+                self.refresh((created or {}).get("id") if isinstance(created, dict) else None)
                 self.data_changed.emit()
             except Exception as exc:
                 from components import show_notice
@@ -481,7 +489,7 @@ class EquipmentPage(QFrame):
                 self.api_client.update_vehicle(target_item["id"], dialog.result_payload)
                 from components import show_notice
                 show_notice(self, "Equipamento atualizado", "Cadastro atualizado com sucesso.", icon_name="dashboard")
-                self.refresh()
+                self.refresh(target_item.get("id"))
                 self.data_changed.emit()
             except Exception as exc:
                 from components import show_notice
