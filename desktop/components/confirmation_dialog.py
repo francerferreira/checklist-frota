@@ -28,15 +28,15 @@ class ConfirmationDialog(QDialog):
         self.setStyleSheet(
             """
             QDialog {
-                background: #D4E1F2;
+                background: #FFFFFF;
             }
             QFrame#ConfirmationCard {
-                background: #F2F7FE;
-                border: 1px solid #AFC3DA;
+                background: #FFFFFF;
+                border: 1px solid #B7CBE3;
                 border-radius: 2px;
             }
             QPushButton#ConfirmButton {
-                background: #2F6FB2;
+                background-color: #2F6FB2;
                 color: #FFFFFF;
                 border: 1px solid #245F97;
                 border-radius: 2px;
@@ -45,19 +45,19 @@ class ConfirmationDialog(QDialog):
                 font-weight: 700;
             }
             QPushButton#ConfirmButton:hover {
-                background: #285F98;
+                background-color: #285F98;
             }
             QPushButton#CancelButton {
-                background: #ECF3FC;
+                background-color: #EAF3FF;
                 color: #113A67;
-                border: 1px solid #9FB7D3;
+                border: 1px solid #86AEDA;
                 border-radius: 2px;
                 padding: 8px 12px;
                 font-size: 12px;
                 font-weight: 700;
             }
             QPushButton#CancelButton:hover {
-                background: #DFEBF9;
+                background-color: #D9EAFF;
             }
             """
         )
@@ -176,15 +176,15 @@ class NoticeDialog(QDialog):
         self.setStyleSheet(
             f"""
             QDialog {
-                background: #D4E1F2;
+                background: #FFFFFF;
             }
             QFrame#NoticeCard {
-                background: #F2F7FE;
-                border: 1px solid #AFC3DA;
+                background: #FFFFFF;
+                border: 1px solid #B7CBE3;
                 border-radius: 2px;
             }
             QPushButton#NoticeButton {
-                background: {button_bg};
+                background-color: {button_bg};
                 color: #FFFFFF;
                 border: 1px solid {button_border};
                 border-radius: 2px;
@@ -193,7 +193,7 @@ class NoticeDialog(QDialog):
                 font-weight: 700;
             }
             QPushButton#NoticeButton:hover {
-                background: {button_hover};
+                background-color: {button_hover};
             }
             QLabel#NoticeSubtitle {{
                 color: #3E5C7D;

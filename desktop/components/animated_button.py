@@ -81,7 +81,7 @@ class AnimatedButton(QPushButton):
         self.setStyleSheet(
             f"""
             QPushButton {{
-                background: {background};
+                background-color: {background};
                 color: {color};
                 border-radius: 2px;
                 border: 1px solid {border};
@@ -92,7 +92,7 @@ class AnimatedButton(QPushButton):
                 font-weight: 700;
             }}
             QPushButton:hover {{
-                background: {background};
+                background-color: {background};
                 color: {color};
             }}
             """

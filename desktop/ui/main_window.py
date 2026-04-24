@@ -16,6 +16,7 @@ from PySide6.QtWidgets import (
     QMdiArea,
     QMdiSubWindow,
     QPushButton,
+    QApplication,
     QSplitter,
     QTreeWidget,
     QTreeWidgetItem,
@@ -25,7 +26,7 @@ from PySide6.QtWidgets import (
 
 from components import LoadingOverlay, make_icon, show_notice
 from runtime_paths import asset_path
-from theme import APP_STYLE
+from theme import APP_STYLE, apply_button_styles, install_button_style_enforcer
 from ui.activities_page import ActivitiesPage
 from ui.checklist_items_page import ChecklistItemsPage
 from ui.cloud_backup_page import CloudBackupPage
@@ -211,7 +212,11 @@ class MainWindow(QMainWindow):
 
         self.setWindowTitle("Sistema de Checklist de Frota")
         self.setMinimumSize(1280, 760)
-        self.setStyleSheet(APP_STYLE)
+        app = QApplication.instance()
+        if app is not None:
+            if not app.styleSheet():
+                app.setStyleSheet(APP_STYLE)
+            install_button_style_enforcer(app)
         if self.app_icon_path.exists():
             self.setWindowIcon(QIcon(str(self.app_icon_path)))
 
@@ -244,6 +249,7 @@ class MainWindow(QMainWindow):
         self._build_status_bar()
         self.loading_overlay = LoadingOverlay(self.mdi_area.viewport())
         self._build_mdi_placeholder_logo()
+        apply_button_styles(self)
 
         self.showMaximized()
         QTimer.singleShot(0, lambda: self.switch_page("dashboard"))
@@ -404,12 +410,12 @@ class MainWindow(QMainWindow):
         # Modo clássico de painel único: sem barra de abas no topo.
         mdi.setViewMode(QMdiArea.SubWindowView)
         mdi.setOption(QMdiArea.DontMaximizeSubWindowOnActivation, False)
-        mdi.setBackground(QBrush(QColor("#D9E8F7")))
+        mdi.setBackground(QBrush(QColor("#FFFFFF")))
         mdi.viewport().setAutoFillBackground(True)
         palette = mdi.viewport().palette()
-        palette.setColor(mdi.viewport().backgroundRole(), QColor("#D9E8F7"))
+        palette.setColor(mdi.viewport().backgroundRole(), QColor("#FFFFFF"))
         mdi.viewport().setPalette(palette)
-        mdi.viewport().setStyleSheet("background:#D9E8F7;")
+        mdi.viewport().setStyleSheet("background:#FFFFFF;")
         mdi.setActivationOrder(QMdiArea.CreationOrder)
         mdi.subWindowActivated.connect(self._on_subwindow_activated)
         return mdi
@@ -441,7 +447,7 @@ class MainWindow(QMainWindow):
             label = QLabel(text)
             label.setMinimumWidth(min_width)
             label.setStyleSheet(
-                "padding: 2px 8px; border-right: 1px solid #AFC3DA; color: #1D4C7D; background: #E6EFFA;"
+                "padding: 2px 8px; border-right: 1px solid #B7CBE3; color: #1D4C7D; background: #FFFFFF;"
             )
             return label
 

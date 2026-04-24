@@ -65,7 +65,7 @@ class ImagePreviewDialog(QDialog):
         self.image_label.setMinimumHeight(520)
         self.image_label.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding)
         self.image_label.setCursor(Qt.PointingHandCursor)
-        self.image_label.setStyleSheet("background:#F2F7FE; border:none;")
+        self.image_label.setStyleSheet("background:#FFFFFF; border:none;")
         self.image_label.double_clicked.connect(self.toggle_full_screen)
 
         layout.addWidget(header)
@@ -220,7 +220,7 @@ class ImagePanel(QFrame):
         dialog.exec()
 
     def _apply_visual_state(self):
-        self.frame.setStyleSheet("background:#ECF3FC; border:none;")
+        self.frame.setStyleSheet("background:#FFFFFF; border:none;")
         self.image_label.setStyleSheet("background:#FFFFFF; border:none; color:#64748B;")
 
     def _render_pixmap(self):

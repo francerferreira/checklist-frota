@@ -4,11 +4,12 @@ import sys
 
 from PySide6.QtCore import QObject, QTimer, Qt
 from PySide6.QtGui import QIcon
-from PySide6.QtWidgets import QApplication, QDialog
+from PySide6.QtWidgets import QApplication, QDialog, QStyleFactory
 
 from api_client import APIClient
 from embedded_backend import ensure_local_backend
 from runtime_paths import asset_path
+from theme import APP_STYLE, install_button_style_enforcer
 from ui.login_window import LoginWindow
 from ui.main_window import MainWindow
 
@@ -43,6 +44,10 @@ class DesktopSessionController(QObject):
 
 def main():
     app = QApplication(sys.argv)
+    if "Fusion" in QStyleFactory.keys():
+        app.setStyle(QStyleFactory.create("Fusion"))
+    app.setStyleSheet(APP_STYLE)
+    install_button_style_enforcer(app)
     app.setQuitOnLastWindowClosed(False)
     app.setApplicationName("CF - Checklist de Frota")
     icon_path = asset_path("app-icon.ico")

@@ -2,14 +2,16 @@
 
 from datetime import datetime
 
-from PySide6.QtCore import QTimer, Qt
+from PySide6.QtCore import QEvent, QObject, QTimer, Qt
 from PySide6.QtGui import QColor, QGuiApplication
 from PySide6.QtWidgets import (
     QAbstractItemView,
+    QApplication,
     QDialog,
     QFrame,
     QHeaderView,
     QHBoxLayout,
+    QPushButton,
     QScrollArea,
     QTableWidget,
     QTableWidgetItem,
@@ -81,51 +83,51 @@ QLabel {
     background: transparent;
 }
 QMainWindow, QWidget#MainContainer {
-    background: #D4E1F2;
+    background: #FFFFFF;
 }
 QFrame#Sidebar {
-    background: #D4E1F2;
-    border: 1px solid #97AFCB;
+    background: #FFFFFF;
+    border: 1px solid #B7CBE3;
     border-radius: 2px;
 }
 QWidget#ContentSurface {
     background: #FFFFFF;
-    border: 1px solid #AFC3DA;
+    border: 1px solid #B7CBE3;
     border-radius: 2px;
 }
 QWidget#PanelCard, QWidget#ImagePanel, QWidget#HeaderCard, QWidget#FilterBar, QWidget#TableCard {
-    background: #F2F7FE;
-    border: 1px solid #AFC3DA;
+    background: #FFFFFF;
+    border: 1px solid #B7CBE3;
     border-radius: 2px;
 }
 QDialog#PanelCard {
-    background: #F2F7FE;
-    border: 1px solid #AFC3DA;
+    background: #FFFFFF;
+    border: 1px solid #B7CBE3;
     border-radius: 2px;
 }
 QFrame#DialogHeader {
-    background: #C7D8EC;
+    background: #EAF3FF;
     border: none;
     border-radius: 2px;
 }
 QFrame#DialogFooter {
-    background: #E7F0FB;
-    border: 1px solid #AFC3DA;
+    background: #F6FAFF;
+    border: 1px solid #B7CBE3;
     border-radius: 2px;
 }
 QFrame#DialogIconBadge {
-    background: #DCE8F7;
-    border: 1px solid #AFC3DA;
+    background: #2F6FB2;
+    border: 1px solid #245F9C;
     border-radius: 2px;
 }
 QFrame#DialogInfoBlock {
-    background: #ECF3FC;
-    border: 1px solid #BDD0E5;
+    background: #FFFFFF;
+    border: 1px solid #B7CBE3;
     border-radius: 2px;
 }
 QFrame#PhotoFrame {
-    background: #ECF3FC;
-    border: 1px solid #BDD0E5;
+    background: #FFFFFF;
+    border: 1px solid #B7CBE3;
     border-radius: 2px;
 }
 QLabel#DialogHeaderTitle {
@@ -143,9 +145,9 @@ QLabel#DialogInfoValue {
     font-weight: 700;
 }
 QLabel#PhotoStatus {
-    background: #E7F0FB;
+    background: #EAF3FF;
     color: #2F557A;
-    border: 1px solid #AFC3DA;
+    border: 1px solid #B7CBE3;
     border-radius: 2px;
     padding: 4px 8px;
     font-size: 10px;
@@ -165,34 +167,34 @@ QLabel#PhotoRibbon {
     letter-spacing: 0;
 }
 QFrame#TopNavStrip {
-    background: #DCE8F7;
-    border: 1px solid #AFC3DA;
+    background: #FFFFFF;
+    border: 1px solid #B7CBE3;
     border-radius: 2px;
 }
 QFrame#TopNavGridHost {
-    background: #E8F1FC;
-    border: 1px solid #AFC3DA;
+    background: #FFFFFF;
+    border: 1px solid #B7CBE3;
     border-radius: 2px;
 }
 QFrame#TopBar {
-    background: #CCDDF1;
-    border: 1px solid #9FB7D3;
+    background: #FFFFFF;
+    border: 1px solid #B7CBE3;
     border-radius: 2px;
 }
 QFrame#TopBarActionCluster {
-    background: #E3EDF9;
-    border: 1px solid #AFC3DA;
+    background: #F6FAFF;
+    border: 1px solid #B7CBE3;
     border-radius: 2px;
 }
 QFrame#TopBarBadge {
-    background: #F2F7FE;
-    border: 1px solid #AFC3DA;
+    background: #FFFFFF;
+    border: 1px solid #B7CBE3;
     border-radius: 2px;
 }
 QLabel#TopBarPill {
-    background: #E7F0FB;
+    background: #EAF3FF;
     color: #163F6A;
-    border: 1px solid #AFC3DA;
+    border: 1px solid #B7CBE3;
     border-radius: 2px;
     padding: 3px 8px;
     font-size: 10px;
@@ -265,50 +267,101 @@ QLabel#DialogBodyText {
     font-weight: 700;
 }
 QPushButton {
-    border: 1px solid #1D67B8;
-    border-radius: 2px;
     background: #2C78D3;
+    background-color: #2C78D3;
+    border: 1px solid #1D67B8;
+    border-style: solid;
+    border-radius: 2px;
     color: #FFFFFF;
     padding: 6px 10px;
     font-weight: 700;
 }
+QPushButton:enabled {
+    background: #2C78D3;
+    background-color: #2C78D3;
+    border: 1px solid #1D67B8;
+    border-style: solid;
+    color: #FFFFFF;
+}
 QPushButton:hover {
     background: #1E67BF;
+    background-color: #1E67BF;
+    color: #FFFFFF;
+}
+QPushButton:pressed {
+    background: #155AA8;
+    background-color: #155AA8;
+    color: #FFFFFF;
 }
 QPushButton:disabled {
-    background: #CFE1F5;
-    border: 1px solid #9CB9DB;
-    color: #EEF5FD;
+    background: #8DB8E8;
+    background-color: #8DB8E8;
+    border: 1px solid #5E91CC;
+    border-style: solid;
+    color: #FFFFFF;
 }
 QPushButton[variant="primary"] {
     background: #115FC0;
+    background-color: #115FC0;
     border: 1px solid #0E4E9E;
+    border-style: solid;
+    color: #FFFFFF;
+}
+QPushButton[variant="primary"]:enabled {
+    background: #115FC0;
+    background-color: #115FC0;
+    border: 1px solid #0E4E9E;
+    border-style: solid;
     color: #FFFFFF;
 }
 QPushButton[variant="primary"]:disabled {
-    background: #C6DBF3;
-    border: 1px solid #97B8DE;
-    color: #E9F2FC;
+    background: #85B2E6;
+    background-color: #85B2E6;
+    border: 1px solid #4E86C8;
+    border-style: solid;
+    color: #FFFFFF;
 }
 QPushButton[variant="success"] {
     background: #159789;
+    background-color: #159789;
     border: 1px solid #0F756A;
+    border-style: solid;
+    color: #FFFFFF;
+}
+QPushButton[variant="success"]:enabled {
+    background: #159789;
+    background-color: #159789;
+    border: 1px solid #0F756A;
+    border-style: solid;
     color: #FFFFFF;
 }
 QPushButton[variant="success"]:disabled {
-    background: #C9E9E5;
-    border: 1px solid #91CDC6;
-    color: #EAF7F5;
+    background: #74CFC5;
+    background-color: #74CFC5;
+    border: 1px solid #3E9F94;
+    border-style: solid;
+    color: #FFFFFF;
 }
 QPushButton[variant="danger"] {
     background: #D06A6A;
+    background-color: #D06A6A;
     border: 1px solid #B65858;
+    border-style: solid;
+    color: #FFFFFF;
+}
+QPushButton[variant="danger"]:enabled {
+    background: #D06A6A;
+    background-color: #D06A6A;
+    border: 1px solid #B65858;
+    border-style: solid;
     color: #FFFFFF;
 }
 QPushButton[variant="danger"]:disabled {
-    background: #EFD7D7;
-    border: 1px solid #D8AFAF;
-    color: #F8EFEF;
+    background: #E2A0A0;
+    background-color: #E2A0A0;
+    border: 1px solid #C77575;
+    border-style: solid;
+    color: #FFFFFF;
 }
 QPushButton[moduleNav="true"] {
     padding: 5px 8px;
@@ -317,19 +370,25 @@ QPushButton[moduleNav="true"] {
 }
 QPushButton[compactAction="ok"] {
     background: #2272CC;
+    background-color: #2272CC;
     color: #FFFFFF;
     border: 1px solid #185DAA;
+    border-style: solid;
 }
 QPushButton[compactAction="ok"]:hover {
     background: #1A62B3;
+    background-color: #1A62B3;
 }
 QPushButton[compactAction="no"] {
     background: #CF7B7B;
+    background-color: #CF7B7B;
     color: #FFFFFF;
     border: 1px solid #B66868;
+    border-style: solid;
 }
 QPushButton[compactAction="no"]:hover {
     background: #BB6B6B;
+    background-color: #BB6B6B;
 }
 QLineEdit, QTextEdit, QComboBox {
     background: #FFFFFF;
@@ -348,7 +407,7 @@ QDateEdit, QSpinBox, QDoubleSpinBox {
 QComboBox::drop-down, QDateEdit::drop-down {
     border: none;
     width: 24px;
-    background: #E7F0FB;
+    background: #EAF3FF;
 }
 QComboBox::down-arrow, QDateEdit::down-arrow {
     width: 9px;
@@ -356,7 +415,7 @@ QComboBox::down-arrow, QDateEdit::down-arrow {
 }
 QSpinBox::up-button, QDoubleSpinBox::up-button,
 QSpinBox::down-button, QDoubleSpinBox::down-button {
-    background: #E7F0FB;
+    background: #EAF3FF;
     border-left: 1px solid #AFC4DA;
     width: 18px;
 }
@@ -383,9 +442,9 @@ QLineEdit:focus, QTextEdit:focus, QComboBox:focus, QDateEdit:focus, QSpinBox:foc
     border: 1px solid #3F76AF;
 }
 QMenuBar {
-    background: #DCE8F7;
+    background: #FFFFFF;
     color: #123A64;
-    border: 1px solid #AFC3DA;
+    border: 1px solid #B7CBE3;
     font-size: 12px;
 }
 QMenuBar::item {
@@ -393,29 +452,29 @@ QMenuBar::item {
     padding: 4px 8px;
 }
 QMenuBar::item:selected {
-    background: #C9DCF2;
+    background: #EAF3FF;
 }
 QMenu {
-    background: #F2F7FE;
+    background: #FFFFFF;
     color: #123A64;
-    border: 1px solid #AFC3DA;
+    border: 1px solid #B7CBE3;
 }
 QMenu::item {
     padding: 6px 22px 6px 22px;
 }
 QMenu::item:selected {
-    background: #C9DCF2;
+    background: #EAF3FF;
 }
 QMenu::separator {
     height: 1px;
-    background: #C0D3E8;
+    background: #B7CBE3;
     margin: 4px 6px;
 }
 QTreeWidget, QTreeView {
-    background: #F2F7FE;
+    background: #FFFFFF;
     color: #123A64;
-    border: 1px solid #AFC3DA;
-    alternate-background-color: #ECF3FC;
+    border: 1px solid #B7CBE3;
+    alternate-background-color: #F6FAFF;
 }
 QTreeWidget::item, QTreeView::item {
     padding: 4px 3px;
@@ -425,11 +484,11 @@ QTreeWidget::item:selected, QTreeView::item:selected {
     color: #FFFFFF;
 }
 QMdiArea {
-    background: #D9E8F7;
-    border: 1px solid #AFC3DA;
+    background: #FFFFFF;
+    border: 1px solid #B7CBE3;
 }
 QGroupBox {
-    border: 1px solid #AFC3DA;
+    border: 1px solid #B7CBE3;
     border-radius: 2px;
     margin-top: 10px;
     padding-top: 8px;
@@ -442,12 +501,12 @@ QGroupBox::title {
     padding: 0 4px 0 4px;
 }
 QTableWidget {
-    background: transparent;
+    background: #FFFFFF;
     border: none;
     gridline-color: rgba(145, 173, 204, 0.65);
     selection-background-color: #2F6FB2;
     selection-color: #FFFFFF;
-    alternate-background-color: #F3F7FD;
+    alternate-background-color: #F6FAFF;
     font-size: 12px;
 }
 QTableWidget::item {
@@ -480,7 +539,7 @@ QTableWidget#DialogScheduleGrid QHeaderView::section {
 }
 QTableWidget#CalendarGrid,
 QTableWidget#WashCalendarTable {
-    background: #EAF2FC;
+    background: #FFFFFF;
     border: 1px solid #8FB2D9;
     border-radius: 2px;
     gridline-color: rgba(126, 165, 209, 0.62);
@@ -521,11 +580,11 @@ QHeaderView::section:hover {
 }
 QScrollBar:vertical {
     width: 11px;
-    background: #DEEAFA;
+    background: #EAF3FF;
     margin: 0;
 }
 QScrollBar::handle:vertical {
-    background: #8FAFD0;
+    background: #6FA0D8;
     min-height: 28px;
     border-radius: 2px;
 }
@@ -538,11 +597,11 @@ QScrollBar::sub-page:vertical {
 }
 QScrollBar:horizontal {
     height: 11px;
-    background: #DEEAFA;
+    background: #EAF3FF;
     margin: 0;
 }
 QScrollBar::handle:horizontal {
-    background: #8FAFD0;
+    background: #6FA0D8;
     min-width: 28px;
     border-radius: 2px;
 }
@@ -558,12 +617,12 @@ QScrollArea, QStackedWidget {
     background: transparent;
 }
 QTabWidget::pane {
-    border: 1px solid #AFC3DA;
-    background: #F2F7FE;
+    border: 1px solid #B7CBE3;
+    background: #FFFFFF;
     top: -1px;
 }
 QTabBar::tab {
-    background: #E6EFFA;
+    background: #EAF3FF;
     color: #113A67;
     border: none;
     border-top-left-radius: 2px;
@@ -575,17 +634,17 @@ QTabBar::tab {
 QTabBar::tab:selected {
     background: #FFFFFF;
     color: #1A4A7B;
-    border: 1px solid #AFC3DA;
+    border: 1px solid #B7CBE3;
     border-bottom-color: #FFFFFF;
 }
 QToolTip {
-    background: #F2F7FE;
+    background: #FFFFFF;
     color: #123A64;
-    border: 1px solid #AFC3DA;
+    border: 1px solid #B7CBE3;
     padding: 4px 6px;
 }
 QMessageBox {
-    background: #D4E1F2;
+    background: #FFFFFF;
 }
 QMessageBox QLabel {
     color: #133A63;
@@ -630,9 +689,9 @@ QLabel#BadgeStrong {
     font-weight: 700;
 }
 QLabel#BadgeSoft {
-    background: #E8F1FC;
+    background: #EAF3FF;
     color: #2C5A88;
-    border: 1px solid #B8CCE3;
+    border: 1px solid #B7CBE3;
     border-radius: 2px;
     padding: 5px 9px;
     font-size: 12px;
@@ -652,11 +711,111 @@ QLabel#MutedText {
     color: #4C729B;
 }
 QStatusBar {
-    background: #E6EFFA;
+    background: #FFFFFF;
     color: #295780;
-    border-top: 1px solid #AFC3DA;
+    border-top: 1px solid #B7CBE3;
 }
 """
+
+
+_BUTTON_PALETTE = {
+    "default": ("#2C78D3", "#1E67BF", "#155AA8", "#1D67B8", "#8DB8E8", "#5E91CC"),
+    "primary": ("#115FC0", "#0E56AE", "#0B468F", "#0E4E9E", "#85B2E6", "#4E86C8"),
+    "success": ("#159789", "#0F8578", "#0B6B61", "#0F756A", "#74CFC5", "#3E9F94"),
+    "danger": ("#D06A6A", "#BC5D5D", "#A84E4E", "#B65858", "#E2A0A0", "#C77575"),
+}
+
+
+def _button_tone(button: QPushButton) -> str:
+    compact = button.property("compactAction")
+    if compact == "ok":
+        return "success"
+    if compact == "no":
+        return "danger"
+    variant = button.property("variant")
+    if variant in {"primary", "success", "danger"}:
+        return str(variant)
+    return "default"
+
+
+def apply_button_style(button: QPushButton) -> None:
+    if button.property("_skip_app_button_style"):
+        return
+    if button.__class__.__name__ == "AnimatedButton":
+        return
+
+    base, hover, pressed, border, disabled, disabled_border = _BUTTON_PALETTE[_button_tone(button)]
+    text_align = "left" if button.property("moduleNav") == "true" else "center"
+    button.setFlat(False)
+    button.setAutoFillBackground(False)
+    button.setStyleSheet(
+        f"""
+        QPushButton {{
+            background: {base};
+            background-color: {base};
+            color: #FFFFFF;
+            border: 1px solid {border};
+            border-style: solid;
+            border-radius: 2px;
+            padding: 6px 10px;
+            font-weight: 700;
+            text-align: {text_align};
+        }}
+        QPushButton:hover {{
+            background: {hover};
+            background-color: {hover};
+            color: #FFFFFF;
+        }}
+        QPushButton:pressed {{
+            background: {pressed};
+            background-color: {pressed};
+            color: #FFFFFF;
+        }}
+        QPushButton:disabled {{
+            background: {disabled};
+            background-color: {disabled};
+            color: #FFFFFF;
+            border: 1px solid {disabled_border};
+            border-style: solid;
+        }}
+        """
+    )
+
+
+def apply_button_styles(root: QWidget | QApplication) -> None:
+    widgets = root.allWidgets() if isinstance(root, QApplication) else root.findChildren(QPushButton)
+    for widget in widgets:
+        if isinstance(widget, QPushButton):
+            apply_button_style(widget)
+
+
+class _ButtonStyleEnforcer(QObject):
+    def eventFilter(self, watched, event):
+        event_type = event.type()
+        if isinstance(watched, QPushButton) and event_type in {
+            QEvent.Polish,
+            QEvent.Show,
+            QEvent.EnabledChange,
+            QEvent.DynamicPropertyChange,
+        }:
+            QTimer.singleShot(0, lambda button=watched: apply_button_style(button))
+        elif event_type == QEvent.ChildAdded:
+            child = event.child()
+            if isinstance(child, QPushButton):
+                child.installEventFilter(self)
+                QTimer.singleShot(0, lambda button=child: apply_button_style(button))
+        return False
+
+
+def install_button_style_enforcer(app: QApplication) -> None:
+    enforcer = getattr(app, "_button_style_enforcer", None)
+    if enforcer is None:
+        enforcer = _ButtonStyleEnforcer(app)
+        app.installEventFilter(enforcer)
+        app._button_style_enforcer = enforcer
+    for widget in app.allWidgets():
+        widget.installEventFilter(enforcer)
+    apply_button_styles(app)
 
 
 def apply_soft_shadow(widget, blur: int = 14, y_offset: int = 4, alpha: int = 10) -> None:
