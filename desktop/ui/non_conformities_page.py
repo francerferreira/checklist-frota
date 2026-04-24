@@ -508,6 +508,7 @@ class NonConformitiesPage(QFrame):
         configure_table(self.table, stretch_last=False)
         self.table.setMinimumHeight(620)
         self.table.itemSelectionChanged.connect(self._selection_changed)
+        self.table.horizontalHeader().sortIndicatorChanged.connect(lambda *_: self._selection_changed())
         self.table.itemDoubleClicked.connect(self.open_item_details)
 
         table_layout.addLayout(top_row)
@@ -696,9 +697,11 @@ class NonConformitiesPage(QFrame):
         self.open_item_details()
 
     def resolve_current_item(self):
-        if not self.current_item:
+        target_item = self._selected_item()
+        if not target_item:
             return
-        dialog = ResolveDialog(self.api_client, self.current_item, self)
+        self.current_item = target_item
+        dialog = ResolveDialog(self.api_client, target_item, self)
         if dialog.exec():
             show_notice(
                 self,
@@ -710,9 +713,11 @@ class NonConformitiesPage(QFrame):
             self.data_changed.emit()
 
     def create_activity_from_current_item(self):
-        if not self.current_item:
+        target_item = self._selected_item()
+        if not target_item:
             return
-        dialog = CreateActivityFromNCDialog(self.api_client, self.current_item, self)
+        self.current_item = target_item
+        dialog = CreateActivityFromNCDialog(self.api_client, target_item, self)
         if dialog.exec():
             created = dialog.created_activity or {}
             activity_id = created.get("id")

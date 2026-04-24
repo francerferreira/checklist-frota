@@ -289,6 +289,7 @@ class ChecklistItemsPage(QFrame):
         configure_table(self.table, stretch_last=False)
         self.table.setMinimumHeight(560)
         self.table.itemSelectionChanged.connect(self._selection_changed)
+        self.table.horizontalHeader().sortIndicatorChanged.connect(lambda *_: self._selection_changed())
         self.table.itemDoubleClicked.connect(self.edit_selected)
 
         table_layout.addLayout(top)
@@ -360,42 +361,59 @@ class ChecklistItemsPage(QFrame):
             return self.items[row]
         return None
 
+    def _selected_item(self):
+        selected = self.table.selectedRanges()
+        if selected:
+            return self._item_for_row(selected[0].topRow())
+        return self.current_item
+
     def add_item(self):
         dialog = ChecklistItemDialog(self.api_client, parent=self)
         if dialog.exec():
-            self.api_client.create_checklist_item(dialog.result_payload)
-            show_notice(self, "Item salvo", "Item cadastrado com sucesso.", icon_name="dashboard")
-            self.refresh()
-            self.data_changed.emit()
+            try:
+                self.api_client.create_checklist_item(dialog.result_payload)
+                show_notice(self, "Item salvo", "Item cadastrado com sucesso.", icon_name="dashboard")
+                self.refresh()
+                self.data_changed.emit()
+            except Exception as exc:
+                show_notice(self, "Falha ao salvar", str(exc), icon_name="warning")
 
     def edit_selected(self, item=None):
-        row_item = self._item_for_row(item.row()) if item is not None else self.current_item
+        row_item = self._item_for_row(item.row()) if item is not None else self._selected_item()
         if not row_item:
             return
         self.current_item = row_item
         dialog = ChecklistItemDialog(self.api_client, row_item, self)
         if dialog.exec():
-            self.api_client.update_checklist_item(row_item["id"], dialog.result_payload)
-            show_notice(self, "Item atualizado", "Item atualizado com sucesso.", icon_name="dashboard")
-            self.refresh()
-            self.data_changed.emit()
+            try:
+                self.api_client.update_checklist_item(row_item["id"], dialog.result_payload)
+                show_notice(self, "Item atualizado", "Item atualizado com sucesso.", icon_name="dashboard")
+                self.refresh()
+                self.data_changed.emit()
+            except Exception as exc:
+                show_notice(self, "Falha ao atualizar", str(exc), icon_name="warning")
 
     def delete_selected(self):
-        if not self.current_item:
+        target_item = self._selected_item()
+        if not target_item:
             return
+        self.current_item = target_item
         confirm = ask_confirmation(
             self,
             "Inativar item",
-            f"Deseja retirar o item {self.current_item['item_nome']} do checklist ativo?",
+            f"Deseja retirar o item {target_item['item_nome']} do checklist ativo?",
             confirm_text="Sim",
             cancel_text="Não",
             icon_name="warning",
         )
         if confirm:
-            self.api_client.delete_checklist_item(self.current_item["id"])
-            show_notice(self, "Item inativado", "Item retirado do checklist ativo.", icon_name="dashboard")
-            self.refresh()
-            self.data_changed.emit()
+            try:
+                self.api_client.delete_checklist_item(target_item["id"])
+                show_notice(self, "Item inativado", "Item retirado do checklist ativo.", icon_name="dashboard")
+                self.refresh()
+                self.data_changed.emit()
+            except Exception as exc:
+                show_notice(self, "Falha ao inativar", str(exc), icon_name="warning")
 
     def set_loading_state(self, loading: bool):
         if loading:

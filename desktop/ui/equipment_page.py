@@ -347,6 +347,7 @@ class EquipmentPage(QFrame):
         configure_table(self.table, stretch_last=False)
         self.table.setMinimumHeight(540)
         self.table.itemSelectionChanged.connect(self._selection_changed)
+        self.table.horizontalHeader().sortIndicatorChanged.connect(lambda *_: self._selection_changed())
         self.table.itemDoubleClicked.connect(self.open_item_details)
 
         table_layout.addLayout(table_top)
@@ -466,32 +467,44 @@ class EquipmentPage(QFrame):
             self.data_changed.emit()
 
     def edit_selected(self):
-        if not self.current_item:
+        target_item = self._selected_item()
+        if not target_item:
             return
-        dialog = EquipmentDialog(self.api_client, self.current_item, self)
+        self.current_item = target_item
+        dialog = EquipmentDialog(self.api_client, target_item, self)
         if dialog.exec():
-            self.api_client.update_vehicle(self.current_item["id"], dialog.result_payload)
-            from components import show_notice
-            show_notice(self, "Equipamento atualizado", "Cadastro atualizado com sucesso.", icon_name="dashboard")
-            self.refresh()
-            self.data_changed.emit()
+            try:
+                self.api_client.update_vehicle(target_item["id"], dialog.result_payload)
+                from components import show_notice
+                show_notice(self, "Equipamento atualizado", "Cadastro atualizado com sucesso.", icon_name="dashboard")
+                self.refresh()
+                self.data_changed.emit()
+            except Exception as exc:
+                from components import show_notice
+                show_notice(self, "Falha ao atualizar", str(exc), icon_name="warning")
 
     def retire_selected(self):
-        if not self.current_item:
+        target_item = self._selected_item()
+        if not target_item:
             return
+        self.current_item = target_item
         confirm = ask_confirmation(
             self,
             "Retirar equipamento",
-            f"Deseja retirar {self.current_item['frota']} da frota ativa?",
+            f"Deseja retirar {target_item['frota']} da frota ativa?",
             confirm_text="Sim",
             cancel_text="Não",
             icon_name="warning",
         )
         if confirm:
-            self.api_client.retire_vehicle(self.current_item["id"])
-            from components import show_notice
-            show_notice(self, "Equipamento retirado", "Equipamento removido da lista ativa.", icon_name="dashboard")
-            self.refresh()
-            self.data_changed.emit()
+            try:
+                self.api_client.retire_vehicle(target_item["id"])
+                from components import show_notice
+                show_notice(self, "Equipamento retirado", "Equipamento removido da lista ativa.", icon_name="dashboard")
+                self.refresh()
+                self.data_changed.emit()
+            except Exception as exc:
+                from components import show_notice
+                show_notice(self, "Falha ao retirar", str(exc), icon_name="warning")
 
 

@@ -214,6 +214,7 @@ class UsersPage(QFrame):
         configure_table(self.table)
         self.table.setMinimumHeight(500)
         self.table.itemSelectionChanged.connect(self._selection_changed)
+        self.table.horizontalHeader().sortIndicatorChanged.connect(lambda *_: self._selection_changed())
 
         self.info_label = QLabel(
             "Somente o administrador pode criar ou alterar logins." if not self.is_admin else "Selecione um login para editar."
@@ -293,6 +294,17 @@ class UsersPage(QFrame):
         self.edit_button.setEnabled(allow_actions)
         self.delete_button.setEnabled(allow_actions and self.current_user_item["id"] != self.current_user.get("id"))
 
+    def _selected_user(self):
+        selected = self.table.selectedRanges()
+        if selected:
+            row = selected[0].topRow()
+            first_cell = self.table.item(row, 0)
+            user_item = first_cell.data(Qt.UserRole) if first_cell else None
+            if not user_item and 0 <= row < len(self.users):
+                user_item = self.users[row]
+            return user_item
+        return self.current_user_item
+
     def add_user(self):
         if not self.is_admin:
             show_notice(self, "Acesso restrito", "Somente o administrador pode criar logins.", icon_name="warning")
@@ -308,24 +320,31 @@ class UsersPage(QFrame):
         if not self.is_admin:
             show_notice(self, "Acesso restrito", "Somente o administrador pode alterar logins.", icon_name="warning")
             return
-        if not self.current_user_item:
+        target_user = self._selected_user()
+        if not target_user:
             return
-        dialog = UserDialog(self.api_client, self.current_user_item, self)
+        self.current_user_item = target_user
+        dialog = UserDialog(self.api_client, target_user, self)
         if dialog.exec():
-            self.api_client.update_user(self.current_user_item["id"], dialog.result_payload)
-            show_notice(self, "Login atualizado", "Dados do login atualizados com sucesso.", icon_name="dashboard")
-            self.refresh()
-            self.data_changed.emit()
+            try:
+                self.api_client.update_user(target_user["id"], dialog.result_payload)
+                show_notice(self, "Login atualizado", "Dados do login atualizados com sucesso.", icon_name="dashboard")
+                self.refresh()
+                self.data_changed.emit()
+            except Exception as exc:
+                show_notice(self, "Falha ao atualizar", str(exc), icon_name="warning")
 
     def delete_selected(self):
         if not self.is_admin:
             show_notice(self, "Acesso restrito", "Somente o administrador pode excluir logins.", icon_name="warning")
             return
-        if not self.current_user_item:
+        target_user = self._selected_user()
+        if not target_user:
             show_notice(self, "Seleção obrigatória", "Selecione um login para excluir.", icon_name="warning")
             return
 
-        user = self.current_user_item
+        self.current_user_item = target_user
+        user = target_user
         confirm = ask_confirmation(
             self,
             "Excluir login",

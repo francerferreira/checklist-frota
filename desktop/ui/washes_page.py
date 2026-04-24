@@ -1555,6 +1555,36 @@ class WashesPage(QFrame):
         self.apply_filters()
         self._fill_history()
 
+    def _day_exists_in_current_month(self, day_iso: str | None) -> bool:
+        if not day_iso:
+            return False
+        return day_iso in self.day_index
+
+    def _select_day_cell(self, day_iso: str | None) -> None:
+        if not day_iso:
+            return
+        for row in range(self.calendar_table.rowCount()):
+            for column in range(self.calendar_table.columnCount()):
+                item = self.calendar_table.item(row, column)
+                if item and item.data(Qt.UserRole) == day_iso:
+                    self.calendar_table.setCurrentItem(item)
+                    return
+
+    def _resolve_target_day_for_plan_action(self) -> str | None:
+        if self._day_exists_in_current_month(self.selected_day_iso):
+            return self.selected_day_iso
+
+        selected_items = self.calendar_table.selectedItems()
+        if selected_items:
+            candidate = selected_items[0].data(Qt.UserRole)
+            if self._day_exists_in_current_month(candidate):
+                return candidate
+
+        today_iso = date.today().isoformat()
+        if self._day_exists_in_current_month(today_iso):
+            return today_iso
+        return None
+
     def change_month(self, delta: int):
         month = self.selected_month + delta
         year = self.selected_year
@@ -1604,13 +1634,17 @@ class WashesPage(QFrame):
                     "observacao": f"Planejamento {self.period_badge.text()}",
                 }
             )
+            target_day = self._resolve_target_day_for_plan_action()
             show_notice(self, "Planejamento salvo", "Capacidades e intervalo dos auxiliares atualizados com sucesso.", icon_name="dashboard")
             self.refresh()
+            self.selected_day_iso = target_day
+            self._select_day_cell(self.selected_day_iso)
         except Exception as exc:
             show_notice(self, "Falha ao salvar", str(exc), icon_name="warning")
 
     def toggle_block(self, blocked: bool):
-        if not self.selected_day_iso:
+        target_day = self._resolve_target_day_for_plan_action()
+        if not target_day:
             show_notice(self, "Selecione um dia", "Clique em um dia do cronograma para bloquear ou liberar a lavagem.", icon_name="warning")
             return
         try:
@@ -1618,7 +1652,7 @@ class WashesPage(QFrame):
                 {
                     "ano": self.selected_year,
                     "mes": self.selected_month,
-                    "data": self.selected_day_iso,
+                    "data": target_day,
                     "turno": self.block_shift_combo.currentData(),
                     "bloqueado": blocked,
                     "motivo": self.block_reason.text().strip(),
@@ -1627,6 +1661,8 @@ class WashesPage(QFrame):
             message = "Dia/turno bloqueado com sucesso." if blocked else "Dia/turno liberado para lavagem."
             show_notice(self, "Planejamento atualizado", message, icon_name="dashboard")
             self.refresh()
+            self.selected_day_iso = target_day
+            self._select_day_cell(self.selected_day_iso)
         except Exception as exc:
             show_notice(self, "Falha no bloqueio", str(exc), icon_name="warning")
 
@@ -1799,6 +1835,8 @@ class WashesPage(QFrame):
     def _fill_calendar(self):
         self.calendar_table.clearContents()
         self.day_index = {item.get("date"): item for item in (self.overview.get("cronograma") or {}).get("days", [])}
+        if self.selected_day_iso and self.selected_day_iso not in self.day_index:
+            self.selected_day_iso = None
         weeks = calendar.monthcalendar(self.selected_year, self.selected_month)
         while len(weeks) < 6:
             weeks.append([0] * 7)
@@ -1831,6 +1869,7 @@ class WashesPage(QFrame):
                 self.calendar_table.setItem(row, column, cell_item)
 
         self._resize_calendar_cells()
+        self._select_day_cell(self.selected_day_iso)
         self._refresh_selected_day_badge()
         self._fill_day_detail()
 

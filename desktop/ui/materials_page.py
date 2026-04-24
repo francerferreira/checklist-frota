@@ -704,6 +704,7 @@ class MaterialsPage(QFrame):
         configure_table(self.table, stretch_last=False)
         self.table.setMinimumHeight(560)
         self.table.itemSelectionChanged.connect(self._selection_changed)
+        self.table.horizontalHeader().sortIndicatorChanged.connect(lambda *_: self._selection_changed())
         self.table.itemDoubleClicked.connect(self.open_history)
 
         table_layout.addLayout(top)
@@ -786,6 +787,12 @@ class MaterialsPage(QFrame):
             return self.items[row]
         return None
 
+    def _selected_item(self):
+        selected = self.table.selectedRanges()
+        if selected:
+            return self._item_for_row(selected[0].topRow())
+        return self.current_item
+
     def add_material(self):
         dialog = MaterialDialog(self.api_client, parent=self)
         if dialog.exec():
@@ -795,27 +802,37 @@ class MaterialsPage(QFrame):
             self.data_changed.emit()
 
     def edit_selected(self):
-        if not self.current_item:
+        target_item = self._selected_item()
+        if not target_item:
             return
-        dialog = MaterialDialog(self.api_client, self.current_item, self)
+        self.current_item = target_item
+        dialog = MaterialDialog(self.api_client, target_item, self)
         if dialog.exec():
-            self.api_client.update_material(self.current_item["id"], dialog.result_payload)
-            show_notice(self, "Material atualizado", "Material atualizado com sucesso.", icon_name="dashboard")
-            self.refresh()
-            self.data_changed.emit()
+            try:
+                self.api_client.update_material(target_item["id"], dialog.result_payload)
+                show_notice(self, "Material atualizado", "Material atualizado com sucesso.", icon_name="dashboard")
+                self.refresh()
+                self.data_changed.emit()
+            except Exception as exc:
+                show_notice(self, "Falha ao atualizar", str(exc), icon_name="warning")
 
     def adjust_stock(self):
-        if not self.current_item:
+        target_item = self._selected_item()
+        if not target_item:
             return
-        dialog = StockAdjustDialog(self.api_client, self.current_item, self)
+        self.current_item = target_item
+        dialog = StockAdjustDialog(self.api_client, target_item, self)
         if dialog.exec():
-            self.api_client.adjust_material_stock(self.current_item["id"], dialog.result_payload)
-            show_notice(self, "Estoque atualizado", "Movimentação registrada com sucesso.", icon_name="dashboard")
-            self.refresh()
-            self.data_changed.emit()
+            try:
+                self.api_client.adjust_material_stock(target_item["id"], dialog.result_payload)
+                show_notice(self, "Estoque atualizado", "Movimentação registrada com sucesso.", icon_name="dashboard")
+                self.refresh()
+                self.data_changed.emit()
+            except Exception as exc:
+                show_notice(self, "Falha no ajuste", str(exc), icon_name="warning")
 
     def open_history(self, item=None):
-        row_item = self._item_for_row(item.row()) if item is not None else self.current_item
+        row_item = self._item_for_row(item.row()) if item is not None else self._selected_item()
         if not row_item:
             return
         self.current_item = row_item
@@ -827,21 +844,26 @@ class MaterialsPage(QFrame):
         dialog.exec()
 
     def delete_selected(self):
-        if not self.current_item:
+        target_item = self._selected_item()
+        if not target_item:
             return
+        self.current_item = target_item
         confirm = ask_confirmation(
             self,
             "Excluir material",
-            f"Deseja inativar o material {self.current_item['referencia']}?",
+            f"Deseja inativar o material {target_item['referencia']}?",
             confirm_text="Sim",
             cancel_text="Não",
             icon_name="warning",
         )
         if confirm:
-            self.api_client.delete_material(self.current_item["id"])
-            show_notice(self, "Material inativado", "Material removido da base ativa.", icon_name="dashboard")
-            self.refresh()
-            self.data_changed.emit()
+            try:
+                self.api_client.delete_material(target_item["id"])
+                show_notice(self, "Material inativado", "Material removido da base ativa.", icon_name="dashboard")
+                self.refresh()
+                self.data_changed.emit()
+            except Exception as exc:
+                show_notice(self, "Falha ao inativar", str(exc), icon_name="warning")
 
     def set_loading_state(self, loading: bool):
         if loading:
