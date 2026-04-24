@@ -105,27 +105,81 @@
                         <strong>REALIZAR CHECKLIST</strong>
                         <em>Selecionar equipamento e registrar OK ou não conformidade.</em>
                     </button>
-                    <button id="open-activities-menu" class="menu-card" type="button">
+                    <button id="open-checklist-history-menu" class="menu-card" type="button">
                         <span>02</span>
+                        <strong>HISTÓRICO DE CHECKLIST</strong>
+                        <em>Matriz por frota e data com hora/minuto e usuário executor.</em>
+                    </button>
+                    <button id="open-activities-menu" class="menu-card" type="button">
+                        <span>03</span>
                         <strong>ATIVIDADES</strong>
                         <em>Executar atividades abertas e anexar evidências.</em>
                     </button>
                     <button id="open-washes-menu" class="menu-card" type="button">
-                        <span>03</span>
+                        <span>04</span>
                         <strong>LAVAGENS</strong>
                         <em>Evidenciar veículos levados pelo cronograma.</em>
                     </button>
                     <button id="open-non-conformities-menu" class="menu-card" type="button">
-                        <span>04</span>
+                        <span>05</span>
                         <strong>NÃO CONFORMIDADES</strong>
                         <em>Resolver não conformidades com peça cadastrada e foto de depois.</em>
                     </button>
                     <button id="open-maintenance-menu" class="menu-card" type="button">
-                        <span>05</span>
+                        <span>06</span>
                         <strong>MANUTENÇÃO</strong>
                         <em>Serviços direcionados, preventivas e instalação programada.</em>
                     </button>
                 </div>
+            </section>
+
+            <section id="checklist-history-screen" class="screen hidden">
+                <div class="screen-heading compact">
+                    <button id="checklist-history-back-button" class="icon-button" type="button">MENU</button>
+                    <div>
+                        <p class="overline">MATRIZ OPERACIONAL</p>
+                        <h2>HISTÓRICO DE CHECKLIST</h2>
+                    </div>
+                </div>
+
+                <section class="module-section">
+                    <div class="module-header">
+                        <div>
+                            <span>FILTROS</span>
+                            <strong>TIPO E PERÍODO</strong>
+                        </div>
+                        <em id="checklist-history-counter">0 FROTAS</em>
+                    </div>
+                    <div class="history-filters">
+                        <label>
+                            <span>TIPO</span>
+                            <select id="checklist-history-type-filter">
+                                <option value="">TODOS</option>
+                                <option value="cavalo">CAVALO</option>
+                                <option value="carreta">CARRETA</option>
+                            </select>
+                        </label>
+                        <label>
+                            <span>DATA INICIAL</span>
+                            <input type="date" id="checklist-history-start-date">
+                        </label>
+                        <label>
+                            <span>DATA FINAL</span>
+                            <input type="date" id="checklist-history-end-date">
+                        </label>
+                        <button id="checklist-history-apply-filter" class="icon-button" type="button">APLICAR</button>
+                    </div>
+                </section>
+
+                <section class="module-section">
+                    <div class="module-header">
+                        <div>
+                            <span>TABELA</span>
+                            <strong>FROTAS X DATAS</strong>
+                        </div>
+                    </div>
+                    <div id="checklist-history-table-wrap" class="history-table-wrap"></div>
+                </section>
             </section>
 
             <section id="vehicles-screen" class="screen hidden">

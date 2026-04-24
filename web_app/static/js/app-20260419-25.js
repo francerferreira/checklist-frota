@@ -75,6 +75,13 @@ const state = {
     selectedActivity: null,
     selectedVehicle: null,
     currentModule: "TODOS",
+    checklistHistory: {
+        tipo: "",
+        dataInicio: "",
+        dataFim: "",
+        columns: [],
+        rows: [],
+    },
 };
 
 const screens = {
@@ -85,6 +92,7 @@ const screens = {
     activities: document.getElementById("activities-screen"),
     activityDetail: document.getElementById("activity-detail-screen"),
     washes: document.getElementById("washes-screen"),
+    checklistHistory: document.getElementById("checklist-history-screen"),
     nonConformities: document.getElementById("non-conformities-screen"),
     maintenance: document.getElementById("maintenance-screen"),
     success: document.getElementById("success-screen"),
@@ -127,6 +135,7 @@ const elements = {
     passwordChangeCancel: document.getElementById("password-change-cancel"),
     passwordChangeSubmit: document.getElementById("password-change-submit"),
     openChecklistMenu: document.getElementById("open-checklist-menu"),
+    openChecklistHistoryMenu: document.getElementById("open-checklist-history-menu"),
     openActivitiesMenu: document.getElementById("open-activities-menu"),
     openWashesMenu: document.getElementById("open-washes-menu"),
     openNonConformitiesMenu: document.getElementById("open-non-conformities-menu"),
@@ -140,6 +149,13 @@ const elements = {
     activitySummary: document.getElementById("activity-summary"),
     activityItemsList: document.getElementById("activity-items-list"),
     washesBackButton: document.getElementById("washes-back-button"),
+    checklistHistoryBackButton: document.getElementById("checklist-history-back-button"),
+    checklistHistoryCounter: document.getElementById("checklist-history-counter"),
+    checklistHistoryTypeFilter: document.getElementById("checklist-history-type-filter"),
+    checklistHistoryStartDate: document.getElementById("checklist-history-start-date"),
+    checklistHistoryEndDate: document.getElementById("checklist-history-end-date"),
+    checklistHistoryApplyFilter: document.getElementById("checklist-history-apply-filter"),
+    checklistHistoryTableWrap: document.getElementById("checklist-history-table-wrap"),
     washCounter: document.getElementById("wash-counter"),
     washMonthTitle: document.getElementById("wash-month-title"),
     washPrevMonth: document.getElementById("wash-prev-month"),
@@ -558,6 +574,40 @@ function openChecklistMenu() {
     setActiveScreen("vehicles");
 }
 
+function formatDateInputValue(date) {
+    const year = date.getFullYear();
+    const month = String(date.getMonth() + 1).padStart(2, "0");
+    const day = String(date.getDate()).padStart(2, "0");
+    return `${year}-${month}-${day}`;
+}
+
+async function openChecklistHistoryMenu() {
+    try {
+        if (!state.checklistHistory.dataInicio || !state.checklistHistory.dataFim) {
+            const endDate = new Date();
+            const startDate = new Date(endDate);
+            startDate.setDate(endDate.getDate() - 6);
+            state.checklistHistory.dataInicio = formatDateInputValue(startDate);
+            state.checklistHistory.dataFim = formatDateInputValue(endDate);
+        }
+
+        if (elements.checklistHistoryTypeFilter) {
+            elements.checklistHistoryTypeFilter.value = state.checklistHistory.tipo || "";
+        }
+        if (elements.checklistHistoryStartDate) {
+            elements.checklistHistoryStartDate.value = state.checklistHistory.dataInicio || "";
+        }
+        if (elements.checklistHistoryEndDate) {
+            elements.checklistHistoryEndDate.value = state.checklistHistory.dataFim || "";
+        }
+
+        await loadChecklistHistory();
+        setActiveScreen("checklistHistory");
+    } catch (error) {
+        showToast(error.message, true);
+    }
+}
+
 async function openActivitiesMenu() {
     try {
         await loadOpenActivities();
@@ -627,6 +677,131 @@ async function loadNonConformityHubData() {
 
 async function loadMaintenanceOverview() {
     state.maintenanceOverview = await apiFetch(`/manutencao/visao?ano=${state.maintenanceYear}&mes=${state.maintenanceMonth}`);
+}
+
+async function loadChecklistHistory() {
+    const params = new URLSearchParams();
+    if (state.checklistHistory.tipo) {
+        params.set("tipo", state.checklistHistory.tipo);
+    }
+    if (state.checklistHistory.dataInicio) {
+        params.set("data_inicio", state.checklistHistory.dataInicio);
+    }
+    if (state.checklistHistory.dataFim) {
+        params.set("data_fim", state.checklistHistory.dataFim);
+    }
+
+    const path = params.toString()
+        ? `/checklist/historico-matriz?${params.toString()}`
+        : "/checklist/historico-matriz";
+    const data = await apiFetch(path);
+
+    state.checklistHistory.columns = Array.isArray(data?.columns) ? data.columns : [];
+    state.checklistHistory.rows = Array.isArray(data?.rows) ? data.rows : [];
+
+    if (data?.periodo?.inicio) {
+        state.checklistHistory.dataInicio = data.periodo.inicio;
+    }
+    if (data?.periodo?.fim) {
+        state.checklistHistory.dataFim = data.periodo.fim;
+    }
+
+    renderChecklistHistory();
+}
+
+function renderChecklistHistory() {
+    if (!elements.checklistHistoryTableWrap || !elements.checklistHistoryCounter) {
+        return;
+    }
+
+    const columns = state.checklistHistory.columns || [];
+    const rows = state.checklistHistory.rows || [];
+
+    elements.checklistHistoryCounter.textContent = `${rows.length} FROTAS`;
+    if (elements.checklistHistoryStartDate) {
+        elements.checklistHistoryStartDate.value = state.checklistHistory.dataInicio || "";
+    }
+    if (elements.checklistHistoryEndDate) {
+        elements.checklistHistoryEndDate.value = state.checklistHistory.dataFim || "";
+    }
+    if (elements.checklistHistoryTypeFilter) {
+        elements.checklistHistoryTypeFilter.value = state.checklistHistory.tipo || "";
+    }
+
+    if (!columns.length) {
+        elements.checklistHistoryTableWrap.innerHTML = `
+            <article class="empty-state">
+                <strong>SEM DATAS PARA O PERÍODO SELECIONADO.</strong>
+                <span>AJUSTE O FILTRO DE DATA PARA VISUALIZAR O HISTÓRICO.</span>
+            </article>
+        `;
+        return;
+    }
+
+    if (!rows.length) {
+        elements.checklistHistoryTableWrap.innerHTML = `
+            <article class="empty-state">
+                <strong>NENHUMA FROTA ENCONTRADA NESTE FILTRO.</strong>
+                <span>AJUSTE O TIPO CAVALO/CARRETA OU O PERÍODO.</span>
+            </article>
+        `;
+        return;
+    }
+
+    const headerColumns = columns
+        .map((column) => `<th>${escapeHtml(String(column.label || "-"))}</th>`)
+        .join("");
+    const bodyRows = rows
+        .map((row) => {
+            const cellValues = (row.cells || [])
+                .map((value) => `<td>${value ? escapeHtml(String(value)) : ""}</td>`)
+                .join("");
+            return `
+                <tr>
+                    <th>
+                        <strong>${escapeHtml(String(row.frota || "-"))}</strong>
+                        <span>${escapeHtml(String(row.placa || "-").toUpperCase())}</span>
+                    </th>
+                    ${cellValues}
+                </tr>
+            `;
+        })
+        .join("");
+
+    elements.checklistHistoryTableWrap.innerHTML = `
+        <table class="history-table">
+            <thead>
+                <tr>
+                    <th>FROTA</th>
+                    ${headerColumns}
+                </tr>
+            </thead>
+            <tbody>
+                ${bodyRows}
+            </tbody>
+        </table>
+    `;
+}
+
+async function applyChecklistHistoryFilters() {
+    const type = elements.checklistHistoryTypeFilter?.value || "";
+    const startDate = elements.checklistHistoryStartDate?.value || "";
+    const endDate = elements.checklistHistoryEndDate?.value || "";
+
+    if (startDate && endDate && endDate < startDate) {
+        showToast("A DATA FINAL DEVE SER MAIOR OU IGUAL À DATA INICIAL.", true);
+        return;
+    }
+
+    state.checklistHistory.tipo = type;
+    state.checklistHistory.dataInicio = startDate;
+    state.checklistHistory.dataFim = endDate;
+
+    try {
+        await loadChecklistHistory();
+    } catch (error) {
+        showToast(error.message, true);
+    }
 }
 
 function renderNonConformities() {
@@ -3516,6 +3691,7 @@ async function handleLoginSubmit() {
 on(elements.loginButton, "click", handleLoginSubmit);
 on(elements.vehicleSearch, "input", renderVehicles);
 on(elements.openChecklistMenu, "click", openChecklistMenu);
+on(elements.openChecklistHistoryMenu, "click", openChecklistHistoryMenu);
 on(elements.openActivitiesMenu, "click", openActivitiesMenu);
 on(elements.openWashesMenu, "click", openWashesMenu);
 on(elements.openNonConformitiesMenu, "click", openNonConformitiesMenu);
@@ -3548,6 +3724,11 @@ on(elements.washesBackButton, "click", () => {
     renderHome();
     setActiveScreen("home");
 });
+on(elements.checklistHistoryBackButton, "click", () => {
+    renderHome();
+    setActiveScreen("home");
+});
+on(elements.checklistHistoryApplyFilter, "click", applyChecklistHistoryFilters);
 on(elements.maintenanceBackButton, "click", () => {
     renderHome();
     setActiveScreen("home");

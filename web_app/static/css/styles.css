@@ -508,6 +508,101 @@ textarea {
     text-align: right;
 }
 
+.history-filters {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr)) auto;
+    gap: 10px;
+    align-items: end;
+    margin-top: 12px;
+}
+
+.history-filters label {
+    display: grid;
+    gap: 6px;
+}
+
+.history-filters label span {
+    margin: 0;
+}
+
+.history-filters .icon-button {
+    min-height: 48px;
+}
+
+.history-table-wrap {
+    margin-top: 12px;
+    overflow-x: auto;
+    border-radius: 16px;
+    border: 1px solid rgba(7, 86, 181, 0.16);
+    background: #ffffff;
+}
+
+.history-table {
+    width: 100%;
+    min-width: 760px;
+    border-collapse: collapse;
+}
+
+.history-table thead th {
+    position: sticky;
+    top: 0;
+    z-index: 1;
+    padding: 10px 8px;
+    border-bottom: 1px solid rgba(7, 86, 181, 0.18);
+    background: #eef5ff;
+    color: var(--ink);
+    text-align: center;
+    font-size: 0.78rem;
+    font-weight: 900;
+    white-space: nowrap;
+}
+
+.history-table tbody th,
+.history-table tbody td {
+    padding: 9px 8px;
+    border-bottom: 1px solid rgba(122, 140, 166, 0.14);
+    border-right: 1px solid rgba(122, 140, 166, 0.10);
+    vertical-align: middle;
+    text-align: center;
+    font-size: 0.78rem;
+}
+
+.history-table tbody th {
+    position: sticky;
+    left: 0;
+    z-index: 1;
+    min-width: 170px;
+    max-width: 220px;
+    background: #f6f9fe;
+    text-align: left;
+}
+
+.history-table tbody th strong,
+.history-table tbody th span {
+    display: block;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.history-table tbody th span {
+    color: var(--muted);
+    font-size: 0.72rem;
+    margin-top: 3px;
+}
+
+.history-table tbody td {
+    min-width: 112px;
+    background: #ffffff;
+    color: var(--ink);
+    font-weight: 800;
+    white-space: nowrap;
+}
+
+.history-table tbody tr:nth-child(even) td {
+    background: #fbfdff;
+}
+
 .wash-report-panel {
     display: flex;
     flex-wrap: wrap;
@@ -1699,6 +1794,18 @@ textarea {
     .wash-day-summary {
         grid-template-columns: 1fr;
         padding: 12px;
+    }
+
+    .history-filters {
+        grid-template-columns: 1fr;
+    }
+
+    .history-filters .icon-button {
+        width: 100%;
+    }
+
+    .history-table {
+        min-width: 680px;
     }
 }
 

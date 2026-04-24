@@ -1,3 +1,5 @@
+from datetime import date, datetime, time, timedelta
+
 from flask import Blueprint, g, jsonify, request
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy import func
@@ -81,6 +83,16 @@ def _find_vehicle(identifier: str):
     return Vehicle.query.filter(
         (Vehicle.frota.ilike(pattern)) | (Vehicle.placa.ilike(pattern))
     ).first()
+
+
+def _parse_date_param(value: str | None, fallback: date) -> date:
+    text = (value or "").strip()
+    if not text:
+        return fallback
+    try:
+        return date.fromisoformat(text)
+    except ValueError as exc:
+        raise ValueError("Data inválida. Use o formato YYYY-MM-DD.") from exc
 
 
 @bp.get("/config/checklists")
@@ -252,6 +264,109 @@ def list_checklists():
         query = query.filter_by(vehicle_id=vehicle.id)
 
     return jsonify([checklist.to_dict() for checklist in query.limit(limit).all()])
+
+
+@bp.get("/checklist/historico-matriz")
+@auth_required
+def checklist_history_matrix():
+    vehicle_type = request.args.get("tipo")
+    if vehicle_type:
+        try:
+            vehicle_type = _normalize_vehicle_type(vehicle_type)
+        except ValueError as exc:
+            return jsonify({"error": str(exc)}), 400
+
+    today = datetime.utcnow().date()
+    try:
+        start_date = _parse_date_param(request.args.get("data_inicio"), today - timedelta(days=6))
+        end_date = _parse_date_param(request.args.get("data_fim"), today)
+    except ValueError as exc:
+        return jsonify({"error": str(exc)}), 400
+
+    if end_date < start_date:
+        return jsonify({"error": "A data final deve ser maior ou igual à data inicial."}), 400
+
+    max_days = 62
+    if (end_date - start_date).days + 1 > max_days:
+        return jsonify({"error": f"Período muito grande. Limite de {max_days} dias."}), 400
+
+    start_dt = datetime.combine(start_date, time.min)
+    end_dt_exclusive = datetime.combine(end_date + timedelta(days=1), time.min)
+
+    vehicle_query = Vehicle.query.filter(Vehicle.ativo.is_(True))
+    if vehicle_type:
+        vehicle_query = vehicle_query.filter(Vehicle.tipo == vehicle_type)
+    else:
+        vehicle_query = vehicle_query.filter(Vehicle.tipo.in_(["cavalo", "carreta"]))
+    vehicles = vehicle_query.order_by(Vehicle.frota.asc()).all()
+
+    columns = []
+    day = start_date
+    while day <= end_date:
+        columns.append({
+            "date": day.isoformat(),
+            "label": day.strftime("%d/%m"),
+        })
+        day += timedelta(days=1)
+
+    rows_map: dict[int, dict] = {}
+    for vehicle in vehicles:
+        rows_map[vehicle.id] = {
+            "vehicle_id": vehicle.id,
+            "frota": vehicle.frota,
+            "placa": vehicle.placa,
+            "tipo": vehicle.tipo,
+            "cells": {column["date"]: "" for column in columns},
+            "_latest_by_date": {},
+        }
+
+    checklist_query = (
+        Checklist.query.join(Vehicle)
+        .filter(Checklist.created_at >= start_dt, Checklist.created_at < end_dt_exclusive)
+    )
+    if vehicle_type:
+        checklist_query = checklist_query.filter(Vehicle.tipo == vehicle_type)
+    else:
+        checklist_query = checklist_query.filter(Vehicle.tipo.in_(["cavalo", "carreta"]))
+
+    checklists = checklist_query.order_by(Checklist.created_at.asc()).all()
+    for checklist in checklists:
+        row = rows_map.get(checklist.vehicle_id)
+        if not row:
+            continue
+        day_key = checklist.created_at.date().isoformat()
+        if day_key not in row["cells"]:
+            continue
+
+        previous_dt = row["_latest_by_date"].get(day_key)
+        if previous_dt and checklist.created_at <= previous_dt:
+            continue
+
+        user_name = (checklist.user.nome or checklist.user.login or "").strip()
+        row["cells"][day_key] = f"{checklist.created_at.strftime('%H:%M')} - {user_name}"
+        row["_latest_by_date"][day_key] = checklist.created_at
+
+    rows = []
+    for vehicle in vehicles:
+        row = rows_map[vehicle.id]
+        rows.append({
+            "vehicle_id": row["vehicle_id"],
+            "frota": row["frota"],
+            "placa": row["placa"],
+            "tipo": row["tipo"],
+            "cells": [row["cells"].get(column["date"], "") for column in columns],
+        })
+
+    return jsonify(
+        {
+            "periodo": {
+                "inicio": start_date.isoformat(),
+                "fim": end_date.isoformat(),
+            },
+            "columns": columns,
+            "rows": rows,
+        }
+    )
 
 
 @bp.get("/checklist/<veiculo>")
