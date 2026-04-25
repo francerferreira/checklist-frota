@@ -77,7 +77,11 @@ class APIClient:
         return self._request("POST", "/veiculos", json=payload)
 
     def update_vehicle(self, vehicle_id: int, payload: dict):
-        return self._request("PUT", f"/veiculos/{vehicle_id}", json=payload)
+        result = self._request("PUT", f"/veiculos/{vehicle_id}", json=payload)
+        # Limpar cache de imagem quando veiculo for atualizado
+        # Garante que dados recentes sejam carregados
+        self._image_cache.clear()
+        return result
 
     def retire_vehicle(self, vehicle_id: int):
         return self._request("DELETE", f"/veiculos/{vehicle_id}")

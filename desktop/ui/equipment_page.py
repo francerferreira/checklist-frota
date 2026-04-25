@@ -486,9 +486,25 @@ class EquipmentPage(QFrame):
         dialog = EquipmentDialog(self.api_client, target_item, self)
         if dialog.exec():
             try:
-                self.api_client.update_vehicle(target_item["id"], dialog.result_payload)
-                from components import show_notice
-                show_notice(self, "Equipamento atualizado", "Cadastro atualizado com sucesso.", icon_name="dashboard")
+                updated_payload = dialog.result_payload
+                old_frota = target_item.get("frota")
+                new_frota = updated_payload.get("frota")
+                
+                self.api_client.update_vehicle(target_item["id"], updated_payload)
+                
+                # Se frota foi alterada, avisar sistema para atualizar referencias em todos os lugares
+                if old_frota and new_frota and old_frota.upper() != new_frota.upper():
+                    from components import show_notice
+                    show_notice(
+                        self,
+                        "Equipamento atualizado",
+                        f"Frota alterada de '{old_frota}' para '{new_frota}'.\n\nAtualizando sistema...",
+                        icon_name="dashboard"
+                    )
+                else:
+                    from components import show_notice
+                    show_notice(self, "Equipamento atualizado", "Cadastro atualizado com sucesso.", icon_name="dashboard")
+                
                 self.refresh(target_item.get("id"))
                 self.data_changed.emit()
             except Exception as exc:

@@ -623,9 +623,15 @@ class MainWindow(QMainWindow):
             show_notice(self, "Falha ao carregar dados", str(exc), icon_name="warning")
 
     def handle_data_changed(self, source_page_key: str):
+        # Invalidar cache de toda a aplicacao quando dados sao alterados
+        # Especialmente importante para frota, que aparece em multiplos lugares
         for page_key in self.page_map:
             if page_key != source_page_key:
                 self.dirty_pages.add(page_key)
+
+        # Se equipamentos foram alterados, forcar refresh de tudo que usa frota
+        if source_page_key == "equipment":
+            self.dirty_pages.update(["activities", "maintenance", "washes", "nc", "reports"])
 
         if source_page_key != "dashboard" and self.current_page_key != source_page_key:
             self._refresh_page("dashboard")
