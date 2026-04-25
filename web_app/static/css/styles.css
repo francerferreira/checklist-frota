@@ -519,35 +519,59 @@ textarea {
 .history-filters label {
     display: grid;
     gap: 6px;
+    min-width: 0;
 }
 
 .history-filters label span {
     margin: 0;
+    white-space: normal;
 }
 
 .history-filters .icon-button {
     min-height: 48px;
+    justify-self: stretch;
+}
+
+@media (max-width: 760px) {
+    .history-filters {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+}
+
+@media (max-width: 520px) {
+    .history-filters {
+        grid-template-columns: 1fr;
+    }
+
+    .history-filters .icon-button {
+        width: 100%;
+    }
 }
 
 .history-table-wrap {
     margin-top: 12px;
     overflow-x: auto;
+    overflow-y: auto;
+    max-height: calc(100vh - 280px);
+    min-height: 260px;
     border-radius: 16px;
     border: 1px solid rgba(7, 86, 181, 0.16);
     background: #ffffff;
+    scrollbar-gutter: stable both-edges;
 }
 
 .history-table {
     width: 100%;
     min-width: 100%;
     border-collapse: collapse;
+    table-layout: fixed;
 }
 
 .history-table thead th {
     position: sticky;
     top: 0;
-    z-index: 1;
-    padding: 10px 8px;
+    z-index: 2;
+    padding: 12px 10px;
     border-bottom: 1px solid rgba(7, 86, 181, 0.18);
     background: #eef5ff;
     color: var(--ink);
@@ -559,7 +583,7 @@ textarea {
 
 .history-table tbody th,
 .history-table tbody td {
-    padding: 9px 8px;
+    padding: 12px 10px;
     border-bottom: 1px solid rgba(122, 140, 166, 0.14);
     border-right: 1px solid rgba(122, 140, 166, 0.10);
     vertical-align: middle;
