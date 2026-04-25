@@ -539,7 +539,7 @@ textarea {
 
 .history-table {
     width: 100%;
-    min-width: 760px;
+    min-width: 100%;
     border-collapse: collapse;
 }
 
@@ -565,6 +565,8 @@ textarea {
     vertical-align: middle;
     text-align: center;
     font-size: 0.78rem;
+    white-space: normal;
+    word-break: break-word;
 }
 
 .history-table tbody th {
@@ -582,7 +584,7 @@ textarea {
     display: block;
     overflow: hidden;
     text-overflow: ellipsis;
-    white-space: nowrap;
+    white-space: normal;
 }
 
 .history-table tbody th span {
@@ -596,7 +598,8 @@ textarea {
     background: #ffffff;
     color: var(--ink);
     font-weight: 800;
-    white-space: nowrap;
+    white-space: normal;
+    word-break: break-word;
 }
 
 .history-table tbody tr:nth-child(even) td {
@@ -1805,7 +1808,7 @@ textarea {
     }
 
     .history-table {
-        min-width: 680px;
+        min-width: 100%;
     }
 }
 
