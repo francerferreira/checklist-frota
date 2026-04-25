@@ -561,10 +561,9 @@ textarea {
 }
 
 .history-table {
-    width: 100%;
+    width: max-content;
     min-width: 100%;
     border-collapse: collapse;
-    table-layout: fixed;
 }
 
 .history-table thead th {
@@ -589,16 +588,15 @@ textarea {
     vertical-align: middle;
     text-align: center;
     font-size: 0.78rem;
-    white-space: normal;
-    word-break: break-word;
+    white-space: nowrap;
 }
 
 .history-table tbody th {
     position: sticky;
     left: 0;
     z-index: 1;
-    min-width: 170px;
-    max-width: 220px;
+    min-width: 220px;
+    max-width: none;
     background: #f6f9fe;
     text-align: left;
 }
@@ -608,7 +606,7 @@ textarea {
     display: block;
     overflow: hidden;
     text-overflow: ellipsis;
-    white-space: normal;
+    white-space: nowrap;
 }
 
 .history-table tbody th span {
@@ -617,13 +615,12 @@ textarea {
     margin-top: 3px;
 }
 
-.history-table tbody td {
-    min-width: 112px;
+..history-table tbody td {
+    min-width: 140px;
     background: #ffffff;
     color: var(--ink);
     font-weight: 800;
-    white-space: normal;
-    word-break: break-word;
+    white-space: nowrap;
 }
 
 .history-table tbody tr:nth-child(even) td {
