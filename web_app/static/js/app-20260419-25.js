@@ -3538,6 +3538,14 @@ function logout() {
     state.selectedVehicle = null;
     closePasswordResetModal();
     clearSession();
+    setLoginStatus("");
+    if (elements.loginForm) {
+        elements.loginForm.reset();
+    }
+    if (elements.loginButton) {
+        elements.loginButton.disabled = false;
+        elements.loginButton.textContent = "ENTRAR NO SISTEMA";
+    }
     setActiveScreen("login");
 }
 
