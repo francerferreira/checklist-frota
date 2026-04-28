@@ -169,13 +169,11 @@ def _before_flush(session: Session, flush_context, instances):  # noqa: ANN001
 
 
 def _after_flush_postexec(session: Session, flush_context):  # noqa: ANN001
-    if session.info.get("_audit_writing_logs"):
-        return
     buffer = session.info.pop("_audit_buffer", None) or []
     if not buffer:
         return
 
-    logs: list[AuditLog] = []
+    ready_rows: list[dict[str, Any]] = []
     for entry in buffer:
         instance = entry.get("instance")
         entity_id = entry.get("entity_id")
@@ -183,25 +181,40 @@ def _after_flush_postexec(session: Session, flush_context):  # noqa: ANN001
             entity_id = getattr(instance, "id", None)
         if entity_id is None:
             entity_id = 0
-        logs.append(
-            AuditLog(
-                user_id=entry.get("user_id"),
-                entity_type=entry.get("entity_type") or "SYSTEM",
-                entity_id=int(entity_id),
-                action=entry.get("action") or "UPDATE",
-                old_value=entry.get("old_value"),
-                new_value=entry.get("new_value"),
-            )
+        ready_rows.append(
+            {
+                "user_id": entry.get("user_id"),
+                "entity_type": entry.get("entity_type") or "SYSTEM",
+                "entity_id": int(entity_id),
+                "action": entry.get("action") or "UPDATE",
+                "old_value": entry.get("old_value"),
+                "new_value": entry.get("new_value"),
+                "created_at": datetime.utcnow(),
+            }
         )
 
-    if not logs:
+    if not ready_rows:
         return
 
-    session.info["_audit_writing_logs"] = True
+    pending = session.info.setdefault("_audit_pending_rows", [])
+    pending.extend(ready_rows)
+
+
+def _after_commit(session: Session) -> None:
+    pending = session.info.pop("_audit_pending_rows", None) or []
+    if not pending:
+        return
     try:
-        session.add_all(logs)
-    finally:
-        session.info.pop("_audit_writing_logs", None)
+        with db.engine.begin() as conn:
+            conn.execute(AuditLog.__table__.insert(), pending)
+    except Exception:
+        # Auditoria é melhor esforço: nunca deve quebrar o fluxo operacional.
+        pass
+
+
+def _after_rollback(session: Session) -> None:
+    session.info.pop("_audit_buffer", None)
+    session.info.pop("_audit_pending_rows", None)
 
 
 def install_audit_hooks() -> None:
@@ -210,6 +223,8 @@ def install_audit_hooks() -> None:
         return
     event.listen(Session, "before_flush", _before_flush)
     event.listen(Session, "after_flush_postexec", _after_flush_postexec)
+    event.listen(Session, "after_commit", _after_commit)
+    event.listen(Session, "after_rollback", _after_rollback)
     _AUDIT_HOOKS_REGISTERED = True
 
 

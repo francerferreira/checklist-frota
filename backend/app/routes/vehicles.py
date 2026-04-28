@@ -63,6 +63,17 @@ def _vehicle_from_payload(vehicle: Vehicle, payload: dict) -> Vehicle:
     return vehicle
 
 
+def _integrity_error_message(exc: IntegrityError) -> str:
+    raw = str(getattr(exc, "orig", exc) or "").lower()
+    if "vehicles_frota_key" in raw or ("unique" in raw and "frota" in raw):
+        return "Frota ja cadastrada."
+    if "vehicles_placa_key" in raw or ("unique" in raw and "placa" in raw):
+        return "Placa ja cadastrada."
+    if "audit_logs" in raw:
+        return "Falha ao registrar auditoria. Operacao cancelada."
+    return f"Falha de integridade ao salvar: {getattr(exc, 'orig', exc)}"
+
+
 @bp.get("/veiculos")
 @auth_required
 def list_vehicles():
@@ -101,9 +112,9 @@ def create_vehicle():
     db.session.add(vehicle)
     try:
         db.session.commit()
-    except IntegrityError:
+    except IntegrityError as exc:
         db.session.rollback()
-        return api_response(False, error="Placa ou frota já cadastrada.", status_code=409)
+        return api_response(False, error=_integrity_error_message(exc), status_code=409)
     return api_response(True, data=vehicle.to_dict(), status_code=201)
 
 
@@ -123,9 +134,9 @@ def update_vehicle(vehicle_id: int):
 
     try:
         db.session.commit()
-    except IntegrityError:
+    except IntegrityError as exc:
         db.session.rollback()
-        return api_response(False, error="Placa ou frota já cadastrada.", status_code=409)
+        return api_response(False, error=_integrity_error_message(exc), status_code=409)
     return api_response(True, data=vehicle.to_dict())
 
 
@@ -144,7 +155,11 @@ def retire_vehicle(vehicle_id: int):
     
     record_status_change(g.current_user.id, "VEHICLE", vehicle.id, old_status, "RETIRADO")
     
-    db.session.commit()
+    try:
+        db.session.commit()
+    except IntegrityError as exc:
+        db.session.rollback()
+        return api_response(False, error=_integrity_error_message(exc), status_code=409)
     return api_response(True, data=vehicle.to_dict())
 
 
