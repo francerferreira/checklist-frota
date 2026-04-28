@@ -8,6 +8,7 @@ from dotenv import load_dotenv
 
 from app.extensions import cors, db, migrate
 from app.routes import register_blueprints
+from app.services.audit_service import install_audit_hooks
 from app.services.runtime_schema_service import ensure_runtime_schema
 from app.services.seed_service import seed_reference_data
 
@@ -44,5 +45,6 @@ def create_app() -> Flask:
         ensure_runtime_schema()
         db.create_all()
         seed_reference_data()
+        install_audit_hooks()
 
     return app

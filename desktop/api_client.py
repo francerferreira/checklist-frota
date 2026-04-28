@@ -62,6 +62,11 @@ class APIClient:
         return bool(self.user and self.user.get("tipo") == "admin")
 
     def clear_session(self) -> None:
+        try:
+            if "Authorization" in self.session.headers:
+                self.logout()
+        except Exception:
+            pass
         self.session.headers.pop("Authorization", None)
         self.user = None
         self.login_started_at = None
@@ -377,6 +382,9 @@ class APIClient:
 
     def get_cloud_storage_status(self):
         return self._request("GET", "/admin/storage/status")
+
+    def logout(self):
+        return self._request("POST", "/logout", timeout=8)
 
     def get_audit_logs(
         self,

@@ -3551,7 +3551,14 @@ async function submitChecklist() {
     }
 }
 
-function logout() {
+async function logout() {
+    try {
+        if (state.token) {
+            await apiFetch("/logout", { method: "POST" });
+        }
+    } catch (error) {
+        console.warn("Falha ao registrar logout:", error);
+    }
     state.token = "";
     state.user = null;
     state.selectedVehicle = null;

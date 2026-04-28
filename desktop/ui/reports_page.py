@@ -752,8 +752,18 @@ class ReportsPage(QFrame):
 
         self.audit_entity_filter = QComboBox()
         self.audit_entity_filter.addItem("Todas as entidades", "")
+        self.audit_entity_filter.addItem("Sessões (login/logout)", "SESSION")
+        self.audit_entity_filter.addItem("Usuários", "USER")
         self.audit_entity_filter.addItem("Veículos", "VEHICLE")
+        self.audit_entity_filter.addItem("Checklist", "CHECKLIST")
         self.audit_entity_filter.addItem("Itens de Checklist", "CHECKLIST_ITEM")
+        self.audit_entity_filter.addItem("Atividades", "ACTIVITY")
+        self.audit_entity_filter.addItem("Itens de Atividade", "ACTIVITY_ITEM")
+        self.audit_entity_filter.addItem("Manutenção", "MAINTENANCE_SCHEDULE")
+        self.audit_entity_filter.addItem("Itens de Manutenção", "MAINTENANCE_SCHEDULE_ITEM")
+        self.audit_entity_filter.addItem("Materiais", "MATERIAL")
+        self.audit_entity_filter.addItem("Movimentos de Material", "MATERIAL_MOVEMENT")
+        self.audit_entity_filter.addItem("Lavagens", "WASH_RECORD")
         self.audit_entity_filter.setMinimumHeight(34)
         self.audit_entity_filter.currentIndexChanged.connect(self._schedule_audit_refresh)
 

@@ -1,7 +1,10 @@
-from flask import Blueprint, jsonify, request
+from flask import Blueprint, g, request
 
+from app.extensions import db
 from app.models import User
-from app.services.auth_service import generate_token
+from app.services.audit_service import record_event, record_login_event, record_logout_event
+from app.services.auth_service import auth_required, generate_token
+from app.utils.responses import api_response
 
 bp = Blueprint("auth", __name__)
 
@@ -14,11 +17,33 @@ def login():
 
     user = User.query.filter_by(login=login_value).first()
     if not user or not user.ativo or not user.check_password(password):
-        return jsonify({"error": "Login ou senha invalidos."}), 401
+        if user:
+            record_login_event(user, success=False)
+        else:
+            record_event(
+                user_id=None,
+                entity_type="SESSION",
+                entity_id=0,
+                action="LOGIN_FAILED",
+                new_value=f"login={login_value or '-'}",
+            )
+        db.session.commit()
+        return api_response(False, error="Login ou senha invalidos.", status_code=401)
 
-    return jsonify(
-        {
+    record_login_event(user, success=True)
+    db.session.commit()
+    return api_response(
+        True,
+        data={
             "token": generate_token(user),
             "user": user.to_dict(),
-        }
+        },
     )
+
+
+@bp.post("/logout")
+@auth_required
+def logout():
+    record_logout_event(g.current_user)
+    db.session.commit()
+    return api_response(True, data={"message": "Sessao encerrada."})
