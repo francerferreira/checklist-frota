@@ -13,8 +13,8 @@
     --amber: #f59e0b;
     --shadow: 0 18px 44px rgba(9, 26, 52, 0.14);
     --radius: 20px;
-    --history-frota-col-width: 182px;
-    --history-count-col-width: 58px;
+    --history-frota-col-width: 124px;
+    --history-count-col-width: 36px;
 }
 
 * {
@@ -598,7 +598,10 @@ textarea {
     width: var(--history-frota-col-width);
     min-width: var(--history-frota-col-width);
     max-width: var(--history-frota-col-width);
+    padding-left: 8px;
+    padding-right: 6px;
     text-align: left;
+    font-size: 0.74rem;
 }
 
 .history-table thead th.history-count-header {
@@ -607,8 +610,9 @@ textarea {
     width: var(--history-count-col-width);
     min-width: var(--history-count-col-width);
     max-width: var(--history-count-col-width);
-    padding-left: 4px;
-    padding-right: 4px;
+    padding-left: 2px;
+    padding-right: 2px;
+    font-size: 0.74rem;
 }
 
 .history-table tbody th,
@@ -629,6 +633,8 @@ textarea {
     width: var(--history-frota-col-width);
     min-width: var(--history-frota-col-width);
     max-width: var(--history-frota-col-width);
+    padding-left: 8px;
+    padding-right: 6px;
     background: #f6f9fe;
     text-align: left;
 }
@@ -638,14 +644,14 @@ textarea {
     display: block;
     overflow: hidden;
     text-overflow: ellipsis;
-    white-space: normal;
-    word-break: break-word;
+    white-space: nowrap;
+    word-break: normal;
 }
 
 .history-table tbody th span {
     color: var(--muted);
-    font-size: 0.72rem;
-    margin-top: 3px;
+    font-size: 0.68rem;
+    margin-top: 2px;
 }
 
 .history-table tbody td {
@@ -663,8 +669,9 @@ textarea {
     width: var(--history-count-col-width);
     min-width: var(--history-count-col-width);
     max-width: var(--history-count-col-width);
-    padding-left: 4px;
-    padding-right: 4px;
+    padding-left: 2px;
+    padding-right: 2px;
+    font-size: 0.74rem;
     font-weight: 900;
     text-align: center;
     background: #f9fbff;
