@@ -1,10 +1,6 @@
-const CACHE_NAME = "cf-checklist-frota-pwa-20260428-05";
-const APP_SHELL = [
-    "./",
-    "./index.html",
+const CACHE_NAME = "cf-checklist-frota-pwa-20260428-06";
+const STATIC_CACHE_PATHS = [
     "./manifest.json",
-    "./static/css/styles.css?v=20260428-05",
-    "./static/js/app-20260419-25.js?v=20260428-03",
     "./static/icons/icon-192.png",
     "./static/icons/icon-512.png",
     "./static/icons/cf-logo-mark.png",
@@ -14,7 +10,7 @@ const APP_SHELL = [
 self.addEventListener("install", (event) => {
     event.waitUntil(
         caches.open(CACHE_NAME)
-            .then((cache) => cache.addAll(APP_SHELL))
+            .then((cache) => cache.addAll(STATIC_CACHE_PATHS))
             .then(() => self.skipWaiting())
     );
 });
@@ -25,7 +21,6 @@ self.addEventListener("activate", (event) => {
             .then((keys) => Promise.all(keys
                 .filter((key) => key !== CACHE_NAME)
                 .map((key) => caches.delete(key))))
-            .then(() => self.clients.claim())
     );
 });
 
@@ -37,36 +32,26 @@ self.addEventListener("fetch", (event) => {
         return;
     }
 
-    const isApiRequest = [
-        "/veiculos",
-        "/config",
-        "/atividades",
-        "/lavagens",
-        "/checklist",
-        "/non-conformities",
-        "/atividades",
-    ].some((path) => url.pathname.startsWith(path));
+    const isAppCode = url.pathname.endsWith(".html")
+        || url.pathname.endsWith(".css")
+        || url.pathname.endsWith(".js")
+        || request.mode === "navigate";
 
-    if (isApiRequest) {
-        event.respondWith(fetch(request));
-        return;
-    }
-
-    if (request.mode === "navigate") {
+    if (isAppCode) {
         event.respondWith(
-            fetch(request)
+            fetch(request, { cache: "no-store" })
                 .then((response) => {
                     const copy = response.clone();
-                    caches.open(CACHE_NAME).then((cache) => cache.put("./index.html", copy));
+                    caches.open(CACHE_NAME).then((cache) => cache.put(request, copy));
                     return response;
                 })
-                .catch(() => caches.match("./index.html"))
+                .catch(() => caches.match(request))
         );
         return;
     }
 
     event.respondWith(
-        caches.match(request, { ignoreSearch: true })
+        caches.match(request)
             .then((cached) => cached || fetch(request).then((response) => {
                 if (response.ok) {
                     const copy = response.clone();

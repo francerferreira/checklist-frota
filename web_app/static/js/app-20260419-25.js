@@ -231,12 +231,12 @@ function updateConnectionStatus() {
 }
 
 function registerServiceWorker() {
-    if (!("serviceWorker" in navigator) || !window.ENABLE_CHECKLIST_PWA) {
+    if (!("serviceWorker" in navigator) || !window.CHECKLIST_CONFIG?.ENABLE_CHECKLIST_PWA) {
         return;
     }
 
     window.addEventListener("load", () => {
-        navigator.serviceWorker.register("./service-worker.js").catch(() => {
+        navigator.serviceWorker.register("./service-worker.js", { updateViaCache: "none" }).catch(() => {
             showToast("PWA NÃO PÔDE SER ATIVADO NESTE NAVEGADOR.", true);
         });
     });
@@ -3853,10 +3853,16 @@ window.checklistAppReady = true;
 bootstrap();
 
 function unregisterServiceWorkers() {
-    if (!("serviceWorker" in navigator) || window.ENABLE_CHECKLIST_PWA) {
+    if (!("serviceWorker" in navigator) || window.CHECKLIST_CONFIG?.ENABLE_CHECKLIST_PWA) {
         return;
     }
     navigator.serviceWorker.getRegistrations()
         .then((registrations) => Promise.all(registrations.map((registration) => registration.unregister())))
+        .then(() => {
+            if (!("caches" in window)) {
+                return null;
+            }
+            return caches.keys().then((names) => Promise.all(names.map((name) => caches.delete(name))));
+        })
         .catch(() => {});
 }
