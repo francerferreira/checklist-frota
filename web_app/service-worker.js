@@ -1,4 +1,4 @@
-const CACHE_NAME = "cf-checklist-frota-pwa-20260428-01";
+const CACHE_NAME = "cf-checklist-frota-pwa-20260428-02";
 const APP_SHELL = [
     "./",
     "./index.html",
