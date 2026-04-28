@@ -4,6 +4,7 @@ from sqlalchemy import func
 from app.extensions import db
 from app.models import ChecklistItem, Vehicle, Checklist
 from app.services.auth_service import auth_required
+from app.services.report_service import build_dashboard_summary, build_productivity_report
 from app.utils.responses import api_response
 from app.utils.filters import apply_item_search
 from app.routes.non_conformities import NCStatus
@@ -20,6 +21,20 @@ def _parse_date(value: str | None, end_of_day: bool = False):
         return dt
     except ValueError:
         return None
+
+
+@bp.get("/dashboard")
+@auth_required
+def get_dashboard_report():
+    """Resumo executivo do dashboard (mantido para desktop e web)."""
+    return api_response(True, data=build_dashboard_summary())
+
+
+@bp.get("/produtividade")
+@auth_required
+def get_productivity_dashboard():
+    """Relatório consolidado de produtividade por usuário."""
+    return api_response(True, data=build_productivity_report())
 
 @bp.get("/macro")
 @auth_required

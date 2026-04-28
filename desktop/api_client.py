@@ -34,7 +34,13 @@ class APIClient:
         response = self.session.request(method, f"{self.base_url}{path}", timeout=timeout, **kwargs)
         if response.ok:
             if response.content:
-                return response.json()
+                payload = response.json()
+                if isinstance(payload, dict):
+                    if payload.get("success") is False:
+                        raise RuntimeError(payload.get("error") or f"Falha na requisicao {method} {path}.")
+                    if "data" in payload:
+                        return payload["data"]
+                return payload
             return None
 
         try:
