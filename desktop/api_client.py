@@ -378,6 +378,21 @@ class APIClient:
     def get_cloud_storage_status(self):
         return self._request("GET", "/admin/storage/status")
 
+    def get_audit_logs(
+        self,
+        entidade: str | None = None,
+        data_inicio: str | None = None,
+        data_fim: str | None = None,
+    ):
+        params = {}
+        if entidade:
+            params["entidade"] = entidade
+        if data_inicio:
+            params["data_inicio"] = data_inicio
+        if data_fim:
+            params["data_fim"] = data_fim
+        return self._request("GET", "/admin/audit-logs", params=params or None)
+
     def create_cloud_backup(self):
         return self._request("POST", "/admin/backups/create", timeout=180)
 

@@ -319,23 +319,20 @@ class MainWindow(QMainWindow):
         menu_groups = {
             "Cadastro": ["equipment", "users"],
             "Tabelas": ["checklist_items", "materials"],
-            "Movimento": ["nc", "activities", "washes", "maintenance"],
+            "Movimento": ["activities", "washes", "maintenance"],
             "Relatórios": ["reports", "productivity"],
-            "Sistema": ["dashboard"],
-            "Utilitários": ["cloud_backup"],
+            "Sistema": [],
+            "Utilitários": ["dashboard", "nc", "cloud_backup"],
         }
 
         for menu_title, keys in menu_groups.items():
+            available_keys = [key for key in keys if key in self.page_map]
+            if not available_keys:
+                continue
             menu = menubar.addMenu(menu_title)
-            added = 0
-            for key in keys:
-                if key not in self.page_map:
-                    continue
+            for key in available_keys:
                 action = menu.addAction(self.page_titles.get(key, key))
                 action.triggered.connect(lambda checked=False, page_key=key: self.switch_page(page_key))
-                added += 1
-            if added == 0:
-                menu.setEnabled(False)
 
         account_menu = menubar.addMenu("Conta")
         toggle_nav_action = account_menu.addAction("Ocultar/mostrar navegação")
@@ -376,9 +373,9 @@ class MainWindow(QMainWindow):
         sections = [
             ("1 - Cadastro", ["equipment", "users"]),
             ("2 - Tabelas", ["checklist_items", "materials"]),
-            ("3 - Movimento", ["nc", "activities", "washes", "maintenance"]),
+            ("3 - Movimento", ["activities", "washes", "maintenance"]),
             ("4 - Relatórios", ["reports", "productivity"]),
-            ("5 - Utilitários", ["dashboard", "cloud_backup"]),
+            ("5 - Utilitários", ["dashboard", "nc", "cloud_backup"]),
         ]
 
         for section_label, keys in sections:
@@ -694,5 +691,3 @@ class MainWindow(QMainWindow):
             target = 300
         self.main_splitter.setSizes([target, max(1, self.width() - target)])
         self.sidebar_visible = True
-
-
