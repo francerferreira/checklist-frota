@@ -576,6 +576,10 @@ textarea {
     scrollbar-gutter: stable;
 }
 
+.history-table-wrap.history-expanded {
+    --history-frota-col-width: 168px;
+}
+
 .history-table {
     width: max-content;
     min-width: 100%;
@@ -641,6 +645,8 @@ textarea {
     padding-right: 4px;
     background: #f6f9fe;
     text-align: left;
+    cursor: pointer;
+    transition: background 0.16s ease;
 }
 
 .history-table tbody th strong,
@@ -656,6 +662,23 @@ textarea {
     color: var(--muted);
     font-size: 0.64rem;
     margin-top: 2px;
+}
+
+.history-table tbody tr.history-row-selected th,
+.history-table tbody tr.history-row-selected td {
+    background: #fff7d7;
+}
+
+.history-table tbody tr.history-row-selected td.history-count-cell {
+    background: #ffefb4;
+}
+
+.history-table tbody tr.history-row-selected th strong,
+.history-table tbody tr.history-row-selected th span {
+    overflow: visible;
+    text-overflow: clip;
+    white-space: normal;
+    line-height: 1.25;
 }
 
 .history-table tbody td {

@@ -1,4 +1,4 @@
-const CACHE_NAME = "cf-checklist-frota-pwa-20260428-06";
+const CACHE_NAME = "cf-checklist-frota-pwa-20260428-07";
 const STATIC_CACHE_PATHS = [
     "./manifest.json",
     "./static/icons/icon-192.png",

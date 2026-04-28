@@ -81,6 +81,7 @@ const state = {
         dataFim: "",
         columns: [],
         rows: [],
+        expandedVehicleId: "",
     },
 };
 
@@ -776,9 +777,11 @@ function renderChecklistHistory() {
                 .map((value) => `<td>${value ? escapeHtml(String(value)) : ""}</td>`)
                 .join("");
             const checklistCount = Number(row.checklist_count || 0);
+            const vehicleId = String(row.vehicle_id || "");
+            const isExpanded = vehicleId && vehicleId === String(state.checklistHistory.expandedVehicleId || "");
             return `
-                <tr>
-                    <th>
+                <tr class="${isExpanded ? "history-row-selected" : ""}">
+                    <th class="history-vehicle-cell" data-vehicle-id="${escapeHtml(vehicleId)}" title="Toque para expandir/recolher">
                         <strong>${escapeHtml(String(row.frota || "-"))}</strong>
                         <span>${escapeHtml(String(row.placa || "-").toUpperCase())}</span>
                     </th>
@@ -789,6 +792,7 @@ function renderChecklistHistory() {
         })
         .join("");
 
+    elements.checklistHistoryTableWrap.classList.toggle("history-expanded", Boolean(state.checklistHistory.expandedVehicleId));
     elements.checklistHistoryTableWrap.innerHTML = `
         <table class="history-table">
             <thead>
@@ -803,6 +807,24 @@ function renderChecklistHistory() {
             </tbody>
         </table>
     `;
+    bindChecklistHistoryExpansion();
+}
+
+function bindChecklistHistoryExpansion() {
+    elements.checklistHistoryTableWrap.querySelectorAll(".history-vehicle-cell").forEach((cell) => {
+        cell.addEventListener("click", () => {
+            const vehicleId = String(cell.dataset.vehicleId || "");
+            const nextVehicleId = state.checklistHistory.expandedVehicleId === vehicleId ? "" : vehicleId;
+            state.checklistHistory.expandedVehicleId = nextVehicleId;
+            elements.checklistHistoryTableWrap.classList.toggle("history-expanded", Boolean(nextVehicleId));
+            elements.checklistHistoryTableWrap.querySelectorAll("tbody tr").forEach((row) => {
+                row.classList.remove("history-row-selected");
+            });
+            if (nextVehicleId) {
+                cell.closest("tr")?.classList.add("history-row-selected");
+            }
+        });
+    });
 }
 
 async function applyChecklistHistoryFilters() {
