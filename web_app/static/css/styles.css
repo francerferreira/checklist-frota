@@ -13,6 +13,8 @@
     --amber: #f59e0b;
     --shadow: 0 18px 44px rgba(9, 26, 52, 0.14);
     --radius: 20px;
+    --history-frota-col-width: 182px;
+    --history-count-col-width: 58px;
 }
 
 * {
@@ -140,6 +142,7 @@ button {
     margin: 0 auto;
     min-width: 0;
     overflow-x: hidden;
+    padding-bottom: 10px;
 }
 
 .hidden,
@@ -338,6 +341,15 @@ textarea {
     display: grid;
     grid-template-columns: 86px minmax(0, 1fr);
     justify-content: initial;
+}
+
+.screen-heading + .summary-card,
+.screen-heading + .search-box,
+.screen-heading + .module-section,
+.screen-heading + .progress-card,
+.screen-heading + .menu-grid,
+.screen-heading + .list-toolbar {
+    margin-top: 12px;
 }
 
 .screen-heading h2 {
@@ -557,7 +569,7 @@ textarea {
     border-radius: 16px;
     border: 1px solid rgba(7, 86, 181, 0.16);
     background: #ffffff;
-    scrollbar-gutter: stable both-edges;
+    scrollbar-gutter: stable;
 }
 
 .history-table {
@@ -583,17 +595,20 @@ textarea {
 .history-table thead th.history-frota-header {
     left: 0;
     z-index: 4;
-    min-width: 170px;
-    max-width: 170px;
+    width: var(--history-frota-col-width);
+    min-width: var(--history-frota-col-width);
+    max-width: var(--history-frota-col-width);
     text-align: left;
 }
 
 .history-table thead th.history-count-header {
-    left: 170px;
+    left: var(--history-frota-col-width);
     z-index: 4;
-    min-width: 52px;
-    max-width: 52px;
-    width: 52px;
+    width: var(--history-count-col-width);
+    min-width: var(--history-count-col-width);
+    max-width: var(--history-count-col-width);
+    padding-left: 4px;
+    padding-right: 4px;
 }
 
 .history-table tbody th,
@@ -611,8 +626,9 @@ textarea {
     position: sticky;
     left: 0;
     z-index: 3;
-    min-width: 170px;
-    max-width: 170px;
+    width: var(--history-frota-col-width);
+    min-width: var(--history-frota-col-width);
+    max-width: var(--history-frota-col-width);
     background: #f6f9fe;
     text-align: left;
 }
@@ -642,11 +658,13 @@ textarea {
 
 .history-table tbody td.history-count-cell {
     position: sticky;
-    left: 170px;
+    left: var(--history-frota-col-width);
     z-index: 2;
-    min-width: 52px;
-    max-width: 52px;
-    width: 52px;
+    width: var(--history-count-col-width);
+    min-width: var(--history-count-col-width);
+    max-width: var(--history-count-col-width);
+    padding-left: 4px;
+    padding-right: 4px;
     font-weight: 900;
     text-align: center;
     background: #f9fbff;
@@ -981,6 +999,7 @@ textarea {
 .activity-items-list {
     display: grid;
     gap: 10px;
+    padding-bottom: 10px;
 }
 
 .vehicle-card,

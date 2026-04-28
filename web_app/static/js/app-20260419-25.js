@@ -2093,8 +2093,8 @@ function renderVehicles() {
             <strong>${escapeHtml(String(state.user.tipo || "").toUpperCase())}</strong>
         </div>
         <div>
-            <span>API</span>
-            <strong>${escapeHtml(state.apiBaseUrl)}</strong>
+            <span>STATUS</span>
+            <strong>${navigator.onLine ? "ONLINE" : "OFFLINE"}</strong>
         </div>
     `;
 
