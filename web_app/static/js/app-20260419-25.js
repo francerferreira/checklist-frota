@@ -775,12 +775,14 @@ function renderChecklistHistory() {
             const cellValues = (row.cells || [])
                 .map((value) => `<td>${value ? escapeHtml(String(value)) : ""}</td>`)
                 .join("");
+            const checklistCount = Number(row.checklist_count || 0);
             return `
                 <tr>
                     <th>
                         <strong>${escapeHtml(String(row.frota || "-"))}</strong>
                         <span>${escapeHtml(String(row.placa || "-").toUpperCase())}</span>
                     </th>
+                    <td class="history-count-cell">${checklistCount}</td>
                     ${cellValues}
                 </tr>
             `;
@@ -791,7 +793,8 @@ function renderChecklistHistory() {
         <table class="history-table">
             <thead>
                 <tr>
-                    <th>FROTA</th>
+                    <th class="history-frota-header">FROTA</th>
+                    <th class="history-count-header">Nº</th>
                     ${headerColumns}
                 </tr>
             </thead>

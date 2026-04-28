@@ -319,6 +319,7 @@ def checklist_history_matrix():
             "frota": vehicle.frota,
             "placa": vehicle.placa,
             "tipo": vehicle.tipo,
+            "checklist_count": 0,
             "cells": {column["date"]: "" for column in columns},
             "_latest_by_date": {},
         }
@@ -337,6 +338,7 @@ def checklist_history_matrix():
         row = rows_map.get(checklist.vehicle_id)
         if not row:
             continue
+        row["checklist_count"] += 1
         day_key = checklist.created_at.date().isoformat()
         if day_key not in row["cells"]:
             continue
@@ -357,6 +359,7 @@ def checklist_history_matrix():
             "frota": row["frota"],
             "placa": row["placa"],
             "tipo": row["tipo"],
+            "checklist_count": int(row["checklist_count"] or 0),
             "cells": [row["cells"].get(column["date"], "") for column in columns],
         })
 

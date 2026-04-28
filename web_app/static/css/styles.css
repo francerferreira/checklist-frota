@@ -580,6 +580,22 @@ textarea {
     white-space: nowrap;
 }
 
+.history-table thead th.history-frota-header {
+    left: 0;
+    z-index: 4;
+    min-width: 170px;
+    max-width: 170px;
+    text-align: left;
+}
+
+.history-table thead th.history-count-header {
+    left: 170px;
+    z-index: 4;
+    min-width: 52px;
+    max-width: 52px;
+    width: 52px;
+}
+
 .history-table tbody th,
 .history-table tbody td {
     padding: 10px 8px;
@@ -594,7 +610,7 @@ textarea {
 .history-table tbody th {
     position: sticky;
     left: 0;
-    z-index: 1;
+    z-index: 3;
     min-width: 170px;
     max-width: 170px;
     background: #f6f9fe;
@@ -624,8 +640,24 @@ textarea {
     white-space: nowrap;
 }
 
+.history-table tbody td.history-count-cell {
+    position: sticky;
+    left: 170px;
+    z-index: 2;
+    min-width: 52px;
+    max-width: 52px;
+    width: 52px;
+    font-weight: 900;
+    text-align: center;
+    background: #f9fbff;
+}
+
 .history-table tbody tr:nth-child(even) td {
     background: #fbfdff;
+}
+
+.history-table tbody tr:nth-child(even) td.history-count-cell {
+    background: #f2f7ff;
 }
 
 .wash-report-panel {

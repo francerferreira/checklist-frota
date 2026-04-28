@@ -1,10 +1,10 @@
-const CACHE_NAME = "cf-checklist-frota-pwa-20260428-02";
+const CACHE_NAME = "cf-checklist-frota-pwa-20260428-03";
 const APP_SHELL = [
     "./",
     "./index.html",
     "./manifest.json",
-    "./static/css/styles.css?v=20260421-03",
-    "./static/js/app-20260419-25.js?v=20260428-01",
+    "./static/css/styles.css?v=20260428-03",
+    "./static/js/app-20260419-25.js?v=20260428-02",
     "./static/icons/icon-192.png",
     "./static/icons/icon-512.png",
     "./static/icons/cf-logo-mark.png",
