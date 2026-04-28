@@ -2,20 +2,21 @@ from __future__ import annotations
 
 from datetime import datetime, time
 
-from flask import Blueprint, g, jsonify, request
+from flask import Blueprint, g, request
 from sqlalchemy import func
 
 from app.extensions import db
 from app.models import Material, MaterialMovement
 from app.services.auth_service import auth_required, user_has_management_access
 from app.services.material_service import register_material_movement
+from app.utils.responses import api_response
 
 bp = Blueprint("materials", __name__)
 
 
 def _guard_management_access():
     if not user_has_management_access(g.current_user):
-        return jsonify({"error": "Somente admin ou gestor podem gerenciar materiais."}), 403
+        return api_response(False, error="Somente admin ou gestor podem gerenciar materiais.", status_code=403)
     return None
 
 
@@ -74,7 +75,7 @@ def list_materials():
     materials = query.all()
     if baixo_estoque == "true":
         materials = [material for material in materials if material.quantidade_estoque <= material.estoque_minimo]
-    return jsonify([material.to_dict() for material in materials])
+    return api_response(True, data=[material.to_dict() for material in materials])
 
 
 @bp.get("/materiais/relatorio")
@@ -84,7 +85,7 @@ def material_report():
         date_from = _parse_date(request.args.get("data_inicial"))
         date_to = _parse_date(request.args.get("data_final"), end_of_day=True)
     except ValueError as exc:
-        return jsonify({"error": str(exc)}), 400
+        return api_response(False, error=str(exc), status_code=400)
 
     materials = Material.query.order_by(Material.descricao.asc()).all()
     low_stock_rows = []
@@ -145,23 +146,22 @@ def material_report():
     total_stock = sum(int(material.quantidade_estoque or 0) for material in materials)
     total_consumed = sum(item["consumo_total"] for item in consumption)
 
-    return jsonify(
-        {
-            "periodo": {
-                "data_inicial": date_from.date().isoformat() if date_from else None,
-                "data_final": date_to.date().isoformat() if date_to else None,
-            },
-            "resumo": {
-                "total_materiais": len(materials),
-                "abaixo_minimo": len(low_stock_rows),
-                "saldo_total": total_stock,
-                "consumo_total_periodo": total_consumed,
-            },
-            "baixo_estoque": low_stock_rows,
-            "consumo_periodo": consumption,
-            "ranking_uso": ranking,
-        }
-    )
+    data = {
+        "periodo": {
+            "data_inicial": date_from.date().isoformat() if date_from else None,
+            "data_final": date_to.date().isoformat() if date_to else None,
+        },
+        "resumo": {
+            "total_materiais": len(materials),
+            "abaixo_minimo": len(low_stock_rows),
+            "saldo_total": total_stock,
+            "consumo_total_periodo": total_consumed,
+        },
+        "baixo_estoque": low_stock_rows,
+        "consumo_periodo": consumption,
+        "ranking_uso": ranking,
+    }
+    return api_response(True, data=data)
 
 
 @bp.post("/materiais")
@@ -177,17 +177,17 @@ def create_material():
     aplicacao_tipo = (_clean(payload.get("aplicacao_tipo")) or "ambos").lower()
 
     if not referencia or not descricao:
-        return jsonify({"error": "Referencia e descricao sao obrigatorias."}), 400
+        return api_response(False, error="Referencia e descricao sao obrigatorias.", status_code=400)
     if aplicacao_tipo not in {"cavalo", "carreta", "ambos"}:
-        return jsonify({"error": "Aplicacao do material invalida."}), 400
+        return api_response(False, error="Aplicacao do material invalida.", status_code=400)
     if Material.query.filter(Material.referencia == referencia).first():
-        return jsonify({"error": "Ja existe um material com esta referencia."}), 400
+        return api_response(False, error="Ja existe um material com esta referencia.", status_code=400)
 
     try:
         quantidade_estoque = _as_positive_int(payload.get("quantidade_estoque"), default=0)
         estoque_minimo = _as_positive_int(payload.get("estoque_minimo"), default=0)
     except ValueError as exc:
-        return jsonify({"error": str(exc)}), 400
+        return api_response(False, error=str(exc), status_code=400)
 
     material = Material(
         referencia=referencia,
@@ -211,7 +211,7 @@ def create_material():
         )
 
     db.session.commit()
-    return jsonify(material.to_dict()), 201
+    return api_response(True, data=material.to_dict(), status_code=201)
 
 
 @bp.put("/materiais/<int:material_id>")
@@ -228,18 +228,18 @@ def update_material(material_id: int):
     aplicacao_tipo = (_clean(payload.get("aplicacao_tipo")) or material.aplicacao_tipo).lower()
 
     if not referencia or not descricao:
-        return jsonify({"error": "Referencia e descricao sao obrigatorias."}), 400
+        return api_response(False, error="Referencia e descricao sao obrigatorias.", status_code=400)
     if aplicacao_tipo not in {"cavalo", "carreta", "ambos"}:
-        return jsonify({"error": "Aplicacao do material invalida."}), 400
+        return api_response(False, error="Aplicacao do material invalida.", status_code=400)
 
     duplicate = Material.query.filter(Material.referencia == referencia, Material.id != material.id).first()
     if duplicate:
-        return jsonify({"error": "Ja existe um material com esta referencia."}), 400
+        return api_response(False, error="Ja existe um material com esta referencia.", status_code=400)
 
     try:
         estoque_minimo = _as_positive_int(payload.get("estoque_minimo"), default=material.estoque_minimo)
     except ValueError as exc:
-        return jsonify({"error": str(exc)}), 400
+        return api_response(False, error=str(exc), status_code=400)
 
     material.referencia = referencia
     material.descricao = descricao
@@ -249,7 +249,7 @@ def update_material(material_id: int):
     material.ativo = bool(payload.get("ativo", material.ativo))
 
     db.session.commit()
-    return jsonify(material.to_dict())
+    return api_response(True, data=material.to_dict())
 
 
 @bp.delete("/materiais/<int:material_id>")
@@ -262,7 +262,7 @@ def delete_material(material_id: int):
     material = Material.query.get_or_404(material_id)
     material.ativo = False
     db.session.commit()
-    return jsonify({"status": "ok", "material": material.to_dict()})
+    return api_response(True, data={"status": "ok", "material": material.to_dict()})
 
 
 @bp.get("/materiais/<int:material_id>/movimentos")
@@ -274,7 +274,7 @@ def list_material_movements(material_id: int):
         .order_by(MaterialMovement.created_at.desc())
         .all()
     )
-    return jsonify([movement.to_dict() for movement in movements])
+    return api_response(True, data=[movement.to_dict() for movement in movements])
 
 
 @bp.post("/materiais/<int:material_id>/ajustar_estoque")
@@ -291,12 +291,12 @@ def adjust_material_stock(material_id: int):
     try:
         quantidade = _as_positive_int(payload.get("quantidade"))
     except ValueError as exc:
-        return jsonify({"error": str(exc)}), 400
+        return api_response(False, error=str(exc), status_code=400)
     if quantidade <= 0:
-        return jsonify({"error": "Informe uma quantidade maior que zero."}), 400
+        return api_response(False, error="Informe uma quantidade maior que zero.", status_code=400)
 
     if movement_type not in {"ENTRADA", "SAIDA", "AJUSTE"}:
-        return jsonify({"error": "Tipo de movimentacao invalido."}), 400
+        return api_response(False, error="Tipo de movimentacao invalido.", status_code=400)
 
     delta = quantidade if movement_type == "ENTRADA" else -quantidade
     try:
@@ -310,6 +310,6 @@ def adjust_material_stock(material_id: int):
         db.session.commit()
     except ValueError as exc:
         db.session.rollback()
-        return jsonify({"error": str(exc)}), 400
+        return api_response(False, error=str(exc), status_code=400)
 
-    return jsonify(material.to_dict())
+    return api_response(True, data=material.to_dict())

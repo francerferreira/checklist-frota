@@ -1,13 +1,15 @@
-from __future__ import annotations
+﻿from __future__ import annotations
 
-import unicodedata
 import re
+import unicodedata
 
 from flask import has_app_context
+from sqlalchemy import inspect
 from sqlalchemy.exc import SQLAlchemyError
 
 from app.extensions import db
 from app.models import ChecklistCatalogItem
+from app.services.vehicle_type_service import normalize_checklist_vehicle_type
 
 
 CAVALO_ITEMS = [
@@ -17,8 +19,8 @@ CAVALO_ITEMS = [
     "FAROL DIREITO",
     "LUZ DE MILHA ESQUERDA",
     "LUZ DE MILHA DIREITA",
-    "LUZ DE POSIÇÃO ESQUERDA",
-    "LUZ DE POSIÇÃO DIREITA",
+    "LUZ DE POSICAO ESQUERDA",
+    "LUZ DE POSICAO DIREITA",
     "LANTERNA DIANTEIRA",
     "LANTERNA TRASEIRA",
     "SETAS E PISCA-ALERTA LADO ESQUERDO",
@@ -26,21 +28,21 @@ CAVALO_ITEMS = [
     "LUZ DE FREIO",
     "BUZINA",
     "PAINEL DE INSTRUMENTOS",
-    "BOTÕES DO PAINEL",
+    "BOTOES DO PAINEL",
     "SINAIS DE ANOMALIAS NO PAINEL",
-    "INDICADOR DE COMBUSTÍVEL",
+    "INDICADOR DE COMBUSTIVEL",
     "BATERIA",
-    "NÍVEL DO ÓLEO DO MOTOR",
-    "NÍVEL DO FLUIDO DE ARREFECIMENTO",
-    "NÍVEL DO FLUIDO DE FREIO",
-    "FILTRO SEPARADOR DE ÁGUA",
+    "NIVEL DO OLEO DO MOTOR",
+    "NIVEL DO FLUIDO DE ARREFECIMENTO",
+    "NIVEL DO FLUIDO DE FREIO",
+    "FILTRO SEPARADOR DE AGUA",
     "RADIADOR",
     "VAZAMENTOS APARENTES",
     "SISTEMA DE ESCAPAMENTO",
-    "FREIO DE SERVIÇO",
+    "FREIO DE SERVICO",
     "FREIO DE ESTACIONAMENTO",
-    "SUSPENSÃO DIANTEIRA",
-    "SUSPENSÃO TRASEIRA",
+    "SUSPENSAO DIANTEIRA",
+    "SUSPENSAO TRASEIRA",
     "AMORTECEDORES",
     "PNEUS DIANTEIROS",
     "PNEUS TRASEIROS",
@@ -48,18 +50,18 @@ CAVALO_ITEMS = [
     "TAMPAS DOS PARAFUSOS DAS RODAS",
     "QUINTA RODA",
     "TRAVA DA QUINTA RODA",
-    "ENGATE ELÉTRICO",
-    "ENGATE PNEUMÁTICO",
-    "PAINEL DE PROTEÇÃO DO PARALAMAS",
+    "ENGATE ELETRICO",
+    "ENGATE PNEUMATICO",
+    "PAINEL DE PROTECAO DO PARALAMAS",
     "ESCADA DE ACESSO LADO ESQUERDO",
     "ESCADA DE ACESSO LADO DIREITO",
     "PARALAMAS ESQUERDO",
     "PARALAMAS DIREITO",
     "TAMPA DO ARLA",
-    "TAMPA DO TANQUE DE COMBUSTÍVEL",
-    "TAMPA DO LÍQUIDO DE ARREFECIMENTO",
+    "TAMPA DO TANQUE DE COMBUSTIVEL",
+    "TAMPA DO LIQUIDO DE ARREFECIMENTO",
     "TAMPAS DO PARA-CHOQUE",
-    "PROTEÇÃO DO ARLA",
+    "PROTECAO DO ARLA",
     "GRADE DO FAROL ESQUERDO",
     "GRADE DO FAROL DIREITO",
     "PLACA DIANTEIRA",
@@ -71,42 +73,239 @@ CAVALO_ITEMS = [
     "LOGO SCANIA FRONTAL",
     "SLIDES DA FRONTAL",
     "LOGO MODELO FRONTAL",
-    "FRONTAL DO CAMINHÃO",
-    "CINTO DE SEGURANÇA",
+    "FRONTAL DO CAMINHAO",
+    "CINTO DE SEGURANCA",
     "BANCO DO MOTORISTA",
     "AR-CONDICIONADO",
     "EXTINTOR",
 ]
 
-
 CARRETA_ITEMS = [
     "ESTRUTURA DO CHASSI",
     "TRAVAMENTO DO PINO REI",
     "PINO REI",
-    "SUSPENSÃO",
+    "SUSPENSAO",
     "EIXOS",
     "CUBOS DE RODA",
     "PNEUS",
     "PARAFUSOS DE RODA",
     "FREIOS",
-    "EQUIPAMENTO FREIO ESTACIONÁRIO",
+    "EQUIPAMENTO FREIO ESTACIONARIO",
     "MANGUEIRAS DE AR",
-    "CONEXÕES PNEUMÁTICAS",
-    "VÁLVULA PNEUMÁTICA DE FREIO",
+    "CONEXOES PNEUMATICAS",
+    "VALVULA PNEUMATICA DE FREIO",
     "LANTERNA TRASEIRA ESQUERDA",
     "LANTERNA TRASEIRA DIREITA",
     "LUZES DE FREIO",
     "PARALAMAS ESQUERDO",
     "PARALAMAS DIREITO",
-    "PINO DO PÉ DE APOIO",
+    "PINO DO PE DE APOIO",
 ]
 
+CARRO_SIMPLES_ITEMS = [
+    "FAROIS",
+    "LANTERNAS",
+    "SETAS E PISCA-ALERTA",
+    "LUZ DE FREIO",
+    "BUZINA",
+    "LIMPADOR DE PARA-BRISA",
+    "PARA-BRISA",
+    "RETROVISORES",
+    "PNEUS",
+    "ESTEPE",
+    "NIVEL DE COMBUSTIVEL",
+    "NIVEL DE OLEO DO MOTOR",
+    "NIVEL DA AGUA OU ARREFECIMENTO",
+    "VAZAMENTOS APARENTES",
+    "FREIO",
+    "FREIO DE ESTACIONAMENTO",
+    "CINTO DE SEGURANCA",
+    "BANCO DO MOTORISTA",
+    "PORTAS E TRAVAS",
+    "AR-CONDICIONADO",
+    "EXTINTOR",
+    "DOCUMENTACAO DO VEICULO",
+]
+
+CAVALO_AUXILIAR_ITEMS = [
+    "FAROL ALTO E BAIXO",
+    "LANTERNAS",
+    "SETAS E PISCA-ALERTA",
+    "LUZ DE FREIO",
+    "BUZINA",
+    "PAINEL DE INSTRUMENTOS",
+    "INDICADORES DE ANOMALIA NO PAINEL",
+    "NIVEL DE COMBUSTIVEL",
+    "NIVEL DE OLEO DO MOTOR",
+    "NIVEL DO ARREFECIMENTO",
+    "VAZAMENTOS APARENTES",
+    "FREIO DE SERVICO",
+    "FREIO DE ESTACIONAMENTO",
+    "PNEUS DIANTEIROS",
+    "PNEUS TRASEIROS",
+    "PARAFUSOS DE RODA",
+    "SUSPENSAO",
+    "RETROVISORES",
+    "PARA-BRISA",
+    "LIMPADOR DE PARA-BRISA",
+    "ENGATE ELETRICO",
+    "ENGATE PNEUMATICO",
+    "QUINTA RODA",
+    "TRAVA DA QUINTA RODA",
+    "ESCADA DE ACESSO",
+    "PARACHOQUE E FRONTAL",
+    "PLACA DIANTEIRA E TRASEIRA",
+    "CINTO DE SEGURANCA",
+    "BANCO DO MOTORISTA",
+    "EXTINTOR",
+]
+
+AMBULANCIA_ITEMS = [
+    "FAROIS",
+    "LANTERNAS",
+    "SETAS E PISCA-ALERTA",
+    "LUZ DE FREIO",
+    "SIRENE",
+    "GIROFLEX OU SINALIZADOR DE EMERGENCIA",
+    "BUZINA",
+    "PAINEL DE INSTRUMENTOS",
+    "NIVEL DE COMBUSTIVEL",
+    "NIVEL DE OLEO DO MOTOR",
+    "NIVEL DA AGUA OU ARREFECIMENTO",
+    "VAZAMENTOS APARENTES",
+    "FREIO",
+    "FREIO DE ESTACIONAMENTO",
+    "PNEUS",
+    "ESTEPE",
+    "RETROVISORES",
+    "PARA-BRISA",
+    "LIMPADOR DE PARA-BRISA",
+    "CINTO DE SEGURANCA",
+    "BANCO DO MOTORISTA",
+    "AR-CONDICIONADO DA CABINE",
+    "AR-CONDICIONADO DO COMPARTIMENTO",
+    "MACA",
+    "OXIGENIO",
+    "KIT DE PRIMEIROS SOCORROS",
+    "EXTINTOR",
+    "PORTAS TRASEIRAS E LATERAIS",
+]
+
+CAMINHAO_PIPA_ITEMS = [
+    "FAROIS",
+    "LANTERNAS",
+    "SETAS E PISCA-ALERTA",
+    "LUZ DE FREIO",
+    "BUZINA",
+    "PAINEL DE INSTRUMENTOS",
+    "NIVEL DE COMBUSTIVEL",
+    "NIVEL DE OLEO DO MOTOR",
+    "NIVEL DA AGUA OU ARREFECIMENTO",
+    "VAZAMENTOS APARENTES",
+    "FREIO DE SERVICO",
+    "FREIO DE ESTACIONAMENTO",
+    "PNEUS",
+    "PARAFUSOS DE RODA",
+    "RETROVISORES",
+    "PARA-BRISA",
+    "LIMPADOR DE PARA-BRISA",
+    "TANQUE DE AGUA",
+    "MANGUEIRAS",
+    "BOMBA DE AGUA",
+    "REGISTRO E CONEXOES",
+    "VAZAMENTO NO SISTEMA DE AGUA",
+    "ESCADA DE ACESSO",
+    "EXTINTOR",
+]
+
+CAMINHAO_BRIGADA_ITEMS = [
+    "FAROIS",
+    "LANTERNAS",
+    "SETAS E PISCA-ALERTA",
+    "LUZ DE FREIO",
+    "SIRENE",
+    "GIROFLEX OU SINALIZADOR DE EMERGENCIA",
+    "BUZINA",
+    "PAINEL DE INSTRUMENTOS",
+    "NIVEL DE COMBUSTIVEL",
+    "NIVEL DE OLEO DO MOTOR",
+    "NIVEL DA AGUA OU ARREFECIMENTO",
+    "VAZAMENTOS APARENTES",
+    "FREIO",
+    "FREIO DE ESTACIONAMENTO",
+    "PNEUS",
+    "RETROVISORES",
+    "PARA-BRISA",
+    "LIMPADOR DE PARA-BRISA",
+    "TANQUE DE AGUA",
+    "BOMBA DE INCENDIO",
+    "MANGUEIRAS DE COMBATE",
+    "ESGUICHO OU CANHAO",
+    "CONEXOES",
+    "EQUIPAMENTOS DE EMERGENCIA",
+    "EXTINTOR",
+]
+
+ONIBUS_ITEMS = [
+    "FAROIS",
+    "LANTERNAS",
+    "SETAS E PISCA-ALERTA",
+    "LUZ DE FREIO",
+    "BUZINA",
+    "PAINEL DE INSTRUMENTOS",
+    "NIVEL DE COMBUSTIVEL",
+    "NIVEL DE OLEO DO MOTOR",
+    "NIVEL DA AGUA OU ARREFECIMENTO",
+    "VAZAMENTOS APARENTES",
+    "FREIO",
+    "FREIO DE ESTACIONAMENTO",
+    "PNEUS",
+    "RETROVISORES",
+    "PARA-BRISA",
+    "LIMPADOR DE PARA-BRISA",
+    "PORTAS DE ACESSO",
+    "BANCOS",
+    "CINTOS",
+    "ILUMINACAO INTERNA",
+    "AR-CONDICIONADO",
+    "EXTINTOR",
+]
+
+VAN_ITEMS = [
+    "FAROIS",
+    "LANTERNAS",
+    "SETAS E PISCA-ALERTA",
+    "LUZ DE FREIO",
+    "BUZINA",
+    "PAINEL DE INSTRUMENTOS",
+    "NIVEL DE COMBUSTIVEL",
+    "NIVEL DE OLEO DO MOTOR",
+    "NIVEL DA AGUA OU ARREFECIMENTO",
+    "VAZAMENTOS APARENTES",
+    "FREIO",
+    "FREIO DE ESTACIONAMENTO",
+    "PNEUS",
+    "ESTEPE",
+    "RETROVISORES",
+    "PARA-BRISA",
+    "LIMPADOR DE PARA-BRISA",
+    "PORTAS",
+    "BANCOS",
+    "AR-CONDICIONADO",
+    "EXTINTOR",
+]
 
 CHECKLIST_CATALOG = {
     "cavalo": CAVALO_ITEMS,
     "carreta": CARRETA_ITEMS,
+    "carro_simples": CARRO_SIMPLES_ITEMS,
+    "cavalo_auxiliar": CAVALO_AUXILIAR_ITEMS,
+    "ambulancia": AMBULANCIA_ITEMS,
+    "caminhao_pipa": CAMINHAO_PIPA_ITEMS,
+    "caminhao_brigada": CAMINHAO_BRIGADA_ITEMS,
+    "onibus": ONIBUS_ITEMS,
+    "van": VAN_ITEMS,
 }
-
 
 DEPRECATED_CATALOG_ITEMS = {
     "cavalo": [
@@ -116,21 +315,18 @@ DEPRECATED_CATALOG_ITEMS = {
         "Painel de protecao do paralamas - compartimento 4",
         "Painel de protecao do paralamas - compartimento 5",
         "Painel de protecao do paralamas - compartimento 6",
-        "Painel de proteção do paralamas - compartimento 1",
-        "Painel de proteção do paralamas - compartimento 2",
-        "Painel de proteção do paralamas - compartimento 3",
-        "Painel de proteção do paralamas - compartimento 4",
-        "Painel de proteção do paralamas - compartimento 5",
-        "Painel de proteção do paralamas - compartimento 6",
+        "Painel de protecao do paralamas - compartimento 1",
+        "Painel de protecao do paralamas - compartimento 2",
+        "Painel de protecao do paralamas - compartimento 3",
+        "Painel de protecao do paralamas - compartimento 4",
+        "Painel de protecao do paralamas - compartimento 5",
+        "Painel de protecao do paralamas - compartimento 6",
     ]
 }
 
 
 def _normalize_vehicle_type(vehicle_type: str) -> str:
-    normalized_type = (vehicle_type or "").strip().lower()
-    if normalized_type not in CHECKLIST_CATALOG:
-        raise ValueError("Tipo de veículo inválido para checklist.")
-    return normalized_type
+    return normalize_checklist_vehicle_type(vehicle_type)
 
 
 def _default_items_for_type(vehicle_type: str) -> list[str]:
@@ -181,13 +377,36 @@ def _add_default_items() -> None:
 
 
 def seed_checklist_catalog_items() -> None:
+    inspector = inspect(db.engine)
+    check_constraints = inspector.get_check_constraints("checklist_catalog_items")
+    check_sql = " ".join((item.get("sqltext") or "") for item in check_constraints).lower()
+
+    def db_accepts_type(vehicle_type: str) -> bool:
+        if not check_sql:
+            return True
+        return (f"'{vehicle_type}'" in check_sql) or (f'"{vehicle_type}"' in check_sql)
+
     if ChecklistCatalogItem.query.count() == 0:
-        _add_default_items()
+        for vehicle_type, items in CHECKLIST_CATALOG.items():
+            if not db_accepts_type(vehicle_type):
+                continue
+            for position, item_name in enumerate(items, 1):
+                db.session.add(
+                    ChecklistCatalogItem(
+                        vehicle_type=vehicle_type,
+                        item_nome=item_name,
+                        position=position,
+                        ativo=True,
+                    )
+                )
         db.session.commit()
         return
 
     changed = False
     for vehicle_type, default_items in CHECKLIST_CATALOG.items():
+        if not db_accepts_type(vehicle_type):
+            continue
+
         default_keys = {normalize_item_name(item_name) for item_name in default_items}
         deprecated_keys = {
             normalize_item_name(item_name)
@@ -199,7 +418,6 @@ def seed_checklist_catalog_items() -> None:
             .all()
         )
 
-        # Tipo sem base ainda: cria catálogo padrão apenas uma vez.
         if not rows:
             for position, item_name in enumerate(default_items, 1):
                 db.session.add(
@@ -245,22 +463,24 @@ def get_catalog_rows(vehicle_type: str | None = None, *, include_inactive: bool 
 
 
 def build_checklist_catalog(*, include_inactive: bool = False) -> dict[str, list[dict]]:
+    default_catalog = {
+        vehicle_type: [
+            {
+                "id": None,
+                "tipo": vehicle_type,
+                "vehicle_type": vehicle_type,
+                "item_nome": item_name,
+                "position": position,
+                "foto_path": None,
+                "ativo": True,
+            }
+            for position, item_name in enumerate(items, 1)
+        ]
+        for vehicle_type, items in CHECKLIST_CATALOG.items()
+    }
+
     if not has_app_context():
-        return {
-            vehicle_type: [
-                {
-                    "id": None,
-                    "tipo": vehicle_type,
-                    "vehicle_type": vehicle_type,
-                    "item_nome": item_name,
-                    "position": position,
-                    "foto_path": None,
-                    "ativo": True,
-                }
-                for position, item_name in enumerate(items, 1)
-            ]
-            for vehicle_type, items in CHECKLIST_CATALOG.items()
-        }
+        return default_catalog
 
     try:
         rows = get_catalog_rows(include_inactive=include_inactive)
@@ -268,25 +488,14 @@ def build_checklist_catalog(*, include_inactive: bool = False) -> dict[str, list
         rows = []
 
     if not rows:
-        return {
-            vehicle_type: [
-                {
-                    "id": None,
-                    "tipo": vehicle_type,
-                    "vehicle_type": vehicle_type,
-                    "item_nome": item_name,
-                    "position": position,
-                    "foto_path": None,
-                    "ativo": True,
-                }
-                for position, item_name in enumerate(items, 1)
-            ]
-            for vehicle_type, items in CHECKLIST_CATALOG.items()
-        }
+        return default_catalog
 
-    catalog = {"cavalo": [], "carreta": []}
+    catalog = {vehicle_type: list(items) for vehicle_type, items in default_catalog.items()}
+    rows_by_type: dict[str, list[dict]] = {}
     for row in rows:
-        catalog.setdefault(row.vehicle_type, []).append(row.to_dict())
+        rows_by_type.setdefault(row.vehicle_type, []).append(row.to_dict())
+    for vehicle_type, items in rows_by_type.items():
+        catalog[vehicle_type] = items
     return catalog
 
 

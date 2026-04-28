@@ -8,19 +8,22 @@ from app.extensions import db
 from app.models import Checklist, ChecklistCatalogItem, ChecklistItem, Vehicle
 from app.services.auth_service import auth_required, user_has_management_access
 from app.services.checklist_catalog import (
+    CHECKLIST_CATALOG,
     build_checklist_catalog,
     get_items_for_vehicle_type,
     normalize_item_name,
 )
 from app.services.activity_link_service import auto_link_non_conformities_to_open_activities
 from app.services.maintenance_service import sync_checklist_non_conformities
+from app.services.vehicle_type_service import resolve_vehicle_type_for_checklist
+from app.utils.responses import api_response
 
 bp = Blueprint("checklist", __name__)
 
 
 def _guard_management_access():
     if not user_has_management_access(g.current_user):
-        return jsonify({"error": "Somente admin ou gestor podem gerenciar itens do checklist."}), 403
+        return api_response(False, error="Somente admin ou gestor podem gerenciar itens do checklist.", status_code=403)
     return None
 
 
@@ -33,7 +36,7 @@ def _clean(value):
 
 def _normalize_vehicle_type(value: str | None) -> str:
     vehicle_type = (_clean(value) or "").lower()
-    if vehicle_type not in {"cavalo", "carreta"}:
+    if vehicle_type not in CHECKLIST_CATALOG:
         raise ValueError("Tipo de equipamento invalido.")
     return vehicle_type
 
@@ -103,7 +106,7 @@ def checklist_catalog():
         denied = _guard_management_access()
         if denied:
             return denied
-    return jsonify(build_checklist_catalog(include_inactive=include_inactive))
+    return api_response(True, data=build_checklist_catalog(include_inactive=include_inactive))
 
 
 @bp.get("/checklist-itens")
@@ -120,7 +123,7 @@ def list_checklist_items():
         try:
             query = query.filter_by(vehicle_type=_normalize_vehicle_type(vehicle_type))
         except ValueError as exc:
-            return jsonify({"error": str(exc)}), 400
+            return api_response(False, error=str(exc), status_code=400)
     if active_filter != "all":
         query = query.filter_by(ativo=active_filter == "true")
 
@@ -129,7 +132,7 @@ def list_checklist_items():
         ChecklistCatalogItem.position.asc(),
         ChecklistCatalogItem.item_nome.asc(),
     ).all()
-    return jsonify([item.to_dict() for item in rows])
+    return api_response(True, data=[item.to_dict() for item in rows])
 
 
 @bp.post("/checklist-itens")
@@ -147,11 +150,11 @@ def create_checklist_item():
         db.session.commit()
     except ValueError as exc:
         db.session.rollback()
-        return jsonify({"error": str(exc)}), 400
+        return api_response(False, error=str(exc), status_code=400)
     except IntegrityError:
         db.session.rollback()
-        return jsonify({"error": "Ja existe um item com este nome para este tipo de equipamento."}), 409
-    return jsonify(item.to_dict()), 201
+        return api_response(False, error="Já existe um item com este nome para este tipo de equipamento.", status_code=409)
+    return api_response(True, data=item.to_dict(), status_code=201)
 
 
 @bp.put("/checklist-itens/<int:item_id>")
@@ -168,11 +171,11 @@ def update_checklist_item(item_id: int):
         db.session.commit()
     except ValueError as exc:
         db.session.rollback()
-        return jsonify({"error": str(exc)}), 400
+        return api_response(False, error=str(exc), status_code=400)
     except IntegrityError:
         db.session.rollback()
-        return jsonify({"error": "Ja existe um item com este nome para este tipo de equipamento."}), 409
-    return jsonify(item.to_dict())
+        return api_response(False, error="Já existe um item com este nome para este tipo de equipamento.", status_code=409)
+    return api_response(True, data=item.to_dict())
 
 
 @bp.delete("/checklist-itens/<int:item_id>")
@@ -185,7 +188,7 @@ def delete_checklist_item(item_id: int):
     item = ChecklistCatalogItem.query.get_or_404(item_id)
     item.ativo = False
     db.session.commit()
-    return jsonify(item.to_dict())
+    return api_response(True, data=item.to_dict())
 
 
 @bp.post("/checklist")
@@ -197,21 +200,21 @@ def create_checklist():
 
     vehicle = Vehicle.query.get(vehicle_id)
     if not vehicle:
-        return jsonify({"error": "Veiculo nao encontrado."}), 404
+        return api_response(False, error="Veículo não encontrado.", status_code=404)
 
-    expected_items = get_items_for_vehicle_type(vehicle.tipo)
+    resolved_vehicle_type = resolve_vehicle_type_for_checklist(vehicle)
+    expected_items = get_items_for_vehicle_type(resolved_vehicle_type)
     provided_items = {
         normalize_item_name(item.get("item_nome")): item for item in items_payload if item.get("item_nome")
     }
     expected_keys = {normalize_item_name(item) for item in expected_items}
 
     if set(provided_items.keys()) != expected_keys:
-        return jsonify(
-            {
-                "error": "Checklist incompleto ou com itens inconsistentes para o tipo do veiculo.",
-                "esperado": expected_items,
-            }
-        ), 400
+        err_data = {
+            "error": "Checklist incompleto ou inconsistente.",
+            "esperado": expected_items,
+        }
+        return api_response(False, data=err_data, error="Checklist incompleto.", status_code=400)
 
     checklist = Checklist(vehicle_id=vehicle.id, user_id=g.current_user.id)
     db.session.add(checklist)
@@ -222,12 +225,12 @@ def create_checklist():
         status = (item_payload.get("status") or "").strip().upper()
         if status not in {"OK", "NC"}:
             db.session.rollback()
-            return jsonify({"error": f"Status invalido para o item {item_name}."}), 400
+            return api_response(False, error=f"Status inválido para o item {item_name}.", status_code=400)
 
         foto_antes = item_payload.get("foto_antes")
         if status == "NC" and not foto_antes:
             db.session.rollback()
-            return jsonify({"error": f"Foto antes obrigatoria para NC no item {item_name}."}), 400
+            return api_response(False, error=f"Foto antes obrigatória para NC no item {item_name}.", status_code=400)
 
         item = ChecklistItem(
             checklist_id=checklist.id,
@@ -247,7 +250,7 @@ def create_checklist():
     if nc_items:
         sync_checklist_non_conformities(nc_items)
         auto_link_non_conformities_to_open_activities(nc_items)
-    return jsonify(checklist.to_dict(include_items=True)), 201
+    return api_response(True, data=checklist.to_dict(include_items=True), status_code=201)
 
 
 @bp.get("/checklist")
@@ -260,10 +263,10 @@ def list_checklists():
     if vehicle_identifier:
         vehicle = _find_vehicle(vehicle_identifier)
         if not vehicle:
-            return jsonify([])
+            return api_response(True, data=[])
         query = query.filter_by(vehicle_id=vehicle.id)
 
-    return jsonify([checklist.to_dict() for checklist in query.limit(limit).all()])
+    return api_response(True, data=[checklist.to_dict() for checklist in query.limit(limit).all()])
 
 
 @bp.get("/checklist/historico-matriz")
@@ -274,21 +277,21 @@ def checklist_history_matrix():
         try:
             vehicle_type = _normalize_vehicle_type(vehicle_type)
         except ValueError as exc:
-            return jsonify({"error": str(exc)}), 400
+            return api_response(False, error=str(exc), status_code=400)
 
     today = datetime.utcnow().date()
     try:
         start_date = _parse_date_param(request.args.get("data_inicio"), today - timedelta(days=6))
         end_date = _parse_date_param(request.args.get("data_fim"), today)
     except ValueError as exc:
-        return jsonify({"error": str(exc)}), 400
+        return api_response(False, error=str(exc), status_code=400)
 
     if end_date < start_date:
-        return jsonify({"error": "A data final deve ser maior ou igual à data inicial."}), 400
+        return api_response(False, error="A data final deve ser maior ou igual à data inicial.", status_code=400)
 
     max_days = 62
     if (end_date - start_date).days + 1 > max_days:
-        return jsonify({"error": f"Período muito grande. Limite de {max_days} dias."}), 400
+        return api_response(False, error=f"Período muito grande. Limite de {max_days} dias.", status_code=400)
 
     start_dt = datetime.combine(start_date, time.min)
     end_dt_exclusive = datetime.combine(end_date + timedelta(days=1), time.min)
@@ -297,7 +300,7 @@ def checklist_history_matrix():
     if vehicle_type:
         vehicle_query = vehicle_query.filter(Vehicle.tipo == vehicle_type)
     else:
-        vehicle_query = vehicle_query.filter(Vehicle.tipo.in_(["cavalo", "carreta"]))
+        vehicle_query = vehicle_query.filter(Vehicle.tipo.in_(list(CHECKLIST_CATALOG.keys()) + ["auxiliar"]))
     vehicles = vehicle_query.order_by(Vehicle.frota.asc()).all()
 
     columns = []
@@ -327,7 +330,7 @@ def checklist_history_matrix():
     if vehicle_type:
         checklist_query = checklist_query.filter(Vehicle.tipo == vehicle_type)
     else:
-        checklist_query = checklist_query.filter(Vehicle.tipo.in_(["cavalo", "carreta"]))
+        checklist_query = checklist_query.filter(Vehicle.tipo.in_(list(CHECKLIST_CATALOG.keys()) + ["auxiliar"]))
 
     checklists = checklist_query.order_by(Checklist.created_at.asc()).all()
     for checklist in checklists:
@@ -357,16 +360,15 @@ def checklist_history_matrix():
             "cells": [row["cells"].get(column["date"], "") for column in columns],
         })
 
-    return jsonify(
-        {
-            "periodo": {
-                "inicio": start_date.isoformat(),
-                "fim": end_date.isoformat(),
-            },
-            "columns": columns,
-            "rows": rows,
-        }
-    )
+    data = {
+        "periodo": {
+            "inicio": start_date.isoformat(),
+            "fim": end_date.isoformat(),
+        },
+        "columns": columns,
+        "rows": rows,
+    }
+    return api_response(True, data=data)
 
 
 @bp.get("/checklist/<veiculo>")
@@ -374,11 +376,11 @@ def checklist_history_matrix():
 def list_checklists_by_vehicle(veiculo: str):
     vehicle = _find_vehicle(veiculo)
     if not vehicle:
-        return jsonify({"error": "Veiculo nao encontrado."}), 404
+        return api_response(False, error="Veículo não encontrado.", status_code=404)
 
     checklists = (
         Checklist.query.filter_by(vehicle_id=vehicle.id)
         .order_by(Checklist.created_at.desc())
         .all()
     )
-    return jsonify([checklist.to_dict(include_items=True) for checklist in checklists])
+    return api_response(True, data=[checklist.to_dict(include_items=True) for checklist in checklists])

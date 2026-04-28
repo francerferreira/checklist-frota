@@ -37,6 +37,21 @@ self.addEventListener("fetch", (event) => {
         return;
     }
 
+    const isApiRequest = [
+        "/veiculos",
+        "/config",
+        "/atividades",
+        "/lavagens",
+        "/checklist",
+        "/non-conformities",
+        "/atividades",
+    ].some((path) => url.pathname.startsWith(path));
+
+    if (isApiRequest) {
+        event.respondWith(fetch(request));
+        return;
+    }
+
     if (request.mode === "navigate") {
         event.respondWith(
             fetch(request)

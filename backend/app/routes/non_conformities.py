@@ -6,10 +6,20 @@ from app.extensions import db
 from app.models import Activity, ActivityItem, ChecklistItem, Material, User, Vehicle
 from app.services.auth_service import auth_required, user_can_resolve_non_conformity, user_has_management_access
 from app.services.material_service import register_material_movement
+from app.services.audit_service import record_status_change
+from app.utils.filters import apply_item_search
+from app.utils.responses import api_response
 
 bp = Blueprint("non_conformities", __name__)
 _NC_ORIGIN_TAG = "[ORIGEM:NC#{id}]"
 
+class NCStatus:
+    """Centraliza os estados para evitar 'strings mágicas' espalhadas no código"""
+    TYPE_NC = "NC"
+    OPEN = "ABERTA"
+    RESOLVED = "RESOLVIDA"
+
+# --- UTILITÁRIOS ---
 
 def _clean(value: str | None) -> str | None:
     if value is None:
@@ -21,14 +31,14 @@ def _clean(value: str | None) -> str | None:
 @bp.get("/nao_conformidades")
 @auth_required
 def list_non_conformities():
-    query = ChecklistItem.query.filter_by(status="NC").order_by(ChecklistItem.created_at.desc())
+    # Uso do NCStatus.TYPE_NC em vez de "NC"
+    query = ChecklistItem.query.filter_by(status=NCStatus.TYPE_NC).order_by(ChecklistItem.created_at.desc())
 
-    item_type = request.args.get("tipo")
     vehicle_identifier = request.args.get("veiculo")
     status_filter = request.args.get("status")
 
-    if item_type:
-        query = query.filter(ChecklistItem.item_nome.ilike(f"%{item_type}%"))
+    # Centralização da busca por item
+    query = apply_item_search(query, ChecklistItem, request.args.get("tipo"))
 
     if vehicle_identifier:
         pattern = f"%{vehicle_identifier}%"
@@ -41,18 +51,20 @@ def list_non_conformities():
     elif status_filter == "resolvidas":
         query = query.filter(ChecklistItem.resolvido.is_(True))
 
-    return jsonify([item.to_dict() for item in query.all()])
+    return api_response(True, data=[item.to_dict() for item in query.all()])
 
 
 @bp.put("/nao_conformidade/<int:item_id>/resolver")
 @auth_required
 def resolve_non_conformity(item_id: int):
     if not user_can_resolve_non_conformity(g.current_user):
-        return jsonify({"error": "Somente admin, gestor ou mecanico podem resolver nao conformidades."}), 403
+        return api_response(False, error="Acesso negado para resolução.", status_code=403)
 
     item = ChecklistItem.query.get_or_404(item_id)
-    if item.status != "NC":
-        return jsonify({"error": "O item informado nao e uma nao conformidade."}), 400
+    if item.status != NCStatus.TYPE_NC:
+        return api_response(False, error="O item informado não é uma não conformidade.", status_code=400)
+    
+    old_state = "RESOLVIDA" if item.resolvido else "ABERTA"
 
     payload = request.get_json(silent=True) or {}
     material_id = payload.get("material_id")
@@ -71,13 +83,13 @@ def resolve_non_conformity(item_id: int):
     if material_id:
         material = Material.query.get(material_id)
         if not material or not material.ativo:
-            return jsonify({"error": "Material informado e invalido ou esta inativo."}), 400
+            return api_response(False, error="Material inválido ou inativo.", status_code=400)
         try:
             quantidade = int(quantidade_material or 1)
         except (TypeError, ValueError):
-            return jsonify({"error": "Quantidade do material invalida."}), 400
+            return api_response(False, error="Quantidade do material inválida.", status_code=400)
         if quantidade <= 0:
-            return jsonify({"error": "Quantidade do material deve ser maior que zero."}), 400
+            return api_response(False, error="Quantidade deve ser maior que zero.", status_code=400)
 
         try:
             register_material_movement(
@@ -92,21 +104,23 @@ def resolve_non_conformity(item_id: int):
             item.descricao_peca = material.descricao
         except ValueError as exc:
             db.session.rollback()
-            return jsonify({"error": str(exc)}), 400
+            return api_response(False, error=str(exc), status_code=400)
+    
+    record_status_change(g.current_user.id, "CHECKLIST_ITEM", item.id, old_state, "RESOLVIDA")
 
     db.session.commit()
-    return jsonify(item.to_dict())
+    return api_response(True, data=item.to_dict())
 
 
 @bp.post("/nao_conformidade/<int:item_id>/atividade")
 @auth_required
 def create_activity_from_non_conformity(item_id: int):
     if not user_has_management_access(g.current_user):
-        return jsonify({"error": "Somente admin ou gestor podem abrir atividade a partir da nao conformidade."}), 403
+        return api_response(False, error="Acesso negado para abertura de atividade.", status_code=403)
 
     item = ChecklistItem.query.get_or_404(item_id)
     if item.status != "NC":
-        return jsonify({"error": "O item informado nao e uma nao conformidade."}), 400
+        return api_response(False, error="O item informado não é uma não conformidade.", status_code=400)
 
     vehicle = item.checklist.vehicle
     payload = request.get_json(silent=True) or {}
@@ -123,17 +137,9 @@ def create_activity_from_non_conformity(item_id: int):
         .first()
     )
     if duplicate_open and not bool(payload.get("permitir_duplicada")):
-        return (
-            jsonify(
-                {
-                    "error": (
-                        f"Ja existe atividade aberta vinculada a esta nao conformidade: #{duplicate_open.id}. "
-                        "Finalize a atividade existente ou confirme a abertura duplicada."
-                    )
-                }
-            ),
-            409,
-        )
+        err = (f"Já existe atividade aberta vinculada a esta não conformidade: #{duplicate_open.id}. "
+               "Finalize a atividade existente ou confirme a abertura duplicada.")
+        return api_response(False, error=err, status_code=409)
 
     item_nome = _clean(payload.get("item_nome")) or item.item_nome
     titulo = _clean(payload.get("titulo")) or f"Tratativa NC - {vehicle.frota} - {item_nome}"
@@ -143,19 +149,19 @@ def create_activity_from_non_conformity(item_id: int):
     if material_id:
         material = Material.query.get(material_id)
         if not material or not material.ativo:
-            return jsonify({"error": "Material informado e invalido ou esta inativo."}), 400
+            return api_response(False, error="Material informado é inválido ou inativo.", status_code=400)
 
     try:
         quantidade_por_equipamento = max(1, int(payload.get("quantidade_por_equipamento") or 1))
     except (TypeError, ValueError):
-        return jsonify({"error": "Quantidade por equipamento invalida."}), 400
+        return api_response(False, error="Quantidade por equipamento inválida.", status_code=400)
 
     assigned_mechanic = None
     assigned_mechanic_id = payload.get("assigned_mechanic_user_id")
     if assigned_mechanic_id:
         assigned_mechanic = User.query.get(assigned_mechanic_id)
         if not assigned_mechanic or assigned_mechanic.tipo != "mecanico" or not assigned_mechanic.ativo:
-            return jsonify({"error": "Mecanico direcionado invalido ou inativo."}), 400
+            return api_response(False, error="Mecânico direcionado inválido ou inativo.", status_code=400)
 
     observation_lines = []
     user_observation = _clean(payload.get("observacao"))
@@ -192,4 +198,4 @@ def create_activity_from_non_conformity(item_id: int):
     )
 
     db.session.commit()
-    return jsonify(activity.to_dict(include_items=True)), 201
+    return api_response(True, data=activity.to_dict(include_items=True), status_code=201)

@@ -175,15 +175,15 @@ class NoticeDialog(QDialog):
         button_border = "#973E3E" if is_warning else "#245F97"
         self.setStyleSheet(
             f"""
-            QDialog {
+            QDialog {{
                 background: #FFFFFF;
-            }
-            QFrame#NoticeCard {
+            }}
+            QFrame#NoticeCard {{
                 background: #FFFFFF;
                 border: 1px solid #B7CBE3;
                 border-radius: 2px;
-            }
-            QPushButton#NoticeButton {
+            }}
+            QPushButton#NoticeButton {{
                 background-color: {button_bg};
                 color: #FFFFFF;
                 border: 1px solid {button_border};
@@ -191,10 +191,10 @@ class NoticeDialog(QDialog):
                 padding: 8px 12px;
                 font-size: 12px;
                 font-weight: 700;
-            }
-            QPushButton#NoticeButton:hover {
+            }}
+            QPushButton#NoticeButton:hover {{
                 background-color: {button_hover};
-            }
+            }}
             QLabel#NoticeSubtitle {{
                 color: #3E5C7D;
                 font-size: 12px;

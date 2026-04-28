@@ -25,7 +25,7 @@ class ChecklistCatalogItem(db.Model):
     __table_args__ = (
         db.UniqueConstraint("vehicle_type", "item_nome", name="uq_checklist_catalog_type_name"),
         db.CheckConstraint(
-            "vehicle_type IN ('cavalo', 'carreta')",
+            "vehicle_type IN ('cavalo', 'carreta', 'carro_simples', 'cavalo_auxiliar', 'ambulancia', 'caminhao_pipa', 'caminhao_brigada', 'onibus', 'van')",
             name="ck_checklist_catalog_vehicle_type",
         ),
         db.CheckConstraint("position > 0", name="ck_checklist_catalog_position_positive"),

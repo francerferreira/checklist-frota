@@ -44,13 +44,16 @@ class APIClient:
         raise RuntimeError(payload.get("error") or f"Falha na requisicao {method} {path}.")
 
     def login(self, login: str, senha: str):
-        payload = self._request("POST", "/login", json={"login": login, "senha": senha})
+        payload = self._request("POST", "/login", json={"login": login, "senha": senha}, timeout=75)
         token = payload["token"]
         self.session.headers.update({"Authorization": f"Bearer {token}"})
         self.user = payload["user"]
         self.login_started_at = datetime.now()
         self._image_cache.clear()
         return payload
+
+    def user_has_admin_access(self) -> bool:
+        return bool(self.user and self.user.get("tipo") == "admin")
 
     def clear_session(self) -> None:
         self.session.headers.pop("Authorization", None)

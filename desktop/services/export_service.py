@@ -1846,20 +1846,19 @@ def _key_value_table(rows: list[list[str]], styles):
     return table
 
 
-def _standard_table_style() -> TableStyle:
-    return TableStyle(
-        [
-            ("BACKGROUND", (0, 0), (-1, 0), colors.HexColor(PRIMARY_BLUE)),
-            ("TEXTCOLOR", (0, 0), (-1, 0), colors.white),
-            ("LINEBELOW", (0, 0), (-1, -1), 0.35, colors.HexColor("#E2E8F0")),
-            ("ROWBACKGROUNDS", (0, 1), (-1, -1), [colors.white, colors.HexColor(LIGHT_BG)]),
-            ("LEFTPADDING", (0, 0), (-1, -1), 7),
-            ("RIGHTPADDING", (0, 0), (-1, -1), 7),
-            ("TOPPADDING", (0, 0), (-1, -1), 7),
-            ("BOTTOMPADDING", (0, 0), (-1, -1), 7),
-            ("VALIGN", (0, 0), (-1, -1), "TOP"),
-        ]
-    )
+def _standard_table_style(padding: int = 7) -> TableStyle:
+    """Centraliza a identidade visual das tabelas (Ponto 6 do escopo)."""
+    return TableStyle([
+        ("BACKGROUND", (0, 0), (-1, 0), colors.HexColor(PRIMARY_BLUE)),
+        ("TEXTCOLOR", (0, 0), (-1, 0), colors.white),
+        ("LINEBELOW", (0, 0), (-1, -1), 0.35, colors.HexColor("#E2E8F0")),
+        ("ROWBACKGROUNDS", (0, 1), (-1, -1), [colors.white, colors.HexColor(LIGHT_BG)]),
+        ("LEFTPADDING", (0, 0), (-1, -1), padding),
+        ("RIGHTPADDING", (0, 0), (-1, -1), padding),
+        ("TOPPADDING", (0, 0), (-1, -1), padding),
+        ("BOTTOMPADDING", (0, 0), (-1, -1), padding),
+        ("VALIGN", (0, 0), (-1, -1), "TOP"),
+    ])
 
 
 def _append_occurrence_evidence_section(
@@ -2148,4 +2147,3 @@ def _safe_paragraph_text(value: str) -> str:
         .replace(">", "&gt;")
         .replace("\n", "<br/>")
     )
-

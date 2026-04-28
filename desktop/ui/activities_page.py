@@ -1607,6 +1607,3 @@ class ActivitiesPage(QFrame):
             "FINALIZADA": {"background": "#DCFCE7", "color": "#166534"},
         }
         return mapping.get(value or "", {"background": "#E2E8F0", "color": "#334155"})
-
-
-

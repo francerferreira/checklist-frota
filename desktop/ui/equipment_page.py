@@ -72,7 +72,20 @@ class EquipmentDialog(QDialog):
 
         self.frota_input = QLineEdit((equipment or {}).get("frota", ""))
         self.tipo_combo = QComboBox()
-        self.tipo_combo.addItems(["cavalo", "carreta", "auxiliar"])
+        self.tipo_combo.addItems(
+            [
+                "cavalo",
+                "carreta",
+                "carro_simples",
+                "cavalo_auxiliar",
+                "ambulancia",
+                "caminhao_pipa",
+                "caminhao_brigada",
+                "onibus",
+                "van",
+                "auxiliar",
+            ]
+        )
         if equipment:
             self.tipo_combo.setCurrentText(equipment.get("tipo", "cavalo"))
 
@@ -299,7 +312,14 @@ class EquipmentPage(QFrame):
         self.type_filter.addItem("Todos", "")
         self.type_filter.addItem("Cavalos", "cavalo")
         self.type_filter.addItem("Carretas", "carreta")
-        self.type_filter.addItem("Veículos auxiliares", "auxiliar")
+        self.type_filter.addItem("Carros simples", "carro_simples")
+        self.type_filter.addItem("Cavalos auxiliares", "cavalo_auxiliar")
+        self.type_filter.addItem("Ambulancias", "ambulancia")
+        self.type_filter.addItem("Caminhao pipa", "caminhao_pipa")
+        self.type_filter.addItem("Caminhao brigada", "caminhao_brigada")
+        self.type_filter.addItem("Onibus", "onibus")
+        self.type_filter.addItem("Vans", "van")
+        self.type_filter.addItem("Auxiliares legados", "auxiliar")
         self.type_filter.setMinimumHeight(34)
         self.type_filter.currentIndexChanged.connect(self.refresh)
 
@@ -534,5 +554,3 @@ class EquipmentPage(QFrame):
             except Exception as exc:
                 from components import show_notice
                 show_notice(self, "Falha ao retirar", str(exc), icon_name="warning")
-
-

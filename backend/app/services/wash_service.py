@@ -13,6 +13,7 @@ from openpyxl import load_workbook
 
 from app.extensions import db
 from app.models import MaintenanceScheduleItem, Vehicle, WashBlockedDay, WashPlanConfig, WashQueueItem, WashRecord, WashScheduleDecision
+from app.services.vehicle_type_service import infer_auxiliary_vehicle_type
 
 
 WASH_FILE_PATTERN = "CONTROLE_DE_LAVAGEM*.xlsx"
@@ -259,6 +260,7 @@ def _queue_category(vehicle: Vehicle) -> str:
 
 def ensure_auxiliary_vehicles(path: Path | None = None) -> dict:
     created = 0
+    reclassified = 0
     workbook_path = path
     existing = {_norm_key(item.frota) for item in Vehicle.query.all()}
 
@@ -271,7 +273,7 @@ def ensure_auxiliary_vehicles(path: Path | None = None) -> dict:
                 frota=frota,
                 placa=_norm_key(placa) or "S/PLACA",
                 modelo=modelo,
-                tipo="auxiliar",
+                tipo=infer_auxiliary_vehicle_type(frota, modelo, "VEICULO AUXILIAR"),
                 atividade="VEICULO AUXILIAR",
                 status="ON",
                 ativo=True,
@@ -298,9 +300,17 @@ def ensure_auxiliary_vehicles(path: Path | None = None) -> dict:
                 modelo = _clean(row[15] if len(row) > 15 else None) or "VEICULO AUXILIAR"
                 create_vehicle(frota, placa, modelo)
 
-    if created:
+    # Reclassifica bases legadas que ainda estejam como "auxiliar".
+    legacy_aux = Vehicle.query.filter(db.func.lower(Vehicle.tipo) == "auxiliar").all()
+    for vehicle in legacy_aux:
+        resolved_type = infer_auxiliary_vehicle_type(vehicle.frota, vehicle.modelo, vehicle.atividade)
+        if resolved_type != vehicle.tipo:
+            vehicle.tipo = resolved_type
+            reclassified += 1
+
+    if created or reclassified:
         db.session.commit()
-    return {"created": created}
+    return {"created": created, "reclassified": reclassified}
 
 
 def get_active_trailers() -> list[dict]:

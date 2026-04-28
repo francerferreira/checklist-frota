@@ -3,7 +3,7 @@
 import json
 from pathlib import Path
 
-from PySide6.QtCore import Qt
+from PySide6.QtCore import QObject, QThread, Qt, Signal, Slot
 from PySide6.QtGui import QIcon, QPixmap
 from PySide6.QtWidgets import (
     QCheckBox,
@@ -20,7 +20,7 @@ from PySide6.QtWidgets import (
 )
 
 from api_client import APIClient, DEFAULT_API_BASE_URL
-from components import show_notice
+from components import LoadingOverlay, show_notice
 from runtime_paths import asset_path, data_path
 from theme import apply_soft_shadow
 
@@ -223,6 +223,11 @@ class LoginWindow(QDialog):
         shell_layout.addWidget(self._build_form_panel(), 6)
 
         root.addWidget(shell)
+        self.loading_overlay = LoadingOverlay(self)
+        self._login_thread: QThread | None = None
+        self._login_worker: _LoginWorker | None = None
+        self._login_busy = False
+        self._login_payload: dict | None = None
 
     def _build_hero_panel(self) -> QFrame:
         panel = QFrame()
@@ -457,18 +462,102 @@ class LoginWindow(QDialog):
         self.advanced_toggle.setText("Ocultar conexão" if self._advanced_visible else "Conexão avançada")
 
     def handle_login(self):
-        self.submit_button.setEnabled(False)
+        if self._login_busy:
+            return
+
+        login_value = self.login_input.text().strip()
+        password_value = self.password_input.text()
+        if not login_value or not password_value:
+            show_notice(self, "Dados obrigatórios", "Informe login e senha para continuar.", icon_name="warning")
+            return
+
+        self._set_login_busy(True)
         try:
             self.api_client.set_base_url(self.base_url_input.text().strip())
-            payload = self.api_client.login(
-                self.login_input.text().strip(),
-                self.password_input.text(),
+        except Exception as exc:
+            show_notice(self, "Falha no login", str(exc), icon_name="warning")
+            self._set_login_busy(False)
+            return
+
+        self._login_thread = QThread(self)
+        self._login_worker = _LoginWorker(self.api_client, login_value, password_value)
+        self._login_worker.moveToThread(self._login_thread)
+
+        self._login_thread.started.connect(self._login_worker.run)
+        self._login_worker.success.connect(self._on_login_success)
+        self._login_worker.failed.connect(self._on_login_failed)
+        self._login_worker.finished.connect(self._login_thread.quit)
+        self._login_worker.finished.connect(self._login_worker.deleteLater)
+        self._login_thread.finished.connect(self._on_login_thread_finished)
+        self._login_thread.finished.connect(self._login_thread.deleteLater)
+
+        self._login_thread.start()
+
+    def _set_login_busy(self, busy: bool):
+        self._login_busy = busy
+        self.submit_button.setEnabled(not busy)
+        self.login_input.setEnabled(not busy)
+        self.password_input.setEnabled(not busy)
+        self.base_url_input.setEnabled(not busy)
+        self.remember_login_check.setEnabled(not busy)
+        self.show_password_check.setEnabled(not busy)
+        self.advanced_toggle.setEnabled(not busy)
+        if busy:
+            self.loading_overlay.show_loading(
+                "Conectando ao sistema",
+                "Primeiro acesso pode demorar um pouco. Aguarde sem fechar a janela.",
             )
+        else:
+            self.loading_overlay.hide_loading()
+
+    def _on_login_success(self, payload: dict):
+        self._login_payload = payload
+
+    def _on_login_failed(self, error_message: str):
+        message = str(error_message or "")
+        if "Read timed out" in message or "timed out" in message.lower():
+            message = (
+                "A conexão demorou além do esperado no primeiro acesso. "
+                "Tente novamente em instantes."
+            )
+        show_notice(self, "Falha no login", message, icon_name="warning")
+
+    def _on_login_thread_finished(self):
+        self._login_worker = None
+        self._login_thread = None
+        payload = self._login_payload
+        self._login_payload = None
+        self._set_login_busy(False)
+        if payload:
             self._save_login_prefs()
             self.user = payload["user"]
             self.accept()
+
+    def closeEvent(self, event):
+        if self._login_busy:
+            event.ignore()
+            return
+        super().closeEvent(event)
+
+
+class _LoginWorker(QObject):
+    success = Signal(dict)
+    failed = Signal(str)
+    finished = Signal()
+
+    def __init__(self, api_client: APIClient, login_value: str, password_value: str):
+        super().__init__()
+        self.api_client = api_client
+        self.login_value = login_value
+        self.password_value = password_value
+
+    @Slot()
+    def run(self):
+        try:
+            payload = self.api_client.login(self.login_value, self.password_value)
+            self.success.emit(payload)
         except Exception as exc:
-            show_notice(self, "Falha no login", str(exc), icon_name="warning")
+            self.failed.emit(str(exc))
         finally:
-            self.submit_button.setEnabled(True)
+            self.finished.emit()
 

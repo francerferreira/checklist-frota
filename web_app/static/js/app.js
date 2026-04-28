@@ -225,22 +225,38 @@ function setActiveScreen(key) {
 }
 
 async function apiFetch(path, options = {}) {
-    const response = await fetch(`${state.apiBaseUrl}${path}`, {
-        ...options,
-        headers: {
-            ...(options.headers || {}),
-            Authorization: state.token ? `Bearer ${state.token}` : "",
-        },
-    });
+    try {
+        const response = await fetch(`${state.apiBaseUrl}${path}`, {
+            ...options,
+            headers: {
+                ...(options.headers || {}),
+                Authorization: state.token ? `Bearer ${state.token}` : "",
+            },
+        });
 
-    if (!response.ok) {
         const body = await response.json().catch(() => ({}));
-        const error = new Error(body.error || "FALHA NA COMUNICAÇÃO COM A API.");
-        error.status = response.status;
+
+        // Validação robusta seguindo o Ponto 4 do escopo: API Padronizada.
+        // Verificamos o status HTTP E a flag de sucesso do payload.
+        if (!response.ok || (body.hasOwnProperty("success") && body.success === false)) {
+            // Tenta pegar a mensagem de erro amigável do backend
+            const errorMessage = body.error || body.message || "FALHA NA COMUNICAÇÃO COM A API.";
+            const error = new Error(errorMessage);
+            error.status = response.status;
+            throw error;
+        }
+
+        // Para manter a compatibilidade com as funções que já existem:
+        // Se o backend usou api_response (com campo 'data'), retornamos apenas o dado útil.
+        // Caso contrário (rotas legadas), retornamos o corpo inteiro.
+        return body.hasOwnProperty("data") ? body.data : body;
+    } catch (error) {
+        // Tratamento elegante para erros de rede (offline ou servidor fora)
+        if (error.name === "TypeError" && (error.message.includes("fetch") || error.message.includes("NetworkError"))) {
+            throw new Error("SERVIDOR INDISPONÍVEL OU SEM CONEXÃO.");
+        }
         throw error;
     }
-
-    return response.json();
 }
 
 async function login(credentials) {
@@ -251,13 +267,16 @@ async function login(credentials) {
     });
 
     const body = await response.json().catch(() => ({}));
-    if (!response.ok) {
+    
+    if (!response.ok || (body.hasOwnProperty("success") && body.success === false)) {
         throw new Error(body.error || "NÃO FOI POSSÍVEL ENTRAR.");
     }
 
-    state.token = body.token;
-    state.user = body.user;
-    saveSession(body.token, body.user);
+    // Extrai dados suportando tanto o formato antigo quanto o novo com envelope 'data'
+    const data = body.hasOwnProperty("data") ? body.data : body;
+    state.token = data.token;
+    state.user = data.user;
+    saveSession(data.token, data.user);
 }
 
 async function bootstrap() {
@@ -2546,10 +2565,12 @@ async function uploadEvidence(file, vehicleName, itemName, photoType, moduleName
         body: formData,
     });
     const body = await response.json().catch(() => ({}));
-    if (!response.ok) {
+    if (!response.ok || (body.hasOwnProperty("success") && body.success === false)) {
         throw new Error(body.error || `FALHA AO ENVIAR IMAGEM DO ITEM ${itemName}.`);
     }
-    return body.path;
+    
+    const data = body.hasOwnProperty("data") ? body.data : body;
+    return data.path;
 }
 
 async function submitChecklist() {

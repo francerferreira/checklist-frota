@@ -8,15 +8,17 @@ from sqlalchemy.exc import IntegrityError
 from app.extensions import db
 from app.models import Vehicle
 from app.services.auth_service import auth_required, user_has_management_access
+from app.services.audit_service import record_status_change
 from app.services.inventory_import_service import discover_inventory_file, import_inventory_data
 from app.services.report_service import build_vehicle_history
+from app.utils.responses import api_response
 
 bp = Blueprint("vehicles", __name__)
 
 
 def _guard_management_access():
     if not user_has_management_access(g.current_user):
-        return jsonify({"error": "Somente admin ou gestor podem gerenciar equipamentos."}), 403
+        return api_response(False, error="Somente admin ou gestor podem gerenciar equipamentos.", status_code=403)
     return None
 
 
@@ -73,13 +75,13 @@ def list_vehicles():
         query = query.filter_by(ativo=True)
     elif ativos == "false":
         query = query.filter_by(ativo=False)
-    return jsonify([vehicle.to_dict() for vehicle in query.all()])
+    return api_response(True, data=[vehicle.to_dict() for vehicle in query.all()])
 
 
 @bp.get("/veiculos/<int:vehicle_id>/historico")
 @auth_required
 def vehicle_history(vehicle_id: int):
-    return jsonify(build_vehicle_history(vehicle_id))
+    return api_response(True, data=build_vehicle_history(vehicle_id))
 
 
 @bp.post("/veiculos")
@@ -93,7 +95,7 @@ def create_vehicle():
     required_fields = ["modelo", "frota", "tipo"]
     missing = [field for field in required_fields if not payload.get(field)]
     if missing:
-        return jsonify({"error": f"Campos obrigatorios ausentes: {', '.join(missing)}"}), 400
+        return api_response(False, error=f"Campos obrigatórios ausentes: {', '.join(missing)}", status_code=400)
 
     vehicle = _vehicle_from_payload(Vehicle(), payload)
     db.session.add(vehicle)
@@ -101,8 +103,8 @@ def create_vehicle():
         db.session.commit()
     except IntegrityError:
         db.session.rollback()
-        return jsonify({"error": "Placa ou frota ja cadastrada."}), 409
-    return jsonify(vehicle.to_dict()), 201
+        return api_response(False, error="Placa ou frota já cadastrada.", status_code=409)
+    return api_response(True, data=vehicle.to_dict(), status_code=201)
 
 
 @bp.put("/veiculos/<int:vehicle_id>")
@@ -113,13 +115,18 @@ def update_vehicle(vehicle_id: int):
         return denied
 
     vehicle = Vehicle.query.get_or_404(vehicle_id)
+    old_status = vehicle.status
     _vehicle_from_payload(vehicle, request.get_json(silent=True) or {})
+    
+    if old_status != vehicle.status:
+        record_status_change(g.current_user.id, "VEHICLE", vehicle.id, old_status, vehicle.status)
+
     try:
         db.session.commit()
     except IntegrityError:
         db.session.rollback()
-        return jsonify({"error": "Placa ou frota ja cadastrada."}), 409
-    return jsonify(vehicle.to_dict())
+        return api_response(False, error="Placa ou frota já cadastrada.", status_code=409)
+    return api_response(True, data=vehicle.to_dict())
 
 
 @bp.delete("/veiculos/<int:vehicle_id>")
@@ -130,11 +137,15 @@ def retire_vehicle(vehicle_id: int):
         return denied
 
     vehicle = Vehicle.query.get_or_404(vehicle_id)
+    old_status = vehicle.status
     vehicle.ativo = False
     vehicle.status = "RETIRADO"
     vehicle.retirado_em = datetime.utcnow()
+    
+    record_status_change(g.current_user.id, "VEHICLE", vehicle.id, old_status, "RETIRADO")
+    
     db.session.commit()
-    return jsonify(vehicle.to_dict())
+    return api_response(True, data=vehicle.to_dict())
 
 
 @bp.post("/veiculos/importar-inventario")
@@ -146,7 +157,7 @@ def import_inventory():
 
     inventory_file = discover_inventory_file(current_app.config.get("INVENTORY_FILE"))
     if not inventory_file:
-        return jsonify({"error": "Arquivo de inventario nao encontrado."}), 404
+        return api_response(False, error="Arquivo de inventário não encontrado.", status_code=404)
 
     result = import_inventory_data(inventory_file)
-    return jsonify(result)
+    return api_response(True, data=result)

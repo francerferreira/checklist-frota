@@ -77,6 +77,13 @@ class ChecklistItemDialog(QDialog):
         self.type_combo = QComboBox()
         self.type_combo.addItem("Cavalo", "cavalo")
         self.type_combo.addItem("Carreta", "carreta")
+        self.type_combo.addItem("Carro simples", "carro_simples")
+        self.type_combo.addItem("Cavalo auxiliar", "cavalo_auxiliar")
+        self.type_combo.addItem("Ambulancia", "ambulancia")
+        self.type_combo.addItem("Caminhao pipa", "caminhao_pipa")
+        self.type_combo.addItem("Caminhao brigada", "caminhao_brigada")
+        self.type_combo.addItem("Onibus", "onibus")
+        self.type_combo.addItem("Van", "van")
         current_type = self.item.get("tipo") or self.item.get("vehicle_type") or "cavalo"
         type_index = self.type_combo.findData(current_type)
         if type_index >= 0:
@@ -217,7 +224,7 @@ class ChecklistItemsPage(QFrame):
         text_wrap = QVBoxLayout()
         title = QLabel("Itens do checklist")
         title.setObjectName("PageTitle")
-        subtitle = QLabel("Configure os itens de cavalo e carreta, incluindo fotos de referência para o motorista.")
+        subtitle = QLabel("Configure os itens de checklist por tipo de equipamento, incluindo os auxiliares.")
         subtitle.setObjectName("SectionCaption")
         subtitle.setWordWrap(True)
         text_wrap.addWidget(title)
@@ -253,6 +260,13 @@ class ChecklistItemsPage(QFrame):
         self.type_filter.addItem("Todos", "")
         self.type_filter.addItem("Cavalo", "cavalo")
         self.type_filter.addItem("Carreta", "carreta")
+        self.type_filter.addItem("Carro simples", "carro_simples")
+        self.type_filter.addItem("Cavalo auxiliar", "cavalo_auxiliar")
+        self.type_filter.addItem("Ambulancia", "ambulancia")
+        self.type_filter.addItem("Caminhao pipa", "caminhao_pipa")
+        self.type_filter.addItem("Caminhao brigada", "caminhao_brigada")
+        self.type_filter.addItem("Onibus", "onibus")
+        self.type_filter.addItem("Van", "van")
         self.type_filter.setMinimumHeight(34)
         self.active_filter = QComboBox()
         self.active_filter.addItem("Ativos", "true")
@@ -428,5 +442,3 @@ class ChecklistItemsPage(QFrame):
             self.table_skeleton.show_skeleton("Carregando itens do checklist")
         else:
             self.table_skeleton.hide_skeleton()
-
-

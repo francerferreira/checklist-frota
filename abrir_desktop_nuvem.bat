@@ -1,24 +1,30 @@
 @echo off
-setlocal
-chcp 65001 >nul
+setlocal enabledelayedexpansion
 
-pushd "%~dp0"
-set "ROOT=%CD%"
-if not defined CHECKLIST_API_URL set "CHECKLIST_API_URL=https://checklist-frota-qngw.onrender.com"
+:: Resolve o diretório base de forma robusta para caminhos com espaços e OneDrive
+cd /d "%~dp0"
+set "ROOT=%~dp0"
+if "%ROOT:~-1%"=="\" set "ROOT=%ROOT:~0,-1%"
+
+set "PYTHON_EXE=python"
+if exist "%ROOT%\.venv\Scripts\python.exe" (
+    set "PYTHON_EXE=%ROOT%\.venv\Scripts\python.exe"
+)
+
+set "API_URL=https://checklist-frota-qngw.onrender.com"
+if defined CHECKLIST_API_URL set "API_URL=%CHECKLIST_API_URL%"
 
 echo ============================================
 echo   Checklist de Frota - Desktop na Nuvem
 echo ============================================
 echo.
-echo API em uso:
-echo %CHECKLIST_API_URL%
+echo API em uso: %API_URL%
+echo Caminho:    %ROOT%
+echo Python:     %PYTHON_EXE%
 echo.
-echo Abrindo apenas o desktop. Nenhum servico local sera iniciado.
-echo.
+echo Iniciando aplicativo Desktop...
 
-start "Checklist Desktop" cmd /c "set ""CHECKLIST_API_URL=%CHECKLIST_API_URL%"" && cd /d ""%ROOT%\desktop"" && python main.py"
+:: Inicia o sistema tratando corretamente as aspas para caminhos com espaços
+start "Checklist Desktop" cmd /k "set "CHECKLIST_API_URL=%API_URL%" && cd /d "%ROOT%\desktop" && "%PYTHON_EXE%" main.py"
 
-echo Desktop iniciado.
-echo Se quiser voltar ao ambiente local, use a conexao avancada no login.
-echo.
-pause
+exit

@@ -14,13 +14,31 @@ from app.services.activity_link_service import (
 )
 from app.services.auth_service import auth_required, user_has_management_access
 from app.services.material_service import apply_activity_stock_change
+from app.utils.filters import apply_item_search
+from app.utils.responses import api_response
 
 bp = Blueprint("activities", __name__)
 
+# --- CONSTANTES DE ESTADO (Ponto 2: Controle de Estados) ---
+
+class ActivityStatus:
+    OPEN = "ABERTA"
+    FINISHED = "FINALIZADA"
+
+class ItemStatus:
+    PENDING = "PENDENTE"
+    INSTALLED = "INSTALADO"
+    NOT_INSTALLED = "NAO_INSTALADO"
+    
+    @classmethod
+    def all(cls):
+        return {cls.PENDING, cls.INSTALLED, cls.NOT_INSTALLED}
+
+# --- UTILITÁRIOS INTERNOS ---
 
 def _guard_management_access():
     if not user_has_management_access(g.current_user):
-        return jsonify({"error": "Somente admin ou gestor podem gerenciar atividades."}), 403
+        return api_response(False, error="Somente admin ou gestor podem gerenciar atividades.", status_code=403)
     return None
 
 
@@ -154,7 +172,6 @@ def _activity_query():
     query = Activity.query.order_by(Activity.created_at.desc())
     tipo = request.args.get("tipo")
     status = request.args.get("status")
-    item = request.args.get("item")
     assigned_mechanic_id = request.args.get("mecanico_id", type=int)
     only_mine = request.args.get("minhas") == "true"
 
@@ -172,22 +189,23 @@ def _activity_query():
         query = query.filter(Activity.tipo_equipamento == tipo.lower())
     if status:
         query = query.filter(Activity.status == status.upper())
-    if item:
-        query = query.filter(Activity.item_nome.ilike(f"%{item}%"))
+
+    query = apply_item_search(query, Activity, request.args.get("item"))
     return query
 
 
 @bp.get("/atividades")
 @auth_required
 def list_activities():
-    return jsonify([activity.to_dict() for activity in _activity_query().all()])
+    data = [activity.to_dict() for activity in _activity_query().all()]
+    return api_response(True, data=data)
 
 
 @bp.get("/atividades/<int:activity_id>")
 @auth_required
 def get_activity(activity_id: int):
     activity = Activity.query.get_or_404(activity_id)
-    return jsonify(_serialize_activity(activity, include_items=True))
+    return api_response(True, data=_serialize_activity(activity, include_items=True))
 
 
 @bp.post("/atividades")
@@ -201,19 +219,19 @@ def create_activity():
     vehicle_ids = payload.get("vehicle_ids") or []
     item_nome = _clean(payload.get("item_nome"))
     if not item_nome:
-        return jsonify({"error": "Informe o modulo ou componente da atividade."}), 400
+        return api_response(False, error="Informe o modulo ou componente da atividade.", status_code=400)
     if not vehicle_ids:
-        return jsonify({"error": "Selecione ao menos um equipamento para a atividade."}), 400
+        return api_response(False, error="Selecione ao menos um equipamento para a atividade.", status_code=400)
 
     vehicles = Vehicle.query.filter(Vehicle.id.in_(vehicle_ids)).order_by(Vehicle.frota.asc()).all()
     if len(vehicles) != len(set(vehicle_ids)):
-        return jsonify({"error": "Ha equipamentos invalidos na selecao."}), 400
+        return api_response(False, error="Há equipamentos inválidos na seleção.", status_code=400)
 
     tipos = {vehicle.tipo for vehicle in vehicles}
     tipo_equipamento = payload.get("tipo_equipamento")
     if not tipo_equipamento:
         tipo_equipamento = tipos.pop() if len(tipos) == 1 else "misto"
-    tipo_equipamento = str(tipo_equipamento).strip().lower()
+    tipo_equipamento = str(tipo_equipamento).strip().lower() or "misto"
 
     titulo = _clean(payload.get("titulo")) or f"Troca em massa - {item_nome}"
     material_id = payload.get("material_id")
@@ -221,19 +239,19 @@ def create_activity():
     if material_id:
         material = Material.query.get(material_id)
         if not material or not material.ativo:
-            return jsonify({"error": "Material informado e invalido ou esta inativo."}), 400
+            return api_response(False, error="Material informado é inválido ou inativo.", status_code=400)
 
     try:
         quantidade_por_equipamento = max(1, int(payload.get("quantidade_por_equipamento") or 1))
     except (TypeError, ValueError):
-        return jsonify({"error": "Quantidade por equipamento invalida."}), 400
+        return api_response(False, error="Quantidade por equipamento inválida.", status_code=400)
 
     assigned_mechanic_id = payload.get("assigned_mechanic_user_id")
     assigned_mechanic = None
     if assigned_mechanic_id:
         assigned_mechanic = User.query.get(assigned_mechanic_id)
         if not assigned_mechanic or assigned_mechanic.tipo != "mecanico" or not assigned_mechanic.ativo:
-            return jsonify({"error": "Mecanico direcionado invalido ou inativo."}), 400
+            return api_response(False, error="Mecânico direcionado inválido ou inativo.", status_code=400)
 
     activity = Activity(
         titulo=titulo,
@@ -261,12 +279,12 @@ def create_activity():
                 quantidade_peca=activity.quantidade_por_equipamento,
                 codigo_peca=activity.codigo_peca,
                 descricao_peca=activity.descricao_peca,
-                status_execucao="PENDENTE",
+                status_execucao=ItemStatus.PENDING,
             )
         )
 
     db.session.commit()
-    return jsonify(_serialize_activity(activity, include_items=True)), 201
+    return api_response(True, data=_serialize_activity(activity, include_items=True), status_code=201)
 
 
 @bp.post("/atividades/nao_conformidades/lote")
@@ -279,7 +297,7 @@ def create_mass_activity_from_non_conformity_item():
     payload = request.get_json(silent=True) or {}
     item_nome = _clean(payload.get("item_nome"))
     if not item_nome:
-        return jsonify({"error": "Informe a não conformidade (item) para abrir a atividade em massa."}), 400
+        return api_response(False, error="Informe a não conformidade para abrir a atividade.", status_code=400)
 
     modulo = normalize_modulo(payload.get("modulo"))
     status_nc = (payload.get("status_nc") or "abertas").strip().lower()
@@ -291,7 +309,7 @@ def create_mass_activity_from_non_conformity_item():
 
     existing_open = (
         Activity.query.filter_by(
-            status="ABERTA",
+            status=ActivityStatus.OPEN,
             source_type="NC_ITEM",
             source_key=source_key,
             source_modulo=modulo,
@@ -301,17 +319,9 @@ def create_mass_activity_from_non_conformity_item():
         .first()
     )
     if existing_open and not allow_duplicate:
-        return (
-            jsonify(
-                {
-                    "error": (
-                        f"Já existe atividade em massa aberta para {source_key} neste escopo: #{existing_open.id}. "
-                        "Finalize a atividade atual ou confirme abertura duplicada."
-                    )
-                }
-            ),
-            409,
-        )
+        err = (f"Já existe atividade em massa aberta para {source_key}: #{existing_open.id}. "
+               "Finalize a atividade atual ou confirme abertura duplicada.")
+        return api_response(False, error=err, status_code=409)
 
     selected_non_conformities = get_non_conformities_for_mass_activity(
         item_name=item_nome,
@@ -321,7 +331,7 @@ def create_mass_activity_from_non_conformity_item():
         date_to=date_to,
     )
     if not selected_non_conformities:
-        return jsonify({"error": "Nenhuma não conformidade encontrada para o item e filtros selecionados."}), 404
+        return api_response(False, error="Nenhuma não conformidade encontrada.", status_code=404)
 
     vehicle_map: dict[int, str | None] = {}
     for checklist_item in selected_non_conformities:
@@ -329,26 +339,26 @@ def create_mass_activity_from_non_conformity_item():
         if vehicle:
             vehicle_map[vehicle.id] = vehicle.tipo
     if not vehicle_map:
-        return jsonify({"error": "Não foi possível identificar equipamentos válidos para a atividade em massa."}), 400
+        return api_response(False, error="Não foi possível identificar equipamentos válidos.", status_code=400)
 
     material = None
     material_id = payload.get("material_id")
     if material_id:
         material = Material.query.get(material_id)
         if not material or not material.ativo:
-            return jsonify({"error": "Material informado e inválido ou está inativo."}), 400
+            return api_response(False, error="Material informado é inválido ou inativo.", status_code=400)
 
     try:
         quantidade_por_equipamento = max(1, int(payload.get("quantidade_por_equipamento") or 1))
     except (TypeError, ValueError):
-        return jsonify({"error": "Quantidade por equipamento inválida."}), 400
+        return api_response(False, error="Quantidade por equipamento inválida.", status_code=400)
 
     assigned_mechanic = None
     assigned_mechanic_id = payload.get("assigned_mechanic_user_id")
     if assigned_mechanic_id:
         assigned_mechanic = User.query.get(assigned_mechanic_id)
         if not assigned_mechanic or assigned_mechanic.tipo != "mecanico" or not assigned_mechanic.ativo:
-            return jsonify({"error": "Mecânico direcionado inválido ou inativo."}), 400
+            return api_response(False, error="Mecânico direcionado inválido ou inativo.", status_code=400)
 
     vehicle_types = {str(tipo or "").strip().lower() for tipo in vehicle_map.values()}
     if modulo in {"cavalo", "carreta"}:
@@ -399,7 +409,7 @@ def create_mass_activity_from_non_conformity_item():
                 quantidade_peca=activity.quantidade_por_equipamento,
                 codigo_peca=activity.codigo_peca,
                 descricao_peca=activity.descricao_peca,
-                status_execucao="PENDENTE",
+                status_execucao=ItemStatus.PENDING,
             )
         )
     db.session.flush()
@@ -413,7 +423,7 @@ def create_mass_activity_from_non_conformity_item():
     response = _serialize_activity(activity, include_items=True)
     response["nao_conformidades_iniciais"] = int(linked_total)
     response["equipamentos_iniciais"] = int(len(vehicle_map))
-    return jsonify(response), 201
+    return api_response(True, data=response, status_code=201)
 
 
 @bp.put("/atividades/<int:activity_id>/itens/<int:item_id>")
@@ -425,32 +435,32 @@ def update_activity_item(activity_id: int, item_id: int):
     material_fields = {"material_id", "quantidade_peca", "quantidade_por_equipamento", "codigo_peca", "descricao_peca"}
     material_payload_present = any(field in payload for field in material_fields)
     if material_payload_present and not user_has_management_access(g.current_user):
-        return jsonify({"error": "Somente admin ou gestor podem editar material da atividade."}), 403
+        return api_response(False, error="Somente admin ou gestor podem editar material.", status_code=403)
 
     previous_status = item.status_execucao
     previous_material = _effective_material(item, activity)
     previous_quantity = _effective_quantity(item, activity)
 
     status_execucao = str(payload.get("status_execucao") or item.status_execucao).strip().upper()
-    if status_execucao not in {"PENDENTE", "INSTALADO", "NAO_INSTALADO"}:
-        return jsonify({"error": "Status da atividade invalido."}), 400
+    if status_execucao not in ItemStatus.all():
+        return api_response(False, error="Status da atividade inválido.", status_code=400)
 
     try:
         _apply_item_material_payload(item, activity, payload)
     except ValueError as exc:
-        return jsonify({"error": str(exc)}), 400
+        return api_response(False, error=str(exc), status_code=400)
 
     next_material = _effective_material(item, activity)
     next_quantity = _effective_quantity(item, activity)
     if (
-        previous_status == "INSTALADO"
-        and status_execucao == "INSTALADO"
+        previous_status == ItemStatus.INSTALLED
+        and status_execucao == ItemStatus.INSTALLED
         and (
             (previous_material.id if previous_material else None) != (next_material.id if next_material else None)
             or previous_quantity != next_quantity
         )
     ):
-        return jsonify({"error": "Para trocar material de item já instalado, altere o status para pendente/não instalado antes."}), 400
+        return api_response(False, error="Altere o status para pendente antes de trocar o material instalado.", status_code=400)
 
     item.status_execucao = status_execucao
     item.observacao = _clean(payload.get("observacao")) or item.observacao
@@ -465,7 +475,7 @@ def update_activity_item(activity_id: int, item_id: int):
     if not origin_photo_locked:
         item.foto_antes = _clean(payload.get("foto_antes")) or item.foto_antes
     item.foto_depois = _clean(payload.get("foto_depois")) or item.foto_depois
-    if status_execucao == "PENDENTE":
+    if status_execucao == ItemStatus.PENDING:
         item.instalado_em = None
         item.executado_por_nome = None
         item.executado_por_login = None
@@ -475,8 +485,8 @@ def update_activity_item(activity_id: int, item_id: int):
         item.executado_por_login = g.current_user.login
 
     try:
-        material_for_movement = next_material if status_execucao == "INSTALADO" else previous_material
-        quantity_for_movement = next_quantity if status_execucao == "INSTALADO" else previous_quantity
+        material_for_movement = next_material if status_execucao == ItemStatus.INSTALLED else previous_material
+        quantity_for_movement = next_quantity if status_execucao == ItemStatus.INSTALLED else previous_quantity
         apply_activity_stock_change(
             material_for_movement,
             previous_status=previous_status,
@@ -487,11 +497,11 @@ def update_activity_item(activity_id: int, item_id: int):
         )
     except ValueError as exc:
         db.session.rollback()
-        return jsonify({"error": str(exc)}), 400
+        return api_response(False, error=str(exc), status_code=400)
 
     resumo = activity.summary()
     all_done = resumo["pendentes"] == 0
-    activity.status = "FINALIZADA" if all_done else "ABERTA"
+    activity.status = ActivityStatus.FINISHED if all_done else ActivityStatus.OPEN
     activity.finalized_at = datetime.utcnow() if all_done else None
 
     db.session.commit()
@@ -499,7 +509,7 @@ def update_activity_item(activity_id: int, item_id: int):
     if origin_photo_preserved:
         response["aviso_foto_origem_preservada"] = True
         response["mensagem_foto_origem"] = "Evidência de origem preservada. Use foto de resolução para a tratativa."
-    return jsonify(response)
+    return api_response(True, data=response)
 
 
 @bp.put("/atividades/<int:activity_id>/materiais")
@@ -513,7 +523,7 @@ def update_activity_item_materials(activity_id: int):
     payload = request.get_json(silent=True) or {}
     material_fields = {"material_id", "quantidade_peca", "quantidade_por_equipamento", "codigo_peca", "descricao_peca"}
     if not any(field in payload for field in material_fields):
-        return jsonify({"error": "Informe ao menos um campo de material para atualizar."}), 400
+        return api_response(False, error="Informe ao menos um campo de material para atualizar.", status_code=400)
 
     apply_to_all = bool(payload.get("apply_to_all"))
     item_ids = payload.get("activity_item_ids") or []
@@ -521,31 +531,31 @@ def update_activity_item_materials(activity_id: int):
         target_items = ActivityItem.query.filter_by(activity_id=activity.id).all()
     else:
         if not item_ids:
-            return jsonify({"error": "Selecione ao menos um equipamento para atualizar material."}), 400
+            return api_response(False, error="Selecione ao menos um equipamento para atualizar material.", status_code=400)
         try:
             unique_ids = sorted({int(item_id) for item_id in item_ids if str(item_id).strip()})
         except (TypeError, ValueError):
-            return jsonify({"error": "Ha equipamentos invalidos na selecao de materiais."}), 400
+            return api_response(False, error="Há equipamentos inválidos na seleção de materiais.", status_code=400)
         if not unique_ids:
-            return jsonify({"error": "Selecione ao menos um equipamento para atualizar material."}), 400
+            return api_response(False, error="Selecione ao menos um equipamento para atualizar material.", status_code=400)
         target_items = ActivityItem.query.filter(
             ActivityItem.activity_id == activity.id,
             ActivityItem.id.in_(unique_ids),
         ).all()
         if len(target_items) != len(unique_ids):
-            return jsonify({"error": "Há equipamentos inválidos na seleção de materiais."}), 400
+            return api_response(False, error="Há equipamentos inválidos na seleção de materiais.", status_code=400)
 
     if not target_items:
-        return jsonify({"error": "Selecione ao menos um equipamento para atualizar material."}), 400
+        return api_response(False, error="Selecione ao menos um equipamento para atualizar material.", status_code=400)
 
     if any((item.status_execucao or "").upper() == "INSTALADO" for item in target_items):
-        return jsonify({"error": "Não é permitido alterar material de item já instalado."}), 400
+        return api_response(False, error="Não é permitido alterar material de item já instalado.", status_code=400)
 
     try:
         for item in target_items:
             _apply_item_material_payload(item, activity, payload)
     except ValueError as exc:
-        return jsonify({"error": str(exc)}), 400
+        return api_response(False, error=str(exc), status_code=400)
 
     if apply_to_all:
         if "material_id" in payload:
@@ -560,4 +570,4 @@ def update_activity_item_materials(activity_id: int):
     db.session.commit()
     response = _serialize_activity(activity, include_items=True)
     response["itens_atualizados"] = len(target_items)
-    return jsonify(response)
+    return api_response(True, data=response)

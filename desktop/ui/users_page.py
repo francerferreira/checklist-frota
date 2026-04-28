@@ -375,6 +375,3 @@ class UsersPage(QFrame):
             self.data_changed.emit()
         except Exception as exc:
             show_notice(self, "Falha ao excluir", str(exc), icon_name="warning")
-
-
-

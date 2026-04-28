@@ -430,10 +430,15 @@ class ReportsPage(QFrame):
         self._on_item_period_mode_changed()
 
         self.tabs = QTabWidget()
-        self.tabs.addTab(self._build_macro_tab(), "Por não conformidade")
-        self.tabs.addTab(self._build_item_tab(), "Ocorrências detalhadas")
-        self.tabs.addTab(self._build_resolved_tab(), "Resolvidos")
+        self.tabs.addTab(self._build_macro_tab(), "Macro (por NC)")
+        self.tabs.addTab(self._build_micro_tab(), "Micro")
+        self.tabs.addTab(self._build_item_tab(), "Detalhe (ocor.)")
+        self.tabs.addTab(self._build_resolved_tab(), "NC Resolvidas")
+        self.tabs.addTab(self._build_audit_logs_tab(), "Logs de Auditoria")
         self.tabs.currentChanged.connect(self._on_tab_changed)
+
+        # Admin access for audit logs tab
+        self.tabs.setTabVisible(4, self.api_client.user_has_admin_access())
 
         layout.addLayout(header)
         layout.addWidget(self.filter_card)
@@ -720,9 +725,93 @@ class ReportsPage(QFrame):
         layout.addWidget(card)
         return tab
 
+    def _build_audit_logs_tab(self):
+        tab = QWidget()
+        layout = QVBoxLayout(tab)
+        layout.setContentsMargins(0, 0, 0, 0)
+        layout.setSpacing(8)
+
+        card = QFrame()
+        style_table_card(card)
+        self.audit_skeleton = TableSkeletonOverlay(card, rows=6)
+        card_layout = QVBoxLayout(card)
+        card_layout.setContentsMargins(10, 10, 10, 10)
+        card_layout.setSpacing(8)
+
+        top = QHBoxLayout()
+        top.setContentsMargins(0, 0, 0, 0)
+        top.setSpacing(12)
+        title = QLabel("Logs de Auditoria")
+        title.setObjectName("SectionTitle")
+        caption = QLabel("Histórico de mudanças críticas no sistema (status de equipamentos, resolução de NCs, etc.).")
+        caption.setObjectName("SectionCaption")
+        caption.setWordWrap(True)
+        text_wrap = QVBoxLayout()
+        text_wrap.addWidget(title)
+        text_wrap.addWidget(caption)
+
+        self.audit_entity_filter = QComboBox()
+        self.audit_entity_filter.addItem("Todas as entidades", "")
+        self.audit_entity_filter.addItem("Veículos", "VEHICLE")
+        self.audit_entity_filter.addItem("Itens de Checklist", "CHECKLIST_ITEM")
+        self.audit_entity_filter.setMinimumHeight(34)
+        self.audit_entity_filter.currentIndexChanged.connect(self._schedule_audit_refresh)
+
+        self.audit_start_date_filter = QDateEdit()
+        self.audit_start_date_filter.setCalendarPopup(True)
+        self.audit_start_date_filter.setDisplayFormat("dd/MM/yyyy")
+        self.audit_start_date_filter.setMinimumHeight(34)
+        _apply_light_date_popup_style(self.audit_start_date_filter)
+        self.audit_start_date_filter.setDate(QDate.currentDate().addDays(-30)) # Últimos 30 dias por padrão
+        self.audit_start_date_filter.dateChanged.connect(self._schedule_audit_refresh)
+
+        self.audit_end_date_filter = QDateEdit()
+        self.audit_end_date_filter.setCalendarPopup(True)
+        self.audit_end_date_filter.setDisplayFormat("dd/MM/yyyy")
+        self.audit_end_date_filter.setMinimumHeight(34)
+        _apply_light_date_popup_style(self.audit_end_date_filter)
+        self.audit_end_date_filter.setDate(QDate.currentDate())
+        self.audit_end_date_filter.dateChanged.connect(self._schedule_audit_refresh)
+
+        self.audit_live_filter_timer = QTimer(self)
+        self.audit_live_filter_timer.setSingleShot(True)
+        self.audit_live_filter_timer.timeout.connect(self.refresh_audit_logs)
+
+        audit_filter_row = QHBoxLayout()
+        audit_filter_row.setContentsMargins(0, 0, 0, 0)
+        audit_filter_row.setSpacing(8)
+        audit_filter_row.addWidget(self.audit_entity_filter)
+        audit_filter_row.addWidget(QLabel("De:"))
+        audit_filter_row.addWidget(self.audit_start_date_filter)
+        audit_filter_row.addWidget(QLabel("Até:"))
+        audit_filter_row.addWidget(self.audit_end_date_filter)
+        audit_filter_row.addStretch()
+
+        top.addLayout(text_wrap, 1)
+        top.addLayout(audit_filter_row)
+
+        self.audit_table = QTableWidget(0, 6)
+        self.audit_table.setHorizontalHeaderLabels(
+            ["Data/Hora", "Usuário", "Entidade", "ID da Entidade", "Ação", "Valores (Antigo -> Novo)"]
+        )
+        configure_table(self.audit_table, stretch_last=False)
+        self.audit_table.setMinimumHeight(520)
+
+        card_layout.addLayout(top)
+        card_layout.addWidget(self.audit_table)
+        layout.addWidget(card)
+        return tab
+
     def refresh(self):
-        self.dirty_tabs.update({"macro", "micro", "item", "resolved", "vehicles"})
+        self.dirty_tabs.update({"macro", "micro", "item", "resolved", "vehicles", "audit"})
         self._load_visible_tab()
+
+    def _schedule_audit_refresh(self):
+        self.audit_live_filter_timer.start(240)
+
+    def refresh_audit_logs(self):
+        self.dirty_tabs.add("audit")
+        self._load_audit_logs_tab()
 
     def set_loading_state(self, loading: bool):
         overlay = self._overlay_for_tab(self.current_tab_key())
@@ -740,6 +829,10 @@ class ReportsPage(QFrame):
     def refresh_resolved_table(self):
         self.dirty_tabs.add("resolved")
         self._load_resolved_tab()
+    
+    def refresh_audit_logs_tab(self):
+        self.dirty_tabs.add("audit")
+        self._load_audit_logs_tab()
 
     def _on_tab_changed(self, _index: int):
         self._load_visible_tab()
@@ -779,6 +872,12 @@ class ReportsPage(QFrame):
                 self._load_resolved_tab()
                 self.dirty_tabs.discard("resolved")
                 self.resolved_skeleton.hide_skeleton()
+            return
+        if tab_key == "audit" and self.api_client.user_has_admin_access():
+            if "audit" in self.dirty_tabs:
+                self.audit_skeleton.show_skeleton(self._loading_message_for_tab("audit"))
+                self._load_audit_logs_tab()
+                self.audit_skeleton.hide_skeleton()
             return
 
     def _load_item_tab(self):
@@ -872,6 +971,42 @@ class ReportsPage(QFrame):
             self.resolved_table.setUpdatesEnabled(True)
             self.resolved_table.setSortingEnabled(True)
         self.resolved_skeleton.hide_skeleton()
+
+    def _load_audit_logs_tab(self):
+        try:
+            date_from = self.audit_start_date_filter.date().toString("yyyy-MM-dd")
+            date_to = self.audit_end_date_filter.date().toString("yyyy-MM-dd")
+            entidade = self.audit_entity_filter.currentData()
+
+            logs = self.api_client.get_audit_logs(
+                entidade=entidade or None,
+                data_inicio=date_from,
+                data_fim=date_to
+            )
+
+            self.audit_table.setSortingEnabled(False)
+            self.audit_table.setUpdatesEnabled(False)
+            self.audit_table.setRowCount(len(logs))
+
+            for row, log in enumerate(logs):
+                values = [
+                    self._format(log.get("created_at")),
+                    log.get("user") or "Sistema",
+                    log.get("entity_type") or "-",
+                    str(log.get("entity_id") or "-"),
+                    log.get("action") or "-",
+                    f"{log.get('old_value')} -> {log.get('new_value')}"
+                ]
+                for col, val in enumerate(values):
+                    self.audit_table.setItem(row, col, make_table_item(val))
+
+            self.dirty_tabs.discard("audit")
+        except Exception as exc:
+            show_notice(self, "Falha ao carregar logs", str(exc), icon_name="warning")
+        finally:
+            self.audit_table.setUpdatesEnabled(True)
+            self.audit_table.setSortingEnabled(True)
+            self.audit_skeleton.hide_skeleton()
 
     def _populate_macro(self, rows):
         self.macro_table.setSortingEnabled(False)
@@ -1578,7 +1713,9 @@ class ReportsPage(QFrame):
         return sorted(rows, key=lambda item: item.get("date") or "", reverse=True)
 
     def current_tab_key(self) -> str:
-        return {0: "macro", 1: "item", 2: "resolved"}.get(self.tabs.currentIndex(), "macro")
+        return {0: "macro", 1: "micro", 2: "item", 3: "resolved", 4: "audit"}.get(
+            self.tabs.currentIndex(), "macro"
+        )
 
     def _overlay_for_tab(self, tab_key: str):
         return {
@@ -1586,6 +1723,7 @@ class ReportsPage(QFrame):
             "micro": self.micro_skeleton,
             "item": self.item_skeleton,
             "resolved": self.resolved_skeleton,
+            "audit": self.audit_skeleton,
         }.get(tab_key)
 
     @staticmethod
@@ -1595,6 +1733,7 @@ class ReportsPage(QFrame):
             "micro": "Montando relatório micro",
             "item": "Montando consulta por item",
             "resolved": "Montando área de resolvidos",
+            "audit": "Carregando logs de auditoria",
         }.get(tab_key, "Montando relatório executivo")
 
     @staticmethod
@@ -1611,5 +1750,3 @@ class ReportsPage(QFrame):
             return datetime.fromisoformat(value).strftime("%d/%m/%Y")
         except ValueError:
             return value
-
-
