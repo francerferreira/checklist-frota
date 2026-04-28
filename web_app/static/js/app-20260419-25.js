@@ -272,22 +272,29 @@ function setActiveScreen(key) {
 }
 
 async function apiFetch(path, options = {}) {
-    const response = await fetch(`${state.apiBaseUrl}${path}`, {
-        ...options,
-        headers: {
-            ...(options.headers || {}),
-            Authorization: state.token ? `Bearer ${state.token}` : "",
-        },
-    });
+    try {
+        const response = await fetch(`${state.apiBaseUrl}${path}`, {
+            ...options,
+            headers: {
+                ...(options.headers || {}),
+                Authorization: state.token ? `Bearer ${state.token}` : "",
+            },
+        });
 
-    if (!response.ok) {
         const body = await response.json().catch(() => ({}));
-        const error = new Error(body.error || "FALHA NA COMUNICAÇÃO COM A API.");
-        error.status = response.status;
+        if (!response.ok || (Object.prototype.hasOwnProperty.call(body, "success") && body.success === false)) {
+            const error = new Error(body.error || body.message || "FALHA NA COMUNICACAO COM A API.");
+            error.status = response.status;
+            throw error;
+        }
+
+        return Object.prototype.hasOwnProperty.call(body, "data") ? body.data : body;
+    } catch (error) {
+        if (error.name === "TypeError" && (error.message.includes("fetch") || error.message.includes("NetworkError"))) {
+            throw new Error("SERVIDOR INDISPONIVEL OU SEM CONEXAO.");
+        }
         throw error;
     }
-
-    return response.json();
 }
 
 async function login(credentials) {
@@ -298,13 +305,14 @@ async function login(credentials) {
     });
 
     const body = await response.json().catch(() => ({}));
-    if (!response.ok) {
-        throw new Error(body.error || "NÃO FOI POSSÍVEL ENTRAR.");
+    if (!response.ok || (Object.prototype.hasOwnProperty.call(body, "success") && body.success === false)) {
+        throw new Error(body.error || "NAO FOI POSSIVEL ENTRAR.");
     }
 
-    state.token = body.token;
-    state.user = body.user;
-    saveSession(body.token, body.user);
+    const payload = Object.prototype.hasOwnProperty.call(body, "data") ? body.data : body;
+    state.token = payload.token;
+    state.user = payload.user;
+    saveSession(payload.token, payload.user);
 }
 
 async function bootstrap() {
@@ -453,6 +461,15 @@ function formatUsage(section) {
     return `${section.percent}% | ${section.used_mb} MB DE ${section.limit_mb} MB`;
 }
 
+function normalizeStorageSection(section) {
+    return {
+        used_mb: Number(section?.used_mb ?? 0),
+        limit_mb: Number(section?.limit_mb ?? 0),
+        percent: Number(section?.percent ?? 0),
+        level: String(section?.level || "ok").toLowerCase(),
+    };
+}
+
 async function refreshCloudAdminPanel() {
     if (!elements.cloudAdminPanel) {
         return;
@@ -467,31 +484,33 @@ async function refreshCloudAdminPanel() {
     elements.cloudStorageDetail.innerHTML = "";
     try {
         const status = await apiFetch("/admin/storage/status");
-        const level = [status.database.level, status.storage.level].includes("critico")
+        const database = normalizeStorageSection(status?.database);
+        const storage = normalizeStorageSection(status?.storage);
+        const level = [database.level, storage.level].includes("critico")
             ? "CRITICO"
-            : [status.database.level, status.storage.level].includes("vermelho")
+            : [database.level, storage.level].includes("vermelho")
                 ? "ATENCAO"
-                : [status.database.level, status.storage.level].includes("amarelo")
+                : [database.level, storage.level].includes("amarelo")
                     ? "OBSERVAR"
                     : "OK";
-        elements.cloudStorageSummary.textContent = `${level} | BANCO ${status.database.percent}% | FOTOS ${status.storage.percent}%`;
+        elements.cloudStorageSummary.textContent = `${level} | BANCO ${database.percent}% | FOTOS ${storage.percent}%`;
         elements.cloudStorageDetail.innerHTML = `
             <article class="sync-row">
                 <div>
-                    <strong>BANCO SUPABASE</strong>
-                    <span>${escapeHtml(formatUsage(status.database))}</span>
+                    <strong>BANCO DE DADOS</strong>
+                    <span>${escapeHtml(formatUsage(database))}</span>
                 </div>
-                <em>${escapeHtml(String(status.database.level).toUpperCase())}</em>
+                <em>${escapeHtml(String(database.level).toUpperCase())}</em>
             </article>
             <article class="sync-row">
                 <div>
                     <strong>FOTOS/STORAGE</strong>
-                    <span>${escapeHtml(formatUsage(status.storage))}</span>
+                    <span>${escapeHtml(formatUsage(storage))}</span>
                 </div>
-                <em>${escapeHtml(String(status.storage.level).toUpperCase())}</em>
+                <em>${escapeHtml(String(storage.level).toUpperCase())}</em>
             </article>
         `;
-        if (["critico", "vermelho", "amarelo"].includes(status.database.level) || ["critico", "vermelho", "amarelo"].includes(status.storage.level)) {
+        if (["critico", "vermelho", "amarelo"].includes(database.level) || ["critico", "vermelho", "amarelo"].includes(storage.level)) {
             showToast("ARMAZENAMENTO DA NUVEM PERTO DO LIMITE. GERE UM BACKUP.");
         }
     } catch (error) {
