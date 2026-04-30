@@ -1,4 +1,5 @@
-const CACHE_NAME = "cf-checklist-frota-pwa-20260428-07";
+const CACHE_PREFIX = "cf-checklist-frota-pwa";
+const CACHE_NAME = `${CACHE_PREFIX}-20260428-07`;
 const STATIC_CACHE_PATHS = [
     "./manifest.json",
     "./static/icons/icon-192.png",
@@ -19,7 +20,7 @@ self.addEventListener("activate", (event) => {
     event.waitUntil(
         caches.keys()
             .then((keys) => Promise.all(keys
-                .filter((key) => key !== CACHE_NAME)
+                .filter((key) => key.startsWith(CACHE_PREFIX) && key !== CACHE_NAME)
                 .map((key) => caches.delete(key))))
     );
 });

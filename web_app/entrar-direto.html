@@ -86,17 +86,22 @@
         </label>
         <button id="entrar" type="button">ENTRAR AGORA</button>
         <p id="status"></p>
-        <a href="./?v=20260419-14">ABRIR TELA NORMAL</a>
+        <a href="./?app=web-mobile">ABRIR TELA NORMAL</a>
     </main>
     <script>
         async function clearAppCache() {
+            const appCachePrefix = "cf-checklist-frota";
             if ("serviceWorker" in navigator) {
                 const registrations = await navigator.serviceWorker.getRegistrations();
                 await Promise.all(registrations.map((registration) => registration.unregister()));
             }
             if ("caches" in window) {
                 const names = await caches.keys();
-                await Promise.all(names.map((name) => caches.delete(name)));
+                await Promise.all(
+                    names
+                        .filter((name) => name.startsWith(appCachePrefix))
+                        .map((name) => caches.delete(name))
+                );
             }
         }
 
@@ -126,10 +131,11 @@
                 if (!response.ok) {
                     throw new Error(body.error || "Erro de acesso.");
                 }
-                localStorage.setItem("token", body.token);
-                localStorage.setItem("user", JSON.stringify(body.user));
+                const payload = Object.prototype.hasOwnProperty.call(body, "data") ? body.data : body;
+                localStorage.setItem("token", payload.token);
+                localStorage.setItem("user", JSON.stringify(payload.user));
                 status.textContent = "Login OK. Abrindo sistema...";
-                window.location.href = "./?v=20260419-14&login=ok";
+                window.location.href = "./?app=web-mobile&login=ok";
             } catch (error) {
                 status.className = "error";
                 status.textContent = error.message || "Nao foi possivel entrar.";

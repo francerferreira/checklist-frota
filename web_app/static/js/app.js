@@ -1,11 +1,11 @@
-const MODULE_ORDER = [
-    "ILUMINAÇÃO",
+﻿const MODULE_ORDER = [
+    "ILUMINAÃ‡ÃƒO",
     "CABINE E PAINEL",
     "MOTOR E FLUIDOS",
     "FREIOS E RODAGEM",
     "ACOPLAMENTO E ESTRUTURA",
     "EXTERNO E ACESSOS",
-    "SEGURANÇA OPERACIONAL",
+    "SEGURANÃ‡A OPERACIONAL",
     "OUTROS",
 ];
 
@@ -18,6 +18,7 @@ const OFFLINE_CATALOG_KEY = "offlineCatalog";
 const ACTIVE_CHECKLIST_DRAFT_KEY = "activeChecklistDraftVehicleId";
 const SESSION_STARTED_AT_KEY = "sessionStartedAt";
 const SESSION_MAX_AGE_MS = 8 * 60 * 60 * 1000;
+const appTopbar = document.querySelector(".app-topbar");
 
 function readJsonStorage(key, fallback = null) {
     try {
@@ -61,14 +62,29 @@ const state = {
     nonConformityMicro: [],
     nonConformityChecklist: [],
     nonConformityMechanic: [],
+    maintenanceOverview: null,
     ncChecklistStatus: "abertas",
     ncMechanicStatus: "abertas",
     washYear: new Date().getFullYear(),
     washMonth: new Date().getMonth() + 1,
     selectedWashDate: "",
+    selectedWashShiftTab: "TODOS",
+    maintenanceYear: new Date().getFullYear(),
+    maintenanceMonth: new Date().getMonth() + 1,
+    selectedMaintenanceDate: "",
     selectedActivity: null,
     selectedVehicle: null,
     currentModule: "TODOS",
+    currentChecklistDraftUpdatedAt: "",
+    currentChecklistDraftRestored: false,
+    checklistHistory: {
+        tipo: "",
+        dataInicio: "",
+        dataFim: "",
+        columns: [],
+        rows: [],
+        expandedVehicleId: "",
+    },
 };
 
 const screens = {
@@ -79,7 +95,9 @@ const screens = {
     activities: document.getElementById("activities-screen"),
     activityDetail: document.getElementById("activity-detail-screen"),
     washes: document.getElementById("washes-screen"),
+    checklistHistory: document.getElementById("checklist-history-screen"),
     nonConformities: document.getElementById("non-conformities-screen"),
+    maintenance: document.getElementById("maintenance-screen"),
     success: document.getElementById("success-screen"),
 };
 
@@ -97,6 +115,7 @@ const elements = {
     checklistProgress: document.getElementById("checklist-progress"),
     progressBar: document.getElementById("progress-bar"),
     moduleTabs: document.getElementById("module-tabs"),
+    resetChecklist: document.getElementById("reset-checklist"),
     submitChecklist: document.getElementById("submit-checklist"),
     successSummary: document.getElementById("success-summary"),
     toast: document.getElementById("toast"),
@@ -109,11 +128,21 @@ const elements = {
     cloudStorageSummary: document.getElementById("cloud-storage-summary"),
     cloudStorageDetail: document.getElementById("cloud-storage-detail"),
     cloudBackupButton: document.getElementById("cloud-backup-button"),
+    homeChangePasswordButton: document.getElementById("home-change-password-button"),
     homeLogoutButton: document.getElementById("home-logout-button"),
+    passwordModal: document.getElementById("password-modal"),
+    passwordChangeForm: document.getElementById("password-change-form"),
+    passwordCurrentInput: document.getElementById("password-current-input"),
+    passwordNewInput: document.getElementById("password-new-input"),
+    passwordConfirmInput: document.getElementById("password-confirm-input"),
+    passwordChangeCancel: document.getElementById("password-change-cancel"),
+    passwordChangeSubmit: document.getElementById("password-change-submit"),
     openChecklistMenu: document.getElementById("open-checklist-menu"),
+    openChecklistHistoryMenu: document.getElementById("open-checklist-history-menu"),
     openActivitiesMenu: document.getElementById("open-activities-menu"),
     openWashesMenu: document.getElementById("open-washes-menu"),
     openNonConformitiesMenu: document.getElementById("open-non-conformities-menu"),
+    openMaintenanceMenu: document.getElementById("open-maintenance-menu"),
     vehiclesBackButton: document.getElementById("vehicles-back-button"),
     activitiesBackButton: document.getElementById("activities-back-button"),
     activityCounter: document.getElementById("activity-counter"),
@@ -123,6 +152,13 @@ const elements = {
     activitySummary: document.getElementById("activity-summary"),
     activityItemsList: document.getElementById("activity-items-list"),
     washesBackButton: document.getElementById("washes-back-button"),
+    checklistHistoryBackButton: document.getElementById("checklist-history-back-button"),
+    checklistHistoryCounter: document.getElementById("checklist-history-counter"),
+    checklistHistoryTypeFilter: document.getElementById("checklist-history-type-filter"),
+    checklistHistoryStartDate: document.getElementById("checklist-history-start-date"),
+    checklistHistoryEndDate: document.getElementById("checklist-history-end-date"),
+    checklistHistoryApplyFilter: document.getElementById("checklist-history-apply-filter"),
+    checklistHistoryTableWrap: document.getElementById("checklist-history-table-wrap"),
     washCounter: document.getElementById("wash-counter"),
     washMonthTitle: document.getElementById("wash-month-title"),
     washPrevMonth: document.getElementById("wash-prev-month"),
@@ -142,6 +178,15 @@ const elements = {
     nonConformitiesMicroList: document.getElementById("non-conformities-micro-list"),
     nonConformitiesChecklistList: document.getElementById("non-conformities-checklist-list"),
     nonConformitiesMechanicList: document.getElementById("non-conformities-mechanic-list"),
+    maintenanceBackButton: document.getElementById("maintenance-back-button"),
+    maintenanceCounter: document.getElementById("maintenance-counter"),
+    maintenanceSummary: document.getElementById("maintenance-summary"),
+    maintenanceMonthTitle: document.getElementById("maintenance-month-title"),
+    maintenancePrevMonth: document.getElementById("maintenance-prev-month"),
+    maintenanceNextMonth: document.getElementById("maintenance-next-month"),
+    maintenanceCalendar: document.getElementById("maintenance-calendar"),
+    maintenanceDayPanel: document.getElementById("maintenance-day-panel"),
+    maintenanceList: document.getElementById("maintenance-list"),
     ncChecklistFilterOpen: document.getElementById("nc-checklist-filter-open"),
     ncChecklistFilterClosed: document.getElementById("nc-checklist-filter-closed"),
     ncMechanicFilterOpen: document.getElementById("nc-mechanic-filter-open"),
@@ -156,6 +201,8 @@ const elements = {
     newChecklistButton: document.getElementById("new-checklist-button"),
     connectionStatus: document.getElementById("connection-status"),
 };
+
+let passwordModalFocusOrigin = null;
 
 elements.apiBaseUrl.value = state.apiBaseUrl;
 updateConnectionStatus();
@@ -187,13 +234,13 @@ function updateConnectionStatus() {
 }
 
 function registerServiceWorker() {
-    if (!("serviceWorker" in navigator) || !window.ENABLE_CHECKLIST_PWA) {
+    if (!("serviceWorker" in navigator) || !window.CHECKLIST_CONFIG?.ENABLE_CHECKLIST_PWA) {
         return;
     }
 
     window.addEventListener("load", () => {
-        navigator.serviceWorker.register("./service-worker.js").catch(() => {
-            showToast("PWA NÃO PÔDE SER ATIVADO NESTE NAVEGADOR.", true);
+        navigator.serviceWorker.register("./service-worker.js", { updateViaCache: "none" }).catch(() => {
+            showToast("PWA NÃƒO PÃ”DE SER ATIVADO NESTE NAVEGADOR.", true);
         });
     });
 }
@@ -206,6 +253,34 @@ function showToast(message, isError = false) {
     showToast.timeoutId = window.setTimeout(() => {
         elements.toast.classList.add("hidden");
     }, 3200);
+}
+
+function renderStateCard(target, { title, message = "", tone = "neutral", compact = false } = {}) {
+    if (!target) {
+        return;
+    }
+    target.innerHTML = `
+        <article class="state-card ${tone}${compact ? " compact" : ""}">
+            <strong>${escapeHtml(title || "AGUARDE")}</strong>
+            ${message ? `<span>${escapeHtml(message)}</span>` : ""}
+        </article>
+    `;
+}
+
+function formatDateTimeShort(value) {
+    if (!value) {
+        return "";
+    }
+    const date = value instanceof Date ? value : new Date(value);
+    if (Number.isNaN(date.getTime())) {
+        return "";
+    }
+    return date.toLocaleString("pt-BR", {
+        day: "2-digit",
+        month: "2-digit",
+        hour: "2-digit",
+        minute: "2-digit",
+    });
 }
 
 function setLoginStatus(message, isError = false) {
@@ -221,7 +296,10 @@ function setActiveScreen(key) {
     Object.entries(screens).forEach(([screenKey, screen]) => {
         screen.classList.toggle("hidden", screenKey !== key);
     });
-    window.scrollTo({ top: 0, behavior: "smooth" });
+    const isEntryScreen = key === "login";
+    document.body.classList.toggle("entry-screen", isEntryScreen);
+    appTopbar?.classList.toggle("hidden", isEntryScreen);
+    window.scrollTo({ top: 0, behavior: "auto" });
 }
 
 async function apiFetch(path, options = {}) {
@@ -235,25 +313,16 @@ async function apiFetch(path, options = {}) {
         });
 
         const body = await response.json().catch(() => ({}));
-
-        // Validação robusta seguindo o Ponto 4 do escopo: API Padronizada.
-        // Verificamos o status HTTP E a flag de sucesso do payload.
-        if (!response.ok || (body.hasOwnProperty("success") && body.success === false)) {
-            // Tenta pegar a mensagem de erro amigável do backend
-            const errorMessage = body.error || body.message || "FALHA NA COMUNICAÇÃO COM A API.";
-            const error = new Error(errorMessage);
+        if (!response.ok || (Object.prototype.hasOwnProperty.call(body, "success") && body.success === false)) {
+            const error = new Error(body.error || body.message || "FALHA NA COMUNICACAO COM A API.");
             error.status = response.status;
             throw error;
         }
 
-        // Para manter a compatibilidade com as funções que já existem:
-        // Se o backend usou api_response (com campo 'data'), retornamos apenas o dado útil.
-        // Caso contrário (rotas legadas), retornamos o corpo inteiro.
-        return body.hasOwnProperty("data") ? body.data : body;
+        return Object.prototype.hasOwnProperty.call(body, "data") ? body.data : body;
     } catch (error) {
-        // Tratamento elegante para erros de rede (offline ou servidor fora)
         if (error.name === "TypeError" && (error.message.includes("fetch") || error.message.includes("NetworkError"))) {
-            throw new Error("SERVIDOR INDISPONÍVEL OU SEM CONEXÃO.");
+            throw new Error("SERVIDOR INDISPONIVEL OU SEM CONEXAO.");
         }
         throw error;
     }
@@ -267,16 +336,14 @@ async function login(credentials) {
     });
 
     const body = await response.json().catch(() => ({}));
-    
-    if (!response.ok || (body.hasOwnProperty("success") && body.success === false)) {
-        throw new Error(body.error || "NÃO FOI POSSÍVEL ENTRAR.");
+    if (!response.ok || (Object.prototype.hasOwnProperty.call(body, "success") && body.success === false)) {
+        throw new Error(body.error || "NAO FOI POSSIVEL ENTRAR.");
     }
 
-    // Extrai dados suportando tanto o formato antigo quanto o novo com envelope 'data'
-    const data = body.hasOwnProperty("data") ? body.data : body;
-    state.token = data.token;
-    state.user = data.user;
-    saveSession(data.token, data.user);
+    const payload = Object.prototype.hasOwnProperty.call(body, "data") ? body.data : body;
+    state.token = payload.token;
+    state.user = payload.user;
+    saveSession(payload.token, payload.user);
 }
 
 async function bootstrap() {
@@ -312,7 +379,7 @@ async function enterAuthenticatedApp() {
             state.user = null;
             clearSession();
             setActiveScreen("login");
-            setLoginStatus("Sessão expirada. Informe login e senha novamente.", true);
+            setLoginStatus("SessÃ£o expirada. Informe login e senha novamente.", true);
             return;
         }
         setActiveScreen("login");
@@ -328,7 +395,7 @@ window.enterChecklistApp = async () => {
     elements.apiBaseUrl.value = state.apiBaseUrl;
     if (!state.token || !state.user) {
         setActiveScreen("login");
-        setLoginStatus("Login salvo não encontrado. Informe usuário e senha novamente.", true);
+        setLoginStatus("Login salvo nÃ£o encontrado. Informe usuÃ¡rio e senha novamente.", true);
         return;
     }
     localStorage.setItem(SESSION_STARTED_AT_KEY, localStorage.getItem(SESSION_STARTED_AT_KEY) || String(Date.now()));
@@ -377,7 +444,7 @@ function renderHome() {
     const canAccessMechanicModule = hasMechanicWorkspaceAccess();
     elements.homeSummary.innerHTML = `
         <div>
-            <span>USUÁRIO</span>
+            <span>USUÃRIO</span>
             <strong>${escapeHtml(state.user.nome)}</strong>
         </div>
         <div>
@@ -395,6 +462,9 @@ function renderHome() {
     `;
     if (elements.openNonConformitiesMenu) {
         elements.openNonConformitiesMenu.classList.toggle("hidden", !canAccessMechanicModule);
+    }
+    if (elements.openMaintenanceMenu) {
+        elements.openMaintenanceMenu.classList.toggle("hidden", !canAccessMechanicModule);
     }
     refreshSyncQueuePanel();
     refreshCloudAdminPanel();
@@ -414,8 +484,21 @@ function hasMechanicWorkspaceAccess() {
     return userType === "admin" || userType === "gestor" || userType === "mecanico";
 }
 
+function hasMaintenanceAccess() {
+    return hasMechanicWorkspaceAccess();
+}
+
 function formatUsage(section) {
     return `${section.percent}% | ${section.used_mb} MB DE ${section.limit_mb} MB`;
+}
+
+function normalizeStorageSection(section) {
+    return {
+        used_mb: Number(section?.used_mb ?? 0),
+        limit_mb: Number(section?.limit_mb ?? 0),
+        percent: Number(section?.percent ?? 0),
+        level: String(section?.level || "ok").toLowerCase(),
+    };
 }
 
 async function refreshCloudAdminPanel() {
@@ -432,35 +515,37 @@ async function refreshCloudAdminPanel() {
     elements.cloudStorageDetail.innerHTML = "";
     try {
         const status = await apiFetch("/admin/storage/status");
-        const level = [status.database.level, status.storage.level].includes("critico")
+        const database = normalizeStorageSection(status?.database);
+        const storage = normalizeStorageSection(status?.storage);
+        const level = [database.level, storage.level].includes("critico")
             ? "CRITICO"
-            : [status.database.level, status.storage.level].includes("vermelho")
+            : [database.level, storage.level].includes("vermelho")
                 ? "ATENCAO"
-                : [status.database.level, status.storage.level].includes("amarelo")
+                : [database.level, storage.level].includes("amarelo")
                     ? "OBSERVAR"
                     : "OK";
-        elements.cloudStorageSummary.textContent = `${level} | BANCO ${status.database.percent}% | FOTOS ${status.storage.percent}%`;
+        elements.cloudStorageSummary.textContent = `${level} | BANCO ${database.percent}% | FOTOS ${storage.percent}%`;
         elements.cloudStorageDetail.innerHTML = `
             <article class="sync-row">
                 <div>
-                    <strong>BANCO SUPABASE</strong>
-                    <span>${escapeHtml(formatUsage(status.database))}</span>
+                    <strong>BANCO DE DADOS</strong>
+                    <span>${escapeHtml(formatUsage(database))}</span>
                 </div>
-                <em>${escapeHtml(String(status.database.level).toUpperCase())}</em>
+                <em>${escapeHtml(String(database.level).toUpperCase())}</em>
             </article>
             <article class="sync-row">
                 <div>
                     <strong>FOTOS/STORAGE</strong>
-                    <span>${escapeHtml(formatUsage(status.storage))}</span>
+                    <span>${escapeHtml(formatUsage(storage))}</span>
                 </div>
-                <em>${escapeHtml(String(status.storage.level).toUpperCase())}</em>
+                <em>${escapeHtml(String(storage.level).toUpperCase())}</em>
             </article>
         `;
-        if (["critico", "vermelho", "amarelo"].includes(status.database.level) || ["critico", "vermelho", "amarelo"].includes(status.storage.level)) {
+        if (["critico", "vermelho", "amarelo"].includes(database.level) || ["critico", "vermelho", "amarelo"].includes(storage.level)) {
             showToast("ARMAZENAMENTO DA NUVEM PERTO DO LIMITE. GERE UM BACKUP.");
         }
     } catch (error) {
-        elements.cloudStorageSummary.textContent = "NAO FOI POSSIVEL VERIFICAR A NUVEM.";
+        elements.cloudStorageSummary.textContent = "NÃƒO FOI POSSÃVEL VERIFICAR A NUVEM.";
         elements.cloudStorageDetail.innerHTML = `
             <article class="sync-row">
                 <div>
@@ -499,7 +584,7 @@ async function downloadBackupFile(backup) {
         },
     });
     if (!response.ok) {
-        throw new Error("BACKUP GERADO, MAS NAO FOI POSSIVEL BAIXAR O ARQUIVO.");
+        throw new Error("BACKUP GERADO, MAS NÃƒO FOI POSSÃVEL BAIXAR O ARQUIVO.");
     }
     const blob = await response.blob();
     const url = URL.createObjectURL(blob);
@@ -520,7 +605,7 @@ async function downloadAuthorizedFile(path, filename) {
     });
     if (!response.ok) {
         const body = await response.json().catch(() => ({}));
-        throw new Error(body.error || "NAO FOI POSSIVEL BAIXAR O ARQUIVO.");
+        throw new Error(body.error || "NÃƒO FOI POSSÃVEL BAIXAR O ARQUIVO.");
     }
 
     const blob = await response.blob();
@@ -539,39 +624,192 @@ function openChecklistMenu() {
     setActiveScreen("vehicles");
 }
 
+function formatDateInputValue(date) {
+    const year = date.getFullYear();
+    const month = String(date.getMonth() + 1).padStart(2, "0");
+    const day = String(date.getDate()).padStart(2, "0");
+    return `${year}-${month}-${day}`;
+}
+
+async function openChecklistHistoryMenu() {
+    setActiveScreen("checklistHistory");
+    elements.checklistHistoryCounter.textContent = "CARREGANDO...";
+    renderStateCard(elements.checklistHistoryTableWrap, {
+        title: "CARREGANDO HISTORICO",
+        message: "Buscando o periodo e a matriz de checklist.",
+        tone: "loading",
+    });
+    try {
+        if (!state.checklistHistory.dataInicio || !state.checklistHistory.dataFim) {
+            const endDate = new Date();
+            const startDate = new Date(endDate);
+            startDate.setDate(endDate.getDate() - 6);
+            state.checklistHistory.dataInicio = formatDateInputValue(startDate);
+            state.checklistHistory.dataFim = formatDateInputValue(endDate);
+        }
+
+        if (elements.checklistHistoryTypeFilter) {
+            elements.checklistHistoryTypeFilter.value = state.checklistHistory.tipo || "";
+        }
+        if (elements.checklistHistoryStartDate) {
+            elements.checklistHistoryStartDate.value = state.checklistHistory.dataInicio || "";
+        }
+        if (elements.checklistHistoryEndDate) {
+            elements.checklistHistoryEndDate.value = state.checklistHistory.dataFim || "";
+        }
+
+        await loadChecklistHistory();
+    } catch (error) {
+        elements.checklistHistoryCounter.textContent = "FALHA";
+        renderStateCard(elements.checklistHistoryTableWrap, {
+            title: "NAO FOI POSSIVEL CARREGAR O HISTORICO",
+            message: error.message || "Tente novamente em instantes.",
+            tone: "error",
+        });
+        showToast(error.message, true);
+    }
+}
+
 async function openActivitiesMenu() {
+    setActiveScreen("activities");
+    elements.activityCounter.textContent = "CARREGANDO...";
+    renderStateCard(elements.activitiesList, {
+        title: "CARREGANDO ATIVIDADES",
+        message: "Buscando as atividades em aberto para execucao em campo.",
+        tone: "loading",
+    });
     try {
         await loadOpenActivities();
         renderHome();
         renderActivities();
-        setActiveScreen("activities");
     } catch (error) {
+        elements.activityCounter.textContent = "FALHA";
+        renderStateCard(elements.activitiesList, {
+            title: "NAO FOI POSSIVEL CARREGAR AS ATIVIDADES",
+            message: error.message || "Verifique a conexao e tente novamente.",
+            tone: "error",
+        });
         showToast(error.message, true);
     }
 }
 
 async function openWashesMenu() {
+    setActiveScreen("washes");
+    elements.washCounter.textContent = "CARREGANDO...";
+    elements.washDayPanel.innerHTML = "";
+    renderStateCard(elements.washesList, {
+        title: "CARREGANDO LAVAGENS",
+        message: "Buscando o cronograma mensal e os pareceres do dia.",
+        tone: "loading",
+    });
     try {
         await loadWashOverview();
         renderHome();
         renderWashes();
-        setActiveScreen("washes");
     } catch (error) {
+        elements.washCounter.textContent = "FALHA";
+        elements.washDayPanel.innerHTML = "";
+        renderStateCard(elements.washesList, {
+            title: "NAO FOI POSSIVEL CARREGAR AS LAVAGENS",
+            message: error.message || "Verifique a conexao e tente novamente.",
+            tone: "error",
+        });
         showToast(error.message, true);
     }
 }
 
 async function openNonConformitiesMenu() {
     if (!hasMechanicWorkspaceAccess()) {
-        showToast("MODULO DE NAO CONFORMIDADES RESTRITO AO MECANICO E GESTAO.", true);
+        showToast("MÃ“DULO DE NÃƒO CONFORMIDADES RESTRITO AO MECÃ‚NICO E GESTÃƒO.", true);
         return;
     }
+    setActiveScreen("nonConformities");
+    elements.nonConformitiesCounter.textContent = "CARREGANDO...";
+    elements.nonConformitiesMacroCounter.textContent = "CARREGANDO...";
+    elements.nonConformitiesChecklistCounter.textContent = "CARREGANDO...";
+    elements.nonConformitiesMechanicCounter.textContent = "CARREGANDO...";
+    renderStateCard(elements.nonConformitiesMacroList, {
+        title: "CARREGANDO INDICADORES",
+        message: "Buscando os dados macro e micro de nao conformidades.",
+        tone: "loading",
+        compact: true,
+    });
+    renderStateCard(elements.nonConformitiesMicroList, {
+        title: "AGUARDE",
+        message: "Montando a leitura detalhada dos itens.",
+        tone: "loading",
+        compact: true,
+    });
+    renderStateCard(elements.nonConformitiesChecklistList, {
+        title: "CARREGANDO REGISTROS DE CHECKLIST",
+        message: "Buscando nao conformidades abertas e resolvidas.",
+        tone: "loading",
+    });
+    renderStateCard(elements.nonConformitiesMechanicList, {
+        title: "CARREGANDO REGISTROS INTERNOS",
+        message: "Buscando as nao conformidades abertas pelo mecanico.",
+        tone: "loading",
+    });
     try {
         await loadNonConformityHubData();
         renderHome();
         renderNonConformities();
-        setActiveScreen("nonConformities");
     } catch (error) {
+        elements.nonConformitiesCounter.textContent = "FALHA";
+        elements.nonConformitiesMacroCounter.textContent = "FALHA";
+        elements.nonConformitiesChecklistCounter.textContent = "FALHA";
+        elements.nonConformitiesMechanicCounter.textContent = "FALHA";
+        renderStateCard(elements.nonConformitiesMacroList, {
+            title: "NAO FOI POSSIVEL CARREGAR OS INDICADORES",
+            message: error.message || "Tente novamente em instantes.",
+            tone: "error",
+            compact: true,
+        });
+        renderStateCard(elements.nonConformitiesMicroList, {
+            title: "LEITURA DETALHADA INDISPONIVEL",
+            message: "A consulta nao retornou os dados deste momento.",
+            tone: "error",
+            compact: true,
+        });
+        renderStateCard(elements.nonConformitiesChecklistList, {
+            title: "NAO FOI POSSIVEL CARREGAR AS NAO CONFORMIDADES",
+            message: error.message || "Verifique a conexao e tente novamente.",
+            tone: "error",
+        });
+        renderStateCard(elements.nonConformitiesMechanicList, {
+            title: "NAO FOI POSSIVEL CARREGAR OS REGISTROS INTERNOS",
+            message: error.message || "Verifique a conexao e tente novamente.",
+            tone: "error",
+        });
+        showToast(error.message, true);
+    }
+}
+
+async function openMaintenanceMenu() {
+    if (!hasMaintenanceAccess()) {
+        showToast("MÃ“DULO DE MANUTENÃ‡ÃƒO RESTRITO AO MECÃ‚NICO E GESTÃƒO.", true);
+        return;
+    }
+    setActiveScreen("maintenance");
+    elements.maintenanceCounter.textContent = "CARREGANDO...";
+    elements.maintenanceDayPanel.innerHTML = "";
+    renderStateCard(elements.maintenanceList, {
+        title: "CARREGANDO MANUTENCAO",
+        message: "Buscando o cronograma mensal e os servicos programados.",
+        tone: "loading",
+    });
+    try {
+        await loadMaintenanceOverview();
+        renderHome();
+        renderMaintenance();
+    } catch (error) {
+        elements.maintenanceCounter.textContent = "FALHA";
+        elements.maintenanceDayPanel.innerHTML = "";
+        renderStateCard(elements.maintenanceList, {
+            title: "NAO FOI POSSIVEL CARREGAR A MANUTENCAO",
+            message: error.message || "Verifique a conexao e tente novamente.",
+            tone: "error",
+        });
         showToast(error.message, true);
     }
 }
@@ -591,6 +829,179 @@ async function loadNonConformityHubData() {
     state.materials = materials || state.materials || [];
 }
 
+async function loadMaintenanceOverview() {
+    state.maintenanceOverview = await apiFetch(`/manutencao/visao?ano=${state.maintenanceYear}&mes=${state.maintenanceMonth}`);
+}
+
+async function loadChecklistHistory() {
+    const params = new URLSearchParams();
+    if (state.checklistHistory.tipo) {
+        params.set("tipo", state.checklistHistory.tipo);
+    }
+    if (state.checklistHistory.dataInicio) {
+        params.set("data_inicio", state.checklistHistory.dataInicio);
+    }
+    if (state.checklistHistory.dataFim) {
+        params.set("data_fim", state.checklistHistory.dataFim);
+    }
+
+    const path = params.toString()
+        ? `/checklist/historico-matriz?${params.toString()}`
+        : "/checklist/historico-matriz";
+    const data = await apiFetch(path);
+
+    state.checklistHistory.columns = Array.isArray(data?.columns) ? data.columns : [];
+    state.checklistHistory.rows = Array.isArray(data?.rows) ? data.rows : [];
+
+    if (data?.periodo?.inicio) {
+        state.checklistHistory.dataInicio = data.periodo.inicio;
+    }
+    if (data?.periodo?.fim) {
+        state.checklistHistory.dataFim = data.periodo.fim;
+    }
+
+    renderChecklistHistory();
+}
+
+function renderChecklistHistory() {
+    if (!elements.checklistHistoryTableWrap || !elements.checklistHistoryCounter) {
+        return;
+    }
+
+    const columns = state.checklistHistory.columns || [];
+    const rows = state.checklistHistory.rows || [];
+
+    elements.checklistHistoryCounter.textContent = `${rows.length} FROTAS`;
+    if (elements.checklistHistoryStartDate) {
+        elements.checklistHistoryStartDate.value = state.checklistHistory.dataInicio || "";
+    }
+    if (elements.checklistHistoryEndDate) {
+        elements.checklistHistoryEndDate.value = state.checklistHistory.dataFim || "";
+    }
+    if (elements.checklistHistoryTypeFilter) {
+        elements.checklistHistoryTypeFilter.value = state.checklistHistory.tipo || "";
+    }
+
+    if (!columns.length) {
+        elements.checklistHistoryTableWrap.innerHTML = `
+            <article class="empty-state">
+                <strong>SEM DATAS PARA O PERÃODO SELECIONADO.</strong>
+                <span>AJUSTE O FILTRO DE DATA PARA VISUALIZAR O HISTÃ“RICO.</span>
+            </article>
+        `;
+        return;
+    }
+
+    if (!rows.length) {
+        elements.checklistHistoryTableWrap.innerHTML = `
+            <article class="empty-state">
+                <strong>NENHUMA FROTA ENCONTRADA NESTE FILTRO.</strong>
+                <span>AJUSTE O TIPO CAVALO/CARRETA OU O PERÃODO.</span>
+            </article>
+        `;
+        return;
+    }
+
+    const totalChecklists = rows.reduce((total, row) => total + Number(row.checklist_count || 0), 0);
+    const periodLabel = state.checklistHistory.dataInicio && state.checklistHistory.dataFim
+        ? `${formatDate(state.checklistHistory.dataInicio)} A ${formatDate(state.checklistHistory.dataFim)}`
+        : "PERIODO NAO INFORMADO";
+
+    const headerColumns = columns
+        .map((column) => `<th>${escapeHtml(String(column.label || "-"))}</th>`)
+        .join("");
+    const bodyRows = rows
+        .map((row) => {
+            const cellValues = (row.cells || [])
+                .map((value) => `<td>${value ? escapeHtml(String(value)) : ""}</td>`)
+                .join("");
+            const checklistCount = Number(row.checklist_count || 0);
+            const vehicleId = String(row.vehicle_id || "");
+            const isExpanded = vehicleId && vehicleId === String(state.checklistHistory.expandedVehicleId || "");
+            return `
+                <tr class="${isExpanded ? "history-row-selected" : ""}">
+                    <th class="history-vehicle-cell" data-vehicle-id="${escapeHtml(vehicleId)}" title="Toque para expandir/recolher">
+                        <strong>${escapeHtml(String(row.frota || "-"))}</strong>
+                        <span>${escapeHtml(String(row.placa || "-").toUpperCase())}</span>
+                    </th>
+                    <td class="history-count-cell">${checklistCount}</td>
+                    ${cellValues}
+                </tr>
+            `;
+        })
+        .join("");
+
+    elements.checklistHistoryTableWrap.classList.toggle("history-expanded", Boolean(state.checklistHistory.expandedVehicleId));
+    elements.checklistHistoryTableWrap.innerHTML = `
+        <section class="history-summary">
+            <article>
+                <span>PERIODO</span>
+                <strong>${escapeHtml(periodLabel)}</strong>
+            </article>
+            <article>
+                <span>DATAS NA MATRIZ</span>
+                <strong>${columns.length} DIA${columns.length === 1 ? "" : "S"}</strong>
+            </article>
+            <article>
+                <span>CHECKLISTS NO FILTRO</span>
+                <strong>${totalChecklists} REGISTRO${totalChecklists === 1 ? "" : "S"}</strong>
+            </article>
+        </section>
+        <p class="history-caption">Toque na frota para expandir a leitura da linha e acompanhe o total pelo campo NÃ‚Âº.</p>
+        <table class="history-table">
+            <thead>
+                <tr>
+                    <th class="history-frota-header">FROTA</th>
+                    <th class="history-count-header">NÂº</th>
+                    ${headerColumns}
+                </tr>
+            </thead>
+            <tbody>
+                ${bodyRows}
+            </tbody>
+        </table>
+    `;
+    bindChecklistHistoryExpansion();
+}
+
+function bindChecklistHistoryExpansion() {
+    elements.checklistHistoryTableWrap.querySelectorAll(".history-vehicle-cell").forEach((cell) => {
+        cell.addEventListener("click", () => {
+            const vehicleId = String(cell.dataset.vehicleId || "");
+            const nextVehicleId = state.checklistHistory.expandedVehicleId === vehicleId ? "" : vehicleId;
+            state.checklistHistory.expandedVehicleId = nextVehicleId;
+            elements.checklistHistoryTableWrap.classList.toggle("history-expanded", Boolean(nextVehicleId));
+            elements.checklistHistoryTableWrap.querySelectorAll("tbody tr").forEach((row) => {
+                row.classList.remove("history-row-selected");
+            });
+            if (nextVehicleId) {
+                cell.closest("tr")?.classList.add("history-row-selected");
+            }
+        });
+    });
+}
+
+async function applyChecklistHistoryFilters() {
+    const type = elements.checklistHistoryTypeFilter?.value || "";
+    const startDate = elements.checklistHistoryStartDate?.value || "";
+    const endDate = elements.checklistHistoryEndDate?.value || "";
+
+    if (startDate && endDate && endDate < startDate) {
+        showToast("A DATA FINAL DEVE SER MAIOR OU IGUAL Ã€ DATA INICIAL.", true);
+        return;
+    }
+
+    state.checklistHistory.tipo = type;
+    state.checklistHistory.dataInicio = startDate;
+    state.checklistHistory.dataFim = endDate;
+
+    try {
+        await loadChecklistHistory();
+    } catch (error) {
+        showToast(error.message, true);
+    }
+}
+
 function renderNonConformities() {
     if (!elements.nonConformitiesSummary) {
         return;
@@ -600,19 +1011,31 @@ function renderNonConformities() {
     const mechanicOpen = state.nonConformityMechanic.filter((row) => !row.resolvido).length;
     const mechanicResolved = state.nonConformityMechanic.filter((row) => row.resolvido).length;
     const openTotal = checklistOpen + mechanicOpen;
+    const resolvedTotal = checklistResolved + mechanicResolved;
+    const overallTotal = openTotal + resolvedTotal;
+    const resolvedPercent = overallTotal ? Math.round((resolvedTotal / overallTotal) * 100) : 0;
 
     elements.nonConformitiesSummary.innerHTML = `
         <div>
-            <strong>CHECKLIST ABERTAS: ${checklistOpen}</strong>
-            <span>RESOLVIDAS: ${checklistResolved}</span>
+            <strong>${checklistOpen} ABERTAS DE CHECKLIST</strong>
+            <span>${checklistResolved} RESOLVIDAS</span>
         </div>
         <div>
-            <strong>NC INTERNA ABERTAS: ${mechanicOpen}</strong>
-            <span>RESOLVIDAS: ${mechanicResolved}</span>
+            <strong>${mechanicOpen} INTERNAS ABERTAS</strong>
+            <span>${mechanicResolved} RESOLVIDAS</span>
+        </div>
+        <div>
+            <strong>${openTotal} PENDENCIAS ATIVAS</strong>
+            <span>${resolvedTotal} CONCLUIDAS NO PAINEL</span>
+        </div>
+        <div>
+            <strong>${resolvedPercent}% DE RESOLUCAO</strong>
+            <span>${state.nonConformityChecklist.length + state.nonConformityMechanic.length} REGISTROS NO FILTRO</span>
         </div>
         <div class="progress-track" aria-hidden="true">
-            <span style="width:${Math.min(100, Math.max(0, openTotal ? Math.round((checklistResolved + mechanicResolved) / (checklistResolved + mechanicResolved + openTotal) * 100) : 0))}%"></span>
+            <span style="width:${Math.min(100, Math.max(0, resolvedPercent))}%"></span>
         </div>
+        <span class="progress-hint">Priorize os blocos macro e micro para localizar reincidencia antes de abrir cada registro.</span>
     `;
 
     elements.nonConformitiesCounter.textContent = `${openTotal} ABERTAS`;
@@ -638,13 +1061,13 @@ function renderNonConformityReports() {
         elements.nonConformitiesMacroList.innerHTML = `
             <article class="empty-state compact">
                 <strong>SEM DADOS NO MACRO.</strong>
-                <span>AS NC DO CHECKLIST APARECERAO AQUI.</span>
+                <span>AS NÃƒO CONFORMIDADES DO CHECKLIST APARECERÃƒO AQUI.</span>
             </article>
         `;
     } else {
         elements.nonConformitiesMacroList.innerHTML = `
             <article class="list-toolbar">
-                <strong>TOP ITENS COM NC</strong>
+                <strong>TOP ITENS COM NÃƒO CONFORMIDADE</strong>
                 <span>VISAO MACRO</span>
             </article>
             <div class="nc-grid">
@@ -654,7 +1077,7 @@ function renderNonConformityReports() {
                             <strong>${escapeHtml(String(row.item_nome || "-").toUpperCase())}</strong>
                             <span>${Number(row.abertas || 0)} ABERTAS | ${Number(row.resolvidas || 0)} RESOLVIDAS</span>
                         </div>
-                        <em>${Number(row.total_nc || 0)} NC</em>
+                        <em>${Number(row.total_nc || 0)} NÃƒO CONFORMIDADES</em>
                     </article>
                 `).join("")}
             </div>
@@ -671,7 +1094,7 @@ function renderNonConformityReports() {
     } else {
         elements.nonConformitiesMicroList.innerHTML = `
             <article class="list-toolbar">
-                <strong>TOP EQUIPAMENTOS COM NC</strong>
+                <strong>TOP EQUIPAMENTOS COM NÃƒO CONFORMIDADE</strong>
                 <span>VISAO MICRO</span>
             </article>
             <div class="nc-grid">
@@ -681,7 +1104,7 @@ function renderNonConformityReports() {
                             <strong>${escapeHtml(String(row.frota || "-").toUpperCase())}</strong>
                             <span>${escapeHtml(String(row.placa || "-").toUpperCase())} | ${escapeHtml(String(row.tipo || "-").toUpperCase())}</span>
                         </div>
-                        <em>${Number(row.total_nc || 0)} NC</em>
+                        <em>${Number(row.total_nc || 0)} NÃƒO CONFORMIDADES</em>
                     </article>
                 `).join("")}
             </div>
@@ -696,7 +1119,7 @@ function renderChecklistNonConformities() {
     if (!rows.length) {
         elements.nonConformitiesChecklistList.innerHTML = `
             <article class="empty-state">
-                <strong>NENHUMA NC DE CHECKLIST NESTE FILTRO.</strong>
+                <strong>NENHUMA NÃƒO CONFORMIDADE DE CHECKLIST NESTE FILTRO.</strong>
                 <span>ALTERE O STATUS OU AGUARDE NOVOS REGISTROS.</span>
             </article>
         `;
@@ -715,8 +1138,8 @@ function renderMechanicNonConformities() {
     if (!rows.length) {
         elements.nonConformitiesMechanicList.innerHTML = `
             <article class="empty-state">
-                <strong>NENHUMA NC INTERNA NESTE FILTRO.</strong>
-                <span>ABRA UMA NOVA NC INTERNA NO FORMULARIO ACIMA.</span>
+                <strong>NENHUMA NÃƒO CONFORMIDADE INTERNA NESTE FILTRO.</strong>
+                <span>ABRA UMA NOVA NÃƒO CONFORMIDADE INTERNA NO FORMULÃRIO ACIMA.</span>
             </article>
         `;
         return;
@@ -725,6 +1148,373 @@ function renderMechanicNonConformities() {
     rows.forEach((row, index) => {
         elements.nonConformitiesMechanicList.appendChild(makeMechanicNonConformityCard(row, index + 1));
     });
+}
+
+function renderMaintenance() {
+    if (!elements.maintenanceList || !elements.maintenanceCounter) {
+        return;
+    }
+
+    const overview = state.maintenanceOverview || { resumo: {}, cronograma: { days: [] }, programacoes: [] };
+    const resumo = overview.resumo || {};
+    const days = overview.cronograma?.days || [];
+    const selectedDay = ensureSelectedMaintenanceDate(days);
+    const selectedItems = selectedDay?.items || [];
+    const selectedDayLabel = selectedDay?.date ? formatDate(selectedDay.date) : "SEM DIA";
+
+    elements.maintenanceCounter.textContent = `${Number(resumo.programados || resumo.itens || 0)} PROGRAMADOS`;
+    elements.maintenanceMonthTitle.textContent = String(overview.periodo?.rotulo || `${state.maintenanceMonth}/${state.maintenanceYear}`).toUpperCase();
+    screens.maintenance.querySelector(".list-toolbar span").textContent = `${selectedDayLabel} | ${selectedItems.length} SERVICO${selectedItems.length === 1 ? "" : "S"} NO DIA SELECIONADO.`;
+    renderMaintenanceSummary(resumo);
+    renderMaintenanceCalendar(days);
+    renderMaintenanceDayPanel(selectedDay);
+    elements.maintenanceList.innerHTML = "";
+
+    if (!selectedItems.length) {
+        elements.maintenanceList.innerHTML = `
+            <article class="empty-state">
+                <strong>NENHUMA MANUTENÃ‡ÃƒO PROGRAMADA PARA ESTE DIA.</strong>
+                <span>AGUARDE NOVA PROGRAMACAO ENVIADA PELO DESKTOP.</span>
+            </article>
+        `;
+        return;
+    }
+
+    selectedItems.forEach((item, index) => {
+        elements.maintenanceList.appendChild(makeMaintenanceItemCard(item, index + 1));
+    });
+}
+
+function renderMaintenanceSummary(resumo) {
+    if (!elements.maintenanceSummary) {
+        return;
+    }
+    const percent = Number(resumo.percentual_conclusao || 0);
+    elements.maintenanceSummary.innerHTML = `
+        <div>
+            <strong>${Number(resumo.pendentes || 0)} PENDENTES</strong>
+            <span>${Number(resumo.instalados || 0)} INSTALADOS</span>
+        </div>
+        <div>
+            <strong>${Number(resumo.nao_executados || 0)} NAO EXECUTADOS</strong>
+            <span>${Number(resumo.aguardando_material || 0)} AGUARDANDO MATERIAL</span>
+        </div>
+        <div>
+            <strong>${percent}% CONCLUIDO</strong>
+            <span>${Number(resumo.dias_utilizados || 0)} DIAS UTILIZADOS</span>
+        </div>
+        <div class="progress-track" aria-hidden="true">
+            <span style="width:${Math.min(100, Math.max(0, percent))}%"></span>
+        </div>
+        <span class="progress-hint">CAPACIDADE MEDIA ${Number(resumo.capacidade_media || 0)} | ACOMPANHE O DIA SELECIONADO PARA EXECUTAR E REPROGRAMAR.</span>
+    `;
+}
+
+function ensureSelectedMaintenanceDate(days) {
+    if (days.find((day) => day.date === state.selectedMaintenanceDate)) {
+        return days.find((day) => day.date === state.selectedMaintenanceDate);
+    }
+    const today = new Date();
+    const todayKey = formatDateKey(today.getFullYear(), today.getMonth() + 1, today.getDate());
+    const firstDayWithItems = days.find((day) => (day.items || []).length);
+    if (today.getFullYear() === state.maintenanceYear && today.getMonth() + 1 === state.maintenanceMonth) {
+        state.selectedMaintenanceDate = todayKey;
+    } else {
+        state.selectedMaintenanceDate = firstDayWithItems?.date || formatDateKey(state.maintenanceYear, state.maintenanceMonth, 1);
+    }
+    return days.find((day) => day.date === state.selectedMaintenanceDate) || {
+        date: state.selectedMaintenanceDate,
+        day: Number(state.selectedMaintenanceDate.slice(-2)),
+        items: [],
+    };
+}
+
+function renderMaintenanceCalendar(days) {
+    if (!elements.maintenanceCalendar) {
+        return;
+    }
+    const daysByDate = new Map(days.map((day) => [day.date, day]));
+    const firstWeekday = new Date(state.maintenanceYear, state.maintenanceMonth - 1, 1).getDay();
+    const totalDays = new Date(state.maintenanceYear, state.maintenanceMonth, 0).getDate();
+    const today = new Date();
+    const todayKey = formatDateKey(today.getFullYear(), today.getMonth() + 1, today.getDate());
+    elements.maintenanceCalendar.innerHTML = "";
+
+    for (let index = 0; index < firstWeekday; index += 1) {
+        const filler = document.createElement("span");
+        filler.className = "wash-day empty";
+        filler.setAttribute("aria-hidden", "true");
+        elements.maintenanceCalendar.appendChild(filler);
+    }
+
+    for (let dayNumber = 1; dayNumber <= totalDays; dayNumber += 1) {
+        const dateKey = formatDateKey(state.maintenanceYear, state.maintenanceMonth, dayNumber);
+        const day = daysByDate.get(dateKey) || { date: dateKey, day: dayNumber, items: [] };
+        elements.maintenanceCalendar.appendChild(makeMaintenanceDayButton(day, dateKey === todayKey));
+    }
+}
+
+function makeMaintenanceDayButton(day, isToday) {
+    const total = Number(day.total || (day.items || []).length || 0);
+    const pending = Number(day.pendentes || 0);
+    const installed = Number(day.instalados || 0);
+    const button = document.createElement("button");
+    button.type = "button";
+    button.className = [
+        "wash-day",
+        total ? "has-items" : "no-items",
+        day.date === state.selectedMaintenanceDate ? "active" : "",
+        isToday ? "today" : "",
+        total > 0 && pending === 0 ? "done" : "",
+    ].filter(Boolean).join(" ");
+    button.innerHTML = `
+        <strong>${String(day.day || Number(day.date.slice(-2))).padStart(2, "0")}</strong>
+        <span>${total ? `${total} SERV.` : "SEM"}</span>
+        ${pending ? `<em>${pending} PEND.</em>` : installed ? `<em>${installed} OK</em>` : ""}
+    `;
+    button.addEventListener("click", () => {
+        state.selectedMaintenanceDate = day.date;
+        renderMaintenance();
+    });
+    return button;
+}
+
+function renderMaintenanceDayPanel(day) {
+    if (!elements.maintenanceDayPanel) {
+        return;
+    }
+    const selectedDay = day || { date: state.selectedMaintenanceDate, items: [] };
+    const total = Number(selectedDay.total || selectedDay.items?.length || 0);
+    const pending = Number(selectedDay.pendentes || 0);
+    const installed = Number(selectedDay.instalados || 0);
+    const notExecuted = Number(selectedDay.nao_executados || 0);
+    elements.maintenanceDayPanel.innerHTML = `
+        <section class="wash-day-summary maintenance-focus">
+            <div>
+                <span>DIA SELECIONADO</span>
+                <strong>${formatDate(selectedDay.date)}</strong>
+            </div>
+            <div>
+                <span>SERVICOS</span>
+                <strong>${total}</strong>
+            </div>
+            <div>
+                <span>PENDENTES</span>
+                <strong>${pending}</strong>
+            </div>
+            <div>
+                <span>CONCLUIDOS</span>
+                <strong>${installed}</strong>
+            </div>
+        </section>
+        <p class="section-caption">NAO EXECUTADOS NO DIA: ${notExecuted}. Use os cards abaixo para instalar, justificar ou reprogramar.</p>
+    `;
+}
+
+function maintenanceItemCanInstall(item) {
+    const materials = item.schedule?.materiais || [];
+    if (!materials.length) {
+        return { allowed: true, reason: "" };
+    }
+
+    for (const link of materials) {
+        const stock = Number(link.material?.quantidade_estoque || 0);
+        const required = Number(link.quantity_per_vehicle || 1);
+        const materialStatus = String(link.status || "").toUpperCase();
+        if (materialStatus === "AGUARDANDO_MATERIAL" || materialStatus === "EM_COMPRAS") {
+            return {
+                allowed: false,
+                reason: `${String(link.material?.referencia || link.material?.descricao || "MATERIAL").toUpperCase()} AGUARDANDO MATERIAL.`,
+            };
+        }
+        if (stock < required) {
+            return {
+                allowed: false,
+                reason: `${String(link.material?.referencia || link.material?.descricao || "MATERIAL").toUpperCase()} SEM SALDO (${stock}/${required}).`,
+            };
+        }
+    }
+
+    return { allowed: true, reason: "" };
+}
+
+function makeMaintenanceItemCard(item, index) {
+    const vehicle = item.vehicle || {};
+    const schedule = item.schedule || {};
+    const materials = schedule.materiais || [];
+    const photoAfter = item.photo_after ? makeAbsoluteUrl(item.photo_after) : "";
+    const status = String(item.status || "PENDENTE").toUpperCase();
+    const canExecute = maintenanceItemCanInstall(item);
+    const card = document.createElement("article");
+    card.className = "checklist-card activity-item-card maintenance-item-card";
+    card.dataset.itemId = item.id;
+    card.dataset.scheduleId = item.schedule_id;
+    card.innerHTML = `
+        <div class="item-topline">
+            <span>${String(index).padStart(2, "0")}</span>
+            <h3>${escapeHtml(String(schedule.title || item.item_name || "PROGRAMACAO DE MANUTENCAO").toUpperCase())}</h3>
+        </div>
+        <div class="activity-meta">
+            <strong>${escapeHtml(String(vehicle.frota || "EQUIPAMENTO").toUpperCase())} | ${escapeHtml(String(vehicle.placa || "-").toUpperCase())}</strong>
+            <span>${escapeHtml(String(vehicle.modelo || "-").toUpperCase())}</span>
+        </div>
+        <div class="nc-meta-list">
+            <span>DATA PROGRAMADA: ${item.scheduled_date ? formatDateTime(`${item.scheduled_date}T00:00:00`) : "SEM DATA"}</span>
+            <span>STATUS: ${escapeHtml(status.replace(/_/g, " "))}</span>
+            <span>PROGRAMAÃ‡ÃƒO: ${escapeHtml(String(schedule.status || "-").replace(/_/g, " "))}</span>
+            ${schedule.assigned_mechanic ? `<span>MECÃ‚NICO: ${escapeHtml(String(schedule.assigned_mechanic.nome || "").toUpperCase())}</span>` : ""}
+        </div>
+        ${materials.length ? `
+            <div class="nc-meta-list">
+                ${materials.map((link) => {
+                    const material = link.material || {};
+                    return `<span>MATERIAL: ${escapeHtml(String(material.referencia || "-").toUpperCase())} | ${escapeHtml(String(material.descricao || "-").toUpperCase())} | ESTOQUE ${Number(material.quantidade_estoque || 0)} | NECESSÃRIO ${Number(link.quantity_required || 0)} | ${escapeHtml(String(link.status || "").replace(/_/g, " "))}</span>`;
+                }).join("")}
+            </div>
+        ` : `
+            <div class="nc-meta-list">
+                <span>SEM MATERIAL VINCULADO NESTA PROGRAMAÃ‡ÃƒO.</span>
+            </div>
+        `}
+        ${item.observation ? `<div class="nc-meta-list"><span>OBSERVAÃ‡ÃƒO: ${escapeHtml(item.observation)}</span></div>` : ""}
+        ${status !== "INSTALADO" && !canExecute.allowed ? `<span class="maintenance-flag">AGUARDANDO MATERIAL / BLOQUEIO</span>` : ""}
+        ${status === "INSTALADO" ? `
+            <span class="nc-resolved-flag">INSTALADO</span>
+            ${item.executed_by ? `<div class="nc-meta-list"><span>EXECUTADO POR: ${escapeHtml(String(item.executed_by.nome || "").toUpperCase())}</span><span>EXECUÃ‡ÃƒO EM: ${formatDateTime(item.executed_at)}</span></div>` : ""}
+            ${item.not_executed_reason ? `<div class="nc-meta-list"><span>MOTIVO ANTERIOR: ${escapeHtml(item.not_executed_reason)}</span></div>` : ""}
+            ${photoAfter ? `
+                <figure class="nc-photo-card">
+                    <figcaption>FOTO DEPOIS</figcaption>
+                    <img src="${photoAfter}" alt="Foto depois da manutenÃ§Ã£o">
+                </figure>
+            ` : ""}
+        ` : `
+            <div class="nc-resolve-form">
+                <label>
+                    <span>PARECER TÃ‰CNICO</span>
+                    <textarea class="maintenance-observation" placeholder="DESCREVA A EXECUÃ‡ÃƒO, PENDÃŠNCIA OU CONDIÃ‡ÃƒO ENCONTRADA">${escapeHtml(item.observation || "")}</textarea>
+                </label>
+                <label>
+                    <span>MOTIVO PARA NÃƒO EXECUTAR</span>
+                    <textarea class="maintenance-not-executed" placeholder="INFORME O MOTIVO, SE NÃƒO FOR POSSÃVEL CONCLUIR AGORA"></textarea>
+                </label>
+                <label class="evidence-input">
+                    <span>FOTO DEPOIS</span>
+                    <strong>EVIDÃŠNCIA OPCIONAL</strong>
+                    <input type="file" class="maintenance-after-photo" accept="image/*" capture="environment">
+                    <em>TOQUE PARA FOTOGRAFAR OU ANEXAR IMAGEM.</em>
+                </label>
+                <img class="photo-preview maintenance-after-preview" alt="PrÃ©via da foto depois">
+                ${!canExecute.allowed ? `<div class="nc-meta-list"><span>INSTALAÃ‡ÃƒO BLOQUEADA: ${escapeHtml(canExecute.reason)}</span></div>` : ""}
+                <div class="status-group activity-status-group" role="group" aria-label="AÃ§Ãµes da manutenÃ§Ã£o">
+                    <button type="button" class="status-button ok maintenance-execute-button"${canExecute.allowed ? "" : " disabled"}>INSTALAR</button>
+                    <button type="button" class="status-button nc maintenance-not-executed-button">NÃƒO EXECUTADO</button>
+                </div>
+                ${hasWashReportAccess() ? `
+                    <div class="maintenance-reprogram-box">
+                        <label>
+                            <span>REPROGRAMAR DATA</span>
+                            <input type="date" class="maintenance-reprogram-date" value="${escapeHtml(item.scheduled_date || "")}">
+                        </label>
+                        <button type="button" class="share-button maintenance-reprogram-button">REPROGRAMAR</button>
+                    </div>
+                ` : ""}
+            </div>
+        `}
+    `;
+
+    if (status !== "INSTALADO") {
+        const fileInput = card.querySelector(".maintenance-after-photo");
+        const preview = card.querySelector(".maintenance-after-preview");
+        fileInput?.addEventListener("change", () => bindPhotoPreview(fileInput, preview));
+        card.querySelector(".maintenance-execute-button")?.addEventListener("click", () => submitMaintenanceItem(card, item, "INSTALADO"));
+        card.querySelector(".maintenance-not-executed-button")?.addEventListener("click", () => submitMaintenanceItem(card, item, "NAO_EXECUTADO"));
+        card.querySelector(".maintenance-reprogram-button")?.addEventListener("click", () => reprogramMaintenanceItem(card, item));
+    }
+    attachCollapsibleCard(card);
+    return card;
+}
+
+async function reprogramMaintenanceItem(card, item) {
+    const button = card.querySelector(".maintenance-reprogram-button");
+    const scheduledDate = card.querySelector(".maintenance-reprogram-date")?.value || "";
+    if (!scheduledDate) {
+        showToast("INFORME A NOVA DATA DO CRONOGRAMA.", true);
+        return;
+    }
+    button.disabled = true;
+    button.textContent = "SALVANDO...";
+    try {
+        await apiFetch(`/manutencao/itens/${item.id}/reprogramar`, {
+            method: "PUT",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ scheduled_date: scheduledDate }),
+        });
+        state.selectedMaintenanceDate = scheduledDate;
+        await loadMaintenanceOverview();
+        renderMaintenance();
+        showToast("MANUTENÃ‡ÃƒO REPROGRAMADA.");
+    } catch (error) {
+        showToast(error.message || "FALHA AO REPROGRAMAR A MANUTENÃ‡ÃƒO.", true);
+    } finally {
+        button.disabled = false;
+        button.textContent = "REPROGRAMAR";
+    }
+}
+
+async function submitMaintenanceItem(card, item, newStatus) {
+    const button = newStatus === "INSTALADO"
+        ? card.querySelector(".maintenance-execute-button")
+        : card.querySelector(".maintenance-not-executed-button");
+    if (!button) {
+        return;
+    }
+
+    const canExecute = maintenanceItemCanInstall(item);
+    if (newStatus === "INSTALADO" && !canExecute.allowed) {
+        showToast(canExecute.reason || "SEM SALDO PARA CONCLUIR A INSTALACAO.", true);
+        return;
+    }
+
+    const afterFile = card.querySelector(".maintenance-after-photo")?.files?.[0];
+    const observation = card.querySelector(".maintenance-observation")?.value?.trim() || "";
+    const notExecutedReason = card.querySelector(".maintenance-not-executed")?.value?.trim() || "";
+
+    if (newStatus === "NAO_EXECUTADO" && !notExecutedReason) {
+        showToast("INFORME O MOTIVO PARA MARCAR COMO NÃƒO EXECUTADO.", true);
+        return;
+    }
+
+    button.disabled = true;
+    button.textContent = "SALVANDO...";
+    try {
+        let photoPath = item.photo_after || "";
+        if (afterFile) {
+            const vehicleName = item.vehicle?.frota || item.vehicle?.placa || "EQUIPAMENTO";
+            const itemName = item.schedule?.title || item.item_name || "MANUTENCAO";
+            photoPath = await uploadEvidence(afterFile, vehicleName, itemName, "manutencao_depois", "MANUTENCAO");
+        }
+
+        await apiFetch(`/manutencao/itens/${item.id}`, {
+            method: "PUT",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+                status: newStatus,
+                observation,
+                not_executed_reason: notExecutedReason,
+                foto_depois: photoPath || "",
+            }),
+        });
+
+        await loadMaintenanceOverview();
+        renderMaintenance();
+        showToast(newStatus === "INSTALADO" ? "INSTALAÃ‡ÃƒO REGISTRADA." : "MANUTENÃ‡ÃƒO MARCADA COMO NÃƒO EXECUTADA.");
+    } catch (error) {
+        showToast(error.message || "FALHA AO SALVAR A MANUTENÃ‡ÃƒO.", true);
+    } finally {
+        button.disabled = false;
+        button.textContent = newStatus === "INSTALADO" ? "INSTALAR" : "NÃƒO EXECUTADO";
+    }
 }
 
 function makeChecklistNonConformityCard(item, index) {
@@ -738,7 +1528,7 @@ function makeChecklistNonConformityCard(item, index) {
     card.innerHTML = `
         <div class="item-topline">
             <span>${String(index).padStart(2, "0")}</span>
-            <h3>${escapeHtml(String(item.item_nome || "NAO CONFORMIDADE").toUpperCase())}</h3>
+            <h3>${escapeHtml(String(item.item_nome || "NÃƒO CONFORMIDADE").toUpperCase())}</h3>
         </div>
         <div class="activity-meta">
             <strong>${escapeHtml(String(vehicle.frota || "-").toUpperCase())} | ${escapeHtml(String(vehicle.placa || "-").toUpperCase())}</strong>
@@ -753,21 +1543,21 @@ function makeChecklistNonConformityCard(item, index) {
             ${beforePhoto ? `
                 <figure class="nc-photo-card">
                     <figcaption>FOTO ANTES</figcaption>
-                    <img src="${beforePhoto}" alt="Foto antes da nao conformidade">
+                    <img src="${beforePhoto}" alt="Foto antes da nÃ£o conformidade">
                 </figure>
             ` : ""}
             ${afterPhoto ? `
                 <figure class="nc-photo-card">
                     <figcaption>FOTO DEPOIS</figcaption>
-                    <img src="${afterPhoto}" alt="Foto depois da nao conformidade">
+                    <img src="${afterPhoto}" alt="Foto depois da nÃ£o conformidade">
                 </figure>
             ` : ""}
         </div>
         ${isResolved ? `
             <span class="nc-resolved-flag">RESOLVIDA</span>
             <div class="nc-meta-list">
-                <span>CODIGO PECA: ${escapeHtml(item.codigo_peca || "-")}</span>
-                <span>DESCRICAO: ${escapeHtml(item.descricao_peca || "-")}</span>
+                <span>CÃ“DIGO DA PEÃ‡A: ${escapeHtml(item.codigo_peca || "-")}</span>
+                <span>DESCRIÃ‡ÃƒO: ${escapeHtml(item.descricao_peca || "-")}</span>
             </div>
         ` : `
             <div class="nc-resolve-form">
@@ -801,6 +1591,7 @@ function makeChecklistNonConformityCard(item, index) {
         fileInput?.addEventListener("change", () => bindPhotoPreview(fileInput, preview));
         card.querySelector(".nc-resolve-button")?.addEventListener("click", () => resolveChecklistNonConformity(card, item));
     }
+    attachCollapsibleCard(card);
     return card;
 }
 
@@ -814,10 +1605,10 @@ function makeMechanicNonConformityCard(item, index) {
     card.innerHTML = `
         <div class="item-topline">
             <span>${String(index).padStart(2, "0")}</span>
-            <h3>${escapeHtml(String(item.item_nome || "NC INTERNA").toUpperCase())}</h3>
+            <h3>${escapeHtml(String(item.item_nome || "NÃƒO CONFORMIDADE INTERNA").toUpperCase())}</h3>
         </div>
         <div class="activity-meta">
-            <strong>${escapeHtml(String(item.veiculo_referencia || "SEM REFERENCIA").toUpperCase())}</strong>
+            <strong>${escapeHtml(String(item.veiculo_referencia || "SEM REFERÃŠNCIA").toUpperCase())}</strong>
             <span>ABERTA POR ${escapeHtml(String(item.created_by?.nome || "-").toUpperCase())}</span>
         </div>
         <div class="nc-meta-list">
@@ -829,21 +1620,21 @@ function makeMechanicNonConformityCard(item, index) {
             ${beforePhoto ? `
                 <figure class="nc-photo-card">
                     <figcaption>FOTO ANTES</figcaption>
-                    <img src="${beforePhoto}" alt="Foto antes da nao conformidade interna">
+                    <img src="${beforePhoto}" alt="Foto antes da nÃ£o conformidade interna">
                 </figure>
             ` : ""}
             ${afterPhoto ? `
                 <figure class="nc-photo-card">
                     <figcaption>FOTO DEPOIS</figcaption>
-                    <img src="${afterPhoto}" alt="Foto depois da nao conformidade interna">
+                    <img src="${afterPhoto}" alt="Foto depois da nÃ£o conformidade interna">
                 </figure>
             ` : ""}
         </div>
         ${isResolved ? `
             <span class="nc-resolved-flag">RESOLVIDA</span>
             <div class="nc-meta-list">
-                <span>CODIGO PECA: ${escapeHtml(item.codigo_peca || "-")}</span>
-                <span>DESCRICAO: ${escapeHtml(item.descricao_peca || "-")}</span>
+                <span>CÃ“DIGO DA PEÃ‡A: ${escapeHtml(item.codigo_peca || "-")}</span>
+                <span>DESCRIÃ‡ÃƒO: ${escapeHtml(item.descricao_peca || "-")}</span>
             </div>
         ` : `
             <div class="nc-resolve-form">
@@ -877,6 +1668,7 @@ function makeMechanicNonConformityCard(item, index) {
         fileInput?.addEventListener("change", () => bindPhotoPreview(fileInput, preview));
         card.querySelector(".nc-resolve-button")?.addEventListener("click", () => resolveMechanicNonConformity(card, item));
     }
+    attachCollapsibleCard(card);
     return card;
 }
 
@@ -890,9 +1682,9 @@ function buildMaterialOptions(vehicleType = "") {
         return material.ativo !== false && (applyType === "ambos" || applyType === normalizedType);
     });
     if (!materials.length) {
-        return `<option value="">Nenhuma peca cadastrada ativa</option>`;
+        return `<option value="">Nenhuma peÃ§a cadastrada ativa</option>`;
     }
-    const options = [`<option value="">Selecione a peca cadastrada</option>`];
+    const options = [`<option value="">Selecione a peÃ§a cadastrada</option>`];
     materials.forEach((material) => {
         const label = `${material.referencia || "-"} | ${material.descricao || "-"}`;
         options.push(`<option value="${material.id}">${escapeHtml(label.toUpperCase())}</option>`);
@@ -910,7 +1702,7 @@ async function resolveChecklistNonConformity(card, item) {
     const fileInput = card.querySelector(".nc-after-photo");
     const file = fileInput?.files?.[0];
     if (!file && !item.foto_depois) {
-        showToast("ANEXE A FOTO DEPOIS PARA FINALIZAR A NC.", true);
+        showToast("ANEXE A FOTO DEPOIS PARA FINALIZAR A NÃƒO CONFORMIDADE.", true);
         return;
     }
 
@@ -935,9 +1727,9 @@ async function resolveChecklistNonConformity(card, item) {
         });
         await loadNonConformityHubData();
         renderNonConformities();
-        showToast("NAO CONFORMIDADE DO CHECKLIST RESOLVIDA.");
+        showToast("NÃƒO CONFORMIDADE DO CHECKLIST RESOLVIDA.");
     } catch (error) {
-        showToast(error.message || "FALHA AO RESOLVER NAO CONFORMIDADE.", true);
+        showToast(error.message || "FALHA AO RESOLVER A NÃƒO CONFORMIDADE.", true);
     } finally {
         button.disabled = false;
         button.textContent = "SALVAR RESOLUCAO";
@@ -954,7 +1746,7 @@ async function resolveMechanicNonConformity(card, item) {
     const fileInput = card.querySelector(".nc-after-photo");
     const file = fileInput?.files?.[0];
     if (!file && !item.foto_depois) {
-        showToast("ANEXE A FOTO DEPOIS PARA FINALIZAR A NC INTERNA.", true);
+        showToast("ANEXE A FOTO DEPOIS PARA FINALIZAR A NÃƒO CONFORMIDADE INTERNA.", true);
         return;
     }
 
@@ -963,7 +1755,7 @@ async function resolveMechanicNonConformity(card, item) {
     button.textContent = "SALVANDO...";
     try {
         const afterPhotoPath = file
-            ? await uploadEvidence(file, item.veiculo_referencia || "EQUIPAMENTO", item.item_nome || "NC_INTERNA", "nc_mecanico_depois", "NAO_CONFORMIDADES")
+            ? await uploadEvidence(file, item.veiculo_referencia || "EQUIPAMENTO", item.item_nome || "NAO_CONFORMIDADE_INTERNA", "nc_mecanico_depois", "NAO_CONFORMIDADES")
             : item.foto_depois;
         const quantity = Number(card.querySelector(".nc-quantity")?.value || 1);
         await apiFetch(`/mecanico/nao_conformidades/${item.id}/resolver`, {
@@ -978,9 +1770,9 @@ async function resolveMechanicNonConformity(card, item) {
         });
         await loadNonConformityHubData();
         renderNonConformities();
-        showToast("NC INTERNA RESOLVIDA.");
+        showToast("NÃƒO CONFORMIDADE INTERNA RESOLVIDA.");
     } catch (error) {
-        showToast(error.message || "FALHA AO RESOLVER NC INTERNA.", true);
+        showToast(error.message || "FALHA AO RESOLVER A NÃƒO CONFORMIDADE INTERNA.", true);
     } finally {
         button.disabled = false;
         button.textContent = "SALVAR RESOLUCAO";
@@ -994,13 +1786,13 @@ async function createMechanicNonConformity(event) {
     }
     const itemName = elements.mechanicNcItemName?.value?.trim() || "";
     if (!itemName) {
-        showToast("INFORME O NOME DA NAO CONFORMIDADE INTERNA.", true);
+        showToast("INFORME O NOME DA NÃƒO CONFORMIDADE INTERNA.", true);
         return;
     }
 
     const beforeFile = elements.mechanicNcBeforePhoto?.files?.[0];
     if (!beforeFile) {
-        showToast("ANEXE A FOTO ANTES PARA ABRIR A NC INTERNA.", true);
+        showToast("ANEXE A FOTO ANTES PARA ABRIR A NÃƒO CONFORMIDADE INTERNA.", true);
         return;
     }
 
@@ -1031,13 +1823,13 @@ async function createMechanicNonConformity(event) {
         clearPreview(elements.mechanicNcBeforePreview);
         await loadNonConformityHubData();
         renderNonConformities();
-        showToast("NC INTERNA ABERTA COM SUCESSO.");
+        showToast("NÃƒO CONFORMIDADE INTERNA ABERTA COM SUCESSO.");
     } catch (error) {
-        showToast(error.message || "FALHA AO ABRIR NC INTERNA.", true);
+        showToast(error.message || "FALHA AO ABRIR A NÃƒO CONFORMIDADE INTERNA.", true);
     } finally {
         if (createButton) {
             createButton.disabled = false;
-            createButton.textContent = "ABRIR NC INTERNA";
+            createButton.textContent = "ABRIR NÃƒO CONFORMIDADE INTERNA";
         }
     }
 }
@@ -1070,6 +1862,62 @@ function clearPreview(previewElement) {
         URL.revokeObjectURL(previewElement.dataset.objectUrl);
         delete previewElement.dataset.objectUrl;
     }
+}
+
+function attachCollapsibleCard(card, options = {}) {
+    if (!card) {
+        return;
+    }
+    const summarySelectors = options.summarySelectors || [".item-topline", ".activity-meta"];
+    const summaryNodes = summarySelectors
+        .map((selector) => card.querySelector(selector))
+        .filter((node) => node && node.parentElement === card);
+    if (!summaryNodes.length) {
+        return;
+    }
+
+    const detailNodes = Array.from(card.children).filter((node) => !summaryNodes.includes(node));
+    if (!detailNodes.length) {
+        return;
+    }
+
+    const toggleButton = document.createElement("button");
+    toggleButton.type = "button";
+    toggleButton.className = "card-toggle-header";
+
+    const summaryWrap = document.createElement("div");
+    summaryWrap.className = "card-toggle-summary";
+    summaryNodes.forEach((node) => summaryWrap.appendChild(node));
+
+    const indicator = document.createElement("span");
+    indicator.className = "card-toggle-indicator";
+
+    const detailWrap = document.createElement("div");
+    detailWrap.className = "card-toggle-content";
+    detailNodes.forEach((node) => detailWrap.appendChild(node));
+
+    toggleButton.appendChild(summaryWrap);
+    toggleButton.appendChild(indicator);
+
+    const defaultExpanded = Boolean(options.defaultExpanded);
+    const setExpanded = (expanded) => {
+        detailWrap.hidden = !expanded;
+        toggleButton.setAttribute("aria-expanded", expanded ? "true" : "false");
+        indicator.textContent = expanded ? "OCULTAR DETALHES" : "VER DETALHES";
+        card.classList.toggle("card-collapsible-open", expanded);
+    };
+
+    toggleButton.addEventListener("click", () => {
+        setExpanded(detailWrap.hidden);
+    });
+
+    card.classList.add("card-collapsible");
+    while (card.firstChild) {
+        card.removeChild(card.firstChild);
+    }
+    card.appendChild(toggleButton);
+    card.appendChild(detailWrap);
+    setExpanded(defaultExpanded);
 }
 
 function formatDateTime(value) {
@@ -1166,7 +2014,7 @@ async function withChecklistQueueStore(mode, action) {
     return withOfflineStore(CHECKLIST_QUEUE_STORE, mode, action);
 }
 
-async function addChecklistToQueue(draft, reason = "SEM CONEXÃO") {
+async function addChecklistToQueue(draft, reason = "SEM CONEXÃƒO") {
     const queued = {
         ...draft,
         id: createQueueId(),
@@ -1241,7 +2089,10 @@ async function saveChecklistDraftNow() {
     };
 
     await withOfflineStore(CHECKLIST_DRAFT_STORE, "readwrite", (store) => store.put(draft));
+    state.currentChecklistDraftUpdatedAt = draft.updatedAt;
+    state.currentChecklistDraftRestored = false;
     localStorage.setItem(ACTIVE_CHECKLIST_DRAFT_KEY, String(state.selectedVehicle.id));
+    updateProgress();
 }
 
 function scheduleChecklistDraftSave() {
@@ -1283,6 +2134,19 @@ async function restoreActiveChecklistDraft() {
     }
     const vehicle = state.vehicles.find((item) => Number(item.id) === Number(draft.vehicleId));
     if (!vehicle) {
+        localStorage.removeItem(ACTIVE_CHECKLIST_DRAFT_KEY);
+        return false;
+    }
+    const vehicleLabel = vehicle.frota || draft.vehicle?.frota || "equipamento";
+    const updatedAtLabel = formatDateTimeShort(draft.updatedAt);
+    const shouldRestore = window.confirm(
+        updatedAtLabel
+            ? `Deseja voltar para o checklist do ${vehicleLabel} salvo em ${updatedAtLabel}?`
+            : `Deseja voltar para o checklist do ${vehicleLabel}?`
+    );
+    if (!shouldRestore) {
+        localStorage.removeItem(ACTIVE_CHECKLIST_DRAFT_KEY);
+        showToast("RETORNO AUTOMÃTICO DO CHECKLIST CANCELADO.");
         return false;
     }
     await selectVehicle(vehicle, { restoreDraft: true });
@@ -1293,6 +2157,8 @@ async function restoreActiveChecklistDraft() {
 async function restoreChecklistDraft(vehicleId) {
     const draft = await getChecklistDraft(vehicleId).catch(() => null);
     if (!draft?.items?.length) {
+        state.currentChecklistDraftUpdatedAt = "";
+        state.currentChecklistDraftRestored = false;
         return false;
     }
     const itemsByName = new Map(draft.items.map((item) => [normalizeText(item.item_nome), item]));
@@ -1315,10 +2181,13 @@ async function restoreChecklistDraft(vehicleId) {
         if (saved.foto_antes_file) {
             const fileInput = card.querySelector("input[type='file']");
             const preview = card.querySelector(".photo-preview");
+            const evidenceBox = fileInput?.closest(".evidence-input");
+            const hint = evidenceBox?.querySelector("em");
             try {
                 const transfer = new DataTransfer();
                 transfer.items.add(saved.foto_antes_file);
                 fileInput.files = transfer.files;
+                fileInput.dataset.restoredFile = "true";
             } catch {
                 fileInput.dataset.restoredFile = "true";
             }
@@ -1331,17 +2200,18 @@ async function restoreChecklistDraft(vehicleId) {
                 preview.src = objectUrl;
                 preview.classList.add("visible");
             }
+            evidenceBox?.classList.add("has-file");
+            if (hint) {
+                hint.textContent = `EVIDENCIA RESTAURADA: ${saved.foto_antes_name || saved.foto_antes_file.name || "ARQUIVO SALVO"}.`;
+                hint.classList.add("ok");
+            }
         }
     });
 
     state.currentModule = draft.currentModule || "TODOS";
-    document.querySelectorAll(".module-tab").forEach((button) => {
-        const isActive = button.querySelector("span")?.textContent === state.currentModule;
-        button.classList.toggle("active", isActive);
-    });
-    document.querySelectorAll(".module-section").forEach((section) => {
-        section.classList.toggle("hidden-by-filter", state.currentModule !== "TODOS" && section.dataset.module !== state.currentModule);
-    });
+    state.currentChecklistDraftUpdatedAt = draft.updatedAt || "";
+    state.currentChecklistDraftRestored = true;
+    applyChecklistModuleFilter(state.currentModule);
     updateProgress();
     localStorage.setItem(ACTIVE_CHECKLIST_DRAFT_KEY, String(vehicleId));
     return true;
@@ -1377,7 +2247,7 @@ async function refreshSyncQueuePanel() {
 async function syncPendingChecklists({ silent = false } = {}) {
     if (!state.token || !navigator.onLine) {
         if (!silent) {
-            showToast("SEM CONEXÃO PARA SINCRONIZAR.", true);
+            showToast("SEM CONEXÃƒO PARA SINCRONIZAR.", true);
         }
         return;
     }
@@ -1387,7 +2257,7 @@ async function syncPendingChecklists({ silent = false } = {}) {
     if (!pending.length) {
         await refreshSyncQueuePanel();
         if (!silent) {
-            showToast("NÃO HÁ CHECKLIST PENDENTE PARA SINCRONIZAR.");
+            showToast("NÃƒO HÃ CHECKLIST PENDENTE PARA SINCRONIZAR.");
         }
         return;
     }
@@ -1424,7 +2294,7 @@ async function syncPendingChecklists({ silent = false } = {}) {
         renderHome();
         showToast(`${synced} CHECKLIST${synced === 1 ? "" : "S"} SINCRONIZADO${synced === 1 ? "" : "S"}.`);
     } else if (!silent) {
-        showToast("NÃO FOI POSSÍVEL SINCRONIZAR A FILA.", true);
+        showToast("NÃƒO FOI POSSÃVEL SINCRONIZAR A FILA.", true);
     }
 }
 
@@ -1441,7 +2311,7 @@ function renderVehicles() {
 
     elements.userSummary.innerHTML = `
         <div>
-            <span>USUÁRIO</span>
+            <span>USUÃRIO</span>
             <strong>${escapeHtml(state.user.nome)}</strong>
         </div>
         <div>
@@ -1449,8 +2319,8 @@ function renderVehicles() {
             <strong>${escapeHtml(String(state.user.tipo || "").toUpperCase())}</strong>
         </div>
         <div>
-            <span>API</span>
-            <strong>${escapeHtml(state.apiBaseUrl)}</strong>
+            <span>STATUS</span>
+            <strong>${navigator.onLine ? "ONLINE" : "OFFLINE"}</strong>
         </div>
     `;
 
@@ -1458,10 +2328,11 @@ function renderVehicles() {
     elements.vehiclesList.innerHTML = "";
 
     if (!filteredVehicles.length) {
+        const hasQuery = Boolean(query);
         elements.vehiclesList.innerHTML = `
             <article class="empty-state">
-                <strong>NENHUM EQUIPAMENTO ATIVO ENCONTRADO.</strong>
-                <span>ATUALIZE O CADASTRO NO DESKTOP OU AJUSTE A BUSCA.</span>
+                <strong>${hasQuery ? "NENHUM EQUIPAMENTO LOCALIZADO NESTA BUSCA." : "NENHUM EQUIPAMENTO ATIVO ENCONTRADO."}</strong>
+                <span>${hasQuery ? "AJUSTE O TERMO DIGITADO OU LIMPE A BUSCA PARA VER TODA A FROTA." : "ATUALIZE O CADASTRO NO DESKTOP OU AJUSTE A BUSCA."}</span>
             </article>
         `;
         return;
@@ -1474,7 +2345,7 @@ function renderVehicles() {
         card.innerHTML = `
             <span class="vehicle-type">${escapeHtml(String(vehicle.tipo || "-").toUpperCase())}</span>
             <strong>${escapeHtml(vehicle.frota || "-")}</strong>
-            <span>${escapeHtml(String(vehicle.modelo || "MODELO NÃO INFORMADO").toUpperCase())}</span>
+            <span>${escapeHtml(String(vehicle.modelo || "MODELO NÃƒO INFORMADO").toUpperCase())}</span>
             <small>PLACA ${escapeHtml(vehicle.placa || "-")} | ${escapeHtml(String(vehicle.local || "SEM LOCAL").toUpperCase())}</small>
         `;
         card.addEventListener("click", () => selectVehicle(vehicle));
@@ -1491,7 +2362,7 @@ function renderActivities() {
         elements.activitiesList.innerHTML = `
             <article class="empty-state">
                 <strong>NENHUMA ATIVIDADE ABERTA.</strong>
-                <span>AS ATIVIDADES CRIADAS NO DESKTOP APARECERÃO AQUI.</span>
+                <span>AS ATIVIDADES CRIADAS NO DESKTOP APARECERÃƒO AQUI.</span>
             </article>
         `;
         return;
@@ -1506,7 +2377,7 @@ function renderActivities() {
             <span class="vehicle-type">${escapeHtml(activity.tipo_equipamento || "-")}</span>
             <strong>${escapeHtml(String(activity.titulo || activity.item_nome || "ATIVIDADE").toUpperCase())}</strong>
             <span>${escapeHtml(String(activity.item_nome || "-").toUpperCase())}</span>
-            <small>${resumo.pendentes || 0} PENDENTES | ${resumo.instalados || 0} INSTALADOS | ${resumo.nao_instalados || 0} NÃO INSTALADOS${activity.assigned_mechanic ? ` | DIRECIONADO: ${escapeHtml(String(activity.assigned_mechanic.nome || "").toUpperCase())}` : ""}</small>
+            <small>${resumo.pendentes || 0} PENDENTES | ${resumo.instalados || 0} INSTALADOS | ${resumo.nao_instalados || 0} NÃƒO INSTALADOS${activity.assigned_mechanic ? ` | DIRECIONADO: ${escapeHtml(String(activity.assigned_mechanic.nome || "").toUpperCase())}` : ""}</small>
         `;
         card.addEventListener("click", () => selectActivity(activity.id));
         elements.activitiesList.appendChild(card);
@@ -1531,7 +2402,7 @@ function renderActivityDetail() {
     elements.activitySummary.innerHTML = `
         <div>
             <strong>${escapeHtml(String(activity.item_nome || "-").toUpperCase())}</strong>
-            <span>${resumo.pendentes || 0} PENDENTES | ${resumo.instalados || 0} INSTALADOS | ${resumo.nao_instalados || 0} NÃO INSTALADOS</span>
+            <span>${resumo.pendentes || 0} PENDENTES | ${resumo.instalados || 0} INSTALADOS | ${resumo.nao_instalados || 0} NÃƒO INSTALADOS</span>
         </div>
         <div class="progress-track" aria-hidden="true">
             <span style="width:${items.length ? Math.round(((items.length - (resumo.pendentes || 0)) / items.length) * 100) : 0}%"></span>
@@ -1547,6 +2418,11 @@ function renderActivityDetail() {
 function makeActivityItemCard(activity, item, index) {
     const vehicle = item.veiculo || {};
     const canShare = item.status_execucao && item.status_execucao !== "PENDENTE";
+    const beforePath = item.foto_origem || item.foto_antes || "";
+    const afterPath = item.foto_resolucao || item.foto_depois || "";
+    const beforePhoto = beforePath ? makeAbsoluteUrl(beforePath) : "";
+    const afterPhoto = afterPath ? makeAbsoluteUrl(afterPath) : "";
+    const originLocked = Boolean(item.foto_origem_bloqueada);
     const card = document.createElement("article");
     card.className = "checklist-card activity-item-card";
     card.dataset.activityId = activity.id;
@@ -1562,48 +2438,75 @@ function makeActivityItemCard(activity, item, index) {
         </div>
         <div class="status-group activity-status-group" role="group" aria-label="Status da atividade">
             <button type="button" class="status-button ok" data-status="INSTALADO">INSTALADO</button>
-            <button type="button" class="status-button nc" data-status="NAO_INSTALADO">NÃO INSTALADO</button>
         </div>
         <label>
-            <span>OBSERVAÇÃO DA ATIVIDADE</span>
-            <textarea placeholder="DESCREVA A EXECUÇÃO, PENDÊNCIA OU RESTRIÇÃO">${escapeHtml(item.observacao || "")}</textarea>
+            <span>OBSERVAÃ‡ÃƒO DA ATIVIDADE</span>
+            <textarea placeholder="DESCREVA A EXECUÃ‡ÃƒO, PENDÃŠNCIA OU RESTRIÃ‡ÃƒO">${escapeHtml(item.observacao || "")}</textarea>
         </label>
         <label class="evidence-input">
-            <span>EVIDÊNCIA ANTES</span>
-            <strong>FOTO ANTES DA EXECUÇÃO</strong>
+            <span>EVIDÃŠNCIA ANTES</span>
+            <strong>FOTO ANTES DA EXECUÃ‡ÃƒO</strong>
             <input type="file" data-photo="before" accept="image/*" capture="environment">
-            <em>${item.foto_antes ? "FOTO ANTES JÁ VINCULADA." : "TOQUE PARA FOTOGRAFAR OU ANEXAR IMAGEM."}</em>
+            <em>${item.foto_antes ? "FOTO ANTES JÃ VINCULADA." : "TOQUE PARA FOTOGRAFAR OU ANEXAR IMAGEM."}</em>
         </label>
-        <img class="photo-preview before-preview" alt="PRÉVIA DA EVIDÊNCIA ANTES">
+        <img class="photo-preview before-preview" alt="PRÃ‰VIA DA EVIDÃŠNCIA ANTES">
         <label class="evidence-input">
-            <span>EVIDÊNCIA DEPOIS</span>
-            <strong>FOTO DEPOIS DA EXECUÇÃO</strong>
+            <span>EVIDÃŠNCIA DEPOIS</span>
+            <strong>FOTO DEPOIS DA EXECUÃ‡ÃƒO</strong>
             <input type="file" data-photo="after" accept="image/*" capture="environment">
-            <em>${item.foto_depois ? "FOTO DEPOIS JÁ VINCULADA." : "TOQUE PARA FOTOGRAFAR OU ANEXAR IMAGEM."}</em>
+            <em>${item.foto_depois ? "FOTO DEPOIS JÃ VINCULADA." : "TOQUE PARA FOTOGRAFAR OU ANEXAR IMAGEM."}</em>
         </label>
-        <img class="photo-preview after-preview" alt="PRÉVIA DA EVIDÊNCIA DEPOIS">
-        <button type="button" class="primary-button activity-save-button">SALVAR EVIDÊNCIA</button>
+        <img class="photo-preview after-preview" alt="PRÃ‰VIA DA EVIDÃŠNCIA DEPOIS">
+        <button type="button" class="primary-button activity-save-button">SALVAR EVIDÃŠNCIA</button>
         ${canShare ? `<button type="button" class="share-button activity-share-button">COMPARTILHAR NO WHATSAPP</button>` : ""}
     `;
 
+    const beforeInput = card.querySelector("input[data-photo='before']");
+    const beforeHint = beforeInput?.closest(".evidence-input")?.querySelector("em");
+    const beforePreview = card.querySelector(".before-preview");
+    if (beforeHint) {
+        beforeHint.textContent = beforePath ? "FOTO ANTES JÃ VINCULADA." : "TOQUE PARA FOTOGRAFAR OU ANEXAR IMAGEM.";
+    }
+    if (beforeInput && originLocked) {
+        beforeInput.disabled = true;
+    }
+    if (beforePreview && beforePhoto) {
+        beforePreview.src = beforePhoto;
+        beforePreview.classList.add("visible");
+    }
+
+    const afterInput = card.querySelector("input[data-photo='after']");
+    const afterHint = afterInput?.closest(".evidence-input")?.querySelector("em");
+    const afterPreview = card.querySelector(".after-preview");
+    if (afterHint) {
+        afterHint.textContent = afterPath ? "FOTO DEPOIS JÃ VINCULADA." : "TOQUE PARA FOTOGRAFAR OU ANEXAR IMAGEM.";
+    }
+    if (afterPreview && afterPhoto) {
+        afterPreview.src = afterPhoto;
+        afterPreview.classList.add("visible");
+    }
+
     const statusButtons = card.querySelectorAll(".activity-status-group .status-button");
     statusButtons.forEach((button) => {
-        if (button.dataset.status === item.status_execucao) {
-            button.classList.add("active");
-        }
         button.addEventListener("click", () => {
             statusButtons.forEach((statusButton) => statusButton.classList.remove("active"));
             button.classList.add("active");
             card.dataset.status = button.dataset.status;
         });
     });
-    card.dataset.status = item.status_execucao || "PENDENTE";
+    card.dataset.status = "INSTALADO";
+    statusButtons.forEach((statusButton) => {
+        if (statusButton.dataset.status === "INSTALADO") {
+            statusButton.classList.add("active");
+        }
+    });
 
     card.querySelectorAll("input[type='file']").forEach((input) => {
         input.addEventListener("change", () => previewFile(input, card));
     });
     card.querySelector(".activity-save-button").addEventListener("click", () => submitActivityItem(card, activity, item));
     card.querySelector(".activity-share-button")?.addEventListener("click", () => shareActivityItem(activity, item));
+    attachCollapsibleCard(card);
     return card;
 }
 
@@ -1630,11 +2533,9 @@ function previewFile(input, card) {
 
 async function submitActivityItem(card, activity, item) {
     const vehicle = item.veiculo || {};
-    const status = card.dataset.status;
-    if (!status || status === "PENDENTE") {
-        showToast("SELECIONE INSTALADO OU NÃO INSTALADO.", true);
-        return;
-    }
+    const status = "INSTALADO";
+    const currentBeforePath = item.foto_origem || item.foto_antes;
+    const currentAfterPath = item.foto_resolucao || item.foto_depois;
 
     const saveButton = card.querySelector(".activity-save-button");
     saveButton.disabled = true;
@@ -1650,13 +2551,13 @@ async function submitActivityItem(card, activity, item) {
 
         if (beforeFile) {
             payload.foto_antes = await uploadEvidence(beforeFile, vehicle.frota || "EQUIPAMENTO", activity.item_nome || "ATIVIDADE", "atividade_antes", "ATIVIDADES");
-        } else if (item.foto_antes) {
-            payload.foto_antes = item.foto_antes;
+        } else if (currentBeforePath) {
+            payload.foto_antes = currentBeforePath;
         }
         if (afterFile) {
             payload.foto_depois = await uploadEvidence(afterFile, vehicle.frota || "EQUIPAMENTO", activity.item_nome || "ATIVIDADE", "atividade_depois", "ATIVIDADES");
-        } else if (item.foto_depois) {
-            payload.foto_depois = item.foto_depois;
+        } else if (currentAfterPath) {
+            payload.foto_depois = currentAfterPath;
         }
 
         state.selectedActivity = await apiFetch(`/atividades/${activity.id}/itens/${item.id}`, {
@@ -1670,7 +2571,7 @@ async function submitActivityItem(card, activity, item) {
         showToast(error.message, true);
     } finally {
         saveButton.disabled = false;
-        saveButton.textContent = "SALVAR EVIDÊNCIA";
+        saveButton.textContent = "SALVAR EVIDÃŠNCIA";
     }
 }
 
@@ -1682,114 +2583,11 @@ function getWashScheduleItems() {
     ]);
 }
 
-function renderWashes() {
-    const scheduleItems = getWashScheduleItems()
-        .filter((item) => item.status_execucao !== "LAVADO")
-        .sort((a, b) => `${a.scheduled_date}${a.scheduled_shift}`.localeCompare(`${b.scheduled_date}${b.scheduled_shift}`));
-
-    elements.washCounter.textContent = `${scheduleItems.length} PROGRAMADOS`;
-    elements.washesList.innerHTML = "";
-
-    if (!scheduleItems.length) {
-        elements.washesList.innerHTML = `
-            <article class="empty-state">
-                <strong>NENHUMA LAVAGEM PENDENTE NO CRONOGRAMA.</strong>
-                <span>OS VEÍCULOS PROGRAMADOS PELO DESKTOP APARECERÃO AQUI.</span>
-            </article>
-        `;
-        return;
-    }
-
-    scheduleItems.forEach((item, index) => {
-        elements.washesList.appendChild(makeWashCard(item, index + 1));
-    });
-}
-
-function makeWashCard(item, index) {
-    const card = document.createElement("article");
-    card.className = "checklist-card wash-card";
-    card.dataset.queueItemId = item.queue_item_id;
-    card.dataset.scheduledDate = item.scheduled_date;
-    card.dataset.shift = item.scheduled_shift || "MANHA";
-    card.dataset.category = item.categoria_lavagem || item.categoria_sugerida || "CAVALO";
-    card.dataset.value = item.valor_sugerido || "";
-    card.innerHTML = `
-        <div class="item-topline">
-            <span>${String(index).padStart(2, "0")}</span>
-            <h3>${escapeHtml(String(item.referencia || "EQUIPAMENTO").toUpperCase())}</h3>
-        </div>
-        <div class="activity-meta">
-            <strong>${formatDate(item.scheduled_date)} | ${escapeHtml(String(item.scheduled_shift || "-").toUpperCase())}</strong>
-            <span>${escapeHtml(String(item.modelo || "-").toUpperCase())} | ${escapeHtml(String(item.categoria_lavagem || "-").toUpperCase())}</span>
-        </div>
-        <div class="status-group activity-status-group" role="group" aria-label="Status da lavagem">
-            <button type="button" class="status-button ok" data-status="LAVADO">LAVADO</button>
-            <button type="button" class="status-button nc" data-status="NAO_LEVADO">NÃO LEVADO</button>
-        </div>
-        <label>
-            <span>LOCAL DA LAVAGEM</span>
-            <input type="text" class="wash-location" placeholder="INFORME O LOCAL">
-        </label>
-        <label>
-            <span>OBSERVAÇÃO / MOTIVO</span>
-            <textarea class="wash-notes" placeholder="DESCREVA A EVIDÊNCIA OU O MOTIVO DE NÃO TER SIDO LEVADO"></textarea>
-        </label>
-        <label class="evidence-input">
-            <span>EVIDÊNCIA DA LAVAGEM</span>
-            <strong>FOTO DO VEÍCULO LEVADO / LAVADO</strong>
-            <input type="file" accept="image/*" capture="environment">
-            <em>TOQUE PARA FOTOGRAFAR OU ANEXAR IMAGEM.</em>
-        </label>
-        <img class="photo-preview" alt="PRÉVIA DA EVIDÊNCIA DA LAVAGEM">
-        <button type="button" class="primary-button wash-save-button">SALVAR LAVAGEM</button>
-    `;
-
-    const statusButtons = card.querySelectorAll(".activity-status-group .status-button");
-    statusButtons.forEach((button) => {
-        button.addEventListener("click", () => {
-            statusButtons.forEach((statusButton) => statusButton.classList.remove("active"));
-            button.classList.add("active");
-            card.dataset.status = button.dataset.status;
-        });
-    });
-
-    const trailerSelect = card.querySelector(".wash-trailer");
-    if (trailerSelect) {
-        trailerSelect.addEventListener("change", () => updateWashCategoryPreview(card, item));
-        updateWashCategoryPreview(card, item);
-    }
-
-    const fileInput = card.querySelector("input[type='file']");
-    fileInput.addEventListener("change", () => {
-        const [file] = fileInput.files;
-        const preview = card.querySelector(".photo-preview");
-        if (!file) {
-            preview.classList.remove("visible");
-            preview.removeAttribute("src");
-            if (preview.dataset.objectUrl) {
-                URL.revokeObjectURL(preview.dataset.objectUrl);
-                delete preview.dataset.objectUrl;
-            }
-            scheduleChecklistDraftSave();
-            return;
-        }
-        if (preview.dataset.objectUrl) {
-            URL.revokeObjectURL(preview.dataset.objectUrl);
-        }
-        const objectUrl = URL.createObjectURL(file);
-        preview.dataset.objectUrl = objectUrl;
-        preview.src = objectUrl;
-        preview.classList.add("visible");
-    });
-
-    card.querySelector(".wash-save-button").addEventListener("click", () => submitWashEvidence(card, item));
-    return card;
-}
 
 async function submitWashEvidence(card, item) {
     const status = card.dataset.status;
     if (!status) {
-        showToast("SELECIONE LAVADO OU NÃO LEVADO.", true);
+        showToast("SELECIONE LAVADO OU NÃƒO LEVADO.", true);
         return;
     }
 
@@ -1807,7 +2605,7 @@ async function submitWashEvidence(card, item) {
                     queue_item_id: item.queue_item_id,
                     data: item.scheduled_date,
                     turno: item.scheduled_shift || "MANHA",
-                    motivo: notes || "VEÍCULO NÃO LEVADO PARA LAVAGEM.",
+                    motivo: notes || "VEÃCULO NÃƒO LEVADO PARA LAVAGEM.",
                 }),
             });
         } else {
@@ -1824,7 +2622,7 @@ async function submitWashEvidence(card, item) {
                     queue_item_id: item.queue_item_id,
                     wash_date: `${item.scheduled_date}T${(item.scheduled_shift || "MANHA") === "MANHA" ? "08:00:00" : "14:00:00"}`,
                     local: card.querySelector(".wash-location").value.trim(),
-                    valor: trailer ? null : item.valor_sugerido,
+                    valor: hasWashReportAccess() && !trailer ? item.valor_sugerido : null,
                     carreta: trailer,
                     tipo_equipamento: inferWashCategoryForMobile(item, trailer),
                     turno: item.scheduled_shift || "MANHA",
@@ -1930,7 +2728,7 @@ function shareActivityItem(activity, item) {
         `Atividade: ${activity.item_nome || activity.titulo || "-"}`,
         `Equipamento: ${vehicle.frota || "-"} | Placa: ${vehicle.placa || "-"}`,
         `Status: ${String(item.status_execucao || "-").replace("_", " ")}`,
-        item.observacao ? `Observacao: ${item.observacao}` : "",
+        item.observacao ? `ObservaÃ§Ã£o: ${item.observacao}` : "",
     ], photoPath);
     shareText(title, message);
 }
@@ -1974,8 +2772,8 @@ function updateWashCategoryPreview(card, item) {
         return;
     }
     preview.textContent = trailer
-        ? `COM CARRETA: ${category} | VALOR ${formatCurrency(value)}`
-        : `${category} SOZINHO | VALOR ${formatCurrency(value)}`;
+        ? `COM CARRETA: ${category}${hasWashReportAccess() ? ` | VALOR ${formatCurrency(value)}` : ""}`
+        : `${category} SOZINHO${hasWashReportAccess() ? ` | VALOR ${formatCurrency(value)}` : ""}`;
 }
 
 function renderWashes() {
@@ -1985,7 +2783,7 @@ function renderWashes() {
     const period = state.washOverview?.periodo || {};
 
     elements.washCounter.textContent = `${pendingItems.length} PROGRAMADOS`;
-    screens.washes.querySelector(".list-toolbar span").textContent = "ESCOLHA O DIA E REGISTRE O PARECER.";
+    screens.washes.querySelector(".list-toolbar span").textContent = "ESCOLHA O DIA NO CALENDARIO E REGISTRE O PARECER SEM ALTERAR A TABELA DE LAVAGEM.";
     elements.washMonthTitle.textContent = String(period.rotulo || `${state.washMonth}/${state.washYear}`).toUpperCase();
     elements.washReportPanel?.classList.toggle("hidden", !hasWashReportAccess());
     elements.washesList.innerHTML = "";
@@ -2066,6 +2864,17 @@ function renderWashDayPanel(days) {
         morning: [],
         afternoon: [],
     };
+    const morningItems = selectedDay.morning || [];
+    const afternoonItems = selectedDay.afternoon || [];
+    if (state.selectedWashShiftTab !== "TODOS" && state.selectedWashShiftTab !== "MANHA" && state.selectedWashShiftTab !== "TARDE") {
+        state.selectedWashShiftTab = "TODOS";
+    }
+    if (state.selectedWashShiftTab === "MANHA" && morningItems.length === 0 && afternoonItems.length > 0) {
+        state.selectedWashShiftTab = "TARDE";
+    }
+    if (state.selectedWashShiftTab === "TARDE" && afternoonItems.length === 0 && morningItems.length > 0) {
+        state.selectedWashShiftTab = "MANHA";
+    }
     const summary = summarizeWashDay(selectedDay);
 
     elements.washDayPanel.innerHTML = `
@@ -2079,21 +2888,37 @@ function renderWashDayPanel(days) {
                 <strong>${summary.pending} PENDENTES</strong>
             </div>
         </section>
+        <section class="wash-shift-tabs" role="tablist" aria-label="Filtro por turno">
+            <button type="button" class="wash-shift-tab ${state.selectedWashShiftTab === "TODOS" ? "active" : ""}" data-shift="TODOS">TODOS</button>
+            <button type="button" class="wash-shift-tab ${state.selectedWashShiftTab === "MANHA" ? "active" : ""}" data-shift="MANHA">MANHÃƒ</button>
+            <button type="button" class="wash-shift-tab ${state.selectedWashShiftTab === "TARDE" ? "active" : ""}" data-shift="TARDE">TARDE</button>
+        </section>
     `;
+    elements.washDayPanel.querySelectorAll(".wash-shift-tab").forEach((button) => {
+        button.addEventListener("click", () => {
+            state.selectedWashShiftTab = button.dataset.shift || "TODOS";
+            renderWashDayPanel(days);
+        });
+    });
     elements.washesList.innerHTML = "";
 
     if (!summary.total) {
         elements.washesList.innerHTML = `
             <article class="empty-state">
                 <strong>NENHUMA LAVAGEM PROGRAMADA PARA ESTE DIA.</strong>
-                <span>USE AS SETAS DO MÊS OU TOQUE EM UM DIA COM PROGRAMAÇÃO.</span>
+                <span>USE AS SETAS DO MÃŠS OU TOQUE EM UM DIA COM PROGRAMAÃ‡ÃƒO.</span>
             </article>
         `;
         return;
     }
 
-    renderWashShift("MANHÃ", selectedDay.morning || []);
-    renderWashShift("TARDE", selectedDay.afternoon || []);
+    const activeShift = state.selectedWashShiftTab || "TODOS";
+    if (activeShift === "TODOS" || activeShift === "MANHA") {
+        renderWashShift("MANHÃƒ", morningItems);
+    }
+    if (activeShift === "TODOS" || activeShift === "TARDE") {
+        renderWashShift("TARDE", afternoonItems);
+    }
 }
 
 function renderWashShift(title, items) {
@@ -2102,12 +2927,12 @@ function renderWashShift(title, items) {
     section.innerHTML = `
         <div class="wash-shift-title">
             <strong>${title}</strong>
-            <span>${items.length} VEÍCULO${items.length === 1 ? "" : "S"}</span>
+            <span>${items.length} VEÃCULO${items.length === 1 ? "" : "S"}</span>
         </div>
     `;
 
     if (!items.length) {
-        section.innerHTML += `<article class="empty-state compact"><strong>SEM VEÍCULOS NESTE TURNO.</strong></article>`;
+        section.innerHTML += `<article class="empty-state compact"><strong>SEM VEÃCULOS NESTE TURNO.</strong></article>`;
         elements.washesList.appendChild(section);
         return;
     }
@@ -2147,9 +2972,23 @@ async function changeWashMonth(delta) {
     }
 }
 
+async function changeMaintenanceMonth(delta) {
+    const date = new Date(state.maintenanceYear, state.maintenanceMonth - 1 + delta, 1);
+    state.maintenanceYear = date.getFullYear();
+    state.maintenanceMonth = date.getMonth() + 1;
+    state.selectedMaintenanceDate = "";
+
+    try {
+        await loadMaintenanceOverview();
+        renderMaintenance();
+    } catch (error) {
+        showToast(error.message, true);
+    }
+}
+
 async function exportWashMonthPdf() {
     if (!hasWashReportAccess()) {
-        showToast("SOMENTE GESTOR OU ADMINISTRADOR PODE EXPORTAR O RELATORIO.", true);
+        showToast("SOMENTE GESTOR OU ADMINISTRADOR PODE EXPORTAR O RELATÃ“RIO.", true);
         return;
     }
 
@@ -2161,9 +3000,9 @@ async function exportWashMonthPdf() {
             button.textContent = "GERANDO";
         }
         await downloadAuthorizedFile(`/lavagens/relatorio/pdf?ano=${state.washYear}&mes=${state.washMonth}`, filename);
-        showToast("RELATORIO DE LAVAGEM GERADO.");
+        showToast("RELATÃ“RIO DE LAVAGEM GERADO.");
     } catch (error) {
-        showToast(error.message || "NAO FOI POSSIVEL GERAR O RELATORIO.", true);
+        showToast(error.message || "NÃƒO FOI POSSÃVEL GERAR O RELATÃ“RIO.", true);
     } finally {
         if (button) {
             button.disabled = false;
@@ -2176,7 +3015,7 @@ function makeWashCard(item, index) {
     const status = item.status_execucao || "PENDENTE";
     const isWashed = status === "LAVADO";
     const isNotTaken = status === "NAO_CUMPRIDO" || status === "NAO_LEVADO";
-    const statusLabel = isWashed ? "LAVADO" : isNotTaken ? "NÃO LEVADO" : "PENDENTE";
+    const statusLabel = isWashed ? "LAVADO" : isNotTaken ? "NÃƒO LEVADO" : "PENDENTE";
     const evidenceUrl = item.foto_path ? makeAbsoluteUrl(item.foto_path) : "";
     const showTrailerField = canAttachTrailerToWash(item);
     const card = document.createElement("article");
@@ -2202,23 +3041,23 @@ function makeWashCard(item, index) {
         </div>
         ${isWashed ? `
             <div class="wash-closed">
-                <strong>PARECER JÁ REGISTRADO COMO LAVADO.</strong>
+                <strong>PARECER JÃ REGISTRADO COMO LAVADO.</strong>
                 <span>${escapeHtml(String(item.categoria_lavagem || "-").toUpperCase())}</span>
             </div>
-            ${evidenceUrl ? `<img class="photo-preview visible" src="${evidenceUrl}" alt="EVIDÊNCIA DA LAVAGEM">` : ""}
+            ${evidenceUrl ? `<img class="photo-preview visible" src="${evidenceUrl}" alt="EVIDÃŠNCIA DA LAVAGEM">` : ""}
             <button type="button" class="share-button wash-share-button">COMPARTILHAR NO WHATSAPP</button>
         ` : `
             <div class="status-group activity-status-group" role="group" aria-label="Status da lavagem">
                 <button type="button" class="status-button ok" data-status="LAVADO">LAVADO</button>
-                <button type="button" class="status-button nc ${isNotTaken ? "active" : ""}" data-status="NAO_LEVADO">NÃO LEVADO</button>
+                <button type="button" class="status-button nc ${isNotTaken ? "active" : ""}" data-status="NAO_LEVADO">NÃƒO LEVADO</button>
             </div>
             <label>
                 <span>LOCAL DA LAVAGEM</span>
                 <input type="text" class="wash-location" placeholder="INFORME O LOCAL">
             </label>
             <label>
-                <span>OBSERVAÇÃO / MOTIVO</span>
-                <textarea class="wash-notes" placeholder="DESCREVA A EVIDÊNCIA OU O MOTIVO DE NÃO TER SIDO LEVADO">${escapeHtml(item.status_motivo || "")}</textarea>
+                <span>OBSERVAÃ‡ÃƒO / MOTIVO</span>
+                <textarea class="wash-notes" placeholder="DESCREVA A EVIDÃŠNCIA OU O MOTIVO DE NÃƒO TER SIDO LEVADO">${escapeHtml(item.status_motivo || "")}</textarea>
             </label>
             ${showTrailerField ? `
                 <label class="wash-trailer-field">
@@ -2230,18 +3069,19 @@ function makeWashCard(item, index) {
                 </label>
             ` : ""}
             <label class="evidence-input">
-                <span>EVIDÊNCIA DA LAVAGEM</span>
-                <strong>FOTO DO VEÍCULO LEVADO / LAVADO</strong>
+                <span>EVIDÃŠNCIA DA LAVAGEM</span>
+                <strong>FOTO DO VEÃCULO LEVADO / LAVADO</strong>
                 <input type="file" accept="image/*" capture="environment">
                 <em>TOQUE PARA FOTOGRAFAR OU ANEXAR IMAGEM.</em>
             </label>
-            <img class="photo-preview" alt="PRÉVIA DA EVIDÊNCIA DA LAVAGEM">
+            <img class="photo-preview" alt="PRÃ‰VIA DA EVIDÃŠNCIA DA LAVAGEM">
             <button type="button" class="primary-button wash-save-button">SALVAR PARECER</button>
         `}
     `;
 
     if (isWashed) {
         card.querySelector(".wash-share-button")?.addEventListener("click", () => shareWashItem(item));
+        attachCollapsibleCard(card);
         return card;
     }
 
@@ -2278,17 +3118,20 @@ function makeWashCard(item, index) {
     });
 
     card.querySelector(".wash-save-button").addEventListener("click", () => submitWashEvidence(card, item));
+    attachCollapsibleCard(card);
     return card;
 }
 
 async function selectVehicle(vehicle, options = {}) {
     state.selectedVehicle = vehicle;
     state.currentModule = "TODOS";
+    state.currentChecklistDraftUpdatedAt = "";
+    state.currentChecklistDraftRestored = false;
     const items = state.catalog[vehicle.tipo] || [];
     const modules = buildModules(items);
 
     elements.checklistTitle.textContent = `${vehicle.frota} - ${vehicle.modelo}`;
-    elements.checklistSubtitle.textContent = `${items.length} ITENS OBRIGATÓRIOS PARA ${String(vehicle.tipo || "").toUpperCase()}.`;
+    elements.checklistSubtitle.textContent = `${items.length} ITENS OBRIGATÃ“RIOS PARA ${String(vehicle.tipo || "").toUpperCase()}.`;
     elements.checklistForm.innerHTML = "";
 
     renderModuleTabs(modules);
@@ -2335,15 +3178,73 @@ function makeModuleButton(moduleName, total) {
     button.classList.toggle("active", state.currentModule === moduleName);
     button.innerHTML = `<span>${escapeHtml(moduleName)}</span><strong>${total}</strong>`;
     button.addEventListener("click", () => {
-        state.currentModule = moduleName;
-        document.querySelectorAll(".module-tab").forEach((item) => item.classList.remove("active"));
-        button.classList.add("active");
-        document.querySelectorAll(".module-section").forEach((section) => {
-            section.classList.toggle("hidden-by-filter", moduleName !== "TODOS" && section.dataset.module !== moduleName);
-        });
+        applyChecklistModuleFilter(moduleName);
         scheduleChecklistDraftSave();
     });
     return button;
+}
+
+function applyChecklistModuleFilter(moduleName) {
+    state.currentModule = moduleName;
+    document.querySelectorAll(".module-tab").forEach((item) => {
+        const label = item.querySelector("span")?.textContent || "";
+        item.classList.toggle("active", label === moduleName);
+    });
+    document.querySelectorAll(".module-section").forEach((section) => {
+        section.classList.toggle("hidden-by-filter", moduleName !== "TODOS" && section.dataset.module !== moduleName);
+    });
+}
+
+function getChecklistCards() {
+    return Array.from(document.querySelectorAll(".checklist-item-card"));
+}
+
+function focusChecklistCard(card, { focusSelector = "", smooth = true } = {}) {
+    if (!card) {
+        return;
+    }
+    card.scrollIntoView({ behavior: smooth ? "smooth" : "auto", block: "center" });
+    const target = focusSelector ? card.querySelector(focusSelector) : null;
+    const focusable = target || card.querySelector(".status-button") || card;
+    if (focusable?.focus) {
+        window.setTimeout(() => focusable.focus(), smooth ? 220 : 0);
+    }
+}
+
+function findNextChecklistCard(currentCard, predicate) {
+    const cards = getChecklistCards();
+    const currentIndex = cards.indexOf(currentCard);
+    if (currentIndex < 0) {
+        return null;
+    }
+    for (let index = currentIndex + 1; index < cards.length; index += 1) {
+        if (!predicate || predicate(cards[index])) {
+            return cards[index];
+        }
+    }
+    return null;
+}
+
+function updateEvidenceInputState(fileInput, { restoredName = "" } = {}) {
+    const evidenceBox = fileInput?.closest(".evidence-input");
+    const hint = evidenceBox?.querySelector("em");
+    if (!evidenceBox || !hint) {
+        return;
+    }
+    const file = fileInput?.files?.[0];
+    const restored = fileInput?.dataset?.restoredFile === "true";
+    if (file || restored) {
+        const fileName = file?.name || restoredName || "ARQUIVO SALVO";
+        evidenceBox.classList.add("has-file");
+        hint.textContent = restored && !file
+            ? `EVIDENCIA RESTAURADA: ${fileName}.`
+            : `EVIDENCIA ANEXADA: ${fileName}.`;
+        hint.classList.add("ok");
+        return;
+    }
+    evidenceBox.classList.remove("has-file");
+    hint.textContent = "TOQUE PARA FOTOGRAFAR OU ANEXAR IMAGEM";
+    hint.classList.remove("ok");
 }
 
 function renderChecklistModules(modules) {
@@ -2357,7 +3258,7 @@ function renderChecklistModules(modules) {
         section.innerHTML = `
             <div class="module-header">
                 <div>
-                    <span>MÓDULO</span>
+                    <span>MÃ“DULO</span>
                     <strong>${escapeHtml(module.name)}</strong>
                 </div>
                 <em>${module.items.length} ITENS</em>
@@ -2387,26 +3288,26 @@ function makeChecklistCard(item, moduleName, index) {
         </div>
         ${itemPhotoUrl ? `
             <figure class="reference-photo">
-                <figcaption>FOTO DE REFERÊNCIA DO ITEM</figcaption>
-                <img src="${itemPhotoUrl}" alt="FOTO DE REFERÊNCIA DO ITEM ${escapeHtml(itemName)}">
+                <figcaption>FOTO DE REFERÃŠNCIA DO ITEM</figcaption>
+                <img src="${itemPhotoUrl}" alt="FOTO DE REFERÃŠNCIA DO ITEM ${escapeHtml(itemName)}">
             </figure>
         ` : ""}
         <div class="status-group" role="group" aria-label="Status do item">
             <button type="button" class="status-button ok" data-status="OK">OK</button>
-            <button type="button" class="status-button nc" data-status="NC">NC</button>
+            <button type="button" class="status-button nc" data-status="NC">NÃƒO CONFORMIDADE</button>
         </div>
         <div class="nc-fields">
             <label>
-                    <span>OBSERVAÇÃO DA NÃO CONFORMIDADE</span>
+                    <span>OBSERVAÃ‡ÃƒO DA NÃƒO CONFORMIDADE</span>
                     <textarea placeholder="DESCREVA A FALHA ENCONTRADA"></textarea>
             </label>
             <label class="evidence-input">
                 <span>TIPO DA FOTO ANEXADA</span>
-                <strong>EVIDÊNCIA DA NÃO CONFORMIDADE</strong>
+                <strong>EVIDÃŠNCIA DA NÃƒO CONFORMIDADE</strong>
                 <input type="file" accept="image/*" capture="environment">
                 <em>TOQUE PARA FOTOGRAFAR OU ANEXAR IMAGEM</em>
             </label>
-            <img class="photo-preview" alt="PRÉVIA DA EVIDÊNCIA ANEXADA">
+            <img class="photo-preview" alt="PRÃ‰VIA DA EVIDÃŠNCIA ANEXADA">
         </div>
     `;
 
@@ -2414,9 +3315,11 @@ function makeChecklistCard(item, moduleName, index) {
     const ncFields = card.querySelector(".nc-fields");
     const fileInput = card.querySelector("input[type='file']");
     const preview = card.querySelector(".photo-preview");
+    const textarea = card.querySelector("textarea");
 
     statusButtons.forEach((button) => {
         button.addEventListener("click", () => {
+            const previousStatus = card.dataset.status || "";
             statusButtons.forEach((statusButton) => statusButton.classList.remove("active"));
             button.classList.add("active");
             card.dataset.status = button.dataset.status;
@@ -2424,10 +3327,29 @@ function makeChecklistCard(item, moduleName, index) {
             ncFields.classList.toggle("visible", button.dataset.status === "NC");
             updateProgress();
             scheduleChecklistDraftSave();
+            if (button.dataset.status === "NC") {
+                window.setTimeout(() => {
+                    textarea?.focus();
+                    card.scrollIntoView({ behavior: "smooth", block: "center" });
+                }, 160);
+                return;
+            }
+            if (button.dataset.status === "OK" && previousStatus !== "OK") {
+                const nextPendingCard = findNextChecklistCard(card, (candidate) => !candidate.dataset.status);
+                if (nextPendingCard) {
+                    focusChecklistCard(nextPendingCard, { focusSelector: ".status-button" });
+                }
+            }
         });
     });
 
-    card.querySelector("textarea")?.addEventListener("input", scheduleChecklistDraftSave);
+    textarea?.addEventListener("input", scheduleChecklistDraftSave);
+    textarea?.addEventListener("keydown", (event) => {
+        if (event.key === "Enter" && !event.shiftKey) {
+            event.preventDefault();
+            focusChecklistCard(card, { focusSelector: "input[type='file']" });
+        }
+    });
 
     fileInput.addEventListener("change", () => {
         const [file] = fileInput.files;
@@ -2438,6 +3360,8 @@ function makeChecklistCard(item, moduleName, index) {
                 URL.revokeObjectURL(preview.dataset.objectUrl);
                 delete preview.dataset.objectUrl;
             }
+            delete fileInput.dataset.restoredFile;
+            updateEvidenceInputState(fileInput);
             return;
         }
         if (preview.dataset.objectUrl) {
@@ -2447,27 +3371,154 @@ function makeChecklistCard(item, moduleName, index) {
         preview.dataset.objectUrl = objectUrl;
         preview.src = objectUrl;
         preview.classList.add("visible");
+        delete fileInput.dataset.restoredFile;
+        updateEvidenceInputState(fileInput);
         scheduleChecklistDraftSave();
+        const nextPendingCard = findNextChecklistCard(card, (candidate) => !candidate.dataset.status);
+        if (nextPendingCard) {
+            focusChecklistCard(nextPendingCard, { focusSelector: ".status-button" });
+        }
     });
 
+    updateEvidenceInputState(fileInput);
     return card;
 }
 
 function updateProgress() {
-    const cards = Array.from(document.querySelectorAll(".checklist-item-card"));
+    const cards = getChecklistCards();
     const total = cards.length;
     const done = cards.filter((card) => card.dataset.status).length;
     const nc = cards.filter((card) => card.dataset.status === "NC").length;
     const percent = total ? Math.round((done / total) * 100) : 0;
+    const remaining = Math.max(total - done, 0);
+    const nextPendingCard = cards.find((card) => !card.dataset.status);
+    const nextPendingLabel = nextPendingCard?.dataset?.itemName || "";
 
-    elements.checklistProgress.textContent = `${done} DE ${total} AVALIADOS | ${nc} NC`;
+    elements.checklistProgress.textContent = `${done} DE ${total} AVALIADOS | ${nc} NÃƒO CONFORMIDADES`;
     elements.progressBar.style.width = `${percent}%`;
+    if (!total) {
+        elements.checklistSubtitle.textContent = "CARREGANDO ITENS DO CHECKLIST.";
+        return;
+    }
+    if (remaining > 0) {
+        const draftLabel = state.currentChecklistDraftUpdatedAt
+            ? ` RASCUNHO ${state.currentChecklistDraftRestored ? "RESTAURADO" : "SALVO"} AS ${formatDateTimeShort(state.currentChecklistDraftUpdatedAt)}.`
+            : "";
+        elements.checklistSubtitle.textContent = `FALTAM ${remaining} ITENS. PROXIMO: ${String(nextPendingLabel || "CONTINUE O PREENCHIMENTO").toUpperCase()}.${draftLabel}`;
+        return;
+    }
+    elements.checklistSubtitle.textContent = nc
+        ? `CHECKLIST PREENCHIDO. REVISE AS ${nc} NAO CONFORMIDADE${nc === 1 ? "" : "S"} E ENVIE QUANDO ESTIVER PRONTO.`
+        : "CHECKLIST COMPLETO. TUDO PREENCHIDO E PRONTO PARA ENVIO.";
+}
+
+function resetChecklistCardState(card) {
+    card.dataset.status = "";
+    card.classList.remove("has-nc");
+    card.querySelectorAll(".status-button").forEach((button) => button.classList.remove("active"));
+    card.querySelector(".nc-fields")?.classList.remove("visible");
+
+    const textarea = card.querySelector("textarea");
+    if (textarea) {
+        textarea.value = "";
+    }
+
+    const fileInput = card.querySelector("input[type='file']");
+    if (fileInput) {
+        fileInput.value = "";
+        delete fileInput.dataset.restoredFile;
+        updateEvidenceInputState(fileInput);
+    }
+
+    const preview = card.querySelector(".photo-preview");
+    if (preview) {
+        preview.classList.remove("visible");
+        preview.removeAttribute("src");
+        if (preview.dataset.objectUrl) {
+            URL.revokeObjectURL(preview.dataset.objectUrl);
+            delete preview.dataset.objectUrl;
+        }
+    }
+}
+
+async function resetChecklist() {
+    if (!state.selectedVehicle) {
+        showToast("SELECIONE UM EQUIPAMENTO ANTES DE RESETAR.", true);
+        return;
+    }
+
+    const vehicleLabel = state.selectedVehicle?.frota || "EQUIPAMENTO";
+    const shouldReset = window.confirm(`Deseja resetar o checklist do ${vehicleLabel}?`);
+    if (!shouldReset) {
+        return;
+    }
+
+    Array.from(document.querySelectorAll(".checklist-item-card")).forEach((card) => {
+        resetChecklistCardState(card);
+    });
+
+    applyChecklistModuleFilter("TODOS");
+
+    await deleteChecklistDraft(state.selectedVehicle.id).catch(() => {});
+    updateProgress();
+    showToast("CHECKLIST RESETADO.");
+}
+
+function findChecklistIssue() {
+    const cards = Array.from(document.querySelectorAll(".checklist-item-card"));
+    for (const card of cards) {
+        if (!card.dataset.status) {
+            return {
+                card,
+                message: `SELECIONE OK OU NAO CONFORMIDADE PARA O ITEM ${card.dataset.itemName}.`,
+            };
+        }
+        if (card.dataset.status === "NC") {
+            const textarea = card.querySelector("textarea");
+            const fileInput = card.querySelector("input[type='file']");
+            const storedDraftFile = fileInput?.dataset?.restoredFile === "true";
+            if (!textarea?.value?.trim()) {
+                return {
+                    card,
+                    focusTarget: textarea,
+                    message: `INFORME A OBSERVACAO PARA ${card.dataset.itemName}.`,
+                };
+            }
+            if (!fileInput?.files?.[0] && !storedDraftFile) {
+                return {
+                    card,
+                    focusTarget: fileInput,
+                    message: `ANEXE A EVIDENCIA DA NAO CONFORMIDADE PARA ${card.dataset.itemName}.`,
+                };
+            }
+        }
+    }
+    return null;
+}
+
+function revealChecklistIssue(issue) {
+    if (!issue?.card) {
+        return;
+    }
+    const card = issue.card;
+    if (card.dataset.module) {
+        applyChecklistModuleFilter(card.dataset.module);
+    }
+    card.classList.add("card-attention");
+    card.scrollIntoView({ behavior: "smooth", block: "center" });
+    window.setTimeout(() => {
+        card.classList.remove("card-attention");
+    }, 1800);
+    const target = issue.focusTarget || card.querySelector(".status-button") || card;
+    if (target?.focus) {
+        window.setTimeout(() => target.focus(), 250);
+    }
 }
 
 function classifyModule(itemName) {
     const name = normalizeText(itemName);
     if (includesAny(name, ["farol", "lanterna", "luz", "seta", "pisca", "milha", "posicao"])) {
-        return "ILUMINAÇÃO";
+        return "ILUMINAÃ‡ÃƒO";
     }
     if (includesAny(name, ["painel", "botao", "anomalia", "indicador", "buzina", "cinto", "banco", "ar-condicionado", "parabrisa", "limpador", "retrovisor"])) {
         return "CABINE E PAINEL";
@@ -2485,7 +3536,7 @@ function classifyModule(itemName) {
         return "EXTERNO E ACESSOS";
     }
     if (includesAny(name, ["extintor", "emergencia", "seguranca"])) {
-        return "SEGURANÇA OPERACIONAL";
+        return "SEGURANÃ‡A OPERACIONAL";
     }
     return "OUTROS";
 }
@@ -2565,81 +3616,11 @@ async function uploadEvidence(file, vehicleName, itemName, photoType, moduleName
         body: formData,
     });
     const body = await response.json().catch(() => ({}));
-    if (!response.ok || (body.hasOwnProperty("success") && body.success === false)) {
+    if (!response.ok || (Object.prototype.hasOwnProperty.call(body, "success") && body.success === false)) {
         throw new Error(body.error || `FALHA AO ENVIAR IMAGEM DO ITEM ${itemName}.`);
     }
-    
-    const data = body.hasOwnProperty("data") ? body.data : body;
-    return data.path;
-}
-
-async function submitChecklist() {
-    if (!state.selectedVehicle) {
-        showToast("SELECIONE UM EQUIPAMENTO ANTES DE ENVIAR.", true);
-        return;
-    }
-
-    const cards = Array.from(document.querySelectorAll(".checklist-item-card"));
-    const itens = [];
-
-    elements.submitChecklist.disabled = true;
-    elements.submitChecklist.textContent = "ENVIANDO...";
-
-    try {
-        for (const card of cards) {
-            const status = card.dataset.status;
-            if (!status) {
-                throw new Error(`SELECIONE OK OU NC PARA O ITEM ${card.dataset.itemName}.`);
-            }
-
-            const item = {
-                item_nome: card.dataset.itemName,
-                status,
-            };
-
-            if (status === "NC") {
-                const textarea = card.querySelector("textarea");
-                const fileInput = card.querySelector("input[type='file']");
-                const file = fileInput.files[0];
-
-                if (!textarea.value.trim()) {
-                    throw new Error(`INFORME A OBSERVAÇÃO PARA ${card.dataset.itemName}.`);
-                }
-                if (!file) {
-                    throw new Error(`ANEXE A EVIDÊNCIA DA NC PARA ${card.dataset.itemName}.`);
-                }
-
-                item.observacao = textarea.value.trim();
-                item.foto_antes = await uploadImage(file, card.dataset.itemName, card.dataset.module);
-            }
-
-            itens.push(item);
-        }
-
-        const payload = {
-            vehicle_id: state.selectedVehicle.id,
-            itens,
-        };
-        const result = await apiFetch("/checklist", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify(payload),
-        });
-
-        const totalNc = result.total_nc || itens.filter((item) => item.status === "NC").length;
-        elements.successSummary.innerHTML = `
-            <strong>${escapeHtml(state.selectedVehicle.frota)}</strong>
-            <span>ENVIADO EM ${new Date(result.created_at).toLocaleString("pt-BR")}</span>
-            <span>NÃO CONFORMIDADES REGISTRADAS: ${totalNc}</span>
-        `;
-        setActiveScreen("success");
-        showToast("CHECKLIST ENVIADO COM SUCESSO.");
-    } catch (error) {
-        showToast(error.message, true);
-    } finally {
-        elements.submitChecklist.disabled = false;
-        elements.submitChecklist.textContent = "ENVIAR CHECKLIST";
-    }
+    const payload = Object.prototype.hasOwnProperty.call(body, "data") ? body.data : body;
+    return payload.path;
 }
 
 async function collectChecklistDraft() {
@@ -2655,7 +3636,7 @@ async function collectChecklistDraft() {
     for (const card of cards) {
         const status = card.dataset.status;
         if (!status) {
-            throw new Error(`SELECIONE OK OU NC PARA O ITEM ${card.dataset.itemName}.`);
+            throw new Error(`SELECIONE OK OU NÃƒO CONFORMIDADE PARA O ITEM ${card.dataset.itemName}.`);
         }
 
         const item = {
@@ -2671,10 +3652,10 @@ async function collectChecklistDraft() {
             const file = fileInput.files[0] || restoredItem?.foto_antes_file;
 
             if (!textarea.value.trim()) {
-                throw new Error(`INFORME A OBSERVAÇÃO PARA ${card.dataset.itemName}.`);
+                throw new Error(`INFORME A OBSERVAÃ‡ÃƒO PARA ${card.dataset.itemName}.`);
             }
             if (!file) {
-                throw new Error(`ANEXE A EVIDÊNCIA DA NC PARA ${card.dataset.itemName}.`);
+                throw new Error(`ANEXE A EVIDÃŠNCIA DA NÃƒO CONFORMIDADE PARA ${card.dataset.itemName}.`);
             }
 
             item.observacao = textarea.value.trim();
@@ -2739,14 +3720,21 @@ function showChecklistSuccess(draft, result = null, queued = false) {
     elements.successSummary.innerHTML = `
         <strong>${escapeHtml(draft.vehicle.frota)}</strong>
         <span>${queued ? "SALVO OFFLINE EM" : "ENVIADO EM"} ${when.toLocaleString("pt-BR")}</span>
-        <span>NÃO CONFORMIDADES REGISTRADAS: ${totalNc}</span>
-        ${queued ? "<span>SERÁ SINCRONIZADO AUTOMATICAMENTE QUANDO A CONEXÃO VOLTAR.</span>" : ""}
+        <span>NÃƒO CONFORMIDADES REGISTRADAS: ${totalNc}</span>
+        ${queued ? "<span>SERÃ SINCRONIZADO AUTOMATICAMENTE QUANDO A CONEXÃƒO VOLTAR.</span>" : ""}
     `;
     deleteChecklistDraft(draft.vehicle.id).catch(() => {});
     setActiveScreen("success");
 }
 
 async function submitChecklist() {
+    const issue = findChecklistIssue();
+    if (issue) {
+        revealChecklistIssue(issue);
+        showToast(issue.message, true);
+        return;
+    }
+
     elements.submitChecklist.disabled = true;
     elements.submitChecklist.textContent = "ENVIANDO...";
 
@@ -2754,7 +3742,7 @@ async function submitChecklist() {
         const draft = await collectChecklistDraft();
 
         if (!navigator.onLine) {
-            await addChecklistToQueue(draft, "CHECKLIST SALVO SEM CONEXÃO.");
+            await addChecklistToQueue(draft, "CHECKLIST SALVO SEM CONEXÃƒO.");
             showChecklistSuccess(draft, null, true);
             showToast("CHECKLIST SALVO OFFLINE.");
             return;
@@ -2769,9 +3757,9 @@ async function submitChecklist() {
             if (!isOfflineError(error)) {
                 throw error;
             }
-            await addChecklistToQueue(draft, "FALHA DE CONEXÃO NO ENVIO.");
+            await addChecklistToQueue(draft, "FALHA DE CONEXÃƒO NO ENVIO.");
             showChecklistSuccess(draft, null, true);
-            showToast("CONEXÃO FALHOU. CHECKLIST FICOU NA FILA OFFLINE.");
+            showToast("CONEXÃƒO FALHOU. CHECKLIST FICOU NA FILA OFFLINE.");
         }
     } catch (error) {
         showToast(error.message, true);
@@ -2792,8 +3780,122 @@ async function logout() {
     state.token = "";
     state.user = null;
     state.selectedVehicle = null;
+    closePasswordResetModal();
     clearSession();
+    setLoginStatus("");
+    if (elements.loginForm) {
+        elements.loginForm.reset();
+    }
+    if (elements.loginButton) {
+        elements.loginButton.disabled = false;
+        elements.loginButton.textContent = "ENTRAR NO SISTEMA";
+    }
     setActiveScreen("login");
+}
+
+function resetPasswordModalFields() {
+    if (elements.passwordChangeForm) {
+        elements.passwordChangeForm.reset();
+    }
+}
+
+function openPasswordResetModal() {
+    if (!elements.passwordModal) {
+        showToast("TELA DE SENHA INDISPONIVEL.", true);
+        return;
+    }
+    passwordModalFocusOrigin = document.activeElement instanceof HTMLElement ? document.activeElement : null;
+    resetPasswordModalFields();
+    elements.passwordModal.classList.remove("hidden");
+    document.body.classList.add("modal-open");
+    window.setTimeout(() => {
+        elements.passwordCurrentInput?.focus();
+    }, 0);
+}
+
+function closePasswordResetModal() {
+    if (!elements.passwordModal || elements.passwordModal.classList.contains("hidden")) {
+        return;
+    }
+    elements.passwordModal.classList.add("hidden");
+    document.body.classList.remove("modal-open");
+    resetPasswordModalFields();
+    if (passwordModalFocusOrigin && document.contains(passwordModalFocusOrigin)) {
+        passwordModalFocusOrigin.focus();
+    }
+    passwordModalFocusOrigin = null;
+}
+
+function requestPasswordReset() {
+    openPasswordResetModal();
+}
+
+async function submitPasswordReset(event) {
+    event.preventDefault();
+
+    const currentPassword = elements.passwordCurrentInput?.value || "";
+    const newPassword = elements.passwordNewInput?.value || "";
+    const confirmPassword = elements.passwordConfirmInput?.value || "";
+
+    if (!currentPassword) {
+        showToast("INFORME A SENHA ATUAL.", true);
+        elements.passwordCurrentInput?.focus();
+        return;
+    }
+    if (!newPassword) {
+        showToast("INFORME A NOVA SENHA.", true);
+        elements.passwordNewInput?.focus();
+        return;
+    }
+    if (!confirmPassword) {
+        showToast("CONFIRME A NOVA SENHA.", true);
+        elements.passwordConfirmInput?.focus();
+        return;
+    }
+    if (newPassword !== confirmPassword) {
+        showToast("AS SENHAS NAO CONFEREM.", true);
+        elements.passwordConfirmInput?.focus();
+        return;
+    }
+
+    if (elements.homeChangePasswordButton) {
+        elements.homeChangePasswordButton.disabled = true;
+        elements.homeChangePasswordButton.textContent = "SALVANDO...";
+    }
+    if (elements.passwordChangeSubmit) {
+        elements.passwordChangeSubmit.disabled = true;
+        elements.passwordChangeSubmit.textContent = "SALVANDO...";
+    }
+    if (elements.passwordChangeCancel) {
+        elements.passwordChangeCancel.disabled = true;
+    }
+
+    try {
+        await apiFetch("/usuarios/me/senha", {
+            method: "PUT",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+                senha_atual: currentPassword,
+                nova_senha: newPassword,
+            }),
+        });
+        showToast("SENHA ATUALIZADA COM SUCESSO.");
+        closePasswordResetModal();
+    } catch (error) {
+        showToast(error.message || "NAO FOI POSSIVEL ATUALIZAR A SENHA.", true);
+    } finally {
+        if (elements.homeChangePasswordButton) {
+            elements.homeChangePasswordButton.disabled = false;
+            elements.homeChangePasswordButton.textContent = "ALTERAR SENHA";
+        }
+        if (elements.passwordChangeSubmit) {
+            elements.passwordChangeSubmit.disabled = false;
+            elements.passwordChangeSubmit.textContent = "Salvar senha";
+        }
+        if (elements.passwordChangeCancel) {
+            elements.passwordChangeCancel.disabled = false;
+        }
+    }
 }
 
 function escapeHtml(value) {
@@ -2841,15 +3943,27 @@ async function handleLoginSubmit() {
 on(elements.loginButton, "click", handleLoginSubmit);
 on(elements.vehicleSearch, "input", renderVehicles);
 on(elements.openChecklistMenu, "click", openChecklistMenu);
+on(elements.openChecklistHistoryMenu, "click", openChecklistHistoryMenu);
 on(elements.openActivitiesMenu, "click", openActivitiesMenu);
 on(elements.openWashesMenu, "click", openWashesMenu);
 on(elements.openNonConformitiesMenu, "click", openNonConformitiesMenu);
+on(elements.openMaintenanceMenu, "click", openMaintenanceMenu);
 on(elements.washPrevMonth, "click", () => changeWashMonth(-1));
 on(elements.washNextMonth, "click", () => changeWashMonth(1));
 on(elements.washExportPdfButton, "click", exportWashMonthPdf);
+on(elements.maintenancePrevMonth, "click", () => changeMaintenanceMonth(-1));
+on(elements.maintenanceNextMonth, "click", () => changeMaintenanceMonth(1));
 on(elements.syncNowButton, "click", () => syncPendingChecklists({ silent: false }));
 on(elements.cloudBackupButton, "click", createCloudBackup);
+on(elements.homeChangePasswordButton, "click", requestPasswordReset);
 on(elements.homeLogoutButton, "click", logout);
+on(elements.passwordChangeForm, "submit", submitPasswordReset);
+on(elements.passwordChangeCancel, "click", closePasswordResetModal);
+on(elements.passwordModal, "click", (event) => {
+    if (event.target?.dataset?.closePasswordModal === "true") {
+        closePasswordResetModal();
+    }
+});
 on(elements.vehiclesBackButton, "click", () => {
     renderHome();
     setActiveScreen("home");
@@ -2862,11 +3976,21 @@ on(elements.washesBackButton, "click", () => {
     renderHome();
     setActiveScreen("home");
 });
+on(elements.checklistHistoryBackButton, "click", () => {
+    renderHome();
+    setActiveScreen("home");
+});
+on(elements.checklistHistoryApplyFilter, "click", applyChecklistHistoryFilters);
+on(elements.maintenanceBackButton, "click", () => {
+    renderHome();
+    setActiveScreen("home");
+});
 on(elements.nonConformitiesBackButton, "click", () => {
     renderHome();
     setActiveScreen("home");
 });
 on(elements.activityDetailBackButton, "click", openActivitiesMenu);
+on(elements.resetChecklist, "click", resetChecklist);
 on(elements.submitChecklist, "click", submitChecklist);
 on(elements.backButton, "click", () => setActiveScreen("vehicles"));
 on(elements.newChecklistButton, "click", () => {
@@ -2931,6 +4055,12 @@ window.addEventListener("online", () => {
     syncPendingChecklists({ silent: true });
 });
 window.addEventListener("offline", updateConnectionStatus);
+window.addEventListener("keydown", (event) => {
+    if (event.key === "Escape" && elements.passwordModal && !elements.passwordModal.classList.contains("hidden")) {
+        event.preventDefault();
+        closePasswordResetModal();
+    }
+});
 
 unregisterServiceWorkers();
 registerServiceWorker();
@@ -2938,10 +4068,21 @@ window.checklistAppReady = true;
 bootstrap();
 
 function unregisterServiceWorkers() {
-    if (!("serviceWorker" in navigator) || window.ENABLE_CHECKLIST_PWA) {
+    if (!("serviceWorker" in navigator) || window.CHECKLIST_CONFIG?.ENABLE_CHECKLIST_PWA) {
         return;
     }
+    const appCachePrefix = "cf-checklist-frota";
     navigator.serviceWorker.getRegistrations()
         .then((registrations) => Promise.all(registrations.map((registration) => registration.unregister())))
+        .then(() => {
+            if (!("caches" in window)) {
+                return null;
+            }
+            return caches.keys().then((names) => Promise.all(
+                names
+                    .filter((name) => name.startsWith(appCachePrefix))
+                    .map((name) => caches.delete(name))
+            ));
+        })
         .catch(() => {});
 }

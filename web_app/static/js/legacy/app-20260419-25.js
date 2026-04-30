@@ -3362,79 +3362,11 @@ async function uploadEvidence(file, vehicleName, itemName, photoType, moduleName
         body: formData,
     });
     const body = await response.json().catch(() => ({}));
-    if (!response.ok) {
+    if (!response.ok || (Object.prototype.hasOwnProperty.call(body, "success") && body.success === false)) {
         throw new Error(body.error || `FALHA AO ENVIAR IMAGEM DO ITEM ${itemName}.`);
     }
-    return body.path;
-}
-
-async function submitChecklist() {
-    if (!state.selectedVehicle) {
-        showToast("SELECIONE UM EQUIPAMENTO ANTES DE ENVIAR.", true);
-        return;
-    }
-
-    const cards = Array.from(document.querySelectorAll(".checklist-item-card"));
-    const itens = [];
-
-    elements.submitChecklist.disabled = true;
-    elements.submitChecklist.textContent = "ENVIANDO...";
-
-    try {
-        for (const card of cards) {
-            const status = card.dataset.status;
-            if (!status) {
-                throw new Error(`SELECIONE OK OU NÃO CONFORMIDADE PARA O ITEM ${card.dataset.itemName}.`);
-            }
-
-            const item = {
-                item_nome: card.dataset.itemName,
-                status,
-            };
-
-            if (status === "NC") {
-                const textarea = card.querySelector("textarea");
-                const fileInput = card.querySelector("input[type='file']");
-                const file = fileInput.files[0];
-
-                if (!textarea.value.trim()) {
-                    throw new Error(`INFORME A OBSERVAÇÃO PARA ${card.dataset.itemName}.`);
-                }
-                if (!file) {
-                    throw new Error(`ANEXE A EVIDÊNCIA DA NÃO CONFORMIDADE PARA ${card.dataset.itemName}.`);
-                }
-
-                item.observacao = textarea.value.trim();
-                item.foto_antes = await uploadImage(file, card.dataset.itemName, card.dataset.module);
-            }
-
-            itens.push(item);
-        }
-
-        const payload = {
-            vehicle_id: state.selectedVehicle.id,
-            itens,
-        };
-        const result = await apiFetch("/checklist", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify(payload),
-        });
-
-        const totalNc = result.total_nc || itens.filter((item) => item.status === "NC").length;
-        elements.successSummary.innerHTML = `
-            <strong>${escapeHtml(state.selectedVehicle.frota)}</strong>
-            <span>ENVIADO EM ${new Date(result.created_at).toLocaleString("pt-BR")}</span>
-            <span>NÃO CONFORMIDADES REGISTRADAS: ${totalNc}</span>
-        `;
-        setActiveScreen("success");
-        showToast("CHECKLIST ENVIADO COM SUCESSO.");
-    } catch (error) {
-        showToast(error.message, true);
-    } finally {
-        elements.submitChecklist.disabled = false;
-        elements.submitChecklist.textContent = "ENVIAR CHECKLIST";
-    }
+    const payload = Object.prototype.hasOwnProperty.call(body, "data") ? body.data : body;
+    return payload.path;
 }
 
 async function collectChecklistDraft() {
@@ -3878,13 +3810,18 @@ function unregisterServiceWorkers() {
     if (!("serviceWorker" in navigator) || window.CHECKLIST_CONFIG?.ENABLE_CHECKLIST_PWA) {
         return;
     }
+    const appCachePrefix = "cf-checklist-frota";
     navigator.serviceWorker.getRegistrations()
         .then((registrations) => Promise.all(registrations.map((registration) => registration.unregister())))
         .then(() => {
             if (!("caches" in window)) {
                 return null;
             }
-            return caches.keys().then((names) => Promise.all(names.map((name) => caches.delete(name))));
+            return caches.keys().then((names) => Promise.all(
+                names
+                    .filter((name) => name.startsWith(appCachePrefix))
+                    .map((name) => caches.delete(name))
+            ));
         })
         .catch(() => {});
 }

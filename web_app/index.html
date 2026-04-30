@@ -14,19 +14,7 @@
     <title>CHECKLIST DE FROTA</title>
     <link rel="icon" type="image/png" sizes="192x192" href="./static/icons/icon-192.png?v=20260421-02">
     <link rel="apple-touch-icon" href="./static/icons/icon-192.png?v=20260421-02">
-    <link rel="stylesheet" href="./static/css/styles.css?v=20260428-07">
-    <script>
-        (function () {
-            var cssUrl = "./static/css/styles.css?v=20260428-07";
-            var style = document.createElement("style");
-            style.setAttribute("data-inline-fallback", "styles.css");
-            document.head.appendChild(style);
-            fetch(cssUrl, { cache: "no-store" })
-                .then(function (response) { return response.text(); })
-                .then(function (css) { style.textContent = css; })
-                .catch(function () { document.head.removeChild(style); });
-        })();
-    </script>
+    <link rel="stylesheet" href="./static/css/styles.css?v=20260430-10">
 </head>
 <body>
     <div class="mobile-shell">
@@ -455,67 +443,8 @@
     </div>
 
     <div id="toast" class="toast hidden"></div>
-    <script>
-        // Login de contingência: roda antes do app principal e não depende do bundle externo.
-        document.addEventListener("DOMContentLoaded", () => {
-            const button = document.getElementById("login-button");
-            const status = document.getElementById("login-status");
-            const apiInput = document.getElementById("api-base-url");
-            const loginInput = document.getElementById("login");
-            const passwordInput = document.getElementById("password");
-            if (!button || !status || !apiInput || !loginInput || !passwordInput) return;
-
-            button.addEventListener("click", async (event) => {
-                event.preventDefault();
-                event.stopImmediatePropagation();
-
-                const apiBaseUrl = apiInput.value.replace(/\/$/, "");
-                button.disabled = true;
-                button.textContent = "ENTRANDO...";
-                status.textContent = "Conectando no sistema...";
-                status.className = "login-status";
-
-                try {
-                    const response = await fetch(`${apiBaseUrl}/login`, {
-                        method: "POST",
-                        headers: { "Content-Type": "application/json" },
-                        body: JSON.stringify({
-                            login: loginInput.value.trim().toLowerCase(),
-                            senha: passwordInput.value,
-                        }),
-                    });
-                    const body = await response.json().catch(() => ({}));
-                    if (!response.ok) {
-                        throw new Error(body.error || `Erro HTTP ${response.status}`);
-                    }
-
-                    const payload = Object.prototype.hasOwnProperty.call(body, "data") ? body.data : body;
-                    if (!payload || !payload.token || !payload.user) {
-                        throw new Error("Resposta de login invalida. Tente novamente.");
-                    }
-
-                    localStorage.setItem("apiBaseUrl", apiBaseUrl);
-                    localStorage.setItem("token", payload.token);
-                    localStorage.setItem("user", JSON.stringify(payload.user));
-                    localStorage.setItem("sessionStartedAt", String(Date.now()));
-                    status.textContent = "Login OK. Abrindo o sistema...";
-                    status.classList.add("ok");
-                    if (window.enterChecklistApp) {
-                        await window.enterChecklistApp();
-                    } else {
-                        window.location.href = "./?v=20260421-01&login=ok";
-                    }
-                } catch (error) {
-                    status.textContent = `Erro de acesso: ${error.message || error}`;
-                    status.classList.add("error");
-                    button.disabled = false;
-                    button.textContent = "ENTRAR";
-                }
-            }, true);
-        });
-    </script>
     <script src="./static/js/config.js?v=20260428-01"></script>
-    <script src="./static/js/app-20260419-25.js?v=20260428-05"></script>
+    <script src="./static/js/app.js?v=20260430-01"></script>
 </body>
 </html>
 
