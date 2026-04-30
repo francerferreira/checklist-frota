@@ -34,15 +34,19 @@
 }
 
 html {
+    height: 100%;
     min-height: 100%;
     background: var(--page);
     overflow-x: hidden;
+    overflow-y: hidden;
     scroll-behavior: smooth;
+    touch-action: pan-y;
 }
 
 body {
     margin: 0;
-    min-height: 100vh;
+    height: 100%;
+    min-height: 100%;
     font-family: "Bahnschrift", "Segoe UI Variable Text", "Segoe UI", sans-serif;
     background:
         radial-gradient(circle at top left, rgba(255, 255, 255, 0.20), transparent 24%),
@@ -50,8 +54,10 @@ body {
         var(--page);
     color: var(--ink);
     overflow-x: hidden;
+    overflow-y: hidden;
     line-height: 1.45;
     overscroll-behavior-y: contain;
+    touch-action: pan-y;
 }
 
 body.entry-screen {
@@ -59,6 +65,10 @@ body.entry-screen {
 }
 
 body.modal-open {
+    overflow: hidden;
+}
+
+body.modal-open .mobile-shell {
     overflow: hidden;
 }
 
@@ -85,10 +95,14 @@ button:disabled {
 
 .mobile-shell {
     width: min(100%, 1120px);
-    min-height: 100vh;
+    min-height: 100dvh;
+    height: 100dvh;
     margin: 0 auto;
     padding: max(12px, env(safe-area-inset-top)) clamp(10px, 3vw, 28px) calc(34px + env(safe-area-inset-bottom));
     overflow-x: hidden;
+    overflow-y: auto;
+    overscroll-behavior-y: contain;
+    -webkit-overflow-scrolling: touch;
 }
 
 .app-topbar {
@@ -403,6 +417,11 @@ textarea {
     padding: 6px 2px 2px;
 }
 
+.screen-heading > div:last-child,
+.screen-heading.compact > div {
+    min-width: 0;
+}
+
 .screen-actions {
     display: flex;
     align-items: center;
@@ -683,6 +702,36 @@ textarea {
 }
 
 @media (max-width: 760px) {
+    .screen-heading {
+        display: grid;
+        min-height: auto;
+        gap: 10px;
+        padding: 8px 0 12px;
+        align-items: start;
+    }
+
+    .screen-heading:not(.compact) {
+        grid-template-columns: minmax(0, 1fr);
+    }
+
+    .screen-heading.compact {
+        grid-template-columns: minmax(0, 1fr);
+        gap: 8px;
+    }
+
+    .screen-heading.compact .icon-button {
+        justify-self: start;
+    }
+
+    .screen-actions {
+        width: 100%;
+        justify-content: flex-start;
+    }
+
+    .screen-heading h2 {
+        line-height: 1.15;
+    }
+
     .history-filters {
         grid-template-columns: repeat(2, minmax(0, 1fr));
     }
@@ -2078,15 +2127,6 @@ textarea {
         min-height: 50px;
     }
 
-    .screen-heading {
-        min-height: auto;
-        padding: 8px 0 12px;
-    }
-
-    .screen-actions {
-        width: 100%;
-    }
-
     .screen-heading h2 {
         font-size: 1.22rem;
     }
@@ -2094,10 +2134,6 @@ textarea {
     .icon-button {
         min-height: 38px;
         padding: 0 11px;
-    }
-
-    .screen-heading.compact {
-        grid-template-columns: 74px minmax(0, 1fr);
     }
 
     .module-tab {

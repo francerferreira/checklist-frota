@@ -299,7 +299,7 @@ function setActiveScreen(key) {
     const isEntryScreen = key === "login";
     document.body.classList.toggle("entry-screen", isEntryScreen);
     appTopbar?.classList.toggle("hidden", isEntryScreen);
-    window.scrollTo({ top: 0, behavior: "auto" });
+    document.querySelector(".mobile-shell")?.scrollTo({ top: 0, behavior: "auto" });
 }
 
 async function apiFetch(path, options = {}) {

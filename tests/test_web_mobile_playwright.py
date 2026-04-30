@@ -188,6 +188,22 @@ class WebMobilePlaywrightTests(unittest.TestCase):
     def test_admin_can_open_critical_mobile_modules(self):
         self._login()
 
+        scroll_probe = self.page.evaluate(
+            """() => {
+                const root = document.querySelector(".mobile-shell");
+                const before = root.scrollTop;
+                root.scrollTo({ top: 480, behavior: "auto" });
+                return {
+                    before,
+                    after: root.scrollTop,
+                    scrollHeight: root.scrollHeight,
+                    clientHeight: root.clientHeight,
+                };
+            }"""
+        )
+        self.assertGreater(scroll_probe["scrollHeight"], scroll_probe["clientHeight"])
+        self.assertGreater(scroll_probe["after"], scroll_probe["before"])
+
         self.page.locator("#open-checklist-history-menu").tap()
         self._wait_for_screen("checklist-history-screen")
         expect(self.page.locator("#checklist-history-counter")).to_contain_text("FROTAS")
