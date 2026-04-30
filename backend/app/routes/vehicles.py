@@ -63,9 +63,26 @@ def _vehicle_from_payload(vehicle: Vehicle, payload: dict) -> Vehicle:
     return vehicle
 
 
+def _find_vehicle_conflict(payload: dict, current_vehicle_id: int | None = None) -> str | None:
+    frota = _clean(payload.get("frota")) if "frota" in payload else None
+    if frota:
+        query = Vehicle.query.filter(Vehicle.frota == frota.upper())
+        if current_vehicle_id is not None:
+            query = query.filter(Vehicle.id != current_vehicle_id)
+        existing_vehicle = query.first()
+        if existing_vehicle:
+            return f"A frota '{existing_vehicle.frota}' ja esta cadastrada em outro equipamento."
+    return None
+
+
 def _integrity_error_message(exc: IntegrityError) -> str:
     raw = str(getattr(exc, "orig", exc) or "").lower()
-    if "vehicles_frota_key" in raw or ("unique" in raw and "frota" in raw):
+    if (
+        "vehicles_frota_key" in raw
+        or "ix_vehicles_frota" in raw
+        or "vehicles.frota" in raw
+        or ("unique" in raw and "frota" in raw)
+    ):
         return "Frota ja cadastrada."
     if "vehicles_placa_key" in raw or ("unique" in raw and "placa" in raw):
         return "Placa ja cadastrada."
@@ -107,6 +124,9 @@ def create_vehicle():
     missing = [field for field in required_fields if not payload.get(field)]
     if missing:
         return api_response(False, error=f"Campos obrigatórios ausentes: {', '.join(missing)}", status_code=400)
+    conflict = _find_vehicle_conflict(payload)
+    if conflict:
+        return api_response(False, error=conflict, status_code=409)
 
     vehicle = _vehicle_from_payload(Vehicle(), payload)
     db.session.add(vehicle)
@@ -127,7 +147,12 @@ def update_vehicle(vehicle_id: int):
 
     vehicle = Vehicle.query.get_or_404(vehicle_id)
     old_status = vehicle.status
-    _vehicle_from_payload(vehicle, request.get_json(silent=True) or {})
+    payload = request.get_json(silent=True) or {}
+    conflict = _find_vehicle_conflict(payload, current_vehicle_id=vehicle.id)
+    if conflict:
+        return api_response(False, error=conflict, status_code=409)
+
+    _vehicle_from_payload(vehicle, payload)
     
     if old_status != vehicle.status:
         record_status_change(g.current_user.id, "VEHICLE", vehicle.id, old_status, vehicle.status)

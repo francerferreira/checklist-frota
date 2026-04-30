@@ -55,6 +55,7 @@ def upload_file():
 
 
 @bp.get("/uploads/supabase/<path:object_path>")
+@auth_required
 def get_supabase_file(object_path: str):
     try:
         content, content_type = download_supabase_object(object_path)
@@ -64,5 +65,6 @@ def get_supabase_file(object_path: str):
 
 
 @bp.get("/uploads/<path:filename>")
+@auth_required
 def get_uploaded_file(filename: str):
     return send_from_directory(current_app.config["UPLOAD_FOLDER"], filename)

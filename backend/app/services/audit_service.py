@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import logging
 import re
 from datetime import date, datetime
 from decimal import Decimal
@@ -18,6 +19,7 @@ _AUDIT_HOOKS_REGISTERED = False
 _SENSITIVE_FIELDS = {"senha_hash", "password", "password_hash", "token"}
 _IGNORED_UPDATE_FIELDS = {"updated_at"}
 _MAX_AUDIT_VALUE_LEN = 5000
+LOGGER = logging.getLogger(__name__)
 
 
 def _to_entity_type(instance: Any) -> str:
@@ -208,8 +210,8 @@ def _after_commit(session: Session) -> None:
         with db.engine.begin() as conn:
             conn.execute(AuditLog.__table__.insert(), pending)
     except Exception:
-        # Auditoria é melhor esforço: nunca deve quebrar o fluxo operacional.
-        pass
+        # Auditoria é melhor esforço, mas a falha precisa ficar visível no log.
+        LOGGER.exception("Falha ao persistir logs de auditoria apos commit.")
 
 
 def _after_rollback(session: Session) -> None:
