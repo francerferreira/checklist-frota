@@ -181,44 +181,44 @@ class WebMobilePlaywrightTests(unittest.TestCase):
         )
         self.page.locator("#login").fill("admin")
         self.page.locator("#password").fill("123456")
-        self.page.locator("#login-button").click()
+        self.page.locator("#login-button").tap()
         self._wait_for_screen("home-screen")
         expect(self.page.locator("#open-checklist-menu")).to_be_visible()
 
     def test_admin_can_open_critical_mobile_modules(self):
         self._login()
 
-        self.page.locator("#open-checklist-history-menu").click()
+        self.page.locator("#open-checklist-history-menu").tap()
         self._wait_for_screen("checklist-history-screen")
         expect(self.page.locator("#checklist-history-counter")).to_contain_text("FROTAS")
         expect(self.page.locator("#checklist-history-table-wrap")).to_contain_text(self.vehicle_frota)
 
-        self.page.locator("#checklist-history-back-button").click()
+        self.page.locator("#checklist-history-back-button").tap()
         self._wait_for_screen("home-screen")
 
-        self.page.locator("#open-activities-menu").click()
+        self.page.locator("#open-activities-menu").tap()
         self._wait_for_screen("activities-screen")
         expect(self.page.locator("#activity-counter")).not_to_have_text("FALHA")
 
-        self.page.locator("#activities-back-button").click()
+        self.page.locator("#activities-back-button").tap()
         self._wait_for_screen("home-screen")
 
-        self.page.locator("#open-washes-menu").click()
+        self.page.locator("#open-washes-menu").tap()
         self._wait_for_screen("washes-screen")
         expect(self.page.locator("#wash-counter")).not_to_have_text("FALHA")
         expect(self.page.locator("#wash-calendar")).to_be_visible()
 
-        self.page.locator("#washes-back-button").click()
+        self.page.locator("#washes-back-button").tap()
         self._wait_for_screen("home-screen")
 
-        self.page.locator("#open-non-conformities-menu").click()
+        self.page.locator("#open-non-conformities-menu").tap()
         self._wait_for_screen("non-conformities-screen")
         expect(self.page.locator("#non-conformities-counter")).not_to_have_text("FALHA")
 
-        self.page.locator("#non-conformities-back-button").click()
+        self.page.locator("#non-conformities-back-button").tap()
         self._wait_for_screen("home-screen")
 
-        self.page.locator("#open-maintenance-menu").click()
+        self.page.locator("#open-maintenance-menu").tap()
         self._wait_for_screen("maintenance-screen")
         expect(self.page.locator("#maintenance-counter")).not_to_have_text("FALHA")
         expect(self.page.locator("#maintenance-calendar")).to_be_visible()
@@ -226,21 +226,21 @@ class WebMobilePlaywrightTests(unittest.TestCase):
     def test_checklist_flow_updates_progress_and_blocks_incomplete_submit(self):
         self._login()
 
-        self.page.locator("#open-checklist-menu").click()
+        self.page.locator("#open-checklist-menu").tap()
         self._wait_for_screen("vehicles-screen")
         expect(self.page.locator("#vehicles-list")).to_contain_text(self.vehicle_frota)
 
-        self.page.locator("#vehicles-list .vehicle-card").first.click()
+        self.page.locator("#vehicles-list .vehicle-card").first.tap()
         self._wait_for_screen("checklist-screen")
         expect(self.page.locator("#checklist-progress")).to_contain_text("0 DE")
 
         first_ok_button = self.page.locator(".checklist-item-card .status-button.ok").first
-        first_ok_button.click()
+        first_ok_button.tap()
         expect(self.page.locator("#checklist-progress")).to_contain_text("1 DE")
 
-        self.page.locator("#submit-checklist").click()
+        self.page.locator("#submit-checklist").tap()
         expect(self.page.locator("#toast")).to_be_visible()
-        expect(self.page.locator("#toast")).to_contain_text("SELECIONE OK OU NAO CONFORMIDADE")
+        expect(self.page.locator("#toast")).to_contain_text("SELECIONE OK OU NÃO CONFORMIDADE")
         self._wait_for_screen("checklist-screen")
 
 

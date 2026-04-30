@@ -71,6 +71,7 @@ textarea {
 button {
     -webkit-tap-highlight-color: transparent;
     transition: transform 0.18s ease, box-shadow 0.18s ease, background 0.18s ease, border-color 0.18s ease, color 0.18s ease, opacity 0.18s ease;
+    touch-action: manipulation;
 }
 
 button:active {
@@ -333,6 +334,7 @@ textarea {
 .activity-card {
     border: 0;
     cursor: pointer;
+    pointer-events: auto;
 }
 
 .primary-button {

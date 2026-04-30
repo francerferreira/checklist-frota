@@ -1,11 +1,11 @@
 ﻿const MODULE_ORDER = [
-    "ILUMINAÃ‡ÃƒO",
+    "ILUMINAÇÃO",
     "CABINE E PAINEL",
     "MOTOR E FLUIDOS",
     "FREIOS E RODAGEM",
     "ACOPLAMENTO E ESTRUTURA",
     "EXTERNO E ACESSOS",
-    "SEGURANÃ‡A OPERACIONAL",
+    "SEGURANÇA OPERACIONAL",
     "OUTROS",
 ];
 
@@ -240,7 +240,7 @@ function registerServiceWorker() {
 
     window.addEventListener("load", () => {
         navigator.serviceWorker.register("./service-worker.js", { updateViaCache: "none" }).catch(() => {
-            showToast("PWA NÃƒO PÃ”DE SER ATIVADO NESTE NAVEGADOR.", true);
+            showToast("PWA NÃO PÔDE SER ATIVADO NESTE NAVEGADOR.", true);
         });
     });
 }
@@ -314,7 +314,7 @@ async function apiFetch(path, options = {}) {
 
         const body = await response.json().catch(() => ({}));
         if (!response.ok || (Object.prototype.hasOwnProperty.call(body, "success") && body.success === false)) {
-            const error = new Error(body.error || body.message || "FALHA NA COMUNICACAO COM A API.");
+            const error = new Error(body.error || body.message || "FALHA NA COMUNICAÇÃO COM A API.");
             error.status = response.status;
             throw error;
         }
@@ -322,7 +322,7 @@ async function apiFetch(path, options = {}) {
         return Object.prototype.hasOwnProperty.call(body, "data") ? body.data : body;
     } catch (error) {
         if (error.name === "TypeError" && (error.message.includes("fetch") || error.message.includes("NetworkError"))) {
-            throw new Error("SERVIDOR INDISPONIVEL OU SEM CONEXAO.");
+            throw new Error("SERVIDOR INDISPONÍVEL OU SEM CONEXÃO.");
         }
         throw error;
     }
@@ -337,7 +337,7 @@ async function login(credentials) {
 
     const body = await response.json().catch(() => ({}));
     if (!response.ok || (Object.prototype.hasOwnProperty.call(body, "success") && body.success === false)) {
-        throw new Error(body.error || "NAO FOI POSSIVEL ENTRAR.");
+        throw new Error(body.error || "NÃO FOI POSSÍVEL ENTRAR.");
     }
 
     const payload = Object.prototype.hasOwnProperty.call(body, "data") ? body.data : body;
@@ -379,7 +379,7 @@ async function enterAuthenticatedApp() {
             state.user = null;
             clearSession();
             setActiveScreen("login");
-            setLoginStatus("SessÃ£o expirada. Informe login e senha novamente.", true);
+            setLoginStatus("Sessão expirada. Informe login e senha novamente.", true);
             return;
         }
         setActiveScreen("login");
@@ -395,7 +395,7 @@ window.enterChecklistApp = async () => {
     elements.apiBaseUrl.value = state.apiBaseUrl;
     if (!state.token || !state.user) {
         setActiveScreen("login");
-        setLoginStatus("Login salvo nÃ£o encontrado. Informe usuÃ¡rio e senha novamente.", true);
+        setLoginStatus("Login salvo não encontrado. Informe usuário e senha novamente.", true);
         return;
     }
     localStorage.setItem(SESSION_STARTED_AT_KEY, localStorage.getItem(SESSION_STARTED_AT_KEY) || String(Date.now()));
@@ -444,7 +444,7 @@ function renderHome() {
     const canAccessMechanicModule = hasMechanicWorkspaceAccess();
     elements.homeSummary.innerHTML = `
         <div>
-            <span>USUÃRIO</span>
+            <span>USUÁRIO</span>
             <strong>${escapeHtml(state.user.nome)}</strong>
         </div>
         <div>
@@ -518,9 +518,9 @@ async function refreshCloudAdminPanel() {
         const database = normalizeStorageSection(status?.database);
         const storage = normalizeStorageSection(status?.storage);
         const level = [database.level, storage.level].includes("critico")
-            ? "CRITICO"
+            ? "CRÍTICO"
             : [database.level, storage.level].includes("vermelho")
-                ? "ATENCAO"
+                ? "ATENÇÃO"
                 : [database.level, storage.level].includes("amarelo")
                     ? "OBSERVAR"
                     : "OK";
@@ -545,7 +545,7 @@ async function refreshCloudAdminPanel() {
             showToast("ARMAZENAMENTO DA NUVEM PERTO DO LIMITE. GERE UM BACKUP.");
         }
     } catch (error) {
-        elements.cloudStorageSummary.textContent = "NÃƒO FOI POSSÃVEL VERIFICAR A NUVEM.";
+        elements.cloudStorageSummary.textContent = "NÃO FOI POSSÍVEL VERIFICAR A NUVEM.";
         elements.cloudStorageDetail.innerHTML = `
             <article class="sync-row">
                 <div>
@@ -584,7 +584,7 @@ async function downloadBackupFile(backup) {
         },
     });
     if (!response.ok) {
-        throw new Error("BACKUP GERADO, MAS NÃƒO FOI POSSÃVEL BAIXAR O ARQUIVO.");
+        throw new Error("BACKUP GERADO, MAS NÃO FOI POSSÍVEL BAIXAR O ARQUIVO.");
     }
     const blob = await response.blob();
     const url = URL.createObjectURL(blob);
@@ -605,7 +605,7 @@ async function downloadAuthorizedFile(path, filename) {
     });
     if (!response.ok) {
         const body = await response.json().catch(() => ({}));
-        throw new Error(body.error || "NÃƒO FOI POSSÃVEL BAIXAR O ARQUIVO.");
+        throw new Error(body.error || "NÃO FOI POSSÍVEL BAIXAR O ARQUIVO.");
     }
 
     const blob = await response.blob();
@@ -662,7 +662,7 @@ async function openChecklistHistoryMenu() {
     } catch (error) {
         elements.checklistHistoryCounter.textContent = "FALHA";
         renderStateCard(elements.checklistHistoryTableWrap, {
-            title: "NAO FOI POSSIVEL CARREGAR O HISTORICO",
+            title: "NÃO FOI POSSÍVEL CARREGAR O HISTÓRICO",
             message: error.message || "Tente novamente em instantes.",
             tone: "error",
         });
@@ -675,7 +675,7 @@ async function openActivitiesMenu() {
     elements.activityCounter.textContent = "CARREGANDO...";
     renderStateCard(elements.activitiesList, {
         title: "CARREGANDO ATIVIDADES",
-        message: "Buscando as atividades em aberto para execucao em campo.",
+        message: "Buscando as atividades em aberto para execução em campo.",
         tone: "loading",
     });
     try {
@@ -685,8 +685,8 @@ async function openActivitiesMenu() {
     } catch (error) {
         elements.activityCounter.textContent = "FALHA";
         renderStateCard(elements.activitiesList, {
-            title: "NAO FOI POSSIVEL CARREGAR AS ATIVIDADES",
-            message: error.message || "Verifique a conexao e tente novamente.",
+            title: "NÃO FOI POSSÍVEL CARREGAR AS ATIVIDADES",
+            message: error.message || "Verifique a conexão e tente novamente.",
             tone: "error",
         });
         showToast(error.message, true);
@@ -710,8 +710,8 @@ async function openWashesMenu() {
         elements.washCounter.textContent = "FALHA";
         elements.washDayPanel.innerHTML = "";
         renderStateCard(elements.washesList, {
-            title: "NAO FOI POSSIVEL CARREGAR AS LAVAGENS",
-            message: error.message || "Verifique a conexao e tente novamente.",
+            title: "NÃO FOI POSSÍVEL CARREGAR AS LAVAGENS",
+            message: error.message || "Verifique a conexão e tente novamente.",
             tone: "error",
         });
         showToast(error.message, true);
@@ -720,7 +720,7 @@ async function openWashesMenu() {
 
 async function openNonConformitiesMenu() {
     if (!hasMechanicWorkspaceAccess()) {
-        showToast("MÃ“DULO DE NÃƒO CONFORMIDADES RESTRITO AO MECÃ‚NICO E GESTÃƒO.", true);
+        showToast("MÓDULO DE NÃO CONFORMIDADES RESTRITO AO MECÂNICO E GESTÃO.", true);
         return;
     }
     setActiveScreen("nonConformities");
@@ -730,7 +730,7 @@ async function openNonConformitiesMenu() {
     elements.nonConformitiesMechanicCounter.textContent = "CARREGANDO...";
     renderStateCard(elements.nonConformitiesMacroList, {
         title: "CARREGANDO INDICADORES",
-        message: "Buscando os dados macro e micro de nao conformidades.",
+        message: "Buscando os dados macro e micro de não conformidades.",
         tone: "loading",
         compact: true,
     });
@@ -742,12 +742,12 @@ async function openNonConformitiesMenu() {
     });
     renderStateCard(elements.nonConformitiesChecklistList, {
         title: "CARREGANDO REGISTROS DE CHECKLIST",
-        message: "Buscando nao conformidades abertas e resolvidas.",
+        message: "Buscando não conformidades abertas e resolvidas.",
         tone: "loading",
     });
     renderStateCard(elements.nonConformitiesMechanicList, {
         title: "CARREGANDO REGISTROS INTERNOS",
-        message: "Buscando as nao conformidades abertas pelo mecanico.",
+        message: "Buscando as não conformidades abertas pelo mecânico.",
         tone: "loading",
     });
     try {
@@ -760,25 +760,25 @@ async function openNonConformitiesMenu() {
         elements.nonConformitiesChecklistCounter.textContent = "FALHA";
         elements.nonConformitiesMechanicCounter.textContent = "FALHA";
         renderStateCard(elements.nonConformitiesMacroList, {
-            title: "NAO FOI POSSIVEL CARREGAR OS INDICADORES",
+            title: "NÃO FOI POSSÍVEL CARREGAR OS INDICADORES",
             message: error.message || "Tente novamente em instantes.",
             tone: "error",
             compact: true,
         });
         renderStateCard(elements.nonConformitiesMicroList, {
             title: "LEITURA DETALHADA INDISPONIVEL",
-            message: "A consulta nao retornou os dados deste momento.",
+            message: "A consulta não retornou os dados deste momento.",
             tone: "error",
             compact: true,
         });
         renderStateCard(elements.nonConformitiesChecklistList, {
-            title: "NAO FOI POSSIVEL CARREGAR AS NAO CONFORMIDADES",
-            message: error.message || "Verifique a conexao e tente novamente.",
+            title: "NÃO FOI POSSÍVEL CARREGAR AS NÃO CONFORMIDADES",
+            message: error.message || "Verifique a conexão e tente novamente.",
             tone: "error",
         });
         renderStateCard(elements.nonConformitiesMechanicList, {
-            title: "NAO FOI POSSIVEL CARREGAR OS REGISTROS INTERNOS",
-            message: error.message || "Verifique a conexao e tente novamente.",
+            title: "NÃO FOI POSSÍVEL CARREGAR OS REGISTROS INTERNOS",
+            message: error.message || "Verifique a conexão e tente novamente.",
             tone: "error",
         });
         showToast(error.message, true);
@@ -787,15 +787,15 @@ async function openNonConformitiesMenu() {
 
 async function openMaintenanceMenu() {
     if (!hasMaintenanceAccess()) {
-        showToast("MÃ“DULO DE MANUTENÃ‡ÃƒO RESTRITO AO MECÃ‚NICO E GESTÃƒO.", true);
+        showToast("MÓDULO DE MANUTENÇÃO RESTRITO AO MECÂNICO E GESTÃO.", true);
         return;
     }
     setActiveScreen("maintenance");
     elements.maintenanceCounter.textContent = "CARREGANDO...";
     elements.maintenanceDayPanel.innerHTML = "";
     renderStateCard(elements.maintenanceList, {
-        title: "CARREGANDO MANUTENCAO",
-        message: "Buscando o cronograma mensal e os servicos programados.",
+        title: "CARREGANDO MANUTENÇÃO",
+        message: "Buscando o cronograma mensal e os serviços programados.",
         tone: "loading",
     });
     try {
@@ -806,8 +806,8 @@ async function openMaintenanceMenu() {
         elements.maintenanceCounter.textContent = "FALHA";
         elements.maintenanceDayPanel.innerHTML = "";
         renderStateCard(elements.maintenanceList, {
-            title: "NAO FOI POSSIVEL CARREGAR A MANUTENCAO",
-            message: error.message || "Verifique a conexao e tente novamente.",
+            title: "NÃO FOI POSSÍVEL CARREGAR A MANUTENÇÃO",
+            message: error.message || "Verifique a conexão e tente novamente.",
             tone: "error",
         });
         showToast(error.message, true);
@@ -885,8 +885,8 @@ function renderChecklistHistory() {
     if (!columns.length) {
         elements.checklistHistoryTableWrap.innerHTML = `
             <article class="empty-state">
-                <strong>SEM DATAS PARA O PERÃODO SELECIONADO.</strong>
-                <span>AJUSTE O FILTRO DE DATA PARA VISUALIZAR O HISTÃ“RICO.</span>
+                <strong>SEM DATAS PARA O PERÍODO SELECIONADO.</strong>
+                <span>AJUSTE O FILTRO DE DATA PARA VISUALIZAR O HISTÓRICO.</span>
             </article>
         `;
         return;
@@ -896,7 +896,7 @@ function renderChecklistHistory() {
         elements.checklistHistoryTableWrap.innerHTML = `
             <article class="empty-state">
                 <strong>NENHUMA FROTA ENCONTRADA NESTE FILTRO.</strong>
-                <span>AJUSTE O TIPO CAVALO/CARRETA OU O PERÃODO.</span>
+                <span>AJUSTE O TIPO CAVALO/CARRETA OU O PERÍODO.</span>
             </article>
         `;
         return;
@@ -905,7 +905,7 @@ function renderChecklistHistory() {
     const totalChecklists = rows.reduce((total, row) => total + Number(row.checklist_count || 0), 0);
     const periodLabel = state.checklistHistory.dataInicio && state.checklistHistory.dataFim
         ? `${formatDate(state.checklistHistory.dataInicio)} A ${formatDate(state.checklistHistory.dataFim)}`
-        : "PERIODO NAO INFORMADO";
+        : "PERÍODO NÃO INFORMADO";
 
     const headerColumns = columns
         .map((column) => `<th>${escapeHtml(String(column.label || "-"))}</th>`)
@@ -947,12 +947,12 @@ function renderChecklistHistory() {
                 <strong>${totalChecklists} REGISTRO${totalChecklists === 1 ? "" : "S"}</strong>
             </article>
         </section>
-        <p class="history-caption">Toque na frota para expandir a leitura da linha e acompanhe o total pelo campo NÃ‚Âº.</p>
+        <p class="history-caption">Toque na frota para expandir a leitura da linha e acompanhe o total pelo campo Nº.</p>
         <table class="history-table">
             <thead>
                 <tr>
                     <th class="history-frota-header">FROTA</th>
-                    <th class="history-count-header">NÂº</th>
+                    <th class="history-count-header">Nº</th>
                     ${headerColumns}
                 </tr>
             </thead>
@@ -987,7 +987,7 @@ async function applyChecklistHistoryFilters() {
     const endDate = elements.checklistHistoryEndDate?.value || "";
 
     if (startDate && endDate && endDate < startDate) {
-        showToast("A DATA FINAL DEVE SER MAIOR OU IGUAL Ã€ DATA INICIAL.", true);
+        showToast("A DATA FINAL DEVE SER MAIOR OU IGUAL À DATA INICIAL.", true);
         return;
     }
 
@@ -1061,13 +1061,13 @@ function renderNonConformityReports() {
         elements.nonConformitiesMacroList.innerHTML = `
             <article class="empty-state compact">
                 <strong>SEM DADOS NO MACRO.</strong>
-                <span>AS NÃƒO CONFORMIDADES DO CHECKLIST APARECERÃƒO AQUI.</span>
+                <span>AS NÃO CONFORMIDADES DO CHECKLIST APARECERÃO AQUI.</span>
             </article>
         `;
     } else {
         elements.nonConformitiesMacroList.innerHTML = `
             <article class="list-toolbar">
-                <strong>TOP ITENS COM NÃƒO CONFORMIDADE</strong>
+                <strong>TOP ITENS COM NÃO CONFORMIDADE</strong>
                 <span>VISAO MACRO</span>
             </article>
             <div class="nc-grid">
@@ -1077,7 +1077,7 @@ function renderNonConformityReports() {
                             <strong>${escapeHtml(String(row.item_nome || "-").toUpperCase())}</strong>
                             <span>${Number(row.abertas || 0)} ABERTAS | ${Number(row.resolvidas || 0)} RESOLVIDAS</span>
                         </div>
-                        <em>${Number(row.total_nc || 0)} NÃƒO CONFORMIDADES</em>
+                        <em>${Number(row.total_nc || 0)} NÃO CONFORMIDADES</em>
                     </article>
                 `).join("")}
             </div>
@@ -1094,7 +1094,7 @@ function renderNonConformityReports() {
     } else {
         elements.nonConformitiesMicroList.innerHTML = `
             <article class="list-toolbar">
-                <strong>TOP EQUIPAMENTOS COM NÃƒO CONFORMIDADE</strong>
+                <strong>TOP EQUIPAMENTOS COM NÃO CONFORMIDADE</strong>
                 <span>VISAO MICRO</span>
             </article>
             <div class="nc-grid">
@@ -1104,7 +1104,7 @@ function renderNonConformityReports() {
                             <strong>${escapeHtml(String(row.frota || "-").toUpperCase())}</strong>
                             <span>${escapeHtml(String(row.placa || "-").toUpperCase())} | ${escapeHtml(String(row.tipo || "-").toUpperCase())}</span>
                         </div>
-                        <em>${Number(row.total_nc || 0)} NÃƒO CONFORMIDADES</em>
+                        <em>${Number(row.total_nc || 0)} NÃO CONFORMIDADES</em>
                     </article>
                 `).join("")}
             </div>
@@ -1119,7 +1119,7 @@ function renderChecklistNonConformities() {
     if (!rows.length) {
         elements.nonConformitiesChecklistList.innerHTML = `
             <article class="empty-state">
-                <strong>NENHUMA NÃƒO CONFORMIDADE DE CHECKLIST NESTE FILTRO.</strong>
+                <strong>NENHUMA NÃO CONFORMIDADE DE CHECKLIST NESTE FILTRO.</strong>
                 <span>ALTERE O STATUS OU AGUARDE NOVOS REGISTROS.</span>
             </article>
         `;
@@ -1138,8 +1138,8 @@ function renderMechanicNonConformities() {
     if (!rows.length) {
         elements.nonConformitiesMechanicList.innerHTML = `
             <article class="empty-state">
-                <strong>NENHUMA NÃƒO CONFORMIDADE INTERNA NESTE FILTRO.</strong>
-                <span>ABRA UMA NOVA NÃƒO CONFORMIDADE INTERNA NO FORMULÃRIO ACIMA.</span>
+                <strong>NENHUMA NÃO CONFORMIDADE INTERNA NESTE FILTRO.</strong>
+                <span>ABRA UMA NOVA NÃO CONFORMIDADE INTERNA NO FORMULÁRIO ACIMA.</span>
             </article>
         `;
         return;
@@ -1164,7 +1164,7 @@ function renderMaintenance() {
 
     elements.maintenanceCounter.textContent = `${Number(resumo.programados || resumo.itens || 0)} PROGRAMADOS`;
     elements.maintenanceMonthTitle.textContent = String(overview.periodo?.rotulo || `${state.maintenanceMonth}/${state.maintenanceYear}`).toUpperCase();
-    screens.maintenance.querySelector(".list-toolbar span").textContent = `${selectedDayLabel} | ${selectedItems.length} SERVICO${selectedItems.length === 1 ? "" : "S"} NO DIA SELECIONADO.`;
+    screens.maintenance.querySelector(".list-toolbar span").textContent = `${selectedDayLabel} | ${selectedItems.length} SERVIÇO${selectedItems.length === 1 ? "" : "S"} NO DIA SELECIONADO.`;
     renderMaintenanceSummary(resumo);
     renderMaintenanceCalendar(days);
     renderMaintenanceDayPanel(selectedDay);
@@ -1173,7 +1173,7 @@ function renderMaintenance() {
     if (!selectedItems.length) {
         elements.maintenanceList.innerHTML = `
             <article class="empty-state">
-                <strong>NENHUMA MANUTENÃ‡ÃƒO PROGRAMADA PARA ESTE DIA.</strong>
+                <strong>NENHUMA MANUTENÇÃO PROGRAMADA PARA ESTE DIA.</strong>
                 <span>AGUARDE NOVA PROGRAMACAO ENVIADA PELO DESKTOP.</span>
             </article>
         `;
@@ -1196,7 +1196,7 @@ function renderMaintenanceSummary(resumo) {
             <span>${Number(resumo.instalados || 0)} INSTALADOS</span>
         </div>
         <div>
-            <strong>${Number(resumo.nao_executados || 0)} NAO EXECUTADOS</strong>
+            <strong>${Number(resumo.nao_executados || 0)} NÃO EXECUTADOS</strong>
             <span>${Number(resumo.aguardando_material || 0)} AGUARDANDO MATERIAL</span>
         </div>
         <div>
@@ -1295,7 +1295,7 @@ function renderMaintenanceDayPanel(day) {
                 <strong>${formatDate(selectedDay.date)}</strong>
             </div>
             <div>
-                <span>SERVICOS</span>
+                <span>SERVIÇOS</span>
                 <strong>${total}</strong>
             </div>
             <div>
@@ -1307,7 +1307,7 @@ function renderMaintenanceDayPanel(day) {
                 <strong>${installed}</strong>
             </div>
         </section>
-        <p class="section-caption">NAO EXECUTADOS NO DIA: ${notExecuted}. Use os cards abaixo para instalar, justificar ou reprogramar.</p>
+        <p class="section-caption">NÃO EXECUTADOS NO DIA: ${notExecuted}. Use os cards abaixo para instalar, justificar ou reprogramar.</p>
     `;
 }
 
@@ -1361,54 +1361,54 @@ function makeMaintenanceItemCard(item, index) {
         <div class="nc-meta-list">
             <span>DATA PROGRAMADA: ${item.scheduled_date ? formatDateTime(`${item.scheduled_date}T00:00:00`) : "SEM DATA"}</span>
             <span>STATUS: ${escapeHtml(status.replace(/_/g, " "))}</span>
-            <span>PROGRAMAÃ‡ÃƒO: ${escapeHtml(String(schedule.status || "-").replace(/_/g, " "))}</span>
-            ${schedule.assigned_mechanic ? `<span>MECÃ‚NICO: ${escapeHtml(String(schedule.assigned_mechanic.nome || "").toUpperCase())}</span>` : ""}
+            <span>PROGRAMAÇÃO: ${escapeHtml(String(schedule.status || "-").replace(/_/g, " "))}</span>
+            ${schedule.assigned_mechanic ? `<span>MECÂNICO: ${escapeHtml(String(schedule.assigned_mechanic.nome || "").toUpperCase())}</span>` : ""}
         </div>
         ${materials.length ? `
             <div class="nc-meta-list">
                 ${materials.map((link) => {
                     const material = link.material || {};
-                    return `<span>MATERIAL: ${escapeHtml(String(material.referencia || "-").toUpperCase())} | ${escapeHtml(String(material.descricao || "-").toUpperCase())} | ESTOQUE ${Number(material.quantidade_estoque || 0)} | NECESSÃRIO ${Number(link.quantity_required || 0)} | ${escapeHtml(String(link.status || "").replace(/_/g, " "))}</span>`;
+                    return `<span>MATERIAL: ${escapeHtml(String(material.referencia || "-").toUpperCase())} | ${escapeHtml(String(material.descricao || "-").toUpperCase())} | ESTOQUE ${Number(material.quantidade_estoque || 0)} | NECESSÁRIO ${Number(link.quantity_required || 0)} | ${escapeHtml(String(link.status || "").replace(/_/g, " "))}</span>`;
                 }).join("")}
             </div>
         ` : `
             <div class="nc-meta-list">
-                <span>SEM MATERIAL VINCULADO NESTA PROGRAMAÃ‡ÃƒO.</span>
+                <span>SEM MATERIAL VINCULADO NESTA PROGRAMAÇÃO.</span>
             </div>
         `}
-        ${item.observation ? `<div class="nc-meta-list"><span>OBSERVAÃ‡ÃƒO: ${escapeHtml(item.observation)}</span></div>` : ""}
+        ${item.observation ? `<div class="nc-meta-list"><span>OBSERVAÇÃO: ${escapeHtml(item.observation)}</span></div>` : ""}
         ${status !== "INSTALADO" && !canExecute.allowed ? `<span class="maintenance-flag">AGUARDANDO MATERIAL / BLOQUEIO</span>` : ""}
         ${status === "INSTALADO" ? `
             <span class="nc-resolved-flag">INSTALADO</span>
-            ${item.executed_by ? `<div class="nc-meta-list"><span>EXECUTADO POR: ${escapeHtml(String(item.executed_by.nome || "").toUpperCase())}</span><span>EXECUÃ‡ÃƒO EM: ${formatDateTime(item.executed_at)}</span></div>` : ""}
+            ${item.executed_by ? `<div class="nc-meta-list"><span>EXECUTADO POR: ${escapeHtml(String(item.executed_by.nome || "").toUpperCase())}</span><span>EXECUÇÃO EM: ${formatDateTime(item.executed_at)}</span></div>` : ""}
             ${item.not_executed_reason ? `<div class="nc-meta-list"><span>MOTIVO ANTERIOR: ${escapeHtml(item.not_executed_reason)}</span></div>` : ""}
             ${photoAfter ? `
                 <figure class="nc-photo-card">
                     <figcaption>FOTO DEPOIS</figcaption>
-                    <img src="${photoAfter}" alt="Foto depois da manutenÃ§Ã£o">
+                    <img src="${photoAfter}" alt="Foto depois da manutenção">
                 </figure>
             ` : ""}
         ` : `
             <div class="nc-resolve-form">
                 <label>
-                    <span>PARECER TÃ‰CNICO</span>
-                    <textarea class="maintenance-observation" placeholder="DESCREVA A EXECUÃ‡ÃƒO, PENDÃŠNCIA OU CONDIÃ‡ÃƒO ENCONTRADA">${escapeHtml(item.observation || "")}</textarea>
+                    <span>PARECER TÉCNICO</span>
+                    <textarea class="maintenance-observation" placeholder="DESCREVA A EXECUÇÃO, PENDÊNCIA OU CONDIÇÃO ENCONTRADA">${escapeHtml(item.observation || "")}</textarea>
                 </label>
                 <label>
-                    <span>MOTIVO PARA NÃƒO EXECUTAR</span>
-                    <textarea class="maintenance-not-executed" placeholder="INFORME O MOTIVO, SE NÃƒO FOR POSSÃVEL CONCLUIR AGORA"></textarea>
+                    <span>MOTIVO PARA NÃO EXECUTAR</span>
+                    <textarea class="maintenance-not-executed" placeholder="INFORME O MOTIVO, SE NÃO FOR POSSÍVEL CONCLUIR AGORA"></textarea>
                 </label>
                 <label class="evidence-input">
                     <span>FOTO DEPOIS</span>
-                    <strong>EVIDÃŠNCIA OPCIONAL</strong>
+                    <strong>EVIDÊNCIA OPCIONAL</strong>
                     <input type="file" class="maintenance-after-photo" accept="image/*" capture="environment">
                     <em>TOQUE PARA FOTOGRAFAR OU ANEXAR IMAGEM.</em>
                 </label>
-                <img class="photo-preview maintenance-after-preview" alt="PrÃ©via da foto depois">
-                ${!canExecute.allowed ? `<div class="nc-meta-list"><span>INSTALAÃ‡ÃƒO BLOQUEADA: ${escapeHtml(canExecute.reason)}</span></div>` : ""}
-                <div class="status-group activity-status-group" role="group" aria-label="AÃ§Ãµes da manutenÃ§Ã£o">
+                <img class="photo-preview maintenance-after-preview" alt="Prévia da foto depois">
+                ${!canExecute.allowed ? `<div class="nc-meta-list"><span>INSTALAÇÃO BLOQUEADA: ${escapeHtml(canExecute.reason)}</span></div>` : ""}
+                <div class="status-group activity-status-group" role="group" aria-label="Ações da manutenção">
                     <button type="button" class="status-button ok maintenance-execute-button"${canExecute.allowed ? "" : " disabled"}>INSTALAR</button>
-                    <button type="button" class="status-button nc maintenance-not-executed-button">NÃƒO EXECUTADO</button>
+                    <button type="button" class="status-button nc maintenance-not-executed-button">NÃO EXECUTADO</button>
                 </div>
                 ${hasWashReportAccess() ? `
                     <div class="maintenance-reprogram-box">
@@ -1453,9 +1453,9 @@ async function reprogramMaintenanceItem(card, item) {
         state.selectedMaintenanceDate = scheduledDate;
         await loadMaintenanceOverview();
         renderMaintenance();
-        showToast("MANUTENÃ‡ÃƒO REPROGRAMADA.");
+        showToast("MANUTENÇÃO REPROGRAMADA.");
     } catch (error) {
-        showToast(error.message || "FALHA AO REPROGRAMAR A MANUTENÃ‡ÃƒO.", true);
+        showToast(error.message || "FALHA AO REPROGRAMAR A MANUTENÇÃO.", true);
     } finally {
         button.disabled = false;
         button.textContent = "REPROGRAMAR";
@@ -1481,7 +1481,7 @@ async function submitMaintenanceItem(card, item, newStatus) {
     const notExecutedReason = card.querySelector(".maintenance-not-executed")?.value?.trim() || "";
 
     if (newStatus === "NAO_EXECUTADO" && !notExecutedReason) {
-        showToast("INFORME O MOTIVO PARA MARCAR COMO NÃƒO EXECUTADO.", true);
+        showToast("INFORME O MOTIVO PARA MARCAR COMO NÃO EXECUTADO.", true);
         return;
     }
 
@@ -1508,12 +1508,12 @@ async function submitMaintenanceItem(card, item, newStatus) {
 
         await loadMaintenanceOverview();
         renderMaintenance();
-        showToast(newStatus === "INSTALADO" ? "INSTALAÃ‡ÃƒO REGISTRADA." : "MANUTENÃ‡ÃƒO MARCADA COMO NÃƒO EXECUTADA.");
+        showToast(newStatus === "INSTALADO" ? "INSTALAÇÃO REGISTRADA." : "MANUTENÇÃO MARCADA COMO NÃO EXECUTADA.");
     } catch (error) {
-        showToast(error.message || "FALHA AO SALVAR A MANUTENÃ‡ÃƒO.", true);
+        showToast(error.message || "FALHA AO SALVAR A MANUTENÇÃO.", true);
     } finally {
         button.disabled = false;
-        button.textContent = newStatus === "INSTALADO" ? "INSTALAR" : "NÃƒO EXECUTADO";
+        button.textContent = newStatus === "INSTALADO" ? "INSTALAR" : "NÃO EXECUTADO";
     }
 }
 
@@ -1528,7 +1528,7 @@ function makeChecklistNonConformityCard(item, index) {
     card.innerHTML = `
         <div class="item-topline">
             <span>${String(index).padStart(2, "0")}</span>
-            <h3>${escapeHtml(String(item.item_nome || "NÃƒO CONFORMIDADE").toUpperCase())}</h3>
+            <h3>${escapeHtml(String(item.item_nome || "NÃO CONFORMIDADE").toUpperCase())}</h3>
         </div>
         <div class="activity-meta">
             <strong>${escapeHtml(String(vehicle.frota || "-").toUpperCase())} | ${escapeHtml(String(vehicle.placa || "-").toUpperCase())}</strong>
@@ -1543,21 +1543,21 @@ function makeChecklistNonConformityCard(item, index) {
             ${beforePhoto ? `
                 <figure class="nc-photo-card">
                     <figcaption>FOTO ANTES</figcaption>
-                    <img src="${beforePhoto}" alt="Foto antes da nÃ£o conformidade">
+                    <img src="${beforePhoto}" alt="Foto antes da não conformidade">
                 </figure>
             ` : ""}
             ${afterPhoto ? `
                 <figure class="nc-photo-card">
                     <figcaption>FOTO DEPOIS</figcaption>
-                    <img src="${afterPhoto}" alt="Foto depois da nÃ£o conformidade">
+                    <img src="${afterPhoto}" alt="Foto depois da não conformidade">
                 </figure>
             ` : ""}
         </div>
         ${isResolved ? `
             <span class="nc-resolved-flag">RESOLVIDA</span>
             <div class="nc-meta-list">
-                <span>CÃ“DIGO DA PEÃ‡A: ${escapeHtml(item.codigo_peca || "-")}</span>
-                <span>DESCRIÃ‡ÃƒO: ${escapeHtml(item.descricao_peca || "-")}</span>
+                <span>CÓDIGO DA PEÇA: ${escapeHtml(item.codigo_peca || "-")}</span>
+                <span>DESCRIÇÃO: ${escapeHtml(item.descricao_peca || "-")}</span>
             </div>
         ` : `
             <div class="nc-resolve-form">
@@ -1570,11 +1570,11 @@ function makeChecklistNonConformityCard(item, index) {
                     <input type="number" class="nc-quantity" min="1" step="1" value="1">
                 </label>
                 <label>
-                    <span>OBSERVACAO DA RESOLUCAO</span>
+                    <span>OBSERVAÇÃO DA RESOLUÇÃO</span>
                     <textarea class="nc-observation" placeholder="DESCREVA O QUE FOI FEITO"></textarea>
                 </label>
                 <label class="evidence-input">
-                    <span>EVIDENCIA DEPOIS</span>
+                    <span>EVIDÊNCIA DEPOIS</span>
                     <strong>FOTO DEPOIS DA CORRECAO</strong>
                     <input type="file" class="nc-after-photo" accept="image/*" capture="environment">
                     <em>TOQUE PARA FOTOGRAFAR OU ANEXAR IMAGEM.</em>
@@ -1605,10 +1605,10 @@ function makeMechanicNonConformityCard(item, index) {
     card.innerHTML = `
         <div class="item-topline">
             <span>${String(index).padStart(2, "0")}</span>
-            <h3>${escapeHtml(String(item.item_nome || "NÃƒO CONFORMIDADE INTERNA").toUpperCase())}</h3>
+            <h3>${escapeHtml(String(item.item_nome || "NÃO CONFORMIDADE INTERNA").toUpperCase())}</h3>
         </div>
         <div class="activity-meta">
-            <strong>${escapeHtml(String(item.veiculo_referencia || "SEM REFERÃŠNCIA").toUpperCase())}</strong>
+            <strong>${escapeHtml(String(item.veiculo_referencia || "SEM REFERÊNCIA").toUpperCase())}</strong>
             <span>ABERTA POR ${escapeHtml(String(item.created_by?.nome || "-").toUpperCase())}</span>
         </div>
         <div class="nc-meta-list">
@@ -1620,21 +1620,21 @@ function makeMechanicNonConformityCard(item, index) {
             ${beforePhoto ? `
                 <figure class="nc-photo-card">
                     <figcaption>FOTO ANTES</figcaption>
-                    <img src="${beforePhoto}" alt="Foto antes da nÃ£o conformidade interna">
+                    <img src="${beforePhoto}" alt="Foto antes da não conformidade interna">
                 </figure>
             ` : ""}
             ${afterPhoto ? `
                 <figure class="nc-photo-card">
                     <figcaption>FOTO DEPOIS</figcaption>
-                    <img src="${afterPhoto}" alt="Foto depois da nÃ£o conformidade interna">
+                    <img src="${afterPhoto}" alt="Foto depois da não conformidade interna">
                 </figure>
             ` : ""}
         </div>
         ${isResolved ? `
             <span class="nc-resolved-flag">RESOLVIDA</span>
             <div class="nc-meta-list">
-                <span>CÃ“DIGO DA PEÃ‡A: ${escapeHtml(item.codigo_peca || "-")}</span>
-                <span>DESCRIÃ‡ÃƒO: ${escapeHtml(item.descricao_peca || "-")}</span>
+                <span>CÓDIGO DA PEÇA: ${escapeHtml(item.codigo_peca || "-")}</span>
+                <span>DESCRIÇÃO: ${escapeHtml(item.descricao_peca || "-")}</span>
             </div>
         ` : `
             <div class="nc-resolve-form">
@@ -1647,11 +1647,11 @@ function makeMechanicNonConformityCard(item, index) {
                     <input type="number" class="nc-quantity" min="1" step="1" value="1">
                 </label>
                 <label>
-                    <span>OBSERVACAO DA RESOLUCAO</span>
+                    <span>OBSERVAÇÃO DA RESOLUÇÃO</span>
                     <textarea class="nc-observation" placeholder="DESCREVA O QUE FOI FEITO"></textarea>
                 </label>
                 <label class="evidence-input">
-                    <span>EVIDENCIA DEPOIS</span>
+                    <span>EVIDÊNCIA DEPOIS</span>
                     <strong>FOTO DEPOIS DA CORRECAO</strong>
                     <input type="file" class="nc-after-photo" accept="image/*" capture="environment">
                     <em>TOQUE PARA FOTOGRAFAR OU ANEXAR IMAGEM.</em>
@@ -1682,9 +1682,9 @@ function buildMaterialOptions(vehicleType = "") {
         return material.ativo !== false && (applyType === "ambos" || applyType === normalizedType);
     });
     if (!materials.length) {
-        return `<option value="">Nenhuma peÃ§a cadastrada ativa</option>`;
+        return `<option value="">Nenhuma peça cadastrada ativa</option>`;
     }
-    const options = [`<option value="">Selecione a peÃ§a cadastrada</option>`];
+    const options = [`<option value="">Selecione a peça cadastrada</option>`];
     materials.forEach((material) => {
         const label = `${material.referencia || "-"} | ${material.descricao || "-"}`;
         options.push(`<option value="${material.id}">${escapeHtml(label.toUpperCase())}</option>`);
@@ -1702,7 +1702,7 @@ async function resolveChecklistNonConformity(card, item) {
     const fileInput = card.querySelector(".nc-after-photo");
     const file = fileInput?.files?.[0];
     if (!file && !item.foto_depois) {
-        showToast("ANEXE A FOTO DEPOIS PARA FINALIZAR A NÃƒO CONFORMIDADE.", true);
+        showToast("ANEXE A FOTO DEPOIS PARA FINALIZAR A NÃO CONFORMIDADE.", true);
         return;
     }
 
@@ -1727,9 +1727,9 @@ async function resolveChecklistNonConformity(card, item) {
         });
         await loadNonConformityHubData();
         renderNonConformities();
-        showToast("NÃƒO CONFORMIDADE DO CHECKLIST RESOLVIDA.");
+        showToast("NÃO CONFORMIDADE DO CHECKLIST RESOLVIDA.");
     } catch (error) {
-        showToast(error.message || "FALHA AO RESOLVER A NÃƒO CONFORMIDADE.", true);
+        showToast(error.message || "FALHA AO RESOLVER A NÃO CONFORMIDADE.", true);
     } finally {
         button.disabled = false;
         button.textContent = "SALVAR RESOLUCAO";
@@ -1746,7 +1746,7 @@ async function resolveMechanicNonConformity(card, item) {
     const fileInput = card.querySelector(".nc-after-photo");
     const file = fileInput?.files?.[0];
     if (!file && !item.foto_depois) {
-        showToast("ANEXE A FOTO DEPOIS PARA FINALIZAR A NÃƒO CONFORMIDADE INTERNA.", true);
+        showToast("ANEXE A FOTO DEPOIS PARA FINALIZAR A NÃO CONFORMIDADE INTERNA.", true);
         return;
     }
 
@@ -1770,9 +1770,9 @@ async function resolveMechanicNonConformity(card, item) {
         });
         await loadNonConformityHubData();
         renderNonConformities();
-        showToast("NÃƒO CONFORMIDADE INTERNA RESOLVIDA.");
+        showToast("NÃO CONFORMIDADE INTERNA RESOLVIDA.");
     } catch (error) {
-        showToast(error.message || "FALHA AO RESOLVER A NÃƒO CONFORMIDADE INTERNA.", true);
+        showToast(error.message || "FALHA AO RESOLVER A NÃO CONFORMIDADE INTERNA.", true);
     } finally {
         button.disabled = false;
         button.textContent = "SALVAR RESOLUCAO";
@@ -1786,13 +1786,13 @@ async function createMechanicNonConformity(event) {
     }
     const itemName = elements.mechanicNcItemName?.value?.trim() || "";
     if (!itemName) {
-        showToast("INFORME O NOME DA NÃƒO CONFORMIDADE INTERNA.", true);
+        showToast("INFORME O NOME DA NÃO CONFORMIDADE INTERNA.", true);
         return;
     }
 
     const beforeFile = elements.mechanicNcBeforePhoto?.files?.[0];
     if (!beforeFile) {
-        showToast("ANEXE A FOTO ANTES PARA ABRIR A NÃƒO CONFORMIDADE INTERNA.", true);
+        showToast("ANEXE A FOTO ANTES PARA ABRIR A NÃO CONFORMIDADE INTERNA.", true);
         return;
     }
 
@@ -1823,13 +1823,13 @@ async function createMechanicNonConformity(event) {
         clearPreview(elements.mechanicNcBeforePreview);
         await loadNonConformityHubData();
         renderNonConformities();
-        showToast("NÃƒO CONFORMIDADE INTERNA ABERTA COM SUCESSO.");
+        showToast("NÃO CONFORMIDADE INTERNA ABERTA COM SUCESSO.");
     } catch (error) {
-        showToast(error.message || "FALHA AO ABRIR A NÃƒO CONFORMIDADE INTERNA.", true);
+        showToast(error.message || "FALHA AO ABRIR A NÃO CONFORMIDADE INTERNA.", true);
     } finally {
         if (createButton) {
             createButton.disabled = false;
-            createButton.textContent = "ABRIR NÃƒO CONFORMIDADE INTERNA";
+            createButton.textContent = "ABRIR NÃO CONFORMIDADE INTERNA";
         }
     }
 }
@@ -2014,7 +2014,7 @@ async function withChecklistQueueStore(mode, action) {
     return withOfflineStore(CHECKLIST_QUEUE_STORE, mode, action);
 }
 
-async function addChecklistToQueue(draft, reason = "SEM CONEXÃƒO") {
+async function addChecklistToQueue(draft, reason = "SEM CONEXÃO") {
     const queued = {
         ...draft,
         id: createQueueId(),
@@ -2146,7 +2146,7 @@ async function restoreActiveChecklistDraft() {
     );
     if (!shouldRestore) {
         localStorage.removeItem(ACTIVE_CHECKLIST_DRAFT_KEY);
-        showToast("RETORNO AUTOMÃTICO DO CHECKLIST CANCELADO.");
+        showToast("RETORNO AUTOMÁTICO DO CHECKLIST CANCELADO.");
         return false;
     }
     await selectVehicle(vehicle, { restoreDraft: true });
@@ -2202,7 +2202,7 @@ async function restoreChecklistDraft(vehicleId) {
             }
             evidenceBox?.classList.add("has-file");
             if (hint) {
-                hint.textContent = `EVIDENCIA RESTAURADA: ${saved.foto_antes_name || saved.foto_antes_file.name || "ARQUIVO SALVO"}.`;
+                hint.textContent = `EVIDÊNCIA RESTAURADA: ${saved.foto_antes_name || saved.foto_antes_file.name || "ARQUIVO SALVO"}.`;
                 hint.classList.add("ok");
             }
         }
@@ -2247,7 +2247,7 @@ async function refreshSyncQueuePanel() {
 async function syncPendingChecklists({ silent = false } = {}) {
     if (!state.token || !navigator.onLine) {
         if (!silent) {
-            showToast("SEM CONEXÃƒO PARA SINCRONIZAR.", true);
+            showToast("SEM CONEXÃO PARA SINCRONIZAR.", true);
         }
         return;
     }
@@ -2257,7 +2257,7 @@ async function syncPendingChecklists({ silent = false } = {}) {
     if (!pending.length) {
         await refreshSyncQueuePanel();
         if (!silent) {
-            showToast("NÃƒO HÃ CHECKLIST PENDENTE PARA SINCRONIZAR.");
+            showToast("NÃO HÁ CHECKLIST PENDENTE PARA SINCRONIZAR.");
         }
         return;
     }
@@ -2294,7 +2294,7 @@ async function syncPendingChecklists({ silent = false } = {}) {
         renderHome();
         showToast(`${synced} CHECKLIST${synced === 1 ? "" : "S"} SINCRONIZADO${synced === 1 ? "" : "S"}.`);
     } else if (!silent) {
-        showToast("NÃƒO FOI POSSÃVEL SINCRONIZAR A FILA.", true);
+        showToast("NÃO FOI POSSÍVEL SINCRONIZAR A FILA.", true);
     }
 }
 
@@ -2311,7 +2311,7 @@ function renderVehicles() {
 
     elements.userSummary.innerHTML = `
         <div>
-            <span>USUÃRIO</span>
+            <span>USUÁRIO</span>
             <strong>${escapeHtml(state.user.nome)}</strong>
         </div>
         <div>
@@ -2345,7 +2345,7 @@ function renderVehicles() {
         card.innerHTML = `
             <span class="vehicle-type">${escapeHtml(String(vehicle.tipo || "-").toUpperCase())}</span>
             <strong>${escapeHtml(vehicle.frota || "-")}</strong>
-            <span>${escapeHtml(String(vehicle.modelo || "MODELO NÃƒO INFORMADO").toUpperCase())}</span>
+            <span>${escapeHtml(String(vehicle.modelo || "MODELO NÃO INFORMADO").toUpperCase())}</span>
             <small>PLACA ${escapeHtml(vehicle.placa || "-")} | ${escapeHtml(String(vehicle.local || "SEM LOCAL").toUpperCase())}</small>
         `;
         card.addEventListener("click", () => selectVehicle(vehicle));
@@ -2362,7 +2362,7 @@ function renderActivities() {
         elements.activitiesList.innerHTML = `
             <article class="empty-state">
                 <strong>NENHUMA ATIVIDADE ABERTA.</strong>
-                <span>AS ATIVIDADES CRIADAS NO DESKTOP APARECERÃƒO AQUI.</span>
+                <span>AS ATIVIDADES CRIADAS NO DESKTOP APARECERÃO AQUI.</span>
             </article>
         `;
         return;
@@ -2377,7 +2377,7 @@ function renderActivities() {
             <span class="vehicle-type">${escapeHtml(activity.tipo_equipamento || "-")}</span>
             <strong>${escapeHtml(String(activity.titulo || activity.item_nome || "ATIVIDADE").toUpperCase())}</strong>
             <span>${escapeHtml(String(activity.item_nome || "-").toUpperCase())}</span>
-            <small>${resumo.pendentes || 0} PENDENTES | ${resumo.instalados || 0} INSTALADOS | ${resumo.nao_instalados || 0} NÃƒO INSTALADOS${activity.assigned_mechanic ? ` | DIRECIONADO: ${escapeHtml(String(activity.assigned_mechanic.nome || "").toUpperCase())}` : ""}</small>
+            <small>${resumo.pendentes || 0} PENDENTES | ${resumo.instalados || 0} INSTALADOS | ${resumo.nao_instalados || 0} NÃO INSTALADOS${activity.assigned_mechanic ? ` | DIRECIONADO: ${escapeHtml(String(activity.assigned_mechanic.nome || "").toUpperCase())}` : ""}</small>
         `;
         card.addEventListener("click", () => selectActivity(activity.id));
         elements.activitiesList.appendChild(card);
@@ -2402,7 +2402,7 @@ function renderActivityDetail() {
     elements.activitySummary.innerHTML = `
         <div>
             <strong>${escapeHtml(String(activity.item_nome || "-").toUpperCase())}</strong>
-            <span>${resumo.pendentes || 0} PENDENTES | ${resumo.instalados || 0} INSTALADOS | ${resumo.nao_instalados || 0} NÃƒO INSTALADOS</span>
+            <span>${resumo.pendentes || 0} PENDENTES | ${resumo.instalados || 0} INSTALADOS | ${resumo.nao_instalados || 0} NÃO INSTALADOS</span>
         </div>
         <div class="progress-track" aria-hidden="true">
             <span style="width:${items.length ? Math.round(((items.length - (resumo.pendentes || 0)) / items.length) * 100) : 0}%"></span>
@@ -2440,24 +2440,24 @@ function makeActivityItemCard(activity, item, index) {
             <button type="button" class="status-button ok" data-status="INSTALADO">INSTALADO</button>
         </div>
         <label>
-            <span>OBSERVAÃ‡ÃƒO DA ATIVIDADE</span>
-            <textarea placeholder="DESCREVA A EXECUÃ‡ÃƒO, PENDÃŠNCIA OU RESTRIÃ‡ÃƒO">${escapeHtml(item.observacao || "")}</textarea>
+            <span>OBSERVAÇÃO DA ATIVIDADE</span>
+            <textarea placeholder="DESCREVA A EXECUÇÃO, PENDÊNCIA OU RESTRIÇÃO">${escapeHtml(item.observacao || "")}</textarea>
         </label>
         <label class="evidence-input">
-            <span>EVIDÃŠNCIA ANTES</span>
-            <strong>FOTO ANTES DA EXECUÃ‡ÃƒO</strong>
+            <span>EVIDÊNCIA ANTES</span>
+            <strong>FOTO ANTES DA EXECUÇÃO</strong>
             <input type="file" data-photo="before" accept="image/*" capture="environment">
-            <em>${item.foto_antes ? "FOTO ANTES JÃ VINCULADA." : "TOQUE PARA FOTOGRAFAR OU ANEXAR IMAGEM."}</em>
+            <em>${item.foto_antes ? "FOTO ANTES JÁ VINCULADA." : "TOQUE PARA FOTOGRAFAR OU ANEXAR IMAGEM."}</em>
         </label>
-        <img class="photo-preview before-preview" alt="PRÃ‰VIA DA EVIDÃŠNCIA ANTES">
+        <img class="photo-preview before-preview" alt="PRÉVIA DA EVIDÊNCIA ANTES">
         <label class="evidence-input">
-            <span>EVIDÃŠNCIA DEPOIS</span>
-            <strong>FOTO DEPOIS DA EXECUÃ‡ÃƒO</strong>
+            <span>EVIDÊNCIA DEPOIS</span>
+            <strong>FOTO DEPOIS DA EXECUÇÃO</strong>
             <input type="file" data-photo="after" accept="image/*" capture="environment">
-            <em>${item.foto_depois ? "FOTO DEPOIS JÃ VINCULADA." : "TOQUE PARA FOTOGRAFAR OU ANEXAR IMAGEM."}</em>
+            <em>${item.foto_depois ? "FOTO DEPOIS JÁ VINCULADA." : "TOQUE PARA FOTOGRAFAR OU ANEXAR IMAGEM."}</em>
         </label>
-        <img class="photo-preview after-preview" alt="PRÃ‰VIA DA EVIDÃŠNCIA DEPOIS">
-        <button type="button" class="primary-button activity-save-button">SALVAR EVIDÃŠNCIA</button>
+        <img class="photo-preview after-preview" alt="PRÉVIA DA EVIDÊNCIA DEPOIS">
+        <button type="button" class="primary-button activity-save-button">SALVAR EVIDÊNCIA</button>
         ${canShare ? `<button type="button" class="share-button activity-share-button">COMPARTILHAR NO WHATSAPP</button>` : ""}
     `;
 
@@ -2465,7 +2465,7 @@ function makeActivityItemCard(activity, item, index) {
     const beforeHint = beforeInput?.closest(".evidence-input")?.querySelector("em");
     const beforePreview = card.querySelector(".before-preview");
     if (beforeHint) {
-        beforeHint.textContent = beforePath ? "FOTO ANTES JÃ VINCULADA." : "TOQUE PARA FOTOGRAFAR OU ANEXAR IMAGEM.";
+        beforeHint.textContent = beforePath ? "FOTO ANTES JÁ VINCULADA." : "TOQUE PARA FOTOGRAFAR OU ANEXAR IMAGEM.";
     }
     if (beforeInput && originLocked) {
         beforeInput.disabled = true;
@@ -2479,7 +2479,7 @@ function makeActivityItemCard(activity, item, index) {
     const afterHint = afterInput?.closest(".evidence-input")?.querySelector("em");
     const afterPreview = card.querySelector(".after-preview");
     if (afterHint) {
-        afterHint.textContent = afterPath ? "FOTO DEPOIS JÃ VINCULADA." : "TOQUE PARA FOTOGRAFAR OU ANEXAR IMAGEM.";
+        afterHint.textContent = afterPath ? "FOTO DEPOIS JÁ VINCULADA." : "TOQUE PARA FOTOGRAFAR OU ANEXAR IMAGEM.";
     }
     if (afterPreview && afterPhoto) {
         afterPreview.src = afterPhoto;
@@ -2571,7 +2571,7 @@ async function submitActivityItem(card, activity, item) {
         showToast(error.message, true);
     } finally {
         saveButton.disabled = false;
-        saveButton.textContent = "SALVAR EVIDÃŠNCIA";
+        saveButton.textContent = "SALVAR EVIDÊNCIA";
     }
 }
 
@@ -2587,7 +2587,7 @@ function getWashScheduleItems() {
 async function submitWashEvidence(card, item) {
     const status = card.dataset.status;
     if (!status) {
-        showToast("SELECIONE LAVADO OU NÃƒO LEVADO.", true);
+        showToast("SELECIONE LAVADO OU NÃO LEVADO.", true);
         return;
     }
 
@@ -2605,7 +2605,7 @@ async function submitWashEvidence(card, item) {
                     queue_item_id: item.queue_item_id,
                     data: item.scheduled_date,
                     turno: item.scheduled_shift || "MANHA",
-                    motivo: notes || "VEÃCULO NÃƒO LEVADO PARA LAVAGEM.",
+                    motivo: notes || "VEÍCULO NÃO LEVADO PARA LAVAGEM.",
                 }),
             });
         } else {
@@ -2728,7 +2728,7 @@ function shareActivityItem(activity, item) {
         `Atividade: ${activity.item_nome || activity.titulo || "-"}`,
         `Equipamento: ${vehicle.frota || "-"} | Placa: ${vehicle.placa || "-"}`,
         `Status: ${String(item.status_execucao || "-").replace("_", " ")}`,
-        item.observacao ? `ObservaÃ§Ã£o: ${item.observacao}` : "",
+        item.observacao ? `Observação: ${item.observacao}` : "",
     ], photoPath);
     shareText(title, message);
 }
@@ -2890,7 +2890,7 @@ function renderWashDayPanel(days) {
         </section>
         <section class="wash-shift-tabs" role="tablist" aria-label="Filtro por turno">
             <button type="button" class="wash-shift-tab ${state.selectedWashShiftTab === "TODOS" ? "active" : ""}" data-shift="TODOS">TODOS</button>
-            <button type="button" class="wash-shift-tab ${state.selectedWashShiftTab === "MANHA" ? "active" : ""}" data-shift="MANHA">MANHÃƒ</button>
+            <button type="button" class="wash-shift-tab ${state.selectedWashShiftTab === "MANHA" ? "active" : ""}" data-shift="MANHA">MANHÃ</button>
             <button type="button" class="wash-shift-tab ${state.selectedWashShiftTab === "TARDE" ? "active" : ""}" data-shift="TARDE">TARDE</button>
         </section>
     `;
@@ -2906,7 +2906,7 @@ function renderWashDayPanel(days) {
         elements.washesList.innerHTML = `
             <article class="empty-state">
                 <strong>NENHUMA LAVAGEM PROGRAMADA PARA ESTE DIA.</strong>
-                <span>USE AS SETAS DO MÃŠS OU TOQUE EM UM DIA COM PROGRAMAÃ‡ÃƒO.</span>
+                <span>USE AS SETAS DO MÊS OU TOQUE EM UM DIA COM PROGRAMAÇÃO.</span>
             </article>
         `;
         return;
@@ -2914,7 +2914,7 @@ function renderWashDayPanel(days) {
 
     const activeShift = state.selectedWashShiftTab || "TODOS";
     if (activeShift === "TODOS" || activeShift === "MANHA") {
-        renderWashShift("MANHÃƒ", morningItems);
+        renderWashShift("MANHÃ", morningItems);
     }
     if (activeShift === "TODOS" || activeShift === "TARDE") {
         renderWashShift("TARDE", afternoonItems);
@@ -2927,12 +2927,12 @@ function renderWashShift(title, items) {
     section.innerHTML = `
         <div class="wash-shift-title">
             <strong>${title}</strong>
-            <span>${items.length} VEÃCULO${items.length === 1 ? "" : "S"}</span>
+            <span>${items.length} VEÍCULO${items.length === 1 ? "" : "S"}</span>
         </div>
     `;
 
     if (!items.length) {
-        section.innerHTML += `<article class="empty-state compact"><strong>SEM VEÃCULOS NESTE TURNO.</strong></article>`;
+        section.innerHTML += `<article class="empty-state compact"><strong>SEM VEÍCULOS NESTE TURNO.</strong></article>`;
         elements.washesList.appendChild(section);
         return;
     }
@@ -2988,7 +2988,7 @@ async function changeMaintenanceMonth(delta) {
 
 async function exportWashMonthPdf() {
     if (!hasWashReportAccess()) {
-        showToast("SOMENTE GESTOR OU ADMINISTRADOR PODE EXPORTAR O RELATÃ“RIO.", true);
+        showToast("SOMENTE GESTOR OU ADMINISTRADOR PODE EXPORTAR O RELATÓRIO.", true);
         return;
     }
 
@@ -3000,9 +3000,9 @@ async function exportWashMonthPdf() {
             button.textContent = "GERANDO";
         }
         await downloadAuthorizedFile(`/lavagens/relatorio/pdf?ano=${state.washYear}&mes=${state.washMonth}`, filename);
-        showToast("RELATÃ“RIO DE LAVAGEM GERADO.");
+        showToast("RELATÓRIO DE LAVAGEM GERADO.");
     } catch (error) {
-        showToast(error.message || "NÃƒO FOI POSSÃVEL GERAR O RELATÃ“RIO.", true);
+        showToast(error.message || "NÃO FOI POSSÍVEL GERAR O RELATÓRIO.", true);
     } finally {
         if (button) {
             button.disabled = false;
@@ -3015,7 +3015,7 @@ function makeWashCard(item, index) {
     const status = item.status_execucao || "PENDENTE";
     const isWashed = status === "LAVADO";
     const isNotTaken = status === "NAO_CUMPRIDO" || status === "NAO_LEVADO";
-    const statusLabel = isWashed ? "LAVADO" : isNotTaken ? "NÃƒO LEVADO" : "PENDENTE";
+    const statusLabel = isWashed ? "LAVADO" : isNotTaken ? "NÃO LEVADO" : "PENDENTE";
     const evidenceUrl = item.foto_path ? makeAbsoluteUrl(item.foto_path) : "";
     const showTrailerField = canAttachTrailerToWash(item);
     const card = document.createElement("article");
@@ -3041,23 +3041,23 @@ function makeWashCard(item, index) {
         </div>
         ${isWashed ? `
             <div class="wash-closed">
-                <strong>PARECER JÃ REGISTRADO COMO LAVADO.</strong>
+                <strong>PARECER JÁ REGISTRADO COMO LAVADO.</strong>
                 <span>${escapeHtml(String(item.categoria_lavagem || "-").toUpperCase())}</span>
             </div>
-            ${evidenceUrl ? `<img class="photo-preview visible" src="${evidenceUrl}" alt="EVIDÃŠNCIA DA LAVAGEM">` : ""}
+            ${evidenceUrl ? `<img class="photo-preview visible" src="${evidenceUrl}" alt="EVIDÊNCIA DA LAVAGEM">` : ""}
             <button type="button" class="share-button wash-share-button">COMPARTILHAR NO WHATSAPP</button>
         ` : `
             <div class="status-group activity-status-group" role="group" aria-label="Status da lavagem">
                 <button type="button" class="status-button ok" data-status="LAVADO">LAVADO</button>
-                <button type="button" class="status-button nc ${isNotTaken ? "active" : ""}" data-status="NAO_LEVADO">NÃƒO LEVADO</button>
+                <button type="button" class="status-button nc ${isNotTaken ? "active" : ""}" data-status="NAO_LEVADO">NÃO LEVADO</button>
             </div>
             <label>
                 <span>LOCAL DA LAVAGEM</span>
                 <input type="text" class="wash-location" placeholder="INFORME O LOCAL">
             </label>
             <label>
-                <span>OBSERVAÃ‡ÃƒO / MOTIVO</span>
-                <textarea class="wash-notes" placeholder="DESCREVA A EVIDÃŠNCIA OU O MOTIVO DE NÃƒO TER SIDO LEVADO">${escapeHtml(item.status_motivo || "")}</textarea>
+                <span>OBSERVAÇÃO / MOTIVO</span>
+                <textarea class="wash-notes" placeholder="DESCREVA A EVIDÊNCIA OU O MOTIVO DE NÃO TER SIDO LEVADO">${escapeHtml(item.status_motivo || "")}</textarea>
             </label>
             ${showTrailerField ? `
                 <label class="wash-trailer-field">
@@ -3069,12 +3069,12 @@ function makeWashCard(item, index) {
                 </label>
             ` : ""}
             <label class="evidence-input">
-                <span>EVIDÃŠNCIA DA LAVAGEM</span>
-                <strong>FOTO DO VEÃCULO LEVADO / LAVADO</strong>
+                <span>EVIDÊNCIA DA LAVAGEM</span>
+                <strong>FOTO DO VEÍCULO LEVADO / LAVADO</strong>
                 <input type="file" accept="image/*" capture="environment">
                 <em>TOQUE PARA FOTOGRAFAR OU ANEXAR IMAGEM.</em>
             </label>
-            <img class="photo-preview" alt="PRÃ‰VIA DA EVIDÃŠNCIA DA LAVAGEM">
+            <img class="photo-preview" alt="PRÉVIA DA EVIDÊNCIA DA LAVAGEM">
             <button type="button" class="primary-button wash-save-button">SALVAR PARECER</button>
         `}
     `;
@@ -3131,7 +3131,7 @@ async function selectVehicle(vehicle, options = {}) {
     const modules = buildModules(items);
 
     elements.checklistTitle.textContent = `${vehicle.frota} - ${vehicle.modelo}`;
-    elements.checklistSubtitle.textContent = `${items.length} ITENS OBRIGATÃ“RIOS PARA ${String(vehicle.tipo || "").toUpperCase()}.`;
+    elements.checklistSubtitle.textContent = `${items.length} ITENS OBRIGATÓRIOS PARA ${String(vehicle.tipo || "").toUpperCase()}.`;
     elements.checklistForm.innerHTML = "";
 
     renderModuleTabs(modules);
@@ -3237,8 +3237,8 @@ function updateEvidenceInputState(fileInput, { restoredName = "" } = {}) {
         const fileName = file?.name || restoredName || "ARQUIVO SALVO";
         evidenceBox.classList.add("has-file");
         hint.textContent = restored && !file
-            ? `EVIDENCIA RESTAURADA: ${fileName}.`
-            : `EVIDENCIA ANEXADA: ${fileName}.`;
+            ? `EVIDÊNCIA RESTAURADA: ${fileName}.`
+            : `EVIDÊNCIA ANEXADA: ${fileName}.`;
         hint.classList.add("ok");
         return;
     }
@@ -3258,7 +3258,7 @@ function renderChecklistModules(modules) {
         section.innerHTML = `
             <div class="module-header">
                 <div>
-                    <span>MÃ“DULO</span>
+                    <span>MÓDULO</span>
                     <strong>${escapeHtml(module.name)}</strong>
                 </div>
                 <em>${module.items.length} ITENS</em>
@@ -3288,26 +3288,26 @@ function makeChecklistCard(item, moduleName, index) {
         </div>
         ${itemPhotoUrl ? `
             <figure class="reference-photo">
-                <figcaption>FOTO DE REFERÃŠNCIA DO ITEM</figcaption>
-                <img src="${itemPhotoUrl}" alt="FOTO DE REFERÃŠNCIA DO ITEM ${escapeHtml(itemName)}">
+                <figcaption>FOTO DE REFERÊNCIA DO ITEM</figcaption>
+                <img src="${itemPhotoUrl}" alt="FOTO DE REFERÊNCIA DO ITEM ${escapeHtml(itemName)}">
             </figure>
         ` : ""}
         <div class="status-group" role="group" aria-label="Status do item">
             <button type="button" class="status-button ok" data-status="OK">OK</button>
-            <button type="button" class="status-button nc" data-status="NC">NÃƒO CONFORMIDADE</button>
+            <button type="button" class="status-button nc" data-status="NC">NÃO CONFORMIDADE</button>
         </div>
         <div class="nc-fields">
             <label>
-                    <span>OBSERVAÃ‡ÃƒO DA NÃƒO CONFORMIDADE</span>
+                    <span>OBSERVAÇÃO DA NÃO CONFORMIDADE</span>
                     <textarea placeholder="DESCREVA A FALHA ENCONTRADA"></textarea>
             </label>
             <label class="evidence-input">
                 <span>TIPO DA FOTO ANEXADA</span>
-                <strong>EVIDÃŠNCIA DA NÃƒO CONFORMIDADE</strong>
+                <strong>EVIDÊNCIA DA NÃO CONFORMIDADE</strong>
                 <input type="file" accept="image/*" capture="environment">
                 <em>TOQUE PARA FOTOGRAFAR OU ANEXAR IMAGEM</em>
             </label>
-            <img class="photo-preview" alt="PRÃ‰VIA DA EVIDÃŠNCIA ANEXADA">
+            <img class="photo-preview" alt="PRÉVIA DA EVIDÊNCIA ANEXADA">
         </div>
     `;
 
@@ -3394,7 +3394,7 @@ function updateProgress() {
     const nextPendingCard = cards.find((card) => !card.dataset.status);
     const nextPendingLabel = nextPendingCard?.dataset?.itemName || "";
 
-    elements.checklistProgress.textContent = `${done} DE ${total} AVALIADOS | ${nc} NÃƒO CONFORMIDADES`;
+    elements.checklistProgress.textContent = `${done} DE ${total} AVALIADOS | ${nc} NÃO CONFORMIDADES`;
     elements.progressBar.style.width = `${percent}%`;
     if (!total) {
         elements.checklistSubtitle.textContent = "CARREGANDO ITENS DO CHECKLIST.";
@@ -3408,7 +3408,7 @@ function updateProgress() {
         return;
     }
     elements.checklistSubtitle.textContent = nc
-        ? `CHECKLIST PREENCHIDO. REVISE AS ${nc} NAO CONFORMIDADE${nc === 1 ? "" : "S"} E ENVIE QUANDO ESTIVER PRONTO.`
+        ? `CHECKLIST PREENCHIDO. REVISE AS ${nc} NÃO CONFORMIDADE${nc === 1 ? "" : "S"} E ENVIE QUANDO ESTIVER PRONTO.`
         : "CHECKLIST COMPLETO. TUDO PREENCHIDO E PRONTO PARA ENVIO.";
 }
 
@@ -3470,7 +3470,7 @@ function findChecklistIssue() {
         if (!card.dataset.status) {
             return {
                 card,
-                message: `SELECIONE OK OU NAO CONFORMIDADE PARA O ITEM ${card.dataset.itemName}.`,
+                message: `SELECIONE OK OU NÃO CONFORMIDADE PARA O ITEM ${card.dataset.itemName}.`,
             };
         }
         if (card.dataset.status === "NC") {
@@ -3481,14 +3481,14 @@ function findChecklistIssue() {
                 return {
                     card,
                     focusTarget: textarea,
-                    message: `INFORME A OBSERVACAO PARA ${card.dataset.itemName}.`,
+                    message: `INFORME A OBSERVAÇÃO PARA ${card.dataset.itemName}.`,
                 };
             }
             if (!fileInput?.files?.[0] && !storedDraftFile) {
                 return {
                     card,
                     focusTarget: fileInput,
-                    message: `ANEXE A EVIDENCIA DA NAO CONFORMIDADE PARA ${card.dataset.itemName}.`,
+                    message: `ANEXE A EVIDÊNCIA DA NÃO CONFORMIDADE PARA ${card.dataset.itemName}.`,
                 };
             }
         }
@@ -3518,7 +3518,7 @@ function revealChecklistIssue(issue) {
 function classifyModule(itemName) {
     const name = normalizeText(itemName);
     if (includesAny(name, ["farol", "lanterna", "luz", "seta", "pisca", "milha", "posicao"])) {
-        return "ILUMINAÃ‡ÃƒO";
+        return "ILUMINAÇÃO";
     }
     if (includesAny(name, ["painel", "botao", "anomalia", "indicador", "buzina", "cinto", "banco", "ar-condicionado", "parabrisa", "limpador", "retrovisor"])) {
         return "CABINE E PAINEL";
@@ -3536,7 +3536,7 @@ function classifyModule(itemName) {
         return "EXTERNO E ACESSOS";
     }
     if (includesAny(name, ["extintor", "emergencia", "seguranca"])) {
-        return "SEGURANÃ‡A OPERACIONAL";
+        return "SEGURANÇA OPERACIONAL";
     }
     return "OUTROS";
 }
@@ -3636,7 +3636,7 @@ async function collectChecklistDraft() {
     for (const card of cards) {
         const status = card.dataset.status;
         if (!status) {
-            throw new Error(`SELECIONE OK OU NÃƒO CONFORMIDADE PARA O ITEM ${card.dataset.itemName}.`);
+            throw new Error(`SELECIONE OK OU NÃO CONFORMIDADE PARA O ITEM ${card.dataset.itemName}.`);
         }
 
         const item = {
@@ -3652,10 +3652,10 @@ async function collectChecklistDraft() {
             const file = fileInput.files[0] || restoredItem?.foto_antes_file;
 
             if (!textarea.value.trim()) {
-                throw new Error(`INFORME A OBSERVAÃ‡ÃƒO PARA ${card.dataset.itemName}.`);
+                throw new Error(`INFORME A OBSERVAÇÃO PARA ${card.dataset.itemName}.`);
             }
             if (!file) {
-                throw new Error(`ANEXE A EVIDÃŠNCIA DA NÃƒO CONFORMIDADE PARA ${card.dataset.itemName}.`);
+                throw new Error(`ANEXE A EVIDÊNCIA DA NÃO CONFORMIDADE PARA ${card.dataset.itemName}.`);
             }
 
             item.observacao = textarea.value.trim();
@@ -3720,8 +3720,8 @@ function showChecklistSuccess(draft, result = null, queued = false) {
     elements.successSummary.innerHTML = `
         <strong>${escapeHtml(draft.vehicle.frota)}</strong>
         <span>${queued ? "SALVO OFFLINE EM" : "ENVIADO EM"} ${when.toLocaleString("pt-BR")}</span>
-        <span>NÃƒO CONFORMIDADES REGISTRADAS: ${totalNc}</span>
-        ${queued ? "<span>SERÃ SINCRONIZADO AUTOMATICAMENTE QUANDO A CONEXÃƒO VOLTAR.</span>" : ""}
+        <span>NÃO CONFORMIDADES REGISTRADAS: ${totalNc}</span>
+        ${queued ? "<span>SERÁ SINCRONIZADO AUTOMATICAMENTE QUANDO A CONEXÃO VOLTAR.</span>" : ""}
     `;
     deleteChecklistDraft(draft.vehicle.id).catch(() => {});
     setActiveScreen("success");
@@ -3742,7 +3742,7 @@ async function submitChecklist() {
         const draft = await collectChecklistDraft();
 
         if (!navigator.onLine) {
-            await addChecklistToQueue(draft, "CHECKLIST SALVO SEM CONEXÃƒO.");
+            await addChecklistToQueue(draft, "CHECKLIST SALVO SEM CONEXÃO.");
             showChecklistSuccess(draft, null, true);
             showToast("CHECKLIST SALVO OFFLINE.");
             return;
@@ -3757,9 +3757,9 @@ async function submitChecklist() {
             if (!isOfflineError(error)) {
                 throw error;
             }
-            await addChecklistToQueue(draft, "FALHA DE CONEXÃƒO NO ENVIO.");
+            await addChecklistToQueue(draft, "FALHA DE CONEXÃO NO ENVIO.");
             showChecklistSuccess(draft, null, true);
-            showToast("CONEXÃƒO FALHOU. CHECKLIST FICOU NA FILA OFFLINE.");
+            showToast("CONEXÃO FALHOU. CHECKLIST FICOU NA FILA OFFLINE.");
         }
     } catch (error) {
         showToast(error.message, true);
@@ -3853,7 +3853,7 @@ async function submitPasswordReset(event) {
         return;
     }
     if (newPassword !== confirmPassword) {
-        showToast("AS SENHAS NAO CONFEREM.", true);
+        showToast("AS SENHAS NÃO CONFEREM.", true);
         elements.passwordConfirmInput?.focus();
         return;
     }
@@ -3882,7 +3882,7 @@ async function submitPasswordReset(event) {
         showToast("SENHA ATUALIZADA COM SUCESSO.");
         closePasswordResetModal();
     } catch (error) {
-        showToast(error.message || "NAO FOI POSSIVEL ATUALIZAR A SENHA.", true);
+        showToast(error.message || "NÃO FOI POSSÍVEL ATUALIZAR A SENHA.", true);
     } finally {
         if (elements.homeChangePasswordButton) {
             elements.homeChangePasswordButton.disabled = false;
