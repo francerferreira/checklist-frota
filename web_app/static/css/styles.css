@@ -8,6 +8,7 @@
     --page-top: #0b4c9d;
     --page-mid: #1f73bf;
     --page-bottom: #edf4fb;
+    --hero-band-end: 142px;
     --card: #ffffff;
     --card-soft: #f8fbff;
     --card-muted: #f3f7fc;
@@ -50,7 +51,7 @@ body {
     font-family: "Bahnschrift", "Segoe UI Variable Text", "Segoe UI", sans-serif;
     background:
         radial-gradient(circle at top left, rgba(255, 255, 255, 0.20), transparent 24%),
-        linear-gradient(180deg, var(--page-top) 0, var(--page-mid) 142px, var(--page-bottom) 142px),
+        linear-gradient(180deg, var(--page-top) 0, var(--page-mid) var(--hero-band-end), var(--page-bottom) var(--hero-band-end)),
         var(--page);
     color: var(--ink);
     overflow-x: hidden;
@@ -702,6 +703,10 @@ textarea {
 }
 
 @media (max-width: 760px) {
+    :root {
+        --hero-band-end: 242px;
+    }
+
     .screen-heading {
         display: grid;
         min-height: auto;
@@ -2068,7 +2073,7 @@ textarea {
 @media (max-width: 380px) {
     body {
         background:
-            linear-gradient(180deg, var(--page-top) 0, var(--page-mid) 138px, var(--page) 138px),
+            linear-gradient(180deg, var(--page-top) 0, var(--page-mid) var(--hero-band-end), var(--page) var(--hero-band-end)),
             var(--page);
     }
 
