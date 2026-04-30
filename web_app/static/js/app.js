@@ -19,6 +19,8 @@ const ACTIVE_CHECKLIST_DRAFT_KEY = "activeChecklistDraftVehicleId";
 const SESSION_STARTED_AT_KEY = "sessionStartedAt";
 const SESSION_MAX_AGE_MS = 8 * 60 * 60 * 1000;
 const appTopbar = document.querySelector(".app-topbar");
+const PULL_REFRESH_TRIGGER_PX = 84;
+const PULL_REFRESH_MAX_PX = 112;
 
 function readJsonStorage(key, fallback = null) {
     try {
@@ -102,6 +104,8 @@ const screens = {
 };
 
 const elements = {
+    mobileShell: document.querySelector(".mobile-shell"),
+    pullRefreshIndicator: document.getElementById("pull-refresh-indicator"),
     apiBaseUrl: document.getElementById("api-base-url"),
     loginForm: document.getElementById("login-form"),
     loginButton: document.getElementById("login-button"),
@@ -137,6 +141,8 @@ const elements = {
     passwordConfirmInput: document.getElementById("password-confirm-input"),
     passwordChangeCancel: document.getElementById("password-change-cancel"),
     passwordChangeSubmit: document.getElementById("password-change-submit"),
+    photoViewerModal: document.getElementById("photo-viewer-modal"),
+    photoViewerImage: document.getElementById("photo-viewer-image"),
     openChecklistMenu: document.getElementById("open-checklist-menu"),
     openChecklistHistoryMenu: document.getElementById("open-checklist-history-menu"),
     openActivitiesMenu: document.getElementById("open-activities-menu"),
@@ -203,6 +209,14 @@ const elements = {
 };
 
 let passwordModalFocusOrigin = null;
+let photoViewerFocusOrigin = null;
+const pullRefresh = {
+    active: false,
+    armed: false,
+    refreshing: false,
+    startY: 0,
+    distance: 0,
+};
 
 elements.apiBaseUrl.value = state.apiBaseUrl;
 updateConnectionStatus();
@@ -299,7 +313,7 @@ function setActiveScreen(key) {
     const isEntryScreen = key === "login";
     document.body.classList.toggle("entry-screen", isEntryScreen);
     appTopbar?.classList.toggle("hidden", isEntryScreen);
-    document.querySelector(".mobile-shell")?.scrollTo({ top: 0, behavior: "auto" });
+    elements.mobileShell?.scrollTo({ top: 0, behavior: "auto" });
 }
 
 async function apiFetch(path, options = {}) {
@@ -1821,6 +1835,7 @@ async function createMechanicNonConformity(event) {
         });
         elements.mechanicNcCreateForm.reset();
         clearPreview(elements.mechanicNcBeforePreview);
+        updateEvidenceInputState(elements.mechanicNcBeforePhoto);
         await loadNonConformityHubData();
         renderNonConformities();
         showToast("NÃO CONFORMIDADE INTERNA ABERTA COM SUCESSO.");
@@ -1841,6 +1856,7 @@ function bindPhotoPreview(fileInput, previewElement) {
     const file = fileInput.files?.[0];
     if (!file) {
         clearPreview(previewElement);
+        updateEvidenceInputState(fileInput);
         return;
     }
     if (previewElement.dataset.objectUrl) {
@@ -1850,6 +1866,8 @@ function bindPhotoPreview(fileInput, previewElement) {
     previewElement.dataset.objectUrl = objectUrl;
     previewElement.src = objectUrl;
     previewElement.classList.add("visible");
+    previewElement.dataset.zoomLabel = previewElement.alt || "PRÉVIA DA EVIDÊNCIA";
+    updateEvidenceInputState(fileInput);
 }
 
 function clearPreview(previewElement) {
@@ -1862,6 +1880,120 @@ function clearPreview(previewElement) {
         URL.revokeObjectURL(previewElement.dataset.objectUrl);
         delete previewElement.dataset.objectUrl;
     }
+    delete previewElement.dataset.zoomLabel;
+}
+
+function openPhotoViewer(sourceUrl, label = "Visualização ampliada da evidência") {
+    if (!elements.photoViewerModal || !elements.photoViewerImage || !sourceUrl) {
+        return;
+    }
+    photoViewerFocusOrigin = document.activeElement instanceof HTMLElement ? document.activeElement : null;
+    elements.photoViewerImage.src = sourceUrl;
+    elements.photoViewerImage.alt = label;
+    elements.photoViewerModal.classList.remove("hidden");
+    document.body.classList.add("modal-open");
+}
+
+function closePhotoViewer() {
+    if (!elements.photoViewerModal || elements.photoViewerModal.classList.contains("hidden")) {
+        return;
+    }
+    elements.photoViewerModal.classList.add("hidden");
+    if (elements.photoViewerImage) {
+        elements.photoViewerImage.removeAttribute("src");
+        elements.photoViewerImage.alt = "Visualização ampliada da evidência";
+    }
+    document.body.classList.remove("modal-open");
+    if (photoViewerFocusOrigin && document.contains(photoViewerFocusOrigin)) {
+        photoViewerFocusOrigin.focus();
+    }
+    photoViewerFocusOrigin = null;
+}
+
+function setPullRefreshDistance(distance, label = "PUXE PARA ATUALIZAR") {
+    if (!elements.mobileShell || !elements.pullRefreshIndicator) {
+        return;
+    }
+    elements.mobileShell.style.setProperty("--pull-distance", `${distance}px`);
+    elements.pullRefreshIndicator.textContent = label;
+}
+
+function resetPullRefresh() {
+    if (!elements.mobileShell) {
+        return;
+    }
+    pullRefresh.active = false;
+    pullRefresh.armed = false;
+    pullRefresh.distance = 0;
+    elements.mobileShell.classList.remove("is-pulling", "pull-refresh-ready", "pull-refresh-loading");
+    setPullRefreshDistance(0, "PUXE PARA ATUALIZAR");
+}
+
+function triggerPullRefresh() {
+    if (!elements.mobileShell || pullRefresh.refreshing) {
+        return;
+    }
+    pullRefresh.refreshing = true;
+    elements.mobileShell.classList.remove("is-pulling", "pull-refresh-ready");
+    elements.mobileShell.classList.add("pull-refresh-loading");
+    setPullRefreshDistance(64, "ATUALIZANDO...");
+    window.setTimeout(() => {
+        window.location.reload();
+    }, 180);
+}
+
+function initPullToRefresh() {
+    if (!elements.mobileShell) {
+        return;
+    }
+
+    elements.mobileShell.addEventListener("touchstart", (event) => {
+        if (document.body.classList.contains("modal-open") || pullRefresh.refreshing) {
+            return;
+        }
+        if (event.touches.length !== 1 || elements.mobileShell.scrollTop > 0) {
+            pullRefresh.active = false;
+            return;
+        }
+        pullRefresh.active = true;
+        pullRefresh.armed = false;
+        pullRefresh.startY = event.touches[0].clientY;
+        pullRefresh.distance = 0;
+    }, { passive: true });
+
+    elements.mobileShell.addEventListener("touchmove", (event) => {
+        if (!pullRefresh.active || document.body.classList.contains("modal-open")) {
+            return;
+        }
+        const deltaY = event.touches[0].clientY - pullRefresh.startY;
+        if (deltaY <= 0 || elements.mobileShell.scrollTop > 0) {
+            resetPullRefresh();
+            return;
+        }
+        event.preventDefault();
+        pullRefresh.distance = Math.min(PULL_REFRESH_MAX_PX, Math.round(deltaY * 0.42));
+        pullRefresh.armed = pullRefresh.distance >= PULL_REFRESH_TRIGGER_PX;
+        elements.mobileShell.classList.add("is-pulling");
+        elements.mobileShell.classList.toggle("pull-refresh-ready", pullRefresh.armed);
+        setPullRefreshDistance(
+            pullRefresh.distance,
+            pullRefresh.armed ? "SOLTE PARA ATUALIZAR" : "PUXE PARA ATUALIZAR"
+        );
+    }, { passive: false });
+
+    const finishPullGesture = () => {
+        if (!pullRefresh.active) {
+            return;
+        }
+        const shouldRefresh = pullRefresh.armed;
+        resetPullRefresh();
+        if (shouldRefresh) {
+            triggerPullRefresh();
+        }
+    };
+
+    elements.mobileShell.addEventListener("touchend", finishPullGesture);
+    elements.mobileShell.addEventListener("touchcancel", resetPullRefresh);
 }
 
 function attachCollapsibleCard(card, options = {}) {
@@ -2199,10 +2331,11 @@ async function restoreChecklistDraft(vehicleId) {
                 preview.dataset.objectUrl = objectUrl;
                 preview.src = objectUrl;
                 preview.classList.add("visible");
+                preview.dataset.zoomLabel = preview.alt || "PRÉVIA DA EVIDÊNCIA ANEXADA";
             }
             evidenceBox?.classList.add("has-file");
             if (hint) {
-                hint.textContent = `EVIDÊNCIA RESTAURADA: ${saved.foto_antes_name || saved.foto_antes_file.name || "ARQUIVO SALVO"}.`;
+                hint.textContent = "EVIDÊNCIA RESTAURADA. TOQUE NA FOTO PARA AMPLIAR.";
                 hint.classList.add("ok");
             }
         }
@@ -3234,11 +3367,10 @@ function updateEvidenceInputState(fileInput, { restoredName = "" } = {}) {
     const file = fileInput?.files?.[0];
     const restored = fileInput?.dataset?.restoredFile === "true";
     if (file || restored) {
-        const fileName = file?.name || restoredName || "ARQUIVO SALVO";
         evidenceBox.classList.add("has-file");
         hint.textContent = restored && !file
-            ? `EVIDÊNCIA RESTAURADA: ${fileName}.`
-            : `EVIDÊNCIA ANEXADA: ${fileName}.`;
+            ? "EVIDÊNCIA RESTAURADA. TOQUE NA FOTO PARA AMPLIAR."
+            : "EVIDÊNCIA ANEXADA. TOQUE NA FOTO PARA AMPLIAR.";
         hint.classList.add("ok");
         return;
     }
@@ -3304,7 +3436,8 @@ function makeChecklistCard(item, moduleName, index) {
             <label class="evidence-input">
                 <span>TIPO DA FOTO ANEXADA</span>
                 <strong>EVIDÊNCIA DA NÃO CONFORMIDADE</strong>
-                <input type="file" accept="image/*" capture="environment">
+                <span class="camera-trigger" tabindex="0"><span class="camera-trigger-icon" aria-hidden="true"></span><span>CÂMERA</span></span>
+                <input class="camera-input" type="file" accept="image/*" capture="environment">
                 <em>TOQUE PARA FOTOGRAFAR OU ANEXAR IMAGEM</em>
             </label>
             <img class="photo-preview" alt="PRÉVIA DA EVIDÊNCIA ANEXADA">
@@ -3347,7 +3480,7 @@ function makeChecklistCard(item, moduleName, index) {
     textarea?.addEventListener("keydown", (event) => {
         if (event.key === "Enter" && !event.shiftKey) {
             event.preventDefault();
-            focusChecklistCard(card, { focusSelector: "input[type='file']" });
+            focusChecklistCard(card, { focusSelector: ".camera-trigger" });
         }
     });
 
@@ -3371,6 +3504,7 @@ function makeChecklistCard(item, moduleName, index) {
         preview.dataset.objectUrl = objectUrl;
         preview.src = objectUrl;
         preview.classList.add("visible");
+        preview.dataset.zoomLabel = preview.alt || "PRÉVIA DA EVIDÊNCIA ANEXADA";
         delete fileInput.dataset.restoredFile;
         updateEvidenceInputState(fileInput);
         scheduleChecklistDraftSave();
@@ -3964,6 +4098,11 @@ on(elements.passwordModal, "click", (event) => {
         closePasswordResetModal();
     }
 });
+on(elements.photoViewerModal, "click", (event) => {
+    if (event.target?.dataset?.closePhotoViewer === "true") {
+        closePhotoViewer();
+    }
+});
 on(elements.vehiclesBackButton, "click", () => {
     renderHome();
     setActiveScreen("home");
@@ -4050,6 +4189,28 @@ on(elements.mechanicNcBeforePhoto, "change", () => {
     bindPhotoPreview(elements.mechanicNcBeforePhoto, elements.mechanicNcBeforePreview);
 });
 on(elements.mechanicNcCreateForm, "submit", createMechanicNonConformity);
+document.addEventListener("click", (event) => {
+    const target = event.target;
+    if (!(target instanceof HTMLImageElement) || !target.classList.contains("photo-preview")) {
+        return;
+    }
+    const sourceUrl = target.currentSrc || target.getAttribute("src") || "";
+    if (!sourceUrl) {
+        return;
+    }
+    openPhotoViewer(sourceUrl, target.dataset.zoomLabel || target.alt || "Visualização ampliada da evidência");
+});
+document.addEventListener("keydown", (event) => {
+    const target = event.target;
+    if (!(target instanceof HTMLElement) || !target.classList.contains("camera-trigger")) {
+        return;
+    }
+    if (event.key !== "Enter" && event.key !== " ") {
+        return;
+    }
+    event.preventDefault();
+    target.closest(".evidence-input")?.querySelector("input[type='file']")?.click();
+});
 window.addEventListener("online", () => {
     updateConnectionStatus();
     syncPendingChecklists({ silent: true });
@@ -4059,12 +4220,19 @@ window.addEventListener("keydown", (event) => {
     if (event.key === "Escape" && elements.passwordModal && !elements.passwordModal.classList.contains("hidden")) {
         event.preventDefault();
         closePasswordResetModal();
+        return;
+    }
+    if (event.key === "Escape" && elements.photoViewerModal && !elements.photoViewerModal.classList.contains("hidden")) {
+        event.preventDefault();
+        closePhotoViewer();
     }
 });
 
 unregisterServiceWorkers();
 registerServiceWorker();
 window.checklistAppReady = true;
+updateEvidenceInputState(elements.mechanicNcBeforePhoto);
+initPullToRefresh();
 bootstrap();
 
 function unregisterServiceWorkers() {

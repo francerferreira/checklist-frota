@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import base64
 import contextlib
 import os
 import socket
@@ -163,9 +164,17 @@ class WebMobilePlaywrightTests(unittest.TestCase):
         )
         self.page = self.context.new_page()
         self.page.set_default_timeout(15000)
+        self.test_image_path = Path(tempfile.gettempdir()) / "checklist_frota_e2e_camera.jpg"
+        self.test_image_path.write_bytes(
+            base64.b64decode(
+                "/9j/4AAQSkZJRgABAQAAAQABAAD/2wCEAAkGBxAQEBAQEA8QDw8QDw8PDw8PDw8QDxAQFREWFhURFRUYHSggGBolGxUVITEhJSkrLi4uFx8zODMsNygtLisBCgoKDg0OGxAQGy0lHyUtLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLf/AABEIAAEAAQMBEQACEQEDEQH/xAAXAAADAQAAAAAAAAAAAAAAAAAAAQMC/8QAFBABAAAAAAAAAAAAAAAAAAAAAP/aAAwDAQACEAMQAAAB6A//xAAXEAEAAwAAAAAAAAAAAAAAAAABABEh/9oACAEBAAEFAmrf/8QAFBEBAAAAAAAAAAAAAAAAAAAAEP/aAAgBAwEBPwEf/8QAFBEBAAAAAAAAAAAAAAAAAAAAEP/aAAgBAgEBPwEf/8QAFxABAQEBAAAAAAAAAAAAAAAAAREAITFBcf/aAAgBAQAGPwJ1Tj//xAAXEAADAQAAAAAAAAAAAAAAAAABESEx/9oACAEBAAE/IaYw1//aAAwDAQACAAMAAAAQPw//xAAVEQEBAAAAAAAAAAAAAAAAAAABEP/aAAgBAwEBPxBf/8QAFREBAQAAAAAAAAAAAAAAAAAAARD/2gAIAQIBAT8QX//EABgQAQEBAQEAAAAAAAAAAAAAAAERACEx/9oACAEBAAE/EFJpC8R8n//Z"
+            )
+        )
 
     def tearDown(self):
         self.context.close()
+        if self.test_image_path.exists():
+            self.test_image_path.unlink()
 
     def _wait_for_screen(self, screen_id: str) -> None:
         self.page.wait_for_function(
@@ -250,8 +259,21 @@ class WebMobilePlaywrightTests(unittest.TestCase):
         self._wait_for_screen("checklist-screen")
         expect(self.page.locator("#checklist-progress")).to_contain_text("0 DE")
 
-        first_ok_button = self.page.locator(".checklist-item-card .status-button.ok").first
-        first_ok_button.tap()
+        first_card = self.page.locator(".checklist-item-card").first
+        first_card.locator(".status-button.nc").tap()
+        first_card.locator("textarea").fill("LENTE TRINCADA NA INSPEÇÃO E2E")
+        expect(first_card.locator(".camera-trigger")).to_contain_text("CÂMERA")
+        expect(first_card).not_to_contain_text("Escolher arquivo")
+        first_card.locator("input[type='file']").set_input_files(str(self.test_image_path))
+        expect(first_card.locator("em")).to_contain_text("EVIDÊNCIA ANEXADA")
+        expect(first_card).not_to_contain_text(self.test_image_path.name)
+        preview = first_card.locator(".photo-preview")
+        expect(preview).to_be_visible()
+        preview.tap()
+        expect(self.page.locator("#photo-viewer-modal")).to_be_visible()
+        self.assertTrue(self.page.locator("#photo-viewer-image").get_attribute("src"))
+        self.page.keyboard.press("Escape")
+        expect(self.page.locator("#photo-viewer-modal")).to_be_hidden()
         expect(self.page.locator("#checklist-progress")).to_contain_text("1 DE")
 
         self.page.locator("#submit-checklist").tap()
