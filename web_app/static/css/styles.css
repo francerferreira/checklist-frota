@@ -105,6 +105,12 @@ button:disabled {
     overflow-y: auto;
     overscroll-behavior-y: auto;
     -webkit-overflow-scrolling: touch;
+    scrollbar-width: none;
+}
+
+.mobile-shell::-webkit-scrollbar {
+    width: 0;
+    height: 0;
 }
 
 .mobile-shell > :not(.pull-refresh-indicator) {
