@@ -5,7 +5,7 @@
     --line: rgba(122, 140, 166, 0.22);
     --line-strong: rgba(122, 140, 166, 0.34);
     --page: #edf1f5;
-    --page-top: #7f8ea3;
+    --page-top: #0756b5;
     --page-mid: #d8dee6;
     --page-bottom: #edf1f5;
     --hero-band-end: 248px;
@@ -50,8 +50,8 @@ body {
     min-height: 100%;
     font-family: "Bahnschrift", "Segoe UI Variable Text", "Segoe UI", sans-serif;
     background:
-        radial-gradient(circle at top center, rgba(255, 255, 255, 0.22), transparent 26%),
-        linear-gradient(180deg, #7f8ea3 0, #a8b4c3 20%, #cfd7e0 42%, #e7ecf2 68%, var(--page-bottom) 100%),
+        radial-gradient(circle at top center, rgba(255, 255, 255, 0.18), transparent 24%),
+        linear-gradient(180deg, var(--page-top) 0, #0b67cf 18%, #8d9eb4 42%, #d9e0e8 66%, var(--page-bottom) 100%),
         var(--page);
     color: var(--ink);
     overflow-x: hidden;
@@ -2106,7 +2106,7 @@ textarea {
 @media (max-width: 380px) {
     body {
         background:
-            linear-gradient(180deg, #7f8ea3 0, #a8b4c3 26%, #d4dbe4 52%, var(--page-bottom) 100%),
+            linear-gradient(180deg, var(--page-top) 0, #0b67cf 22%, #9aaabe 50%, var(--page-bottom) 100%),
             var(--page);
     }
 
@@ -2255,8 +2255,8 @@ textarea {
 @media (min-width: 760px) {
     body {
         background:
-            radial-gradient(circle at top center, rgba(255, 255, 255, 0.22), transparent 26%),
-            linear-gradient(180deg, #7f8ea3 0, #a8b4c3 20%, #cfd7e0 42%, #e7ecf2 68%, var(--page-bottom) 100%),
+            radial-gradient(circle at top center, rgba(255, 255, 255, 0.18), transparent 24%),
+            linear-gradient(180deg, var(--page-top) 0, #0b67cf 18%, #8d9eb4 42%, #d9e0e8 66%, var(--page-bottom) 100%),
             var(--page);
     }
 
