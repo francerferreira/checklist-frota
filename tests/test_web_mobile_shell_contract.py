@@ -16,7 +16,8 @@ class WebMobileShellContractTests(unittest.TestCase):
         cls.legacy_readme = LEGACY_README_PATH.read_text(encoding="utf-8")
 
     def test_index_uses_canonical_frontend_bundle(self):
-        self.assertIn('./static/js/app.js?v=20260430-02', self.index_html)
+        self.assertIn('./static/js/app.js?v=20260501-01', self.index_html)
+        self.assertIn('./static/css/styles.css?v=20260501-01', self.index_html)
         self.assertNotIn("app-20260419-", self.index_html)
 
     def test_index_does_not_restore_removed_inline_fallbacks(self):
@@ -39,6 +40,9 @@ class WebMobileShellContractTests(unittest.TestCase):
         for fragment in expected_fragments:
             with self.subTest(fragment=fragment):
                 self.assertIn(fragment, self.index_html)
+
+    def test_index_removes_screen_overlines_from_operational_shell(self):
+        self.assertNotIn('class="overline"', self.index_html)
 
     def test_legacy_readme_keeps_app_js_as_single_frontend_reference(self):
         self.assertIn("app.js", self.legacy_readme)

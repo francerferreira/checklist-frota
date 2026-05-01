@@ -4,10 +4,10 @@
     --muted-strong: #415168;
     --line: rgba(122, 140, 166, 0.22);
     --line-strong: rgba(122, 140, 166, 0.34);
-    --page: #f8fbff;
+    --page: #ffffff;
     --page-top: #0b4c9d;
     --page-mid: #1f73bf;
-    --page-bottom: #f8fbff;
+    --page-bottom: #ffffff;
     --hero-band-end: 142px;
     --card: #ffffff;
     --card-soft: #f8fbff;
@@ -204,13 +204,7 @@ button:disabled {
 }
 
 .overline {
-    margin: 0 0 3px;
-    font-size: 0.7rem;
-    font-weight: 800;
-    color: inherit;
-    opacity: 0.76;
-    text-transform: uppercase;
-    letter-spacing: 0.08em;
+    display: none;
 }
 
 .status-pill {
@@ -510,7 +504,7 @@ textarea {
     min-width: 0;
     padding: 11px 12px;
     border-radius: 15px;
-    background: linear-gradient(180deg, #fbfdff, #f3f8fe);
+    background: #ffffff;
     border: 1px solid rgba(7, 86, 181, 0.08);
 }
 
@@ -573,7 +567,7 @@ textarea {
     align-items: center;
     padding: 9px 10px;
     border-radius: 13px;
-    background: linear-gradient(180deg, #f7fbff, #f2f7fd);
+    background: #ffffff;
     border: 1px solid rgba(7, 86, 181, 0.08);
 }
 
@@ -617,9 +611,7 @@ textarea {
     width: 100%;
     padding: 18px;
     border-radius: 20px;
-    background:
-        linear-gradient(135deg, rgba(8, 93, 186, 0.04), transparent 42%),
-        #ffffff;
+    background: #ffffff;
     border: 1px solid rgba(255, 255, 255, 0.72);
     box-shadow: var(--shadow-float);
     text-align: left;
@@ -652,7 +644,7 @@ textarea {
     display: block;
     margin-top: 12px;
     padding: 14px;
-    background: linear-gradient(180deg, #ffffff, #f8fbff);
+    background: #ffffff;
 }
 
 .list-toolbar {
@@ -693,7 +685,7 @@ textarea {
 .history-summary article {
     padding: 12px 13px;
     border-radius: 14px;
-    background: linear-gradient(180deg, #f9fcff, #f1f7ff);
+    background: #ffffff;
     border: 1px solid rgba(7, 86, 181, 0.10);
     box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.72);
 }
@@ -1437,7 +1429,7 @@ textarea {
     height: 9px;
     overflow: hidden;
     border-radius: 999px;
-    background: #dbe7f4;
+    background: #edf3f9;
 }
 
 .progress-track span {
@@ -1527,7 +1519,7 @@ textarea {
     gap: 10px;
     padding: 12px;
     min-width: 0;
-    background: linear-gradient(180deg, rgba(255, 255, 255, 0.98), rgba(247, 251, 255, 0.98));
+    background: #ffffff;
 }
 
 .module-header {
@@ -1568,7 +1560,7 @@ textarea {
     padding: 14px;
     border: 1px solid rgba(122, 140, 166, 0.18);
     border-radius: 17px;
-    background: linear-gradient(180deg, #ffffff, #fbfdff);
+    background: #ffffff;
     min-width: 0;
     max-width: 100%;
     box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.78);
@@ -1656,7 +1648,7 @@ textarea {
     overflow: hidden;
     border: 1px solid rgba(122, 140, 166, 0.16);
     border-radius: 16px;
-    background: linear-gradient(180deg, #f8fbff, #f1f6fd);
+    background: #ffffff;
 }
 
 .reference-photo figcaption {
@@ -1866,7 +1858,7 @@ textarea {
     align-items: start;
     padding: 11px 12px;
     border-radius: 14px;
-    background: #f5f8fc;
+    background: #ffffff;
 }
 
 .nc-report-row strong,
@@ -1913,7 +1905,7 @@ textarea {
     padding: 9px;
     border: 1px solid var(--line);
     border-radius: 14px;
-    background: #f8fbff;
+    background: #ffffff;
 }
 
 .nc-photo-card figcaption {

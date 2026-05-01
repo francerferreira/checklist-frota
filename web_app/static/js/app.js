@@ -1399,7 +1399,7 @@ function makeMaintenanceItemCard(item, index) {
             ${photoAfter ? `
                 <figure class="nc-photo-card">
                     <figcaption>FOTO DEPOIS</figcaption>
-                    <img src="${photoAfter}" alt="Foto depois da manutenção">
+                    ${buildProtectedImageMarkup(photoAfter, "Foto depois da manutenção")}
                 </figure>
             ` : ""}
         ` : `
@@ -1445,6 +1445,7 @@ function makeMaintenanceItemCard(item, index) {
         card.querySelector(".maintenance-not-executed-button")?.addEventListener("click", () => submitMaintenanceItem(card, item, "NAO_EXECUTADO"));
         card.querySelector(".maintenance-reprogram-button")?.addEventListener("click", () => reprogramMaintenanceItem(card, item));
     }
+    hydrateProtectedImages(card);
     attachCollapsibleCard(card);
     return card;
 }
@@ -1557,13 +1558,13 @@ function makeChecklistNonConformityCard(item, index) {
             ${beforePhoto ? `
                 <figure class="nc-photo-card">
                     <figcaption>FOTO ANTES</figcaption>
-                    <img src="${beforePhoto}" alt="Foto antes da não conformidade">
+                    ${buildProtectedImageMarkup(beforePhoto, "Foto antes da não conformidade")}
                 </figure>
             ` : ""}
             ${afterPhoto ? `
                 <figure class="nc-photo-card">
                     <figcaption>FOTO DEPOIS</figcaption>
-                    <img src="${afterPhoto}" alt="Foto depois da não conformidade">
+                    ${buildProtectedImageMarkup(afterPhoto, "Foto depois da não conformidade")}
                 </figure>
             ` : ""}
         </div>
@@ -1605,6 +1606,7 @@ function makeChecklistNonConformityCard(item, index) {
         fileInput?.addEventListener("change", () => bindPhotoPreview(fileInput, preview));
         card.querySelector(".nc-resolve-button")?.addEventListener("click", () => resolveChecklistNonConformity(card, item));
     }
+    hydrateProtectedImages(card);
     attachCollapsibleCard(card);
     return card;
 }
@@ -1634,13 +1636,13 @@ function makeMechanicNonConformityCard(item, index) {
             ${beforePhoto ? `
                 <figure class="nc-photo-card">
                     <figcaption>FOTO ANTES</figcaption>
-                    <img src="${beforePhoto}" alt="Foto antes da não conformidade interna">
+                    ${buildProtectedImageMarkup(beforePhoto, "Foto antes da não conformidade interna")}
                 </figure>
             ` : ""}
             ${afterPhoto ? `
                 <figure class="nc-photo-card">
                     <figcaption>FOTO DEPOIS</figcaption>
-                    <img src="${afterPhoto}" alt="Foto depois da não conformidade interna">
+                    ${buildProtectedImageMarkup(afterPhoto, "Foto depois da não conformidade interna")}
                 </figure>
             ` : ""}
         </div>
@@ -1682,6 +1684,7 @@ function makeMechanicNonConformityCard(item, index) {
         fileInput?.addEventListener("change", () => bindPhotoPreview(fileInput, preview));
         card.querySelector(".nc-resolve-button")?.addEventListener("click", () => resolveMechanicNonConformity(card, item));
     }
+    hydrateProtectedImages(card);
     attachCollapsibleCard(card);
     return card;
 }
@@ -3177,7 +3180,7 @@ function makeWashCard(item, index) {
                 <strong>PARECER JÁ REGISTRADO COMO LAVADO.</strong>
                 <span>${escapeHtml(String(item.categoria_lavagem || "-").toUpperCase())}</span>
             </div>
-            ${evidenceUrl ? `<img class="photo-preview visible" src="${evidenceUrl}" alt="EVIDÊNCIA DA LAVAGEM">` : ""}
+            ${evidenceUrl ? buildProtectedImageMarkup(evidenceUrl, "EVIDÊNCIA DA LAVAGEM", { className: "photo-preview", showWhenLoaded: true }) : ""}
             <button type="button" class="share-button wash-share-button">COMPARTILHAR NO WHATSAPP</button>
         ` : `
             <div class="status-group activity-status-group" role="group" aria-label="Status da lavagem">
@@ -3214,6 +3217,7 @@ function makeWashCard(item, index) {
 
     if (isWashed) {
         card.querySelector(".wash-share-button")?.addEventListener("click", () => shareWashItem(item));
+        hydrateProtectedImages(card);
         attachCollapsibleCard(card);
         return card;
     }
@@ -3251,6 +3255,7 @@ function makeWashCard(item, index) {
     });
 
     card.querySelector(".wash-save-button").addEventListener("click", () => submitWashEvidence(card, item));
+    hydrateProtectedImages(card);
     attachCollapsibleCard(card);
     return card;
 }
@@ -3421,7 +3426,7 @@ function makeChecklistCard(item, moduleName, index) {
         ${itemPhotoUrl ? `
             <figure class="reference-photo">
                 <figcaption>FOTO DE REFERÊNCIA DO ITEM</figcaption>
-                <img src="${itemPhotoUrl}" alt="FOTO DE REFERÊNCIA DO ITEM ${escapeHtml(itemName)}">
+                ${buildProtectedImageMarkup(itemPhotoUrl, `FOTO DE REFERÊNCIA DO ITEM ${itemName}`)}
             </figure>
         ` : ""}
         <div class="status-group" role="group" aria-label="Status do item">
@@ -3515,6 +3520,7 @@ function makeChecklistCard(item, moduleName, index) {
     });
 
     updateEvidenceInputState(fileInput);
+    hydrateProtectedImages(card);
     return card;
 }
 
@@ -3695,6 +3701,66 @@ function makeAbsoluteUrl(path) {
         return path;
     }
     return `${state.apiBaseUrl}${path}`;
+}
+
+function buildProtectedImageMarkup(sourceUrl, alt, { className = "", showWhenLoaded = false } = {}) {
+    if (!sourceUrl) {
+        return "";
+    }
+    const classAttribute = className ? ` class="${className}"` : "";
+    const visibilityAttribute = showWhenLoaded ? ' data-show-when-loaded="true"' : "";
+    return `<img${classAttribute} data-protected-src="${escapeHtml(sourceUrl)}"${visibilityAttribute} alt="${escapeHtml(alt)}">`;
+}
+
+async function loadProtectedImage(imageElement) {
+    if (!(imageElement instanceof HTMLImageElement)) {
+        return;
+    }
+    const sourceUrl = imageElement.dataset.protectedSrc || "";
+    if (!sourceUrl) {
+        return;
+    }
+
+    try {
+        const response = await fetch(sourceUrl, {
+            headers: {
+                Authorization: state.token ? `Bearer ${state.token}` : "",
+            },
+        });
+        if (!response.ok) {
+            throw new Error(`Falha ao carregar imagem: ${response.status}`);
+        }
+        const blob = await response.blob();
+        if (imageElement.dataset.objectUrl) {
+            URL.revokeObjectURL(imageElement.dataset.objectUrl);
+        }
+        const objectUrl = URL.createObjectURL(blob);
+        imageElement.dataset.objectUrl = objectUrl;
+        imageElement.src = objectUrl;
+        if (imageElement.dataset.showWhenLoaded === "true" || imageElement.classList.contains("photo-preview")) {
+            imageElement.classList.add("visible");
+        }
+        imageElement.dataset.zoomLabel = imageElement.alt || "VISUALIZAÇÃO AMPLIADA DA EVIDÊNCIA";
+        imageElement.classList.remove("photo-load-error");
+    } catch {
+        imageElement.classList.add("photo-load-error");
+        if (imageElement.classList.contains("photo-preview")) {
+            imageElement.classList.remove("visible");
+        }
+    }
+}
+
+function hydrateProtectedImages(container = document) {
+    if (!container?.querySelectorAll) {
+        return;
+    }
+    container.querySelectorAll("img[data-protected-src]").forEach((imageElement) => {
+        if (imageElement.dataset.imageHydrated === "true") {
+            return;
+        }
+        imageElement.dataset.imageHydrated = "true";
+        void loadProtectedImage(imageElement);
+    });
 }
 
 async function uploadImage(file, itemName, moduleName) {
