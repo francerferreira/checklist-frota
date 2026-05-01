@@ -243,6 +243,9 @@ function resolveApiBaseUrl() {
 }
 
 function updateConnectionStatus() {
+    if (!elements.connectionStatus) {
+        return;
+    }
     elements.connectionStatus.textContent = navigator.onLine ? "ONLINE" : "OFFLINE";
     elements.connectionStatus.classList.toggle("offline", !navigator.onLine);
 }
