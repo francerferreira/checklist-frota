@@ -488,6 +488,62 @@ textarea {
     align-self: center;
 }
 
+#cloud-admin-panel {
+    gap: 16px;
+    padding: 18px;
+    border-radius: 24px;
+    background: linear-gradient(180deg, rgba(255, 255, 255, 0.98), rgba(246, 250, 255, 0.96));
+    border: 1px solid rgba(255, 255, 255, 0.5);
+    box-shadow: 0 18px 40px rgba(15, 23, 42, 0.08);
+}
+
+#cloud-admin-panel span {
+    color: #6b7d96;
+    text-shadow: none;
+}
+
+#cloud-admin-panel strong {
+    color: #08111f;
+    text-shadow: none;
+}
+
+#cloud-admin-panel .icon-button {
+    min-height: 54px;
+    padding: 0 22px;
+    border-radius: 18px;
+    border: 1px solid rgba(7, 86, 181, 0.14);
+    background: linear-gradient(180deg, #f8fbff, #eaf2ff);
+    box-shadow: 0 10px 20px rgba(7, 86, 181, 0.08);
+}
+
+#cloud-admin-panel .sync-list {
+    gap: 10px;
+}
+
+#cloud-admin-panel .sync-row {
+    padding: 14px 14px;
+    border-radius: 18px;
+    background: #ffffff;
+    border: 1px solid rgba(122, 140, 166, 0.12);
+    box-shadow: 0 8px 18px rgba(15, 23, 42, 0.04);
+}
+
+#cloud-admin-panel .sync-row strong {
+    color: #2c3e57;
+    font-size: 0.98rem;
+}
+
+#cloud-admin-panel .sync-row span {
+    margin-top: 4px;
+    color: #5f7390;
+    font-size: 0.84rem;
+}
+
+#cloud-admin-panel .sync-row em {
+    min-width: 42px;
+    text-align: center;
+}
+
 .sync-list {
     grid-column: 1 / -1;
     display: grid;
@@ -2202,6 +2258,15 @@ textarea {
     .sync-panel {
         grid-template-columns: 1fr;
         padding: 0;
+    }
+
+    #cloud-admin-panel {
+        padding: 16px;
+        border-radius: 20px;
+    }
+
+    #cloud-admin-panel .icon-button {
+        width: 100%;
     }
 
     .sync-panel .icon-button {
