@@ -42,6 +42,10 @@ class ChecklistItem(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     checklist_id = db.Column(db.Integer, db.ForeignKey("checklists.id"), nullable=False, index=True)
     item_nome = db.Column(db.String(160), nullable=False, index=True)
+    item_principal = db.Column(db.String(160), nullable=True, index=True)
+    parte = db.Column(db.String(80), nullable=True, index=True)
+    tipo_agrupamento = db.Column(db.String(40), nullable=True, index=True)
+    item_origem = db.Column(db.String(160), nullable=True)
     status = db.Column(db.String(2), nullable=False, index=True)
     observacao = db.Column(db.Text, nullable=True)
     foto_antes = db.Column(db.String(255), nullable=True)
@@ -60,11 +64,22 @@ class ChecklistItem(db.Model):
         db.CheckConstraint("status IN ('OK', 'NC')", name="ck_checklist_item_status"),
     )
 
+    @property
+    def item_label(self) -> str:
+        principal = (self.item_principal or self.item_nome or "").strip()
+        part = (self.parte or "").strip()
+        return f"{principal} - {part}" if part else principal
+
     def to_dict(self) -> dict:
         return {
             "id": self.id,
             "checklist_id": self.checklist_id,
             "item_nome": self.item_nome,
+            "item_principal": self.item_principal or self.item_nome,
+            "parte": self.parte,
+            "item_label": self.item_label,
+            "tipo_agrupamento": self.tipo_agrupamento or "simples",
+            "item_origem": self.item_origem or self.item_nome,
             "status": self.status,
             "observacao": self.observacao,
             "foto_antes": self.foto_antes,

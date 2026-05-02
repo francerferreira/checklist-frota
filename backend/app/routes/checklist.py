@@ -10,6 +10,8 @@ from app.services.auth_service import auth_required, user_has_management_access
 from app.services.checklist_catalog import (
     CHECKLIST_CATALOG,
     build_checklist_catalog,
+    classify_catalog_item_group,
+    enrich_catalog_item_payload,
     get_items_for_vehicle_type,
     normalize_item_name,
 )
@@ -132,7 +134,7 @@ def list_checklist_items():
         ChecklistCatalogItem.position.asc(),
         ChecklistCatalogItem.item_nome.asc(),
     ).all()
-    return api_response(True, data=[item.to_dict() for item in rows])
+    return api_response(True, data=[enrich_catalog_item_payload(item.to_dict()) for item in rows])
 
 
 @bp.post("/checklist-itens")
@@ -154,7 +156,7 @@ def create_checklist_item():
     except IntegrityError:
         db.session.rollback()
         return api_response(False, error="Já existe um item com este nome para este tipo de equipamento.", status_code=409)
-    return api_response(True, data=item.to_dict(), status_code=201)
+    return api_response(True, data=enrich_catalog_item_payload(item.to_dict()), status_code=201)
 
 
 @bp.put("/checklist-itens/<int:item_id>")
@@ -175,7 +177,7 @@ def update_checklist_item(item_id: int):
     except IntegrityError:
         db.session.rollback()
         return api_response(False, error="Já existe um item com este nome para este tipo de equipamento.", status_code=409)
-    return api_response(True, data=item.to_dict())
+    return api_response(True, data=enrich_catalog_item_payload(item.to_dict()))
 
 
 @bp.delete("/checklist-itens/<int:item_id>")
@@ -188,7 +190,7 @@ def delete_checklist_item(item_id: int):
     item = ChecklistCatalogItem.query.get_or_404(item_id)
     item.ativo = False
     db.session.commit()
-    return api_response(True, data=item.to_dict())
+    return api_response(True, data=enrich_catalog_item_payload(item.to_dict()))
 
 
 @bp.post("/checklist")
@@ -232,9 +234,14 @@ def create_checklist():
             db.session.rollback()
             return api_response(False, error=f"Foto antes obrigatória para NC no item {item_name}.", status_code=400)
 
+        grouping = classify_catalog_item_group(resolved_vehicle_type, item_name)
         item = ChecklistItem(
             checklist_id=checklist.id,
             item_nome=item_name,
+            item_principal=grouping["item_principal"],
+            parte=grouping.get("parte"),
+            tipo_agrupamento=grouping["tipo_agrupamento"],
+            item_origem=grouping["item_origem"],
             status=status,
             observacao=(item_payload.get("observacao") or "").strip() or None,
             foto_antes=foto_antes,

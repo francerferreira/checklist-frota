@@ -23,6 +23,10 @@ from services.export_service import export_non_conformity_pdf, export_vehicle_de
 from theme import build_dialog_layout, configure_dialog_window, configure_table, make_table_item, style_card, style_table_card
 
 
+def _nc_label(item: dict) -> str:
+    return item.get("item_label") or item.get("item_nome") or "-"
+
+
 class NonConformityDetailDialog(QDialog):
     def __init__(self, api_client, item: dict, parent=None):
         super().__init__(parent)
@@ -53,7 +57,7 @@ class NonConformityDetailDialog(QDialog):
         icon_layout.addWidget(icon_label)
 
         title_wrap = QVBoxLayout()
-        title = QLabel(f"{item['veiculo']['frota']} - {item['item_nome']}")
+        title = QLabel(f"{item['veiculo']['frota']} - {_nc_label(item)}")
         title.setObjectName("DialogHeaderTitle")
         subtitle = QLabel(
             f"Ocorrência registrada em {self._format(item.get('created_at'))} - "
@@ -107,6 +111,7 @@ class NonConformityDetailDialog(QDialog):
                     f"Veículo: {item['veiculo'].get('frota') or '-'}",
                     f"Placa: {item['veiculo'].get('placa') or '-'}",
                     f"Modelo: {item['veiculo'].get('modelo') or '-'}",
+                    f"Item: {_nc_label(item)}",
                     f"Motorista: {item['usuario'].get('nome') or '-'}",
                     f"Status: {'Resolvida' if item.get('resolvido') else 'Aberta'}",
                     f"Código da peça: {item.get('codigo_peca') or '-'}",
@@ -316,7 +321,7 @@ class VehicleDetailDialog(QDialog):
                 {
                     "date": item.get("created_at"),
                     "origin": "Não conformidade",
-                    "item": item.get("item_nome") or "-",
+                    "item": _nc_label(item),
                     "status": "Resolvida" if item.get("resolvido") else "Aberta",
                     "owner": item.get("usuario", {}).get("nome") or "-",
                     "occurrence": item,

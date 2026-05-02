@@ -99,6 +99,29 @@ class ExportServiceTests(unittest.TestCase):
         self.assertTrue(path.exists())
         self.assertGreater(path.stat().st_size, 1000)
 
+    def test_export_open_non_conformity_pdf_creates_file_with_only_origin_evidence(self):
+        path = self.output_dir / "ocorrencia_aberta.pdf"
+        item = {
+            "veiculo": {"frota": "CV801", "tipo": "cavalo", "placa": "ABC-1234", "modelo": "Scania"},
+            "usuario": {"nome": "Motorista"},
+            "item_nome": "Farol baixo",
+            "resolvido": False,
+            "codigo_peca": None,
+            "descricao_peca": None,
+            "observacao": "Aguardando tratativa",
+            "created_at": "2026-04-11T12:00:00",
+            "data_resolucao": None,
+        }
+        export_non_conformity_pdf(
+            item,
+            output_path=path,
+            generated_by="Administrador",
+            before_image=self.sample_png,
+            after_image=self.sample_png,
+        )
+        self.assertTrue(path.exists())
+        self.assertGreater(path.stat().st_size, 1000)
+
     def test_export_vehicle_detail_pdf_creates_file(self):
         path = self.output_dir / "equipamento.pdf"
         vehicle = {

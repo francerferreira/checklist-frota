@@ -1563,6 +1563,60 @@ textarea {
     scroll-margin-top: 92px;
 }
 
+.checklist-group-card {
+    display: grid;
+    gap: 10px;
+    padding: 12px;
+    border: 1px solid rgba(42, 89, 160, 0.18);
+    border-radius: 17px;
+    background: #f8fbff;
+    min-width: 0;
+}
+
+.checklist-group-header {
+    display: grid;
+    grid-template-columns: 38px 1fr;
+    gap: 10px;
+    align-items: center;
+}
+
+.checklist-group-header > span {
+    display: grid;
+    place-items: center;
+    height: 38px;
+    border-radius: 12px;
+    background: var(--blue);
+    color: #fff;
+    font-weight: 900;
+}
+
+.checklist-group-header strong,
+.checklist-group-header em {
+    display: block;
+}
+
+.checklist-group-header strong {
+    font-size: 1rem;
+}
+
+.checklist-group-header em {
+    margin-top: 2px;
+    color: var(--muted);
+    font-size: 0.72rem;
+    font-style: normal;
+    font-weight: 900;
+}
+
+.checklist-group-items {
+    display: grid;
+    gap: 10px;
+}
+
+.checklist-part-card {
+    border-radius: 13px;
+    background: #fff;
+}
+
 .checklist-card.card-attention {
     border-color: rgba(245, 158, 11, 0.72);
     box-shadow: 0 0 0 4px rgba(245, 158, 11, 0.18);
@@ -1637,6 +1691,15 @@ textarea {
     margin: 0;
     font-size: 0.98rem;
     line-height: 1.25;
+}
+
+.item-topline em {
+    display: block;
+    margin-top: 2px;
+    color: var(--muted);
+    font-size: 0.72rem;
+    font-style: normal;
+    font-weight: 800;
 }
 
 .reference-photo {

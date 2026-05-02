@@ -41,16 +41,17 @@ def _average_minutes(values: list[float]) -> float | None:
 
 
 def build_macro_report() -> list[dict]:
+    item_principal = func.coalesce(ChecklistItem.item_principal, ChecklistItem.item_nome)
     rows = (
         db.session.query(
-            ChecklistItem.item_nome,
+            item_principal.label("item_nome"),
             func.count(ChecklistItem.id).label("total_nc"),
             func.sum(case((ChecklistItem.resolvido.is_(False), 1), else_=0)).label("abertas"),
             func.sum(case((ChecklistItem.resolvido.is_(True), 1), else_=0)).label("resolvidas"),
         )
         .filter(ChecklistItem.status == "NC")
-        .group_by(ChecklistItem.item_nome)
-        .order_by(desc("total_nc"), ChecklistItem.item_nome.asc())
+        .group_by(item_principal)
+        .order_by(desc("total_nc"), item_principal.asc())
         .all()
     )
     return [
@@ -119,6 +120,8 @@ def build_item_report(
         query = query.filter(
             or_(
                 ChecklistItem.item_nome.ilike(search),
+                ChecklistItem.item_principal.ilike(search),
+                ChecklistItem.parte.ilike(search),
                 Vehicle.frota.ilike(search),
                 Vehicle.placa.ilike(search),
                 Vehicle.modelo.ilike(search),

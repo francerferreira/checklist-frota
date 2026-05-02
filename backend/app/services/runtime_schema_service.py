@@ -4,6 +4,7 @@ from sqlalchemy import inspect, text
 
 from app.extensions import db
 from app.models.activity import ActivityNonConformityLink
+from app.services.checklist_catalog import classify_catalog_item_group
 
 
 _CHECKLIST_CATALOG_ALLOWED_TYPES = (
@@ -104,6 +105,62 @@ def _ensure_checklist_catalog_constraint(inspector) -> None:
         _ensure_checklist_catalog_constraint_postgres()
 
 
+def _ensure_column(table_name: str, columns: set[str], column_name: str, column_sql: str) -> None:
+    if column_name not in columns:
+        db.session.execute(text(f"ALTER TABLE {table_name} ADD COLUMN {column_name} {column_sql}"))
+        db.session.commit()
+        columns.add(column_name)
+
+
+def _backfill_checklist_item_grouping() -> None:
+    rows = db.session.execute(
+        text(
+            """
+            SELECT checklist_items.id, checklist_items.item_nome, vehicles.tipo AS vehicle_type
+            FROM checklist_items
+            JOIN checklists ON checklists.id = checklist_items.checklist_id
+            JOIN vehicles ON vehicles.id = checklists.vehicle_id
+            WHERE checklist_items.item_principal IS NULL
+               OR checklist_items.tipo_agrupamento IS NULL
+               OR checklist_items.item_origem IS NULL
+            """
+        )
+    ).mappings().all()
+    if not rows:
+        return
+
+    for row in rows:
+        try:
+            grouping = classify_catalog_item_group(row["vehicle_type"], row["item_nome"])
+        except ValueError:
+            grouping = {
+                "item_principal": (row["item_nome"] or "").strip().upper(),
+                "parte": None,
+                "tipo_agrupamento": "simples",
+                "item_origem": (row["item_nome"] or "").strip().upper(),
+            }
+        db.session.execute(
+            text(
+                """
+                UPDATE checklist_items
+                SET item_principal = :item_principal,
+                    parte = :parte,
+                    tipo_agrupamento = :tipo_agrupamento,
+                    item_origem = :item_origem
+                WHERE id = :id
+                """
+            ),
+            {
+                "id": row["id"],
+                "item_principal": grouping["item_principal"],
+                "parte": grouping.get("parte"),
+                "tipo_agrupamento": grouping["tipo_agrupamento"],
+                "item_origem": grouping["item_origem"],
+            },
+        )
+    db.session.commit()
+
+
 def ensure_runtime_schema() -> None:
     inspector = inspect(db.engine)
 
@@ -118,9 +175,14 @@ def ensure_runtime_schema() -> None:
 
     if "checklist_items" in inspector.get_table_names():
         columns = {column["name"] for column in inspector.get_columns("checklist_items")}
+        _ensure_column("checklist_items", columns, "item_principal", "VARCHAR(160)")
+        _ensure_column("checklist_items", columns, "parte", "VARCHAR(80)")
+        _ensure_column("checklist_items", columns, "tipo_agrupamento", "VARCHAR(40)")
+        _ensure_column("checklist_items", columns, "item_origem", "VARCHAR(160)")
         if "resolved_by_user_id" not in columns:
             db.session.execute(text("ALTER TABLE checklist_items ADD COLUMN resolved_by_user_id INTEGER"))
             db.session.commit()
+        _backfill_checklist_item_grouping()
 
     if "activities" in inspector.get_table_names():
         columns = {column["name"] for column in inspector.get_columns("activities")}

@@ -22,6 +22,14 @@ from components import TableSkeletonOverlay, ask_confirmation, make_icon, show_n
 from theme import build_dialog_layout, configure_dialog_window, configure_table, make_table_item, style_card, style_filter_bar, style_table_card
 
 
+def _grouping_labels(item: dict) -> tuple[str, str, str]:
+    grouping = item.get("agrupamento") or {}
+    group_type = (grouping.get("tipo_agrupamento") or "simples").replace("_", " ").title()
+    parent_item = grouping.get("item_principal") or item.get("item_nome") or "-"
+    part = grouping.get("parte") or "-"
+    return group_type, parent_item, part
+
+
 class ChecklistItemDialog(QDialog):
     def __init__(self, api_client, item: dict | None = None, parent=None):
         super().__init__(parent)
@@ -96,6 +104,15 @@ class ChecklistItemDialog(QDialog):
 
         self.active_checkbox = QCheckBox("Item ativo")
         self.active_checkbox.setChecked(bool(self.item.get("ativo", True)))
+        group_type, parent_item, part = _grouping_labels(self.item)
+        self.group_type_label = QLabel(group_type)
+        self.group_type_label.setObjectName("MutedText")
+        self.parent_item_label = QLabel(parent_item)
+        self.parent_item_label.setObjectName("MutedText")
+        self.parent_item_label.setWordWrap(True)
+        self.part_label = QLabel(part)
+        self.part_label.setObjectName("MutedText")
+        self.part_label.setWordWrap(True)
 
         self.file_label = QLabel(self.item.get("foto_path") or "Nenhuma foto selecionada.")
         self.file_label.setObjectName("MutedText")
@@ -121,6 +138,9 @@ class ChecklistItemDialog(QDialog):
         add_field(0, 0, "Nome do item", self.name_input)
         add_field(0, 1, "Tipo de equipamento", self.type_combo)
         add_field(1, 0, "Ordem", self.position_spin)
+        add_field(2, 0, "Regra de agrupamento", self.group_type_label)
+        add_field(2, 1, "Item principal", self.parent_item_label)
+        add_field(3, 0, "Parte interna", self.part_label)
 
         photo_field = QFrame()
         photo_field.setObjectName("DialogInfoBlock")
@@ -139,7 +159,7 @@ class ChecklistItemDialog(QDialog):
         photo_layout.addWidget(photo_title)
         photo_layout.addLayout(photo_actions)
         photo_layout.addWidget(self.active_checkbox, 0, Qt.AlignLeft)
-        form.addWidget(photo_field, 1, 1)
+        form.addWidget(photo_field, 3, 1)
 
         footer = QFrame()
         footer.setObjectName("DialogFooter")
@@ -298,8 +318,8 @@ class ChecklistItemsPage(QFrame):
         top.addStretch()
         top.addWidget(self.summary_badge)
 
-        self.table = QTableWidget(0, 6)
-        self.table.setHorizontalHeaderLabels(["Ordem", "Tipo", "Item", "Foto", "Ativo", "ID"])
+        self.table = QTableWidget(0, 8)
+        self.table.setHorizontalHeaderLabels(["Ordem", "Tipo", "Item", "Agrupamento", "Parte", "Foto", "Ativo", "ID"])
         configure_table(self.table, stretch_last=False)
         self.table.setMinimumHeight(560)
         self.table.itemSelectionChanged.connect(self._selection_changed)
@@ -332,10 +352,13 @@ class ChecklistItemsPage(QFrame):
         try:
             self.table.setRowCount(len(self.items))
             for row, item in enumerate(self.items):
+                group_type, parent_item, part = _grouping_labels(item)
                 values = [
                     str(item.get("position") or ""),
                     (item.get("tipo") or item.get("vehicle_type") or "-").title(),
                     item.get("item_nome") or "-",
+                    parent_item if group_type != "Simples" else "Simples",
+                    part,
                     "Sim" if item.get("foto_path") else "Não",
                     "Sim" if item.get("ativo") else "Não",
                     str(item.get("id") or ""),

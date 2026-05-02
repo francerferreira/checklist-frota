@@ -307,6 +307,93 @@ CHECKLIST_CATALOG = {
     "van": VAN_ITEMS,
 }
 
+CHECKLIST_ITEM_GROUP_RULES = {
+    "cavalo": [
+        {
+            "item_principal": "FAROL",
+            "tipo_agrupamento": "lado",
+            "partes": [
+                {"item_origem": "FAROL ESQUERDO", "parte": "LADO ESQUERDO"},
+                {"item_origem": "FAROL DIREITO", "parte": "LADO DIREITO"},
+            ],
+        },
+        {
+            "item_principal": "LUZ DE MILHA",
+            "tipo_agrupamento": "lado",
+            "partes": [
+                {"item_origem": "LUZ DE MILHA ESQUERDA", "parte": "LADO ESQUERDO"},
+                {"item_origem": "LUZ DE MILHA DIREITA", "parte": "LADO DIREITO"},
+            ],
+        },
+        {
+            "item_principal": "LUZ DE POSICAO",
+            "tipo_agrupamento": "lado",
+            "partes": [
+                {"item_origem": "LUZ DE POSICAO ESQUERDA", "parte": "LADO ESQUERDO"},
+                {"item_origem": "LUZ DE POSICAO DIREITA", "parte": "LADO DIREITO"},
+            ],
+        },
+        {
+            "item_principal": "SETAS E PISCA-ALERTA",
+            "tipo_agrupamento": "lado",
+            "partes": [
+                {"item_origem": "SETAS E PISCA-ALERTA LADO ESQUERDO", "parte": "LADO ESQUERDO"},
+                {"item_origem": "SETAS E PISCA-ALERTA LADO DIREITO", "parte": "LADO DIREITO"},
+            ],
+        },
+        {
+            "item_principal": "ESCADA DE ACESSO",
+            "tipo_agrupamento": "lado",
+            "partes": [
+                {"item_origem": "ESCADA DE ACESSO LADO ESQUERDO", "parte": "LADO ESQUERDO"},
+                {"item_origem": "ESCADA DE ACESSO LADO DIREITO", "parte": "LADO DIREITO"},
+            ],
+        },
+        {
+            "item_principal": "PARALAMAS",
+            "tipo_agrupamento": "lado",
+            "partes": [
+                {"item_origem": "PARALAMAS ESQUERDO", "parte": "LADO ESQUERDO"},
+                {"item_origem": "PARALAMAS DIREITO", "parte": "LADO DIREITO"},
+            ],
+        },
+        {
+            "item_principal": "GRADE DO FAROL",
+            "tipo_agrupamento": "lado",
+            "partes": [
+                {"item_origem": "GRADE DO FAROL ESQUERDO", "parte": "LADO ESQUERDO"},
+                {"item_origem": "GRADE DO FAROL DIREITO", "parte": "LADO DIREITO"},
+            ],
+        },
+        {
+            "item_principal": "RETROVISOR",
+            "tipo_agrupamento": "lado",
+            "partes": [
+                {"item_origem": "RETROVISOR ESQUERDO", "parte": "LADO ESQUERDO"},
+                {"item_origem": "RETROVISOR DIREITO", "parte": "LADO DIREITO"},
+            ],
+        },
+    ],
+    "carreta": [
+        {
+            "item_principal": "LANTERNA TRASEIRA",
+            "tipo_agrupamento": "lado",
+            "partes": [
+                {"item_origem": "LANTERNA TRASEIRA ESQUERDA", "parte": "LADO ESQUERDO"},
+                {"item_origem": "LANTERNA TRASEIRA DIREITA", "parte": "LADO DIREITO"},
+            ],
+        },
+        {
+            "item_principal": "PARALAMAS",
+            "tipo_agrupamento": "lado",
+            "partes": [
+                {"item_origem": "PARALAMAS ESQUERDO", "parte": "LADO ESQUERDO"},
+                {"item_origem": "PARALAMAS DIREITO", "parte": "LADO DIREITO"},
+            ],
+        },
+    ],
+}
+
 DEPRECATED_CATALOG_ITEMS = {
     "cavalo": [
         "Painel de protecao do paralamas - compartimento 1",
@@ -323,6 +410,50 @@ DEPRECATED_CATALOG_ITEMS = {
         "Painel de protecao do paralamas - compartimento 6",
     ]
 }
+
+
+def _copy_group_rule(rule: dict, matched_part: dict | None = None) -> dict:
+    copied_rule = {
+        "item_principal": rule["item_principal"],
+        "tipo_agrupamento": rule["tipo_agrupamento"],
+        "partes": [dict(part) for part in rule["partes"]],
+    }
+    if matched_part:
+        copied_rule["parte"] = matched_part["parte"]
+        copied_rule["item_origem"] = matched_part["item_origem"]
+    return copied_rule
+
+
+def get_group_rules_for_vehicle_type(vehicle_type: str) -> list[dict]:
+    normalized_type = _normalize_vehicle_type(vehicle_type)
+    return [_copy_group_rule(rule) for rule in CHECKLIST_ITEM_GROUP_RULES.get(normalized_type, [])]
+
+
+def classify_catalog_item_group(vehicle_type: str, item_name: str) -> dict:
+    normalized_type = _normalize_vehicle_type(vehicle_type)
+    item_key = normalize_item_name(item_name)
+
+    for rule in CHECKLIST_ITEM_GROUP_RULES.get(normalized_type, []):
+        for part in rule["partes"]:
+            if normalize_item_name(part["item_origem"]) == item_key:
+                return _copy_group_rule(rule, part)
+
+    return {
+        "item_principal": _normalize_row_item_name(item_name),
+        "tipo_agrupamento": "simples",
+        "partes": [],
+        "parte": None,
+        "item_origem": _normalize_row_item_name(item_name),
+    }
+
+
+def enrich_catalog_item_payload(item: dict) -> dict:
+    enriched = dict(item)
+    vehicle_type = enriched.get("vehicle_type") or enriched.get("tipo")
+    item_name = enriched.get("item_nome")
+    if vehicle_type and item_name:
+        enriched["agrupamento"] = classify_catalog_item_group(vehicle_type, item_name)
+    return enriched
 
 
 def _normalize_vehicle_type(vehicle_type: str) -> str:
@@ -478,6 +609,10 @@ def build_checklist_catalog(*, include_inactive: bool = False) -> dict[str, list
         ]
         for vehicle_type, items in CHECKLIST_CATALOG.items()
     }
+    default_catalog = {
+        vehicle_type: [enrich_catalog_item_payload(item) for item in items]
+        for vehicle_type, items in default_catalog.items()
+    }
 
     if not has_app_context():
         return default_catalog
@@ -493,7 +628,7 @@ def build_checklist_catalog(*, include_inactive: bool = False) -> dict[str, list
     catalog = {vehicle_type: list(items) for vehicle_type, items in default_catalog.items()}
     rows_by_type: dict[str, list[dict]] = {}
     for row in rows:
-        rows_by_type.setdefault(row.vehicle_type, []).append(row.to_dict())
+        rows_by_type.setdefault(row.vehicle_type, []).append(enrich_catalog_item_payload(row.to_dict()))
     for vehicle_type, items in rows_by_type.items():
         catalog[vehicle_type] = items
     return catalog

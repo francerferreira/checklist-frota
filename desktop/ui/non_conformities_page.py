@@ -28,6 +28,10 @@ from theme import build_dialog_layout, configure_dialog_window, configure_table,
 from ui.detail_dialogs import NonConformityDetailDialog
 
 
+def _nc_label(item: dict) -> str:
+    return item.get("item_label") or item.get("item_nome") or "-"
+
+
 class ResolveDialog(QDialog):
     def __init__(self, api_client, nc_item: dict, parent=None):
         super().__init__(parent)
@@ -65,7 +69,7 @@ class ResolveDialog(QDialog):
         title_wrap = QVBoxLayout()
         title_wrap.setContentsMargins(0, 0, 0, 0)
         title_wrap.setSpacing(4)
-        title = QLabel(f"{nc_item['veiculo']['frota']} - {nc_item['item_nome']}")
+        title = QLabel(f"{nc_item['veiculo']['frota']} - {_nc_label(nc_item)}")
         title.setObjectName("DialogHeaderTitle")
         subtitle = QLabel("Informe peça, observação do reparo e foto depois em uma estrutura mais objetiva.")
         subtitle.setObjectName("DialogHeaderSubtitle")
@@ -191,7 +195,7 @@ class ResolveDialog(QDialog):
                 upload = self.api_client.upload_file(
                     self.selected_file,
                     self.nc_item["veiculo"]["frota"],
-                    self.nc_item["item_nome"],
+                    _nc_label(self.nc_item),
                     self.api_client.user["login"],
                 )
                 foto_depois = upload["path"]
@@ -243,7 +247,7 @@ class CreateActivityFromNCDialog(QDialog):
         title = QLabel(f"Criar atividade - NC #{nc_item.get('id')}")
         title.setObjectName("DialogHeaderTitle")
         subtitle = QLabel(
-            f"{vehicle.get('frota') or '-'} • {nc_item.get('item_nome') or '-'} • Motorista {user.get('nome') or '-'}"
+            f"{vehicle.get('frota') or '-'} • {_nc_label(nc_item)} • Motorista {user.get('nome') or '-'}"
         )
         subtitle.setObjectName("DialogHeaderSubtitle")
         subtitle.setWordWrap(True)
@@ -258,8 +262,8 @@ class CreateActivityFromNCDialog(QDialog):
         form.setHorizontalSpacing(16)
         form.setVerticalSpacing(14)
 
-        self.titulo_input = QLineEdit(f"Tratativa NC - {vehicle.get('frota') or '-'} - {nc_item.get('item_nome') or '-'}")
-        self.item_input = QLineEdit(nc_item.get("item_nome") or "")
+        self.titulo_input = QLineEdit(f"Tratativa NC - {vehicle.get('frota') or '-'} - {_nc_label(nc_item)}")
+        self.item_input = QLineEdit(nc_item.get("item_principal") or nc_item.get("item_nome") or "")
         self.item_input.setPlaceholderText("Módulo / componente")
 
         self.codigo_input = QLineEdit(nc_item.get("codigo_peca") or "")
@@ -292,7 +296,7 @@ class CreateActivityFromNCDialog(QDialog):
         self.observacao_input.setPlaceholderText("Descreva o plano da tratativa, materiais e critérios de auditoria.")
         self.observacao_input.setPlainText(
             (
-                f"NC #{nc_item.get('id')} - {nc_item.get('item_nome') or '-'}\n"
+                f"NC #{nc_item.get('id')} - {_nc_label(nc_item)}\n"
                 f"Equipamento: {vehicle.get('frota') or '-'} | Placa: {vehicle.get('placa') or '-'}\n"
                 f"Abertura: {self._format(nc_item.get('created_at'))}\n"
                 f"Motorista: {user.get('nome') or '-'}"
@@ -585,7 +589,7 @@ class NonConformitiesPage(QFrame):
                 severity = severity_from_occurrence(item)
                 values = [
                     item["veiculo"]["frota"],
-                    item["item_nome"],
+                    _nc_label(item),
                     status_label,
                     severity["label"],
                     created_at,

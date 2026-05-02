@@ -13,6 +13,10 @@ def apply_item_search(query, model, search_value: str | None):
     clauses = []
     if hasattr(model, "item_nome"):
         clauses.append(model.item_nome.ilike(pattern))
+    if hasattr(model, "item_principal"):
+        clauses.append(model.item_principal.ilike(pattern))
+    if hasattr(model, "parte"):
+        clauses.append(model.parte.ilike(pattern))
     if hasattr(model, "tipo_equipamento"):
         clauses.append(model.tipo_equipamento.ilike(pattern))
     if hasattr(model, "observacao"):

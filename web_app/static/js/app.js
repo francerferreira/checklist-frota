@@ -1537,6 +1537,7 @@ async function submitMaintenanceItem(card, item, newStatus) {
 
 function makeChecklistNonConformityCard(item, index) {
     const vehicle = item.veiculo || {};
+    const itemLabel = nonConformityLabel(item);
     const beforePhoto = item.foto_antes ? makeAbsoluteUrl(item.foto_antes) : "";
     const afterPhoto = item.foto_depois ? makeAbsoluteUrl(item.foto_depois) : "";
     const isResolved = Boolean(item.resolvido);
@@ -1546,7 +1547,7 @@ function makeChecklistNonConformityCard(item, index) {
     card.innerHTML = `
         <div class="item-topline">
             <span>${String(index).padStart(2, "0")}</span>
-            <h3>${escapeHtml(String(item.item_nome || "NÃO CONFORMIDADE").toUpperCase())}</h3>
+            <h3>${escapeHtml(String(itemLabel || "NÃO CONFORMIDADE").toUpperCase())}</h3>
         </div>
         <div class="activity-meta">
             <strong>${escapeHtml(String(vehicle.frota || "-").toUpperCase())} | ${escapeHtml(String(vehicle.placa || "-").toUpperCase())}</strong>
@@ -1612,6 +1613,10 @@ function makeChecklistNonConformityCard(item, index) {
     hydrateProtectedImages(card);
     attachCollapsibleCard(card);
     return card;
+}
+
+function nonConformityLabel(item) {
+    return item?.item_label || item?.item_nome || "";
 }
 
 function makeMechanicNonConformityCard(item, index) {
@@ -2204,6 +2209,9 @@ async function saveChecklistDraftNow() {
         const textarea = card.querySelector("textarea");
         return {
             item_nome: card.dataset.itemName,
+            item_principal: card.dataset.itemPrincipal || card.dataset.itemName,
+            parte: card.dataset.itemPart || "",
+            tipo_agrupamento: card.dataset.groupingType || "simples",
             module: card.dataset.module,
             status: card.dataset.status || "",
             observacao: textarea?.value || "",
@@ -3392,6 +3400,7 @@ function renderChecklistModules(modules) {
     let globalIndex = 0;
 
     modules.forEach((module) => {
+        const displayGroups = groupChecklistItemsForDisplay(module.items);
         const section = document.createElement("section");
         section.className = "module-section";
         section.dataset.module = module.name;
@@ -3405,26 +3414,100 @@ function renderChecklistModules(modules) {
             </div>
         `;
 
-        module.items.forEach((item) => {
+        displayGroups.forEach((displayGroup) => {
             globalIndex += 1;
-            section.appendChild(makeChecklistCard(item, module.name, globalIndex));
+            if (displayGroup.items.length > 1) {
+                section.appendChild(makeChecklistGroup(displayGroup, module.name, globalIndex));
+                return;
+            }
+            section.appendChild(makeChecklistCard(displayGroup.items[0], module.name, globalIndex));
         });
 
         elements.checklistForm.appendChild(section);
     });
 }
 
-function makeChecklistCard(item, moduleName, index) {
+function groupChecklistItemsForDisplay(items) {
+    const groups = [];
+    const groupedByKey = new Map();
+
+    items.forEach((item) => {
+        const grouping = item.agrupamento || {};
+        const groupingType = grouping.tipo_agrupamento || "simples";
+        const parentItem = grouping.item_principal || item.item_nome;
+        if (groupingType === "simples") {
+            groups.push({
+                key: `simples:${item.item_nome}`,
+                itemPrincipal: item.item_nome,
+                tipoAgrupamento: "simples",
+                items: [item],
+            });
+            return;
+        }
+
+        const key = `${groupingType}:${parentItem}`;
+        if (!groupedByKey.has(key)) {
+            const group = {
+                key,
+                itemPrincipal: parentItem,
+                tipoAgrupamento: groupingType,
+                items: [],
+            };
+            groupedByKey.set(key, group);
+            groups.push(group);
+        }
+        groupedByKey.get(key).items.push(item);
+    });
+
+    return groups;
+}
+
+function makeChecklistGroup(displayGroup, moduleName, index) {
+    const group = document.createElement("article");
+    group.className = "checklist-group-card";
+    group.dataset.itemPrincipal = displayGroup.itemPrincipal;
+    group.dataset.groupingType = displayGroup.tipoAgrupamento;
+    group.innerHTML = `
+        <div class="checklist-group-header">
+            <span>${String(index).padStart(2, "0")}</span>
+            <div>
+                <strong>${escapeHtml(displayGroup.itemPrincipal)}</strong>
+                <em>${displayGroup.items.length} PARTES PARA AVALIAR</em>
+            </div>
+        </div>
+        <div class="checklist-group-items"></div>
+    `;
+
+    const wrap = group.querySelector(".checklist-group-items");
+    displayGroup.items.forEach((item) => {
+        wrap.appendChild(makeChecklistCard(item, moduleName, index, { compactPart: true }));
+    });
+    return group;
+}
+
+function makeChecklistCard(item, moduleName, index, options = {}) {
     const itemName = item.item_nome;
+    const grouping = item.agrupamento || {};
+    const itemPrincipal = grouping.item_principal || itemName;
+    const itemPart = grouping.parte || "";
+    const groupingType = grouping.tipo_agrupamento || "simples";
+    const title = options.compactPart && itemPart ? itemPart : itemName;
     const itemPhotoUrl = item.foto_path ? makeAbsoluteUrl(item.foto_path) : "";
     const card = document.createElement("article");
     card.className = "checklist-card checklist-item-card";
+    card.classList.toggle("checklist-part-card", Boolean(options.compactPart));
     card.dataset.itemName = itemName;
+    card.dataset.itemPrincipal = itemPrincipal;
+    card.dataset.itemPart = itemPart;
+    card.dataset.groupingType = groupingType;
     card.dataset.module = moduleName;
     card.innerHTML = `
         <div class="item-topline">
-            <span>${String(index).padStart(2, "0")}</span>
-            <h3>${escapeHtml(itemName)}</h3>
+            <span>${options.compactPart ? "•" : String(index).padStart(2, "0")}</span>
+            <div>
+                <h3>${escapeHtml(title)}</h3>
+                ${options.compactPart ? `<em>${escapeHtml(itemName)}</em>` : ""}
+            </div>
         </div>
         ${itemPhotoUrl ? `
             <figure class="reference-photo">
@@ -3535,7 +3618,7 @@ function updateProgress() {
     const percent = total ? Math.round((done / total) * 100) : 0;
     const remaining = Math.max(total - done, 0);
     const nextPendingCard = cards.find((card) => !card.dataset.status);
-    const nextPendingLabel = nextPendingCard?.dataset?.itemName || "";
+    const nextPendingLabel = nextPendingCard ? checklistCardLabel(nextPendingCard) : "";
 
     elements.checklistProgress.textContent = `${done} DE ${total} AVALIADOS | ${nc} NÃO CONFORMIDADES`;
     elements.progressBar.style.width = `${percent}%`;
@@ -3610,10 +3693,11 @@ async function resetChecklist() {
 function findChecklistIssue() {
     const cards = Array.from(document.querySelectorAll(".checklist-item-card"));
     for (const card of cards) {
+        const itemLabel = checklistCardLabel(card);
         if (!card.dataset.status) {
             return {
                 card,
-                message: `SELECIONE OK OU NÃO CONFORMIDADE PARA O ITEM ${card.dataset.itemName}.`,
+                message: `SELECIONE OK OU NÃO CONFORMIDADE PARA ${itemLabel}.`,
             };
         }
         if (card.dataset.status === "NC") {
@@ -3624,19 +3708,25 @@ function findChecklistIssue() {
                 return {
                     card,
                     focusTarget: textarea,
-                    message: `INFORME A OBSERVAÇÃO PARA ${card.dataset.itemName}.`,
+                    message: `INFORME A OBSERVAÇÃO PARA ${itemLabel}.`,
                 };
             }
             if (!fileInput?.files?.[0] && !storedDraftFile) {
                 return {
                     card,
                     focusTarget: fileInput,
-                    message: `ANEXE A EVIDÊNCIA DA NÃO CONFORMIDADE PARA ${card.dataset.itemName}.`,
+                    message: `ANEXE A EVIDÊNCIA DA NÃO CONFORMIDADE PARA ${itemLabel}.`,
                 };
             }
         }
     }
     return null;
+}
+
+function checklistCardLabel(card) {
+    const itemPrincipal = card?.dataset?.itemPrincipal || card?.dataset?.itemName || "ITEM";
+    const itemPart = card?.dataset?.itemPart || "";
+    return itemPart ? `${itemPrincipal} - ${itemPart}` : itemPrincipal;
 }
 
 function revealChecklistIssue(issue) {
@@ -3838,12 +3928,16 @@ async function collectChecklistDraft() {
 
     for (const card of cards) {
         const status = card.dataset.status;
+        const itemLabel = checklistCardLabel(card);
         if (!status) {
-            throw new Error(`SELECIONE OK OU NÃO CONFORMIDADE PARA O ITEM ${card.dataset.itemName}.`);
+            throw new Error(`SELECIONE OK OU NÃO CONFORMIDADE PARA ${itemLabel}.`);
         }
 
         const item = {
             item_nome: card.dataset.itemName,
+            item_principal: card.dataset.itemPrincipal || card.dataset.itemName,
+            parte: card.dataset.itemPart || "",
+            tipo_agrupamento: card.dataset.groupingType || "simples",
             module: card.dataset.module,
             status,
         };
@@ -3855,10 +3949,10 @@ async function collectChecklistDraft() {
             const file = fileInput.files[0] || restoredItem?.foto_antes_file;
 
             if (!textarea.value.trim()) {
-                throw new Error(`INFORME A OBSERVAÇÃO PARA ${card.dataset.itemName}.`);
+                throw new Error(`INFORME A OBSERVAÇÃO PARA ${itemLabel}.`);
             }
             if (!file) {
-                throw new Error(`ANEXE A EVIDÊNCIA DA NÃO CONFORMIDADE PARA ${card.dataset.itemName}.`);
+                throw new Error(`ANEXE A EVIDÊNCIA DA NÃO CONFORMIDADE PARA ${itemLabel}.`);
             }
 
             item.observacao = textarea.value.trim();
@@ -3887,6 +3981,9 @@ async function sendChecklistDraft(draft) {
     for (const draftItem of draft.itens) {
         const item = {
             item_nome: draftItem.item_nome,
+            item_principal: draftItem.item_principal || draftItem.item_nome,
+            parte: draftItem.parte || "",
+            tipo_agrupamento: draftItem.tipo_agrupamento || "simples",
             status: draftItem.status,
         };
 

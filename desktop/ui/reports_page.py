@@ -56,6 +56,10 @@ from theme import (
 from ui.detail_dialogs import NonConformityDetailDialog, VehicleDetailDialog
 
 
+def _nc_label(item: dict) -> str:
+    return item.get("item_label") or item.get("item_nome") or "-"
+
+
 def _apply_light_date_popup_style(date_edit: QDateEdit):
     calendar_widget = date_edit.calendarWidget()
     if not calendar_widget:
@@ -806,7 +810,7 @@ class ReportsPage(QFrame):
                 severity = severity_from_counts(1, 0 if item["resolvido"] else 1)
                 values = [
                     item["veiculo"]["frota"],
-                    item["item_nome"],
+                    _nc_label(item),
                     item["created_at"].replace("T", " ")[:19],
                     item["usuario"]["nome"],
                     "Resolvida" if item["resolvido"] else "Aberta",
@@ -854,7 +858,7 @@ class ReportsPage(QFrame):
                 user = item.get("usuario") or {}
                 resolved_by = item.get("resolved_by") or {}
                 values = [
-                    item.get("item_nome") or "-",
+                    _nc_label(item),
                     vehicle.get("frota") or "-",
                     self._format(item.get("data_resolucao")),
                     user.get("nome") or "-",
@@ -883,7 +887,7 @@ class ReportsPage(QFrame):
             for row, item in enumerate(rows):
                 severity = severity_from_counts(item["total_nc"], item["abertas"])
                 values = [
-                    item["item_nome"],
+                    _nc_label(item),
                     str(item["total_nc"]),
                     str(item["abertas"]),
                     str(item["resolvidas"]),
@@ -1324,7 +1328,7 @@ class ReportsPage(QFrame):
             resolved_by = item.get("resolved_by") or {}
             rows.append(
                 {
-                    "item_nome": item.get("item_nome") or "-",
+                    "item_nome": _nc_label(item),
                     "frota": vehicle.get("frota") or "-",
                     "data_resolucao": self._format(item.get("data_resolucao")),
                     "motorista": user.get("nome") or "-",
@@ -1450,7 +1454,7 @@ class ReportsPage(QFrame):
         for index, item in enumerate(occurrences, start=1):
             item_id = item.get("id")
             percent = start + int(((index - 1) / total) * (end - start))
-            label = item.get("item_nome") or f"ocorrência {item_id or index}"
+            label = _nc_label(item) or f"ocorrência {item_id or index}"
             progress(percent, f"Carregando evidências {index}/{len(occurrences)}: {label}")
             if not item_id:
                 continue
@@ -1539,7 +1543,7 @@ class ReportsPage(QFrame):
                 {
                     "date": item.get("created_at"),
                     "origin": "Não conformidade",
-                    "item": item.get("item_nome") or "-",
+                    "item": _nc_label(item),
                     "status": "Resolvida" if item.get("resolvido") else "Aberta",
                     "owner": item.get("usuario", {}).get("nome") or "-",
                 }

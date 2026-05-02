@@ -1,6 +1,6 @@
 from datetime import datetime, time
 from flask import Blueprint, request
-from sqlalchemy import func
+from sqlalchemy import func, or_
 from app.extensions import db
 from app.models import ChecklistItem, Vehicle, Checklist
 from app.services.auth_service import auth_required
@@ -40,8 +40,9 @@ def get_productivity_dashboard():
 @auth_required
 def get_macro_report():
     """Relatório macro: consolidado agrupado por nome do item (Ponto 7: Métricas)."""
+    item_principal = func.coalesce(ChecklistItem.item_principal, ChecklistItem.item_nome)
     query = db.session.query(
-        ChecklistItem.item_nome,
+        item_principal.label("item_nome"),
         func.count(ChecklistItem.id).label("total_nc"),
         func.sum(func.cast(ChecklistItem.resolvido, db.Integer)).label("resolvidas")
     ).filter(ChecklistItem.status == NCStatus.TYPE_NC)
@@ -50,7 +51,7 @@ def get_macro_report():
     if modulo in ("cavalo", "carreta"):
         query = query.join(Checklist).join(Vehicle).filter(Vehicle.tipo == modulo)
 
-    results = query.group_by(ChecklistItem.item_nome).order_by(func.count(ChecklistItem.id).desc()).all()
+    results = query.group_by(item_principal).order_by(func.count(ChecklistItem.id).desc()).all()
 
     data = [{
         "item_nome": r.item_nome,

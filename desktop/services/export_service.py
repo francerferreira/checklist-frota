@@ -56,6 +56,11 @@ def _resolution_photo_path(record: dict | None) -> str | None:
     return payload.get("foto_resolucao") or payload.get("foto_depois")
 
 
+def _occurrence_label(record: dict | None) -> str:
+    payload = record or {}
+    return payload.get("item_label") or payload.get("item_nome") or "-"
+
+
 def export_rows_to_csv(
     columns: list[tuple[str, str]],
     rows: list[dict],
@@ -221,7 +226,7 @@ def export_non_conformity_pdf(
     styles = _styles()
     story = _build_cover_page(
         "Relatório de Não Conformidade",
-        f"{item['veiculo']['frota']} - {item['item_nome']}",
+        f"{item['veiculo']['frota']} - {_occurrence_label(item)}",
         generated_by,
         logo_path,
         styles,
@@ -248,7 +253,7 @@ def export_non_conformity_pdf(
         ["Tipo", item["veiculo"].get("tipo", "-").title()],
         ["Placa", item["veiculo"].get("placa") or "-"],
         ["Modelo", item["veiculo"].get("modelo") or "-"],
-        ["Item", item.get("item_nome") or "-"],
+        ["Item", _occurrence_label(item)],
         ["Status", status_text],
         ["Motorista", item["usuario"].get("nome") or "-"],
         ["Data de abertura", _format_datetime(item.get("created_at"))],
@@ -260,25 +265,33 @@ def export_non_conformity_pdf(
     story.append(_key_value_table(info_rows, styles))
     story.append(Spacer(1, 8))
 
+    is_resolved = bool(item.get("resolvido"))
     image_block = []
     if before_image:
-        image_block.append(_reportlab_image(before_image, 86 * mm, 76 * mm))
+        image_block.append(_reportlab_image(before_image, 170 * mm if not is_resolved else 86 * mm, 76 * mm))
     else:
-        image_block.append(Paragraph("Sem foto de origem", styles["muted_box"]))
-    if after_image:
-        image_block.append(_reportlab_image(after_image, 86 * mm, 76 * mm))
+        image_block.append(Paragraph("Sem foto de evidência da não conformidade", styles["muted_box"]))
+
+    if is_resolved:
+        if after_image:
+            image_block.append(_reportlab_image(after_image, 86 * mm, 76 * mm))
+        else:
+            image_block.append(Paragraph("Sem foto de resolução", styles["muted_box"]))
+        image_headers = [
+            Paragraph("Foto de evidência da não conformidade", styles["section"]),
+            Paragraph("Foto de resolução", styles["section"]),
+        ]
+        image_widths = [89 * mm, 89 * mm]
     else:
-        image_block.append(Paragraph("Sem foto de resolução", styles["muted_box"]))
+        image_headers = [Paragraph("Foto de evidência da não conformidade", styles["section"])]
+        image_widths = [178 * mm]
 
     image_table = Table(
         [
-            [
-                Paragraph("Foto de origem", styles["section"]),
-                Paragraph("Foto de resolução", styles["section"]),
-            ],
+            image_headers,
             image_block,
         ],
-        colWidths=[89 * mm, 89 * mm],
+        colWidths=image_widths,
     )
     image_table.setStyle(
         TableStyle(
@@ -299,7 +312,7 @@ def export_non_conformity_pdf(
     story.extend(_build_signature_block(generated_by, styles))
     page_frame = _page_frame_callback(
         "Relatório de Não Conformidade",
-        f"{item['veiculo']['frota']} - {item['item_nome']}",
+        f"{item['veiculo']['frota']} - {_occurrence_label(item)}",
         generated_by,
         logo_path,
     )
@@ -392,7 +405,7 @@ def export_vehicle_detail_pdf(
         occ_rows.append(
             {
                 "created_at": _format_datetime(item.get("created_at")),
-                "item_nome": item.get("item_nome") or "-",
+                "item_nome": _occurrence_label(item),
                 "status_text": "Resolvida" if item.get("resolvido") else "Aberta",
                 "codigo_peca": item.get("codigo_peca") or "-",
                 "motorista": item.get("usuario", {}).get("nome") or "-",
@@ -531,7 +544,7 @@ def export_item_audit_pdf(
     resolved_total = sum(1 for item in occurrences if item.get("resolvido"))
     grouped: dict[str, dict] = {}
     for occurrence in occurrences:
-        raw_name = str(occurrence.get("item_nome") or "").strip()
+        raw_name = str(_occurrence_label(occurrence)).strip()
         normalized_name = " ".join(raw_name.upper().split()) or "NÃO INFORMADA"
         bucket = grouped.setdefault(
             normalized_name,
@@ -638,10 +651,11 @@ def export_item_audit_pdf(
             ("Equipamento", "vehicle"),
             ("Status", "status"),
             ("Motorista", "driver"),
-            ("Resolvido em", "resolved_at"),
-            ("Foto origem", "before"),
-            ("Foto resolução", "after"),
+            ("Foto evidência", "before"),
         ]
+        if include_resolution_details:
+            group_columns.insert(4, ("Resolvido em", "resolved_at"))
+            group_columns.append(("Foto resolução", "after"))
         group_rows = []
         for occurrence in group_occurrences:
             vehicle = occurrence.get("veiculo") or {}
@@ -1889,7 +1903,7 @@ def _append_occurrence_evidence_section(
         story.append(
             Paragraph(
                 _safe_paragraph_text(
-                    f"Ocorrência {index} - {vehicle.get('frota') or '-'} - {item.get('item_nome') or '-'}"
+                    f"Ocorrência {index} - {vehicle.get('frota') or '-'} - {_occurrence_label(item)}"
                 ),
                 styles["section"],
             )
@@ -1899,7 +1913,7 @@ def _append_occurrence_evidence_section(
             ["Equipamento", vehicle.get("frota") or "-"],
             ["Placa", vehicle.get("placa") or "-"],
             ["Modelo", vehicle.get("modelo") or "-"],
-            ["Item", item.get("item_nome") or "-"],
+            ["Item", _occurrence_label(item)],
             ["Status", status_text],
             ["Motorista", user.get("nome") or "-"],
             ["Abertura", _format_datetime(item.get("created_at"))],
@@ -1932,19 +1946,29 @@ def _append_occurrence_evidence_section(
         images = occurrence_images.get(item.get("id"), {})
         before = images.get("before")
         after = images.get("after")
-        image_block = [
-            _reportlab_image(before, 86 * mm, 76 * mm) if before else Paragraph("Sem foto de origem", styles["muted_box"]),
-            _reportlab_image(after, 86 * mm, 76 * mm) if after else Paragraph("Sem foto de resolução", styles["muted_box"]),
-        ]
+        if include_resolution_fields:
+            image_block = [
+                _reportlab_image(before, 86 * mm, 76 * mm) if before else Paragraph("Sem foto de evidência da não conformidade", styles["muted_box"]),
+                _reportlab_image(after, 86 * mm, 76 * mm) if after else Paragraph("Sem foto de resolução", styles["muted_box"]),
+            ]
+            image_headers = [
+                Paragraph("Foto de evidência da não conformidade", styles["section"]),
+                Paragraph("Foto de resolução", styles["section"]),
+            ]
+            image_widths = [89 * mm, 89 * mm]
+        else:
+            image_block = [
+                _reportlab_image(before, 170 * mm, 76 * mm) if before else Paragraph("Sem foto de evidência da não conformidade", styles["muted_box"]),
+            ]
+            image_headers = [Paragraph("Foto de evidência da não conformidade", styles["section"])]
+            image_widths = [178 * mm]
+
         image_table = Table(
             [
-                [
-                    Paragraph("Foto de origem", styles["section"]),
-                    Paragraph("Foto de resolução", styles["section"]),
-                ],
+                image_headers,
                 image_block,
             ],
-            colWidths=[89 * mm, 89 * mm],
+            colWidths=image_widths,
         )
         image_table.setStyle(
             TableStyle(
