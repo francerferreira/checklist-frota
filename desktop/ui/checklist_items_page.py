@@ -35,6 +35,8 @@ class ChecklistItemDialog(QDialog):
         super().__init__(parent)
         self.api_client = api_client
         self.item = item or {}
+        self.group_children = list(self.item.get("_children") or [])
+        self.is_group_edit = len(self.group_children) > 1
         self.selected_file = ""
         self.result_payload = None
 
@@ -79,7 +81,10 @@ class ChecklistItemDialog(QDialog):
         form.setHorizontalSpacing(16)
         form.setVerticalSpacing(14)
 
-        self.name_input = QLineEdit(self.item.get("item_nome", ""))
+        grouping = self.item.get("agrupamento") or {}
+        self.name_input = QLineEdit(
+            grouping.get("item_principal") if self.is_group_edit else self.item.get("item_nome", "")
+        )
         self.name_input.setPlaceholderText("Ex.: Lanterna traseira esquerda")
 
         self.type_combo = QComboBox()
@@ -101,10 +106,10 @@ class ChecklistItemDialog(QDialog):
         self.position_spin.setMinimum(1)
         self.position_spin.setMaximum(999)
         self.position_spin.setValue(int(self.item.get("position") or 1))
+        self.position_spin.setEnabled(False)
 
         self.active_checkbox = QCheckBox("Item ativo")
         self.active_checkbox.setChecked(bool(self.item.get("ativo", True)))
-        grouping = self.item.get("agrupamento") or {}
         self.group_type_combo = QComboBox()
         self.group_type_combo.addItem("Simples", "simples")
         self.group_type_combo.addItem("Lado", "lado")
@@ -117,6 +122,7 @@ class ChecklistItemDialog(QDialog):
         self.parent_item_input.setPlaceholderText("Ex.: PARALAMAS")
         self.part_input = QLineEdit(grouping.get("parte") or self.item.get("parte") or "")
         self.part_input.setPlaceholderText("Ex.: LADO DIREITO")
+        self.part_inputs: list[tuple[dict, QLineEdit]] = []
 
         self.file_label = QLabel(self.item.get("foto_path") or "Nenhuma foto selecionada.")
         self.file_label.setObjectName("MutedText")
@@ -144,7 +150,31 @@ class ChecklistItemDialog(QDialog):
         add_field(1, 0, "Ordem", self.position_spin)
         add_field(2, 0, "Regra de agrupamento", self.group_type_combo)
         add_field(2, 1, "Item principal", self.parent_item_input)
-        add_field(3, 0, "Parte interna", self.part_input)
+        if self.is_group_edit:
+            parts_box = QFrame()
+            parts_box.setAttribute(Qt.WA_StyledBackground, True)
+            parts_layout = QVBoxLayout(parts_box)
+            parts_layout.setContentsMargins(0, 0, 0, 0)
+            parts_layout.setSpacing(8)
+            for child in self.group_children:
+                child_grouping = child.get("agrupamento") or {}
+                row = QFrame()
+                row.setObjectName("DialogInfoBlock")
+                row.setAttribute(Qt.WA_StyledBackground, True)
+                row_layout = QVBoxLayout(row)
+                row_layout.setContentsMargins(10, 8, 10, 8)
+                row_layout.setSpacing(6)
+                label = QLabel(f"ID {child.get('id')} - {child.get('item_nome')}")
+                label.setObjectName("SectionCaption")
+                part_input = QLineEdit(child_grouping.get("parte") or child.get("parte") or "")
+                part_input.setPlaceholderText("Ex.: LADO DIREITO")
+                row_layout.addWidget(label)
+                row_layout.addWidget(part_input)
+                parts_layout.addWidget(row)
+                self.part_inputs.append((child, part_input))
+            add_field(3, 0, "Partes internas do agrupamento", parts_box)
+        else:
+            add_field(3, 0, "Parte interna", self.part_input)
 
         photo_field = QFrame()
         photo_field.setObjectName("DialogInfoBlock")
@@ -205,12 +235,18 @@ class ChecklistItemDialog(QDialog):
             payload = {
                 "item_nome": self.name_input.text().strip(),
                 "tipo": self.type_combo.currentData(),
-                "position": int(self.position_spin.value()),
                 "ativo": self.active_checkbox.isChecked(),
                 "tipo_agrupamento": self.group_type_combo.currentData(),
                 "item_principal": self.parent_item_input.text().strip(),
                 "parte": self.part_input.text().strip(),
             }
+            if self.is_group_edit:
+                payload["item_principal"] = payload["item_nome"] or payload["item_principal"]
+                payload["item_nome"] = payload["item_principal"]
+                payload["partes"] = [
+                    {"id": child.get("id"), "parte": part_input.text().strip()}
+                    for child, part_input in self.part_inputs
+                ]
             if not payload["item_nome"]:
                 show_notice(self, "Nome obrigatório", "Informe o nome do item do checklist.", icon_name="warning")
                 return
@@ -480,7 +516,8 @@ class ChecklistItemsPage(QFrame):
         return self.current_item
 
     def add_item(self):
-        dialog = ChecklistItemDialog(self.api_client, parent=self)
+        default_type = self.type_filter.currentData() or "cavalo"
+        dialog = ChecklistItemDialog(self.api_client, {"tipo": default_type, "vehicle_type": default_type}, parent=self)
         if dialog.exec():
             try:
                 created = self.api_client.create_checklist_item(dialog.result_payload)
@@ -496,25 +533,33 @@ class ChecklistItemsPage(QFrame):
             return
         self.current_item = row_item
         grouped_children = row_item.get("_children") or []
-        if row_item.get("_children"):
-            row_item = row_item["_children"][0]
         dialog = ChecklistItemDialog(self.api_client, row_item, self)
         if dialog.exec():
             try:
-                self.api_client.update_checklist_item(row_item["id"], dialog.result_payload)
                 if grouped_children:
-                    group_payload = {
+                    parts_by_id = {
+                        int(part.get("id") or 0): part.get("parte")
+                        for part in dialog.result_payload.get("partes", [])
+                    }
+                    base_payload = {
+                        "tipo": dialog.result_payload.get("tipo"),
+                        "ativo": dialog.result_payload.get("ativo"),
                         "tipo_agrupamento": dialog.result_payload.get("tipo_agrupamento"),
                         "item_principal": dialog.result_payload.get("item_principal"),
                     }
                     for child in grouped_children:
-                        if child.get("id") == row_item.get("id"):
-                            continue
-                        sibling_payload = dict(group_payload)
-                        sibling_payload["parte"] = (child.get("agrupamento") or {}).get("parte") or child.get("parte")
-                        self.api_client.update_checklist_item(child["id"], sibling_payload)
+                        child_id = int(child.get("id") or 0)
+                        child_payload = dict(base_payload)
+                        child_payload["parte"] = parts_by_id.get(child_id) or (child.get("agrupamento") or {}).get("parte") or child.get("parte")
+                        if dialog.result_payload.get("foto_path") is not None:
+                            child_payload["foto_path"] = dialog.result_payload.get("foto_path")
+                        self.api_client.update_checklist_item(child_id, child_payload)
+                    preferred_id = grouped_children[0].get("id")
+                else:
+                    self.api_client.update_checklist_item(row_item["id"], dialog.result_payload)
+                    preferred_id = row_item.get("id")
                 show_notice(self, "Item atualizado", "Item atualizado com sucesso.", icon_name="dashboard")
-                self.refresh(row_item.get("id"))
+                self.refresh(preferred_id)
                 self.data_changed.emit()
             except Exception as exc:
                 show_notice(self, "Falha ao atualizar", str(exc), icon_name="warning")
