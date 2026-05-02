@@ -144,6 +144,7 @@ const state = {
     nonConformityMicro: [],
     nonConformityChecklist: [],
     nonConformityMechanic: [],
+    selectedNonConformityItem: "",
     maintenanceOverview: null,
     ncChecklistStatus: "abertas",
     ncMechanicStatus: "abertas",
@@ -1140,7 +1141,7 @@ function renderNonConformities() {
 
     elements.nonConformitiesCounter.textContent = `${openTotal} ABERTAS`;
     elements.nonConformitiesMacroCounter.textContent = `${state.nonConformityMacro.length} ITENS`;
-    elements.nonConformitiesChecklistCounter.textContent = `${state.nonConformityChecklist.length} REGISTROS`;
+    elements.nonConformitiesChecklistCounter.textContent = `${filterChecklistNonConformitiesBySelectedItem(state.nonConformityChecklist).length} REGISTROS`;
     elements.nonConformitiesMechanicCounter.textContent = `${state.nonConformityMechanic.length} REGISTROS`;
 
     elements.ncChecklistFilterOpen?.classList.toggle("active", state.ncChecklistStatus === "abertas");
@@ -1156,6 +1157,7 @@ function renderNonConformities() {
 function renderNonConformityReports() {
     const macroTop = state.nonConformityMacro.slice(0, 5);
     const microTop = state.nonConformityMicro.slice(0, 5);
+    const selectedItem = state.selectedNonConformityItem;
 
     if (!macroTop.length) {
         elements.nonConformitiesMacroList.innerHTML = `
@@ -1172,16 +1174,32 @@ function renderNonConformityReports() {
             </article>
             <div class="nc-grid">
                 ${macroTop.map((row) => `
-                    <article class="nc-report-row">
+                    <article class="nc-report-row ${selectedItem === row.item_nome ? "is-selected" : ""}" data-nc-filter-item="${escapeHtml(row.item_nome || "")}">
                         <div>
                             <strong>${escapeHtml(String(row.item_nome || "-").toUpperCase())}</strong>
                             <span>${Number(row.abertas || 0)} ABERTAS | ${Number(row.resolvidas || 0)} RESOLVIDAS</span>
                         </div>
                         <em>${Number(row.total_nc || 0)} NÃO CONFORMIDADES</em>
+                        ${selectedItem === row.item_nome ? `
+                            <div class="nc-report-filter">
+                                <span>FILTRO APLICADO NESTE TIPO DE NÃO CONFORMIDADE.</span>
+                                <button type="button" class="nc-report-action" data-nc-clear-filter="true">LIMPAR</button>
+                            </div>
+                        ` : ""}
                     </article>
                 `).join("")}
             </div>
         `;
+        elements.nonConformitiesMacroList.querySelectorAll("[data-nc-filter-item]").forEach((rowElement) => {
+            rowElement.addEventListener("click", (event) => {
+                if (event.target instanceof HTMLElement && event.target.closest("[data-nc-clear-filter]")) {
+                    state.selectedNonConformityItem = "";
+                } else {
+                    state.selectedNonConformityItem = rowElement.dataset.ncFilterItem || "";
+                }
+                renderNonConformities();
+            });
+        });
     }
 
     if (!microTop.length) {
@@ -1213,7 +1231,7 @@ function renderNonConformityReports() {
 }
 
 function renderChecklistNonConformities() {
-    const rows = state.nonConformityChecklist || [];
+    const rows = filterChecklistNonConformitiesBySelectedItem(state.nonConformityChecklist || []);
     elements.nonConformitiesChecklistList.innerHTML = "";
 
     if (!rows.length) {
@@ -1226,8 +1244,37 @@ function renderChecklistNonConformities() {
         return;
     }
 
+    if (state.selectedNonConformityItem) {
+        elements.nonConformitiesChecklistList.innerHTML = `
+            <article class="nc-section-filter">
+                <div>
+                    <span>TIPO FILTRADO</span>
+                    <strong>${escapeHtml(String(state.selectedNonConformityItem).toUpperCase())}</strong>
+                </div>
+                <button type="button" data-nc-clear-filter="true">LIMPAR</button>
+            </article>
+        `;
+        elements.nonConformitiesChecklistList.querySelector("[data-nc-clear-filter]")?.addEventListener("click", () => {
+            state.selectedNonConformityItem = "";
+            renderNonConformities();
+        });
+    }
+
     rows.forEach((row, index) => {
         elements.nonConformitiesChecklistList.appendChild(makeChecklistNonConformityCard(row, index + 1));
+    });
+}
+
+function filterChecklistNonConformitiesBySelectedItem(rows) {
+    const selected = normalizeText(state.selectedNonConformityItem || "");
+    if (!selected) {
+        return rows;
+    }
+    return rows.filter((row) => {
+        const principal = normalizeText(row.item_principal || "");
+        const itemName = normalizeText(row.item_nome || "");
+        const labelBase = normalizeText(String(row.item_label || "").split(" - ")[0] || "");
+        return [principal, itemName, labelBase].includes(selected);
     });
 }
 
@@ -3867,7 +3914,8 @@ function makeAbsoluteUrl(path) {
     if (path.startsWith("http://") || path.startsWith("https://")) {
         return path;
     }
-    return `${state.apiBaseUrl}${path}`;
+    const normalizedPath = path.startsWith("/") ? path : `/${path}`;
+    return `${state.apiBaseUrl}${normalizedPath}`;
 }
 
 function buildProtectedImageMarkup(sourceUrl, alt, { className = "", showWhenLoaded = false } = {}) {

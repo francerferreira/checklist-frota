@@ -16,8 +16,8 @@ class WebMobileShellContractTests(unittest.TestCase):
         cls.legacy_readme = LEGACY_README_PATH.read_text(encoding="utf-8")
 
     def test_index_uses_canonical_frontend_bundle(self):
-        self.assertIn('./static/js/app.js?v=20260501-09', self.index_html)
-        self.assertIn('./static/css/styles.css?v=20260501-09', self.index_html)
+        self.assertIn('./static/js/app.js?v=20260502-01', self.index_html)
+        self.assertIn('./static/css/styles.css?v=20260502-01', self.index_html)
         self.assertNotIn("app-20260419-", self.index_html)
 
     def test_frontend_uses_manaus_timezone_for_dates(self):
@@ -25,6 +25,13 @@ class WebMobileShellContractTests(unittest.TestCase):
         self.assertIn('const MANAUS_TIME_ZONE = "America/Manaus"', app_js)
         self.assertIn("window.CHECKLIST_TIME_ZONE = MANAUS_TIME_ZONE", app_js)
         self.assertIn("formatManausDateTime", app_js)
+
+    def test_non_conformity_macro_filter_and_photo_url_normalization_remain_available(self):
+        app_js = (PROJECT_ROOT / "web_app" / "static" / "js" / "app.js").read_text(encoding="utf-8")
+        self.assertIn("selectedNonConformityItem", app_js)
+        self.assertIn("filterChecklistNonConformitiesBySelectedItem", app_js)
+        self.assertIn('data-nc-filter-item', app_js)
+        self.assertIn('const normalizedPath = path.startsWith("/") ? path : `/${path}`;', app_js)
 
     def test_index_does_not_restore_removed_inline_fallbacks(self):
         self.assertNotIn("data-inline-fallback", self.index_html)

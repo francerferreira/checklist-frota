@@ -2030,6 +2030,13 @@ textarea {
     padding: 11px 12px;
     border-radius: 14px;
     background: #ffffff;
+    border: 1px solid transparent;
+    cursor: pointer;
+}
+
+.nc-report-row.is-selected {
+    border-color: rgba(7, 86, 181, 0.28);
+    background: #f8fbff;
 }
 
 .nc-report-row strong,
@@ -2053,6 +2060,55 @@ textarea {
     background: var(--blue-soft);
     color: var(--blue);
     font-style: normal;
+    font-size: 0.72rem;
+    font-weight: 900;
+}
+
+.nc-report-filter {
+    grid-column: 1 / -1;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    padding-top: 8px;
+    border-top: 1px solid var(--line);
+}
+
+.nc-report-filter span {
+    color: var(--muted);
+    font-size: 0.72rem;
+    font-weight: 900;
+}
+
+.nc-report-action,
+.nc-section-filter button {
+    border: 0;
+    border-radius: 999px;
+    padding: 7px 10px;
+    background: var(--blue-soft);
+    color: var(--blue);
+    font-size: 0.72rem;
+    font-weight: 950;
+}
+
+.nc-section-filter {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: 10px;
+    align-items: center;
+    padding: 12px;
+    border-radius: 14px;
+    background: #ffffff;
+    border: 1px solid rgba(7, 86, 181, 0.22);
+}
+
+.nc-section-filter span,
+.nc-section-filter strong {
+    display: block;
+}
+
+.nc-section-filter span {
+    color: var(--muted);
     font-size: 0.72rem;
     font-weight: 900;
 }
