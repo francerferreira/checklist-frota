@@ -666,6 +666,15 @@ textarea {
     box-shadow: none;
 }
 
+.search-box span {
+    display: block;
+    margin-bottom: 8px;
+    color: var(--ink);
+    font-size: 0.82rem;
+    font-weight: 950;
+    text-transform: uppercase;
+}
+
 .list-toolbar {
     display: flex;
     align-items: center;
@@ -673,6 +682,18 @@ textarea {
     flex-wrap: wrap;
     gap: 12px;
     margin: 14px 3px 10px;
+}
+
+.list-toolbar,
+.section-caption {
+    border: 1px solid rgba(255, 255, 255, 0.62);
+    border-radius: 18px;
+    background: rgba(255, 255, 255, 0.96);
+    box-shadow: 0 12px 28px rgba(15, 23, 42, 0.07);
+}
+
+.list-toolbar {
+    padding: 14px 16px;
 }
 
 .list-toolbar strong {
@@ -688,7 +709,8 @@ textarea {
 }
 
 .section-caption {
-    margin: -2px 3px 10px;
+    margin: -2px 0 10px;
+    padding: 12px 14px;
     color: var(--muted);
     font-size: 0.8rem;
     line-height: 1.45;
@@ -698,7 +720,17 @@ textarea {
     display: grid;
     grid-template-columns: repeat(3, minmax(0, 1fr));
     gap: 8px;
-    margin: 0 0 12px;
+    margin: 0;
+}
+
+.history-summary-card {
+    display: grid;
+    gap: 12px;
+    padding: 14px;
+    border: 1px solid rgba(255, 255, 255, 0.62);
+    border-radius: 20px;
+    background: rgba(255, 255, 255, 0.96);
+    box-shadow: 0 12px 28px rgba(15, 23, 42, 0.07);
 }
 
 .history-summary article {
@@ -724,10 +756,15 @@ textarea {
 }
 
 .history-caption {
-    margin: 0 0 10px;
+    margin: 0;
+    padding: 12px 14px;
+    border-radius: 16px;
+    background: #f7fbff;
+    border: 1px solid rgba(122, 140, 166, 0.12);
     color: var(--muted);
     font-size: 0.78rem;
     line-height: 1.45;
+    font-weight: 800;
 }
 
 .history-filters {
@@ -811,6 +848,26 @@ textarea {
         line-height: 1.15;
     }
 
+    .summary-card {
+        grid-template-columns: 1fr;
+    }
+
+    .summary-card div {
+        min-height: 74px;
+    }
+
+    .summary-card strong {
+        white-space: normal;
+    }
+
+    .search-box {
+        padding: 14px;
+        border-radius: 18px;
+        background: rgba(255, 255, 255, 0.96);
+        border: 1px solid rgba(255, 255, 255, 0.62);
+        box-shadow: 0 12px 28px rgba(15, 23, 42, 0.07);
+    }
+
     .history-filters {
         grid-template-columns: repeat(2, minmax(0, 1fr));
     }
@@ -836,7 +893,7 @@ textarea {
 }
 
 .history-table-wrap {
-    margin-top: 0;
+    margin-top: 12px;
     overflow-x: auto;
     overflow-y: auto;
     max-height: calc(100vh - 280px);
@@ -1444,11 +1501,12 @@ textarea {
 .progress-card {
     display: grid;
     gap: 12px;
-    padding: 0;
+    padding: 16px;
     min-width: 0;
-    background: transparent;
-    border: 0;
-    box-shadow: none;
+    background: rgba(255, 255, 255, 0.96);
+    border: 1px solid rgba(255, 255, 255, 0.62);
+    border-radius: 18px;
+    box-shadow: 0 12px 28px rgba(15, 23, 42, 0.07);
 }
 
 .progress-card strong,
@@ -1572,7 +1630,11 @@ textarea {
     align-items: center;
     justify-content: space-between;
     gap: 12px;
-    padding: 5px 4px 8px;
+    padding: 14px 16px;
+    border: 1px solid rgba(255, 255, 255, 0.62);
+    border-radius: 18px;
+    background: rgba(255, 255, 255, 0.96);
+    box-shadow: 0 12px 28px rgba(15, 23, 42, 0.07);
 }
 
 .module-header span {
@@ -1586,6 +1648,7 @@ textarea {
 .module-header strong {
     display: block;
     margin-top: 2px;
+    color: var(--ink);
     font-size: 1.05rem;
 }
 
@@ -2293,9 +2356,13 @@ textarea {
     }
 
     .login-card,
-    .summary-card,
+    .summary-card div,
     .search-box,
     .progress-card,
+    .module-header,
+    .list-toolbar,
+    .section-caption,
+    .history-summary-card,
     .module-section,
     .sync-panel,
     .wash-calendar-card,
@@ -2342,7 +2409,7 @@ textarea {
     }
 
     .module-section {
-        padding: 10px;
+        padding: 0;
     }
 
     .checklist-card {

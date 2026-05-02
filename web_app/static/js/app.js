@@ -244,6 +244,7 @@ const elements = {
     checklistHistoryStartDate: document.getElementById("checklist-history-start-date"),
     checklistHistoryEndDate: document.getElementById("checklist-history-end-date"),
     checklistHistoryApplyFilter: document.getElementById("checklist-history-apply-filter"),
+    checklistHistorySummaryCard: document.getElementById("checklist-history-summary-card"),
     checklistHistoryTableWrap: document.getElementById("checklist-history-table-wrap"),
     washCounter: document.getElementById("wash-counter"),
     washMonthTitle: document.getElementById("wash-month-title"),
@@ -725,6 +726,9 @@ async function openChecklistHistoryMenu() {
         message: "Buscando o periodo e a matriz de checklist.",
         tone: "loading",
     });
+    if (elements.checklistHistorySummaryCard) {
+        elements.checklistHistorySummaryCard.innerHTML = "";
+    }
     try {
         if (!state.checklistHistory.dataInicio || !state.checklistHistory.dataFim) {
             const endDate = new Date();
@@ -969,6 +973,9 @@ function renderChecklistHistory() {
     }
 
     if (!columns.length) {
+        if (elements.checklistHistorySummaryCard) {
+            elements.checklistHistorySummaryCard.innerHTML = "";
+        }
         elements.checklistHistoryTableWrap.innerHTML = `
             <article class="empty-state">
                 <strong>SEM DATAS PARA O PERÍODO SELECIONADO.</strong>
@@ -979,6 +986,9 @@ function renderChecklistHistory() {
     }
 
     if (!rows.length) {
+        if (elements.checklistHistorySummaryCard) {
+            elements.checklistHistorySummaryCard.innerHTML = "";
+        }
         elements.checklistHistoryTableWrap.innerHTML = `
             <article class="empty-state">
                 <strong>NENHUMA FROTA ENCONTRADA NESTE FILTRO.</strong>
@@ -1018,7 +1028,8 @@ function renderChecklistHistory() {
         .join("");
 
     elements.checklistHistoryTableWrap.classList.toggle("history-expanded", Boolean(state.checklistHistory.expandedVehicleId));
-    elements.checklistHistoryTableWrap.innerHTML = `
+    if (elements.checklistHistorySummaryCard) {
+        elements.checklistHistorySummaryCard.innerHTML = `
         <section class="history-summary">
             <article>
                 <span>PERIODO</span>
@@ -1034,6 +1045,9 @@ function renderChecklistHistory() {
             </article>
         </section>
         <p class="history-caption">Toque na frota para expandir a leitura da linha e acompanhe o total pelo campo Nº.</p>
+        `;
+    }
+    elements.checklistHistoryTableWrap.innerHTML = `
         <table class="history-table">
             <thead>
                 <tr>
