@@ -568,8 +568,9 @@ class ChecklistItemsPage(QFrame):
                 show_notice(self, "Falha ao salvar", str(exc), icon_name="warning")
 
     def edit_selected(self, item=None):
-        row_item = self._item_for_row(item.row()) if item is not None else self._selected_item()
+        row_item = self._item_for_row(item.row()) if isinstance(item, QTableWidgetItem) else self._selected_item()
         if not row_item:
+            show_notice(self, "Selecione um item", "Clique em uma linha da tabela antes de editar.", icon_name="warning")
             return
         self.current_item = row_item
         grouped_children = row_item.get("_children") or []
