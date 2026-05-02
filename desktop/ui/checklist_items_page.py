@@ -30,6 +30,13 @@ def _grouping_labels(item: dict) -> tuple[str, str, str]:
     return group_type, parent_item, part
 
 
+PART_OPTIONS = {
+    "lado": ["LADO DIREITO", "LADO ESQUERDO"],
+    "compartimento": [f"COMPARTIMENTO {index:02d}" for index in range(1, 13)],
+    "simples": ["-"],
+}
+
+
 class ChecklistItemDialog(QDialog):
     def __init__(self, api_client, item: dict | None = None, parent=None):
         super().__init__(parent)
@@ -120,9 +127,9 @@ class ChecklistItemDialog(QDialog):
             self.group_type_combo.setCurrentIndex(group_index)
         self.parent_item_input = QLineEdit(grouping.get("item_principal") or self.item.get("item_principal") or self.item.get("item_nome", ""))
         self.parent_item_input.setPlaceholderText("Ex.: PARALAMAS")
-        self.part_input = QLineEdit(grouping.get("parte") or self.item.get("parte") or "")
-        self.part_input.setPlaceholderText("Ex.: LADO DIREITO")
-        self.part_inputs: list[tuple[dict, QLineEdit]] = []
+        self.part_input = self._make_part_combo(grouping.get("parte") or self.item.get("parte"))
+        self.part_inputs: list[tuple[dict, QComboBox]] = []
+        self.group_type_combo.currentIndexChanged.connect(self._refresh_part_options)
 
         self.file_label = QLabel(self.item.get("foto_path") or "Nenhuma foto selecionada.")
         self.file_label.setObjectName("MutedText")
@@ -166,8 +173,7 @@ class ChecklistItemDialog(QDialog):
                 row_layout.setSpacing(6)
                 label = QLabel(f"ID {child.get('id')} - {child.get('item_nome')}")
                 label.setObjectName("SectionCaption")
-                part_input = QLineEdit(child_grouping.get("parte") or child.get("parte") or "")
-                part_input.setPlaceholderText("Ex.: LADO DIREITO")
+                part_input = self._make_part_combo(child_grouping.get("parte") or child.get("parte"))
                 row_layout.addWidget(label)
                 row_layout.addWidget(part_input)
                 parts_layout.addWidget(row)
@@ -230,6 +236,40 @@ class ChecklistItemDialog(QDialog):
         self.file_label.setText("Nenhuma foto selecionada.")
         self.item["foto_path"] = ""
 
+    def _part_options_for_current_group(self) -> list[str]:
+        return PART_OPTIONS.get(self.group_type_combo.currentData() or "simples", PART_OPTIONS["simples"])
+
+    def _make_part_combo(self, current_value: str | None = None) -> QComboBox:
+        combo = QComboBox()
+        combo.setEditable(False)
+        for option in self._part_options_for_current_group():
+            combo.addItem(option, None if option == "-" else option)
+        current = (current_value or "").strip().upper()
+        if current:
+            index = combo.findText(current)
+            if index < 0:
+                combo.addItem(current, current)
+                index = combo.findText(current)
+            combo.setCurrentIndex(index)
+        return combo
+
+    def _reset_part_combo_options(self, combo: QComboBox, current_value: str | None = None):
+        current = (current_value or combo.currentText() or "").strip().upper()
+        combo.blockSignals(True)
+        combo.clear()
+        for option in self._part_options_for_current_group():
+            combo.addItem(option, None if option == "-" else option)
+        if current:
+            index = combo.findText(current)
+            if index >= 0:
+                combo.setCurrentIndex(index)
+        combo.blockSignals(False)
+
+    def _refresh_part_options(self):
+        self._reset_part_combo_options(self.part_input)
+        for _child, combo in self.part_inputs:
+            self._reset_part_combo_options(combo)
+
     def submit(self):
         try:
             payload = {
@@ -238,13 +278,13 @@ class ChecklistItemDialog(QDialog):
                 "ativo": self.active_checkbox.isChecked(),
                 "tipo_agrupamento": self.group_type_combo.currentData(),
                 "item_principal": self.parent_item_input.text().strip(),
-                "parte": self.part_input.text().strip(),
+                "parte": self.part_input.currentData(),
             }
             if self.is_group_edit:
                 payload["item_principal"] = payload["item_nome"] or payload["item_principal"]
                 payload["item_nome"] = payload["item_principal"]
                 payload["partes"] = [
-                    {"id": child.get("id"), "parte": part_input.text().strip()}
+                    {"id": child.get("id"), "parte": part_input.currentData()}
                     for child, part_input in self.part_inputs
                 ]
             if not payload["item_nome"]:
