@@ -3,6 +3,7 @@ from __future__ import annotations
 from datetime import datetime
 
 from app.extensions import db
+from app.utils.timezone import now_manaus_naive
 
 
 class MechanicNonConformity(db.Model):
@@ -25,7 +26,7 @@ class MechanicNonConformity(db.Model):
     quantidade_material = db.Column(db.Integer, nullable=False, default=1)
 
     resolvido = db.Column(db.Boolean, nullable=False, default=False, index=True)
-    created_at = db.Column(db.DateTime, nullable=False, default=datetime.utcnow, index=True)
+    created_at = db.Column(db.DateTime, nullable=False, default=now_manaus_naive, index=True)
     data_resolucao = db.Column(db.DateTime, nullable=True)
 
     created_by = db.relationship("User", foreign_keys=[created_by_user_id], lazy="joined")

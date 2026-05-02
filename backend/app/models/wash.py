@@ -3,6 +3,7 @@ from __future__ import annotations
 from datetime import datetime
 
 from app.extensions import db
+from app.utils.timezone import now_manaus_naive
 
 
 class WashQueueItem(db.Model):
@@ -23,12 +24,12 @@ class WashQueueItem(db.Model):
     preventive_week_of_month = db.Column(db.Integer, nullable=True)
     preventive_weekday = db.Column(db.Integer, nullable=True)
     preventive_notes = db.Column(db.String(255), nullable=True)
-    created_at = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
+    created_at = db.Column(db.DateTime, nullable=False, default=now_manaus_naive)
     updated_at = db.Column(
         db.DateTime,
         nullable=False,
-        default=datetime.utcnow,
-        onupdate=datetime.utcnow,
+        default=now_manaus_naive,
+        onupdate=now_manaus_naive,
     )
 
     vehicle = db.relationship("Vehicle", lazy="joined")
@@ -98,7 +99,7 @@ class WashRecord(db.Model):
     foto_path = db.Column(db.String(255), nullable=True)
     queue_before = db.Column(db.Integer, nullable=True)
     queue_after = db.Column(db.Integer, nullable=True)
-    created_at = db.Column(db.DateTime, nullable=False, default=datetime.utcnow, index=True)
+    created_at = db.Column(db.DateTime, nullable=False, default=now_manaus_naive, index=True)
 
     queue_item = db.relationship("WashQueueItem", back_populates="records", lazy="joined")
     vehicle = db.relationship("Vehicle", lazy="joined")
@@ -149,8 +150,8 @@ class WashPlanConfig(db.Model):
     afternoon_capacity = db.Column(db.Integer, nullable=False, default=2)
     auxiliary_interval_days = db.Column(db.Integer, nullable=False, default=15)
     notes = db.Column(db.String(255), nullable=True)
-    created_at = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
-    updated_at = db.Column(db.DateTime, nullable=False, default=datetime.utcnow, onupdate=datetime.utcnow)
+    created_at = db.Column(db.DateTime, nullable=False, default=now_manaus_naive)
+    updated_at = db.Column(db.DateTime, nullable=False, default=now_manaus_naive, onupdate=now_manaus_naive)
 
     blocked_days = db.relationship(
         "WashBlockedDay",
@@ -188,7 +189,7 @@ class WashBlockedDay(db.Model):
     day_date = db.Column(db.Date, nullable=False, index=True)
     shift = db.Column(db.String(20), nullable=False, default="ALL", index=True)
     reason = db.Column(db.String(255), nullable=True)
-    created_at = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
+    created_at = db.Column(db.DateTime, nullable=False, default=now_manaus_naive)
 
     config = db.relationship("WashPlanConfig", back_populates="blocked_days")
 
@@ -217,8 +218,8 @@ class WashScheduleDecision(db.Model):
     shift = db.Column(db.String(20), nullable=False, index=True)
     status = db.Column(db.String(20), nullable=False, default="NAO_CUMPRIDO", index=True)
     reason = db.Column(db.String(255), nullable=True)
-    created_at = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
-    updated_at = db.Column(db.DateTime, nullable=False, default=datetime.utcnow, onupdate=datetime.utcnow)
+    created_at = db.Column(db.DateTime, nullable=False, default=now_manaus_naive)
+    updated_at = db.Column(db.DateTime, nullable=False, default=now_manaus_naive, onupdate=now_manaus_naive)
 
     queue_item = db.relationship("WashQueueItem", lazy="joined")
     vehicle = db.relationship("Vehicle", lazy="joined")

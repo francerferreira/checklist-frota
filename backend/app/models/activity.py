@@ -4,6 +4,7 @@ from datetime import datetime
 import re
 
 from app.extensions import db
+from app.utils.timezone import now_manaus_naive
 
 _ORIGIN_PATTERN = re.compile(r"\[ORIGEM:(?P<type>[A-Z_]+)#(?P<id>\d+)\]")
 
@@ -52,7 +53,7 @@ class Activity(db.Model):
     auto_link_nc = db.Column(db.Boolean, nullable=False, default=False, index=True)
     created_by_user_id = db.Column(db.Integer, db.ForeignKey("users.id"), nullable=False, index=True)
     assigned_mechanic_user_id = db.Column(db.Integer, db.ForeignKey("users.id"), nullable=True, index=True)
-    created_at = db.Column(db.DateTime, nullable=False, default=datetime.utcnow, index=True)
+    created_at = db.Column(db.DateTime, nullable=False, default=now_manaus_naive, index=True)
     finalized_at = db.Column(db.DateTime, nullable=True)
 
     created_by = db.relationship("User", foreign_keys=[created_by_user_id], lazy="joined")
@@ -168,7 +169,7 @@ class ActivityItem(db.Model):
     executado_por_nome = db.Column(db.String(120), nullable=True)
     executado_por_login = db.Column(db.String(80), nullable=True)
     instalado_em = db.Column(db.DateTime, nullable=True)
-    updated_at = db.Column(db.DateTime, nullable=False, default=datetime.utcnow, onupdate=datetime.utcnow)
+    updated_at = db.Column(db.DateTime, nullable=False, default=now_manaus_naive, onupdate=now_manaus_naive)
 
     activity = db.relationship("Activity", back_populates="items")
     vehicle = db.relationship("Vehicle", lazy="joined")
@@ -221,7 +222,7 @@ class ActivityNonConformityLink(db.Model):
     activity_item_id = db.Column(db.Integer, db.ForeignKey("activity_items.id"), nullable=False, index=True)
     checklist_item_id = db.Column(db.Integer, db.ForeignKey("checklist_items.id"), nullable=False, unique=True, index=True)
     linked_by_mode = db.Column(db.String(20), nullable=False, default="MANUAL", index=True)
-    linked_at = db.Column(db.DateTime, nullable=False, default=datetime.utcnow, index=True)
+    linked_at = db.Column(db.DateTime, nullable=False, default=now_manaus_naive, index=True)
 
     activity = db.relationship("Activity", back_populates="non_conformity_links")
     activity_item = db.relationship("ActivityItem", back_populates="non_conformity_links")

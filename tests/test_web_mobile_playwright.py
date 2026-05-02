@@ -10,7 +10,7 @@ import threading
 import time
 import unittest
 import uuid
-from datetime import datetime, timedelta
+from datetime import timedelta
 from functools import partial
 from http.server import SimpleHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
@@ -32,6 +32,7 @@ os.environ["WASH_CONTROL_FILE"] = ""
 from app import create_app
 from app.extensions import db
 from app.models import Checklist, ChecklistItem, User, Vehicle
+from app.utils.timezone import now_manaus_naive
 from playwright.sync_api import expect, sync_playwright
 
 
@@ -111,8 +112,8 @@ class WebMobilePlaywrightTests(unittest.TestCase):
             db.session.flush()
 
             for created_at in (
-                datetime.utcnow() - timedelta(hours=2),
-                datetime.utcnow() - timedelta(days=1, hours=3),
+                now_manaus_naive() - timedelta(hours=2),
+                now_manaus_naive() - timedelta(days=1, hours=3),
             ):
                 checklist = Checklist(
                     vehicle_id=vehicle.id,
@@ -184,6 +185,7 @@ class WebMobilePlaywrightTests(unittest.TestCase):
 
     def _login(self) -> None:
         self.page.goto(self.frontend_url, wait_until="domcontentloaded")
+        self.assertEqual(self.page.evaluate("() => window.CHECKLIST_TIME_ZONE"), "America/Manaus")
         self.page.evaluate(
             "(apiUrl) => { document.getElementById('api-base-url').value = apiUrl; localStorage.removeItem('token'); localStorage.removeItem('user'); }",
             self.backend_url,
@@ -265,7 +267,7 @@ class WebMobilePlaywrightTests(unittest.TestCase):
         expect(first_card.locator(".camera-trigger")).to_contain_text("CÂMERA")
         expect(first_card).not_to_contain_text("Escolher arquivo")
         first_card.locator("input[type='file']").set_input_files(str(self.test_image_path))
-        expect(first_card.locator("em")).to_contain_text("EVIDÊNCIA ANEXADA")
+        expect(first_card.locator("em.ok")).to_contain_text("EVIDÊNCIA ANEXADA")
         expect(first_card).not_to_contain_text(self.test_image_path.name)
         preview = first_card.locator(".photo-preview")
         expect(preview).to_be_visible()

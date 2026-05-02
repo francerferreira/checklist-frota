@@ -21,6 +21,86 @@ const SESSION_MAX_AGE_MS = 8 * 60 * 60 * 1000;
 const appTopbar = document.querySelector(".app-topbar");
 const PULL_REFRESH_TRIGGER_PX = 84;
 const PULL_REFRESH_MAX_PX = 112;
+const MANAUS_TIME_ZONE = "America/Manaus";
+const MANAUS_DATE_TIME_FORMAT = new Intl.DateTimeFormat("pt-BR", {
+    timeZone: MANAUS_TIME_ZONE,
+    day: "2-digit",
+    month: "2-digit",
+    year: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+});
+const MANAUS_DATE_TIME_SHORT_FORMAT = new Intl.DateTimeFormat("pt-BR", {
+    timeZone: MANAUS_TIME_ZONE,
+    day: "2-digit",
+    month: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+});
+const MANAUS_DATE_PARTS_FORMAT = new Intl.DateTimeFormat("en-CA", {
+    timeZone: MANAUS_TIME_ZONE,
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+});
+
+window.CHECKLIST_TIME_ZONE = MANAUS_TIME_ZONE;
+
+function getManausDateParts(date = new Date()) {
+    const parts = Object.fromEntries(MANAUS_DATE_PARTS_FORMAT.formatToParts(date).map((part) => [part.type, part.value]));
+    return {
+        year: Number(parts.year),
+        month: Number(parts.month),
+        day: Number(parts.day),
+    };
+}
+
+function getManausDateKey(date = new Date()) {
+    const parts = getManausDateParts(date);
+    return formatDateKey(parts.year, parts.month, parts.day);
+}
+
+function parseNaiveIsoDateTime(value) {
+    const match = String(value || "").match(/^(\d{4})-(\d{2})-(\d{2})[T\s](\d{2}):(\d{2})(?::(\d{2}))?(?:\.\d+)?$/);
+    if (!match) {
+        return null;
+    }
+    return {
+        year: match[1],
+        month: match[2],
+        day: match[3],
+        hour: match[4],
+        minute: match[5],
+        second: match[6] || "00",
+    };
+}
+
+function hasExplicitTimezone(value) {
+    return /(?:Z|[+-]\d{2}:?\d{2})$/i.test(String(value || ""));
+}
+
+function formatManausDateTime(value, { short = false } = {}) {
+    if (!value) {
+        return short ? "" : "-";
+    }
+    if (value instanceof Date) {
+        return (short ? MANAUS_DATE_TIME_SHORT_FORMAT : MANAUS_DATE_TIME_FORMAT).format(value);
+    }
+    const raw = String(value);
+    const naive = !hasExplicitTimezone(raw) ? parseNaiveIsoDateTime(raw) : null;
+    if (naive) {
+        return short
+            ? `${naive.day}/${naive.month}, ${naive.hour}:${naive.minute}`
+            : `${naive.day}/${naive.month}/${naive.year}, ${naive.hour}:${naive.minute}`;
+    }
+    const date = new Date(raw);
+    if (Number.isNaN(date.getTime())) {
+        return short ? "" : raw;
+    }
+    return (short ? MANAUS_DATE_TIME_SHORT_FORMAT : MANAUS_DATE_TIME_FORMAT).format(date);
+}
+
+const INITIAL_MANAUS_DATE = getManausDateParts();
 
 function readJsonStorage(key, fallback = null) {
     try {
@@ -67,12 +147,12 @@ const state = {
     maintenanceOverview: null,
     ncChecklistStatus: "abertas",
     ncMechanicStatus: "abertas",
-    washYear: new Date().getFullYear(),
-    washMonth: new Date().getMonth() + 1,
+    washYear: INITIAL_MANAUS_DATE.year,
+    washMonth: INITIAL_MANAUS_DATE.month,
     selectedWashDate: "",
     selectedWashShiftTab: "TODOS",
-    maintenanceYear: new Date().getFullYear(),
-    maintenanceMonth: new Date().getMonth() + 1,
+    maintenanceYear: INITIAL_MANAUS_DATE.year,
+    maintenanceMonth: INITIAL_MANAUS_DATE.month,
     selectedMaintenanceDate: "",
     selectedActivity: null,
     selectedVehicle: null,
@@ -285,19 +365,7 @@ function renderStateCard(target, { title, message = "", tone = "neutral", compac
 }
 
 function formatDateTimeShort(value) {
-    if (!value) {
-        return "";
-    }
-    const date = value instanceof Date ? value : new Date(value);
-    if (Number.isNaN(date.getTime())) {
-        return "";
-    }
-    return date.toLocaleString("pt-BR", {
-        day: "2-digit",
-        month: "2-digit",
-        hour: "2-digit",
-        minute: "2-digit",
-    });
+    return formatManausDateTime(value, { short: true });
 }
 
 function setLoginStatus(message, isError = false) {
@@ -420,13 +488,13 @@ window.enterChecklistApp = async () => {
 };
 
 async function loadVehiclesAndCatalog() {
-    const now = new Date();
+    const now = getManausDateParts();
     try {
         const [vehicles, catalog, activities, washOverview, materials] = await Promise.all([
             apiFetch("/veiculos?ativos=true"),
             apiFetch("/config/checklists"),
             apiFetch("/atividades?status=ABERTA"),
-            apiFetch(`/lavagens/visao?ano=${now.getFullYear()}&mes=${now.getMonth() + 1}`),
+            apiFetch(`/lavagens/visao?ano=${now.year}&mes=${now.month}`),
             apiFetch("/materiais?ativos=true"),
         ]);
         state.vehicles = vehicles.filter((vehicle) => vehicle.ativo !== false);
@@ -642,9 +710,10 @@ function openChecklistMenu() {
 }
 
 function formatDateInputValue(date) {
-    const year = date.getFullYear();
-    const month = String(date.getMonth() + 1).padStart(2, "0");
-    const day = String(date.getDate()).padStart(2, "0");
+    const parts = getManausDateParts(date);
+    const year = parts.year;
+    const month = String(parts.month).padStart(2, "0");
+    const day = String(parts.day).padStart(2, "0");
     return `${year}-${month}-${day}`;
 }
 
@@ -1231,10 +1300,10 @@ function ensureSelectedMaintenanceDate(days) {
     if (days.find((day) => day.date === state.selectedMaintenanceDate)) {
         return days.find((day) => day.date === state.selectedMaintenanceDate);
     }
-    const today = new Date();
-    const todayKey = formatDateKey(today.getFullYear(), today.getMonth() + 1, today.getDate());
+    const today = getManausDateParts();
+    const todayKey = formatDateKey(today.year, today.month, today.day);
     const firstDayWithItems = days.find((day) => (day.items || []).length);
-    if (today.getFullYear() === state.maintenanceYear && today.getMonth() + 1 === state.maintenanceMonth) {
+    if (today.year === state.maintenanceYear && today.month === state.maintenanceMonth) {
         state.selectedMaintenanceDate = todayKey;
     } else {
         state.selectedMaintenanceDate = firstDayWithItems?.date || formatDateKey(state.maintenanceYear, state.maintenanceMonth, 1);
@@ -1253,8 +1322,7 @@ function renderMaintenanceCalendar(days) {
     const daysByDate = new Map(days.map((day) => [day.date, day]));
     const firstWeekday = new Date(state.maintenanceYear, state.maintenanceMonth - 1, 1).getDay();
     const totalDays = new Date(state.maintenanceYear, state.maintenanceMonth, 0).getDate();
-    const today = new Date();
-    const todayKey = formatDateKey(today.getFullYear(), today.getMonth() + 1, today.getDate());
+    const todayKey = getManausDateKey();
     elements.maintenanceCalendar.innerHTML = "";
 
     for (let index = 0; index < firstWeekday; index += 1) {
@@ -2064,14 +2132,7 @@ function attachCollapsibleCard(card, options = {}) {
 }
 
 function formatDateTime(value) {
-    if (!value) {
-        return "-";
-    }
-    const date = new Date(value);
-    if (Number.isNaN(date.getTime())) {
-        return value;
-    }
-    return date.toLocaleString("pt-BR");
+    return formatManausDateTime(value);
 }
 
 function normalizeCatalog(catalog) {
@@ -2381,7 +2442,7 @@ async function refreshSyncQueuePanel() {
             <article class="sync-row ${item.status === "ERRO" ? "error" : ""}">
                 <div>
                     <strong>${escapeHtml(item.vehicle?.frota || "EQUIPAMENTO")}</strong>
-                    <span>${new Date(item.queuedAt).toLocaleString("pt-BR")} | ${item.itens?.length || 0} ITENS</span>
+                    <span>${formatDateTime(item.queuedAt)} | ${item.itens?.length || 0} ITENS</span>
                 </div>
                 <em>${escapeHtml(item.status || "PENDENTE")}</em>
             </article>
@@ -2944,12 +3005,12 @@ function ensureSelectedWashDate(days) {
         return;
     }
 
-    const today = new Date();
-    const todayKey = formatDateKey(today.getFullYear(), today.getMonth() + 1, today.getDate());
+    const today = getManausDateParts();
+    const todayKey = formatDateKey(today.year, today.month, today.day);
     const todayHasSchedule = days.find((day) => day.date === todayKey);
     const firstDayWithItems = days.find((day) => [...(day.morning || []), ...(day.afternoon || [])].length);
 
-    if (today.getFullYear() === state.washYear && today.getMonth() + 1 === state.washMonth) {
+    if (today.year === state.washYear && today.month === state.washMonth) {
         state.selectedWashDate = todayHasSchedule?.date || todayKey;
         return;
     }
@@ -2961,8 +3022,7 @@ function renderWashCalendar(days) {
     const daysByDate = new Map(days.map((day) => [day.date, day]));
     const firstWeekday = new Date(state.washYear, state.washMonth - 1, 1).getDay();
     const totalDays = new Date(state.washYear, state.washMonth, 0).getDate();
-    const today = new Date();
-    const todayKey = formatDateKey(today.getFullYear(), today.getMonth() + 1, today.getDate());
+    const todayKey = getManausDateKey();
 
     elements.washCalendar.innerHTML = "";
 
@@ -4016,10 +4076,10 @@ async function sendChecklistDraft(draft) {
 
 function showChecklistSuccess(draft, result = null, queued = false) {
     const totalNc = result?.total_nc || draft.itens.filter((item) => item.status === "NC").length;
-    const when = result?.created_at ? new Date(result.created_at) : new Date(draft.createdAt);
+    const when = result?.created_at || draft.createdAt;
     elements.successSummary.innerHTML = `
         <strong>${escapeHtml(draft.vehicle.frota)}</strong>
-        <span>${queued ? "SALVO OFFLINE EM" : "ENVIADO EM"} ${when.toLocaleString("pt-BR")}</span>
+        <span>${queued ? "SALVO OFFLINE EM" : "ENVIADO EM"} ${formatDateTime(when)}</span>
         <span>NÃO CONFORMIDADES REGISTRADAS: ${totalNc}</span>
         ${queued ? "<span>SERÁ SINCRONIZADO AUTOMATICAMENTE QUANDO A CONEXÃO VOLTAR.</span>" : ""}
     `;

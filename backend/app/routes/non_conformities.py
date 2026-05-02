@@ -3,6 +3,7 @@ from datetime import datetime
 from flask import Blueprint, g, jsonify, request
 
 from app.extensions import db
+from app.utils.timezone import now_manaus_naive
 from app.models import Activity, ActivityItem, ChecklistItem, Material, User, Vehicle
 from app.services.auth_service import auth_required, user_can_resolve_non_conformity, user_has_management_access
 from app.services.material_service import register_material_movement
@@ -70,7 +71,7 @@ def resolve_non_conformity(item_id: int):
     material_id = payload.get("material_id")
     quantidade_material = payload.get("quantidade_material")
     item.resolvido = True
-    item.data_resolucao = datetime.utcnow()
+    item.data_resolucao = now_manaus_naive()
     item.resolved_by_user_id = g.current_user.id
     item.foto_depois = payload.get("foto_depois") or item.foto_depois
     item.codigo_peca = (payload.get("codigo_peca") or item.codigo_peca or "").strip() or None

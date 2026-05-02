@@ -3,6 +3,7 @@ from __future__ import annotations
 from datetime import datetime
 
 from app.extensions import db
+from app.utils.timezone import now_manaus_naive
 
 
 class Checklist(db.Model):
@@ -11,7 +12,7 @@ class Checklist(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     vehicle_id = db.Column(db.Integer, db.ForeignKey("vehicles.id"), nullable=False, index=True)
     user_id = db.Column(db.Integer, db.ForeignKey("users.id"), nullable=False, index=True)
-    created_at = db.Column(db.DateTime, nullable=False, default=datetime.utcnow, index=True)
+    created_at = db.Column(db.DateTime, nullable=False, default=now_manaus_naive, index=True)
 
     vehicle = db.relationship("Vehicle", back_populates="checklists")
     user = db.relationship("User", back_populates="checklists")
@@ -55,7 +56,7 @@ class ChecklistItem(db.Model):
     resolved_by_user_id = db.Column(db.Integer, db.ForeignKey("users.id"), nullable=True, index=True)
     resolvido = db.Column(db.Boolean, nullable=False, default=False, index=True)
     data_resolucao = db.Column(db.DateTime, nullable=True)
-    created_at = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
+    created_at = db.Column(db.DateTime, nullable=False, default=now_manaus_naive)
 
     checklist = db.relationship("Checklist", back_populates="items")
     resolved_by = db.relationship("User", foreign_keys=[resolved_by_user_id], lazy="joined")

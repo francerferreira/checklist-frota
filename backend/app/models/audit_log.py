@@ -1,5 +1,6 @@
 from datetime import datetime
 from app.extensions import db
+from app.utils.timezone import now_manaus_naive
 
 class AuditLog(db.Model):
     """
@@ -9,7 +10,7 @@ class AuditLog(db.Model):
     __tablename__ = "audit_logs"
 
     id = db.Column(db.Integer, primary_key=True)
-    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    created_at = db.Column(db.DateTime, default=now_manaus_naive)
     user_id = db.Column(db.Integer, db.ForeignKey("users.id"), nullable=True)
     entity_type = db.Column(db.String(50), nullable=False)  # 'VEHICLE', 'CHECKLIST_ITEM'
     entity_id = db.Column(db.Integer, nullable=False)

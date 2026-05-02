@@ -5,6 +5,7 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy import func
 
 from app.extensions import db
+from app.utils.timezone import today_manaus
 from app.models import Checklist, ChecklistCatalogItem, ChecklistItem, Vehicle
 from app.services.auth_service import auth_required, user_has_management_access
 from app.services.checklist_catalog import (
@@ -286,7 +287,7 @@ def checklist_history_matrix():
         except ValueError as exc:
             return api_response(False, error=str(exc), status_code=400)
 
-    today = datetime.utcnow().date()
+    today = today_manaus()
     try:
         start_date = _parse_date_param(request.args.get("data_inicio"), today - timedelta(days=6))
         end_date = _parse_date_param(request.args.get("data_fim"), today)

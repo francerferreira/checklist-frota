@@ -3,6 +3,7 @@ from __future__ import annotations
 from datetime import datetime
 
 from app.extensions import db
+from app.utils.timezone import now_manaus_naive
 
 
 class Vehicle(db.Model):
@@ -23,7 +24,7 @@ class Vehicle(db.Model):
     foto_path = db.Column(db.String(255), nullable=True)
     ativo = db.Column(db.Boolean, nullable=False, default=True, index=True)
     retirado_em = db.Column(db.DateTime, nullable=True)
-    created_at = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
+    created_at = db.Column(db.DateTime, nullable=False, default=now_manaus_naive)
 
     checklists = db.relationship(
         "Checklist",

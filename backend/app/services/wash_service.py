@@ -12,6 +12,7 @@ from pathlib import Path
 from openpyxl import load_workbook
 
 from app.extensions import db
+from app.utils.timezone import now_manaus_naive, today_manaus
 from app.models import MaintenanceScheduleItem, Vehicle, WashBlockedDay, WashPlanConfig, WashQueueItem, WashRecord, WashScheduleDecision
 from app.services.vehicle_type_service import infer_auxiliary_vehicle_type
 
@@ -531,7 +532,7 @@ def compute_preventive_date(item: WashQueueItem, reference_day: date | None = No
     if not item.preventive_enabled or item.preventive_week_of_month is None or item.preventive_weekday is None:
         return None
 
-    current = reference_day or date.today()
+    current = reference_day or today_manaus()
     year = current.year
     month = current.month
 
@@ -571,7 +572,7 @@ def mark_unavailable(queue_item: WashQueueItem, reason: str | None, user_id: int
         return queue_item
     queue_item.indisponivel = True
     queue_item.motivo_indisponivel = _clean(reason)
-    queue_item.indisponivel_desde = datetime.utcnow()
+    queue_item.indisponivel_desde = now_manaus_naive()
     db.session.add(
         WashRecord(
             queue_item_id=queue_item.id,
@@ -582,7 +583,7 @@ def mark_unavailable(queue_item: WashQueueItem, reason: str | None, user_id: int
             tipo_equipamento="INDISPONIVEL",
             turno=None,
             status="INDISPONIVEL",
-            wash_date=datetime.utcnow(),
+            wash_date=now_manaus_naive(),
             local=None,
             valor=None,
             observacao=queue_item.motivo_indisponivel,
@@ -1033,7 +1034,7 @@ def build_wash_overview(
     year: int | None = None,
     month: int | None = None,
 ) -> dict:
-    current = reference_day or date.today()
+    current = reference_day or today_manaus()
     target_year = year or current.year
     target_month = month or current.month
 
@@ -1143,7 +1144,7 @@ def build_wash_overview(
 
 
 def build_tomorrow_message_payload(reference_day: date | None = None) -> dict:
-    current = reference_day or date.today()
+    current = reference_day or today_manaus()
     tomorrow = current + timedelta(days=1)
     overview = build_wash_overview(current, year=tomorrow.year, month=tomorrow.month)
     target = next((item for item in overview["cronograma"]["days"] if item["date"] == tomorrow.isoformat()), None)

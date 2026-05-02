@@ -10,6 +10,7 @@ from flask import current_app
 from werkzeug.datastructures import FileStorage
 from werkzeug.utils import secure_filename
 
+from app.utils.timezone import MANAUS_TZ, now_manaus_naive
 
 ALLOWED_EXTENSIONS = {".jpg", ".jpeg", ".png", ".webp"}
 
@@ -55,7 +56,7 @@ def build_filename(file_storage: FileStorage, vehicle: str, item: str, user: str
     if extension not in ALLOWED_EXTENSIONS:
         raise ValueError("Formato de imagem nao suportado.")
 
-    timestamp = datetime.utcnow().strftime("%Y-%m-%d-%H%M%S")
+    timestamp = now_manaus_naive().strftime("%Y-%m-%d-%H%M%S")
     return f"{_slugify(vehicle)}_{_slugify(item)}_{_slugify(user)}_{timestamp}{extension}"
 
 
@@ -74,7 +75,7 @@ def save_local_upload(
 
 def save_supabase_upload(file_storage: FileStorage, vehicle: str, item: str, user: str) -> str:
     filename = build_filename(file_storage, vehicle, item, user)
-    object_path = f"{datetime.utcnow():%Y/%m/%d}/{filename}"
+    object_path = f"{now_manaus_naive():%Y/%m/%d}/{filename}"
     data = file_storage.read()
     content_type = file_storage.mimetype or "application/octet-stream"
     response = requests.post(
@@ -167,7 +168,7 @@ def local_storage_objects(upload_folder: Path) -> list[dict[str, Any]]:
                 {
                     "path": path.relative_to(upload_folder).as_posix(),
                     "size": path.stat().st_size,
-                    "updated_at": datetime.utcfromtimestamp(path.stat().st_mtime).isoformat(),
+                    "updated_at": datetime.fromtimestamp(path.stat().st_mtime, MANAUS_TZ).isoformat(),
                 }
             )
     return rows
@@ -181,7 +182,6 @@ def storage_objects() -> list[dict[str, Any]]:
 
 def storage_usage_bytes() -> int:
     return sum(int(item.get("size") or 0) for item in storage_objects())
-
 
 def path_to_supabase_object(value: str | None) -> str | None:
     if not value:

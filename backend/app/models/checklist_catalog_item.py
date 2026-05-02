@@ -3,6 +3,7 @@ from __future__ import annotations
 from datetime import datetime
 
 from app.extensions import db
+from app.utils.timezone import now_manaus_naive
 
 
 class ChecklistCatalogItem(db.Model):
@@ -14,12 +15,12 @@ class ChecklistCatalogItem(db.Model):
     position = db.Column(db.Integer, nullable=False, default=1, index=True)
     foto_path = db.Column(db.String(255), nullable=True)
     ativo = db.Column(db.Boolean, nullable=False, default=True, index=True)
-    created_at = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
+    created_at = db.Column(db.DateTime, nullable=False, default=now_manaus_naive)
     updated_at = db.Column(
         db.DateTime,
         nullable=False,
-        default=datetime.utcnow,
-        onupdate=datetime.utcnow,
+        default=now_manaus_naive,
+        onupdate=now_manaus_naive,
     )
 
     __table_args__ = (

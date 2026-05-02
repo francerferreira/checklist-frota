@@ -4,6 +4,7 @@ from calendar import monthrange
 from datetime import date, datetime, timedelta
 
 from app.extensions import db
+from app.utils.timezone import now_manaus_naive, today_manaus
 from app.models import Activity, ChecklistItem, Material, MaintenanceMaterial, MaintenanceSchedule, MaintenanceScheduleItem, WashQueueItem
 from app.services.material_service import register_material_movement
 
@@ -102,7 +103,7 @@ def ensure_schedule_for_checklist_item(item: ChecklistItem) -> MaintenanceSchedu
             title=f"Não conformidade - {item.item_nome}",
             item_name=item.item_nome,
             status="ABERTA",
-            start_date=item.created_at.date() if item.created_at else date.today(),
+            start_date=item.created_at.date() if item.created_at else today_manaus(),
             daily_capacity=1,
             created_by_user_id=item.checklist.user_id,
             observation=item.observacao,
@@ -210,7 +211,7 @@ def _build_month_calendar(items: list[MaintenanceScheduleItem], *, year: int, mo
 
 
 def build_maintenance_overview(*, year: int | None = None, month: int | None = None, assigned_to_user_id: int | None = None) -> dict:
-    today = date.today()
+    today = today_manaus()
     year = year or today.year
     month = month or today.month
     schedules = MaintenanceSchedule.query.order_by(MaintenanceSchedule.created_at.desc()).all()
@@ -310,7 +311,7 @@ def _ensure_preventive_wash_queue_items(schedule: MaintenanceSchedule) -> None:
 
 def create_maintenance_schedule(payload: dict, *, created_by_user_id: int) -> MaintenanceSchedule:
     source_type = _normalize_type(payload.get("source_type") or payload.get("tipo") or payload.get("origem"))
-    start_date = _parse_date(payload.get("start_date") or payload.get("data_inicio"), default=date.today())
+    start_date = _parse_date(payload.get("start_date") or payload.get("data_inicio"), default=today_manaus())
     daily_capacity = _normalize_daily_capacity(payload.get("daily_capacity") or payload.get("capacidade_diaria"))
 
     schedule = MaintenanceSchedule(
@@ -373,9 +374,9 @@ def create_maintenance_schedule(payload: dict, *, created_by_user_id: int) -> Ma
 
 def program_maintenance_schedule(schedule_id: int, payload: dict, *, user_id: int) -> MaintenanceSchedule:
     schedule = MaintenanceSchedule.query.get_or_404(schedule_id)
-    start_date = _parse_date(payload.get("start_date") or payload.get("data_inicio"), default=schedule.start_date or date.today())
+    start_date = _parse_date(payload.get("start_date") or payload.get("data_inicio"), default=schedule.start_date or today_manaus())
     if not start_date:
-        start_date = date.today()
+        start_date = today_manaus()
     daily_capacity = _normalize_daily_capacity(
         payload.get("daily_capacity") or payload.get("capacidade_diaria") or schedule.daily_capacity
     )
@@ -515,7 +516,7 @@ def update_schedule_item(item_id: int, payload: dict, *, user) -> MaintenanceSch
             link.quantity_reserved = min(int(link.quantity_required or required), int(link.quantity_reserved or 0) + required)
         if item.checklist_item:
             item.checklist_item.resolvido = True
-            item.checklist_item.data_resolucao = datetime.utcnow()
+            item.checklist_item.data_resolucao = now_manaus_naive()
             item.checklist_item.resolved_by_user_id = user.id
             item.checklist_item.foto_depois = item.photo_after or item.checklist_item.foto_depois
             if item.observation:
@@ -524,12 +525,12 @@ def update_schedule_item(item_id: int, payload: dict, *, user) -> MaintenanceSch
                 if suffix not in current_observation:
                     item.checklist_item.observacao = f"{current_observation}\n{suffix}".strip()
         item.executed_by_user_id = user.id
-        item.executed_at = datetime.utcnow()
+        item.executed_at = now_manaus_naive()
         item.status = "INSTALADO"
     elif new_status == "NAO_EXECUTADO":
         item.status = new_status
         item.executed_by_user_id = user.id
-        item.executed_at = datetime.utcnow()
+        item.executed_at = now_manaus_naive()
         if not item.not_executed_reason:
             raise ValueError("Informe o motivo para marcar como não executado.")
     else:
@@ -600,7 +601,7 @@ def build_maintenance_report_payload(
     mechanic_id: int | None = None,
     vehicle_id: int | None = None,
 ) -> dict:
-    today = date.today()
+    today = today_manaus()
     year = year or today.year
     month = month or today.month
     normalized_type = (report_type or "mensal").strip().lower()

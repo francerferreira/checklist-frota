@@ -6,6 +6,7 @@ from flask import Blueprint, current_app, g, jsonify, request
 from sqlalchemy.exc import IntegrityError
 
 from app.extensions import db
+from app.utils.timezone import now_manaus_naive
 from app.models import Vehicle
 from app.services.auth_service import auth_required, user_has_management_access
 from app.services.audit_service import record_status_change
@@ -176,7 +177,7 @@ def retire_vehicle(vehicle_id: int):
     old_status = vehicle.status
     vehicle.ativo = False
     vehicle.status = "RETIRADO"
-    vehicle.retirado_em = datetime.utcnow()
+    vehicle.retirado_em = now_manaus_naive()
     
     record_status_change(g.current_user.id, "VEHICLE", vehicle.id, old_status, "RETIRADO")
     

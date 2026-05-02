@@ -3,6 +3,7 @@ from __future__ import annotations
 from datetime import datetime
 
 from app.extensions import db
+from app.utils.timezone import now_manaus_naive
 
 
 class Material(db.Model):
@@ -16,7 +17,7 @@ class Material(db.Model):
     quantidade_estoque = db.Column(db.Integer, nullable=False, default=0)
     estoque_minimo = db.Column(db.Integer, nullable=False, default=0)
     ativo = db.Column(db.Boolean, nullable=False, default=True, index=True)
-    created_at = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
+    created_at = db.Column(db.DateTime, nullable=False, default=now_manaus_naive)
 
     movements = db.relationship(
         "MaterialMovement",
@@ -68,7 +69,7 @@ class MaterialMovement(db.Model):
     saldo_anterior = db.Column(db.Integer, nullable=False)
     saldo_posterior = db.Column(db.Integer, nullable=False)
     observacao = db.Column(db.String(255), nullable=True)
-    created_at = db.Column(db.DateTime, nullable=False, default=datetime.utcnow, index=True)
+    created_at = db.Column(db.DateTime, nullable=False, default=now_manaus_naive, index=True)
 
     material = db.relationship("Material", back_populates="movements")
     user = db.relationship("User", lazy="joined")

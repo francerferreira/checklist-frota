@@ -6,6 +6,7 @@ from flask import Blueprint, g, jsonify, request
 from sqlalchemy import or_
 
 from app.extensions import db
+from app.utils.timezone import now_manaus_naive
 from app.models import Material, MechanicNonConformity
 from app.services.auth_service import auth_required, user_has_mechanic_workspace_access
 from app.services.material_service import register_material_movement
@@ -132,7 +133,7 @@ def resolve_mechanic_non_conformity(item_id: int):
     payload = request.get_json(silent=True) or {}
     item.resolvido = True
     item.resolved_by_user_id = g.current_user.id
-    item.data_resolucao = datetime.utcnow()
+    item.data_resolucao = now_manaus_naive()
     item.foto_depois = (payload.get("foto_depois") or item.foto_depois or "").strip() or None
     item.observacao_resolucao = (payload.get("observacao_resolucao") or payload.get("observacao") or "").strip() or None
     item.codigo_peca = (payload.get("codigo_peca") or item.codigo_peca or "").strip() or None

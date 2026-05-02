@@ -5,6 +5,7 @@ from datetime import datetime
 from werkzeug.security import check_password_hash, generate_password_hash
 
 from app.extensions import db
+from app.utils.timezone import now_manaus_naive
 
 
 class User(db.Model):
@@ -16,7 +17,7 @@ class User(db.Model):
     senha_hash = db.Column(db.String(255), nullable=False)
     tipo = db.Column(db.String(20), nullable=False, index=True)
     ativo = db.Column(db.Boolean, nullable=False, default=True, index=True)
-    created_at = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
+    created_at = db.Column(db.DateTime, nullable=False, default=now_manaus_naive)
 
     checklists = db.relationship("Checklist", back_populates="user", lazy="dynamic")
 

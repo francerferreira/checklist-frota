@@ -12,6 +12,7 @@ from sqlalchemy import event, inspect
 from sqlalchemy.orm import Session
 
 from app.extensions import db
+from app.utils.timezone import now_manaus_naive
 from app.models.audit_log import AuditLog
 from app.models.user import User
 
@@ -191,7 +192,7 @@ def _after_flush_postexec(session: Session, flush_context):  # noqa: ANN001
                 "action": entry.get("action") or "UPDATE",
                 "old_value": entry.get("old_value"),
                 "new_value": entry.get("new_value"),
-                "created_at": datetime.utcnow(),
+                "created_at": now_manaus_naive(),
             }
         )
 

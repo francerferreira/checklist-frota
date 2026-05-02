@@ -3,6 +3,7 @@ from __future__ import annotations
 from datetime import datetime
 
 from app.extensions import db
+from app.utils.timezone import now_manaus_naive
 
 
 class MaintenanceSchedule(db.Model):
@@ -20,8 +21,8 @@ class MaintenanceSchedule(db.Model):
     created_by_user_id = db.Column(db.Integer, db.ForeignKey("users.id"), nullable=False, index=True)
     assigned_mechanic_user_id = db.Column(db.Integer, db.ForeignKey("users.id"), nullable=True, index=True)
     observation = db.Column(db.Text, nullable=True)
-    created_at = db.Column(db.DateTime, nullable=False, default=datetime.utcnow, index=True)
-    updated_at = db.Column(db.DateTime, nullable=False, default=datetime.utcnow, onupdate=datetime.utcnow)
+    created_at = db.Column(db.DateTime, nullable=False, default=now_manaus_naive, index=True)
+    updated_at = db.Column(db.DateTime, nullable=False, default=now_manaus_naive, onupdate=now_manaus_naive)
 
     created_by = db.relationship("User", foreign_keys=[created_by_user_id], lazy="joined")
     assigned_mechanic = db.relationship("User", foreign_keys=[assigned_mechanic_user_id], lazy="joined")
@@ -100,8 +101,8 @@ class MaintenanceScheduleItem(db.Model):
     photo_after = db.Column(db.String(255), nullable=True)
     executed_by_user_id = db.Column(db.Integer, db.ForeignKey("users.id"), nullable=True, index=True)
     executed_at = db.Column(db.DateTime, nullable=True)
-    created_at = db.Column(db.DateTime, nullable=False, default=datetime.utcnow, index=True)
-    updated_at = db.Column(db.DateTime, nullable=False, default=datetime.utcnow, onupdate=datetime.utcnow)
+    created_at = db.Column(db.DateTime, nullable=False, default=now_manaus_naive, index=True)
+    updated_at = db.Column(db.DateTime, nullable=False, default=now_manaus_naive, onupdate=now_manaus_naive)
 
     schedule = db.relationship("MaintenanceSchedule", back_populates="items")
     vehicle = db.relationship("Vehicle", lazy="joined")
@@ -155,8 +156,8 @@ class MaintenanceMaterial(db.Model):
     quantity_reserved = db.Column(db.Integer, nullable=False, default=0)
     status = db.Column(db.String(30), nullable=False, default="AGUARDANDO_MATERIAL", index=True)
     observation = db.Column(db.Text, nullable=True)
-    created_at = db.Column(db.DateTime, nullable=False, default=datetime.utcnow, index=True)
-    updated_at = db.Column(db.DateTime, nullable=False, default=datetime.utcnow, onupdate=datetime.utcnow)
+    created_at = db.Column(db.DateTime, nullable=False, default=now_manaus_naive, index=True)
+    updated_at = db.Column(db.DateTime, nullable=False, default=now_manaus_naive, onupdate=now_manaus_naive)
 
     schedule = db.relationship("MaintenanceSchedule", back_populates="materials")
     material = db.relationship("Material", lazy="joined")

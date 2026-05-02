@@ -5,6 +5,7 @@ from datetime import datetime
 from flask import Blueprint, g, jsonify, request
 
 from app.extensions import db
+from app.utils.timezone import now_manaus_naive
 from app.models import Activity, ActivityItem, ActivityNonConformityLink, Material, User, Vehicle
 from app.services.activity_link_service import (
     get_non_conformities_for_mass_activity,
@@ -480,7 +481,7 @@ def update_activity_item(activity_id: int, item_id: int):
         item.executado_por_nome = None
         item.executado_por_login = None
     else:
-        item.instalado_em = datetime.utcnow()
+        item.instalado_em = now_manaus_naive()
         item.executado_por_nome = g.current_user.nome
         item.executado_por_login = g.current_user.login
 
@@ -502,7 +503,7 @@ def update_activity_item(activity_id: int, item_id: int):
     resumo = activity.summary()
     all_done = resumo["pendentes"] == 0
     activity.status = ActivityStatus.FINISHED if all_done else ActivityStatus.OPEN
-    activity.finalized_at = datetime.utcnow() if all_done else None
+    activity.finalized_at = now_manaus_naive() if all_done else None
 
     db.session.commit()
     response = _serialize_activity(activity, include_items=True)

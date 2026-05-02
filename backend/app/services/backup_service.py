@@ -12,6 +12,7 @@ from flask import current_app
 from sqlalchemy import select, text
 
 from app.extensions import db
+from app.utils.timezone import now_manaus_naive
 from app.models import Activity, Checklist, ChecklistItem, MaterialMovement, WashRecord
 from app.services.storage_service import (
     delete_supabase_objects,
@@ -89,7 +90,7 @@ def storage_status() -> dict:
         "database": section(db_bytes, db_limit),
         "storage": section(file_bytes, storage_limit),
         "storage_backend": storage_backend(),
-        "generated_at": datetime.utcnow().isoformat(),
+        "generated_at": now_manaus_naive().isoformat(),
     }
 
 
@@ -146,7 +147,7 @@ def _write_storage_files(zip_file: zipfile.ZipFile) -> list[dict[str, Any]]:
 
 
 def create_backup() -> dict:
-    now = datetime.utcnow()
+    now = now_manaus_naive()
     filename = f"backup-checklist-{now:%Y%m%d-%H%M%S}.zip"
     path = backup_folder() / filename
     rows_by_table = _all_table_rows()
@@ -239,7 +240,7 @@ def cleanup_old_records(
     confirmation: str | None = None,
     dry_run: bool = True,
 ) -> dict:
-    cutoff = datetime.utcnow() - timedelta(days=max(1, keep_days))
+    cutoff = now_manaus_naive() - timedelta(days=max(1, keep_days))
     old_checklists = Checklist.query.filter(Checklist.created_at < cutoff).all()
     old_washes = WashRecord.query.filter(WashRecord.created_at < cutoff).all()
     old_activities = Activity.query.filter(

@@ -7,6 +7,7 @@ from pathlib import Path
 
 from flask import Blueprint, current_app, g, jsonify, request, send_file
 
+from app.utils.timezone import now_manaus_naive
 from app.models import WashQueueItem
 from app.services.auth_service import auth_required, user_has_management_access
 from app.services.wash_service import (
@@ -77,8 +78,8 @@ def wash_month_pdf_report():
     month = request.args.get("mes", type=int)
     overview = build_wash_overview(year=year, month=month)
     period = overview.get("periodo") or {}
-    safe_year = int(period.get("ano") or year or datetime.utcnow().year)
-    safe_month = int(period.get("mes") or month or datetime.utcnow().month)
+    safe_year = int(period.get("ano") or year or now_manaus_naive().year)
+    safe_month = int(period.get("mes") or month or now_manaus_naive().month)
 
     tmp = tempfile.NamedTemporaryFile(prefix="lavagens_mensal_", suffix=".pdf", delete=False)
     tmp_path = Path(tmp.name)
@@ -139,7 +140,7 @@ def create_wash_record():
     queue_item = WashQueueItem.query.get_or_404(queue_item_id)
     raw_date = str(payload.get("wash_date") or "").strip()
     try:
-        wash_date = datetime.fromisoformat(raw_date) if raw_date else datetime.utcnow()
+        wash_date = datetime.fromisoformat(raw_date) if raw_date else now_manaus_naive()
     except ValueError:
         return jsonify({"error": "Data da lavagem invalida."}), 400
 
