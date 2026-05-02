@@ -103,7 +103,7 @@ def get_item_report():
     # Uso da lógica centralizada de busca
     query = apply_item_search(query, ChecklistItem, request.args.get("item"))
 
-    nc_status = request.args.get("nc_status")
+    nc_status = request.args.get("status_nc") or request.args.get("nc_status")
     if nc_status == "abertas":
         query = query.filter(ChecklistItem.resolvido == False)
     elif nc_status == "resolvidas":
@@ -113,10 +113,13 @@ def get_item_report():
     if modulo in ("cavalo", "carreta"):
         query = query.filter(Vehicle.tipo == modulo)
 
-    date_from = _parse_date(request.args.get("date_from"))
-    date_to = _parse_date(request.args.get("date_to"), end_of_day=True)
+    date_from = _parse_date(request.args.get("data_de") or request.args.get("date_from"))
+    date_to = _parse_date(request.args.get("data_ate") or request.args.get("date_to"), end_of_day=True)
     data_base = request.args.get("data_base", "criacao")
     date_col = ChecklistItem.data_resolucao if data_base == "resolucao" else ChecklistItem.created_at
+
+    if data_base == "resolucao":
+        query = query.filter(ChecklistItem.data_resolucao.isnot(None))
 
     if date_from:
         query = query.filter(date_col >= date_from)

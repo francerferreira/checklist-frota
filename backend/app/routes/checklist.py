@@ -37,6 +37,20 @@ def _clean(value):
     return text or None
 
 
+def _clean_upper(value):
+    text = _clean(value)
+    return text.upper() if text else None
+
+
+def _grouping_payload(payload: dict) -> dict:
+    grouping = payload.get("agrupamento") if isinstance(payload.get("agrupamento"), dict) else {}
+    return {
+        "item_principal": payload.get("item_principal", grouping.get("item_principal")),
+        "parte": payload.get("parte", grouping.get("parte")),
+        "tipo_agrupamento": payload.get("tipo_agrupamento", grouping.get("tipo_agrupamento")),
+    }
+
+
 def _normalize_vehicle_type(value: str | None) -> str:
     vehicle_type = (_clean(value) or "").lower()
     if vehicle_type not in CHECKLIST_CATALOG:
@@ -77,6 +91,20 @@ def _item_payload_from_request(item: ChecklistCatalogItem, payload: dict, *, is_
         item.ativo = bool(payload.get("ativo"))
     elif is_create:
         item.ativo = True
+    grouping_payload = _grouping_payload(payload)
+    has_grouping_payload = any(value is not None for value in grouping_payload.values())
+    if has_grouping_payload:
+        group_type = (_clean(grouping_payload.get("tipo_agrupamento")) or "simples").lower()
+        if group_type not in {"simples", "lado", "compartimento"}:
+            raise ValueError("Regra de agrupamento invalida.")
+        item.tipo_agrupamento = group_type
+        item.item_principal = _clean_upper(grouping_payload.get("item_principal")) or item.item_nome
+        item.parte = _clean_upper(grouping_payload.get("parte")) if group_type != "simples" else None
+    elif is_create:
+        grouping = classify_catalog_item_group(item.vehicle_type, item.item_nome)
+        item.tipo_agrupamento = grouping["tipo_agrupamento"]
+        item.item_principal = grouping["item_principal"]
+        item.parte = grouping.get("parte")
     return item
 
 

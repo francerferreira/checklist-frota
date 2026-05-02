@@ -12,6 +12,9 @@ class ChecklistCatalogItem(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     vehicle_type = db.Column(db.String(20), nullable=False, index=True)
     item_nome = db.Column(db.String(160), nullable=False, index=True)
+    item_principal = db.Column(db.String(160), nullable=True, index=True)
+    parte = db.Column(db.String(80), nullable=True, index=True)
+    tipo_agrupamento = db.Column(db.String(40), nullable=True, index=True)
     position = db.Column(db.Integer, nullable=False, default=1, index=True)
     foto_path = db.Column(db.String(255), nullable=True)
     ativo = db.Column(db.Boolean, nullable=False, default=True, index=True)
@@ -38,6 +41,9 @@ class ChecklistCatalogItem(db.Model):
             "tipo": self.vehicle_type,
             "vehicle_type": self.vehicle_type,
             "item_nome": self.item_nome,
+            "item_principal": self.item_principal,
+            "parte": self.parte,
+            "tipo_agrupamento": self.tipo_agrupamento,
             "position": self.position,
             "foto_path": self.foto_path,
             "ativo": self.ativo,

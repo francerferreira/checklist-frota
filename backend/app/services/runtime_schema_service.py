@@ -49,6 +49,12 @@ def _ensure_checklist_catalog_constraint_postgres() -> None:
 
 def _ensure_checklist_catalog_constraint_sqlite() -> None:
     expected = ", ".join(f"'{item}'" for item in _CHECKLIST_CATALOG_ALLOWED_TYPES)
+    existing_columns = {
+        column["name"] for column in inspect(db.engine).get_columns("checklist_catalog_items")
+    }
+    item_principal_select = "item_principal" if "item_principal" in existing_columns else "NULL"
+    parte_select = "parte" if "parte" in existing_columns else "NULL"
+    tipo_agrupamento_select = "tipo_agrupamento" if "tipo_agrupamento" in existing_columns else "NULL"
     db.session.execute(text("DROP TABLE IF EXISTS checklist_catalog_items_new"))
     db.session.execute(
         text(
@@ -57,6 +63,9 @@ def _ensure_checklist_catalog_constraint_sqlite() -> None:
                 id INTEGER PRIMARY KEY,
                 vehicle_type VARCHAR(20) NOT NULL,
                 item_nome VARCHAR(160) NOT NULL,
+                item_principal VARCHAR(160),
+                parte VARCHAR(80),
+                tipo_agrupamento VARCHAR(40),
                 position INTEGER NOT NULL DEFAULT 1,
                 foto_path VARCHAR(255),
                 ativo BOOLEAN NOT NULL DEFAULT 1,
@@ -71,10 +80,10 @@ def _ensure_checklist_catalog_constraint_sqlite() -> None:
     )
     db.session.execute(
         text(
-            """
+            f"""
             INSERT INTO checklist_catalog_items_new
-            (id, vehicle_type, item_nome, position, foto_path, ativo, created_at, updated_at)
-            SELECT id, vehicle_type, item_nome, position, foto_path, ativo, created_at, updated_at
+            (id, vehicle_type, item_nome, item_principal, parte, tipo_agrupamento, position, foto_path, ativo, created_at, updated_at)
+            SELECT id, vehicle_type, item_nome, {item_principal_select}, {parte_select}, {tipo_agrupamento_select}, position, foto_path, ativo, created_at, updated_at
             FROM checklist_catalog_items
             """
         )
@@ -183,6 +192,12 @@ def ensure_runtime_schema() -> None:
             db.session.execute(text("ALTER TABLE checklist_items ADD COLUMN resolved_by_user_id INTEGER"))
             db.session.commit()
         _backfill_checklist_item_grouping()
+
+    if "checklist_catalog_items" in inspector.get_table_names():
+        columns = {column["name"] for column in inspector.get_columns("checklist_catalog_items")}
+        _ensure_column("checklist_catalog_items", columns, "item_principal", "VARCHAR(160)")
+        _ensure_column("checklist_catalog_items", columns, "parte", "VARCHAR(80)")
+        _ensure_column("checklist_catalog_items", columns, "tipo_agrupamento", "VARCHAR(40)")
 
     if "activities" in inspector.get_table_names():
         columns = {column["name"] for column in inspector.get_columns("activities")}

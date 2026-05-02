@@ -433,6 +433,18 @@ def classify_catalog_item_group(vehicle_type: str, item_name: str) -> dict:
     normalized_type = _normalize_vehicle_type(vehicle_type)
     item_key = normalize_item_name(item_name)
 
+    if has_app_context():
+        try:
+            catalog_item = ChecklistCatalogItem.query.filter_by(
+                vehicle_type=normalized_type,
+                item_nome=_normalize_row_item_name(item_name),
+            ).first()
+            grouping = _grouping_from_catalog_payload(catalog_item.to_dict() if catalog_item else {})
+            if grouping:
+                return grouping
+        except SQLAlchemyError:
+            pass
+
     for rule in CHECKLIST_ITEM_GROUP_RULES.get(normalized_type, []):
         for part in rule["partes"]:
             if normalize_item_name(part["item_origem"]) == item_key:
@@ -447,10 +459,36 @@ def classify_catalog_item_group(vehicle_type: str, item_name: str) -> dict:
     }
 
 
+def _grouping_from_catalog_payload(item: dict) -> dict | None:
+    group_type = (item.get("tipo_agrupamento") or "").strip().lower()
+    parent_item = _normalize_row_item_name(item.get("item_principal"))
+    source_item = _normalize_row_item_name(item.get("item_nome"))
+    if not group_type and not parent_item and not item.get("parte"):
+        return None
+
+    if group_type not in {"lado", "compartimento", "simples"}:
+        group_type = "simples"
+    if not parent_item:
+        parent_item = source_item
+
+    part = _normalize_row_item_name(item.get("parte")) if group_type != "simples" else None
+    return {
+        "item_principal": parent_item,
+        "tipo_agrupamento": group_type,
+        "partes": [],
+        "parte": part,
+        "item_origem": source_item,
+    }
+
+
 def enrich_catalog_item_payload(item: dict) -> dict:
     enriched = dict(item)
     vehicle_type = enriched.get("vehicle_type") or enriched.get("tipo")
     item_name = enriched.get("item_nome")
+    grouping = _grouping_from_catalog_payload(enriched)
+    if grouping:
+        enriched["agrupamento"] = grouping
+        return enriched
     if vehicle_type and item_name:
         enriched["agrupamento"] = classify_catalog_item_group(vehicle_type, item_name)
     return enriched

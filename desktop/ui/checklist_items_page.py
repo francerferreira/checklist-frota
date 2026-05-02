@@ -104,15 +104,19 @@ class ChecklistItemDialog(QDialog):
 
         self.active_checkbox = QCheckBox("Item ativo")
         self.active_checkbox.setChecked(bool(self.item.get("ativo", True)))
-        group_type, parent_item, part = _grouping_labels(self.item)
-        self.group_type_label = QLabel(group_type)
-        self.group_type_label.setObjectName("MutedText")
-        self.parent_item_label = QLabel(parent_item)
-        self.parent_item_label.setObjectName("MutedText")
-        self.parent_item_label.setWordWrap(True)
-        self.part_label = QLabel(part)
-        self.part_label.setObjectName("MutedText")
-        self.part_label.setWordWrap(True)
+        grouping = self.item.get("agrupamento") or {}
+        self.group_type_combo = QComboBox()
+        self.group_type_combo.addItem("Simples", "simples")
+        self.group_type_combo.addItem("Lado", "lado")
+        self.group_type_combo.addItem("Compartimento", "compartimento")
+        group_type_value = (grouping.get("tipo_agrupamento") or self.item.get("tipo_agrupamento") or "simples").lower()
+        group_index = self.group_type_combo.findData(group_type_value)
+        if group_index >= 0:
+            self.group_type_combo.setCurrentIndex(group_index)
+        self.parent_item_input = QLineEdit(grouping.get("item_principal") or self.item.get("item_principal") or self.item.get("item_nome", ""))
+        self.parent_item_input.setPlaceholderText("Ex.: PARALAMAS")
+        self.part_input = QLineEdit(grouping.get("parte") or self.item.get("parte") or "")
+        self.part_input.setPlaceholderText("Ex.: LADO DIREITO")
 
         self.file_label = QLabel(self.item.get("foto_path") or "Nenhuma foto selecionada.")
         self.file_label.setObjectName("MutedText")
@@ -138,9 +142,9 @@ class ChecklistItemDialog(QDialog):
         add_field(0, 0, "Nome do item", self.name_input)
         add_field(0, 1, "Tipo de equipamento", self.type_combo)
         add_field(1, 0, "Ordem", self.position_spin)
-        add_field(2, 0, "Regra de agrupamento", self.group_type_label)
-        add_field(2, 1, "Item principal", self.parent_item_label)
-        add_field(3, 0, "Parte interna", self.part_label)
+        add_field(2, 0, "Regra de agrupamento", self.group_type_combo)
+        add_field(2, 1, "Item principal", self.parent_item_input)
+        add_field(3, 0, "Parte interna", self.part_input)
 
         photo_field = QFrame()
         photo_field.setObjectName("DialogInfoBlock")
@@ -203,6 +207,9 @@ class ChecklistItemDialog(QDialog):
                 "tipo": self.type_combo.currentData(),
                 "position": int(self.position_spin.value()),
                 "ativo": self.active_checkbox.isChecked(),
+                "tipo_agrupamento": self.group_type_combo.currentData(),
+                "item_principal": self.parent_item_input.text().strip(),
+                "parte": self.part_input.text().strip(),
             }
             if not payload["item_nome"]:
                 show_notice(self, "Nome obrigatório", "Informe o nome do item do checklist.", icon_name="warning")
@@ -230,6 +237,7 @@ class ChecklistItemsPage(QFrame):
         super().__init__(parent)
         self.api_client = api_client
         self.items = []
+        self.display_items = []
         self.current_item = None
         self._live_filter_timer = QTimer(self)
         self._live_filter_timer.setSingleShot(True)
@@ -341,22 +349,77 @@ class ChecklistItemsPage(QFrame):
         self.edit_button.setEnabled(enabled)
         self.delete_button.setEnabled(enabled)
 
+    def _build_display_items(self, items: list[dict]) -> list[dict]:
+        grouped: dict[tuple, dict] = {}
+        display: list[dict] = []
+        for item in items:
+            grouping = item.get("agrupamento") or {}
+            group_type = (grouping.get("tipo_agrupamento") or "simples").lower()
+            parent_item = grouping.get("item_principal") or item.get("item_nome") or "-"
+            if group_type == "simples":
+                display.append(item)
+                continue
+
+            key = (
+                item.get("tipo") or item.get("vehicle_type") or "",
+                group_type,
+                parent_item,
+            )
+            row = grouped.get(key)
+            if not row:
+                row = dict(item)
+                row["_children"] = []
+                row["_is_grouped"] = True
+                row["item_nome"] = parent_item
+                row["id"] = item.get("id")
+                row["position"] = item.get("position")
+                row["foto_path"] = item.get("foto_path")
+                row["ativo"] = bool(item.get("ativo"))
+                row["agrupamento"] = {
+                    "tipo_agrupamento": group_type,
+                    "item_principal": parent_item,
+                    "parte": "",
+                }
+                grouped[key] = row
+                display.append(row)
+            row["_children"].append(item)
+            parts = [
+                child.get("agrupamento", {}).get("parte")
+                for child in row["_children"]
+                if child.get("agrupamento", {}).get("parte")
+            ]
+            row["agrupamento"]["parte"] = " / ".join(dict.fromkeys(parts)) or "-"
+            row["foto_path"] = row.get("foto_path") or item.get("foto_path")
+            row["ativo"] = row.get("ativo") or bool(item.get("ativo"))
+            try:
+                row["position"] = min(int(row.get("position") or item.get("position") or 1), int(item.get("position") or 1))
+            except (TypeError, ValueError):
+                pass
+            row["id"] = ", ".join(str(child.get("id")) for child in row["_children"] if child.get("id"))
+
+        return display
+
     def refresh(self, preferred_item_id: int | None = None):
         self.items = self.api_client.get_checklist_items(
             tipo=self.type_filter.currentData() or None,
             ativos=self.active_filter.currentData(),
         )
+        self.display_items = self._build_display_items(self.items)
         self.table.setSortingEnabled(False)
         self.table.setUpdatesEnabled(False)
         self.table.blockSignals(True)
         try:
-            self.table.setRowCount(len(self.items))
-            for row, item in enumerate(self.items):
+            self.table.setRowCount(len(self.display_items))
+            for row, item in enumerate(self.display_items):
                 group_type, parent_item, part = _grouping_labels(item)
+                children = item.get("_children") or []
+                item_name = item.get("item_nome") or "-"
+                if children and len(children) > 1:
+                    item_name = f"{item_name} ({len(children)} partes)"
                 values = [
                     str(item.get("position") or ""),
                     (item.get("tipo") or item.get("vehicle_type") or "-").title(),
-                    item.get("item_nome") or "-",
+                    item_name,
                     parent_item if group_type != "Simples" else "Simples",
                     part,
                     "Sim" if item.get("foto_path") else "Não",
@@ -374,8 +437,12 @@ class ChecklistItemsPage(QFrame):
         if self.items:
             selected_row = 0
             if preferred_item_id is not None:
-                for row_index, row_item in enumerate(self.items):
-                    if int(row_item.get("id") or 0) == int(preferred_item_id):
+                for row_index, row_item in enumerate(self.display_items):
+                    child_ids = [
+                        int(child.get("id") or 0)
+                        for child in (row_item.get("_children") or [row_item])
+                    ]
+                    if int(preferred_item_id) in child_ids:
                         selected_row = row_index
                         break
             self.table.selectRow(selected_row)
@@ -402,8 +469,8 @@ class ChecklistItemsPage(QFrame):
             payload = first_cell.data(Qt.UserRole)
             if payload:
                 return payload
-        if row < len(self.items):
-            return self.items[row]
+        if row < len(self.display_items):
+            return self.display_items[row]
         return None
 
     def _selected_item(self):
@@ -428,10 +495,24 @@ class ChecklistItemsPage(QFrame):
         if not row_item:
             return
         self.current_item = row_item
+        grouped_children = row_item.get("_children") or []
+        if row_item.get("_children"):
+            row_item = row_item["_children"][0]
         dialog = ChecklistItemDialog(self.api_client, row_item, self)
         if dialog.exec():
             try:
                 self.api_client.update_checklist_item(row_item["id"], dialog.result_payload)
+                if grouped_children:
+                    group_payload = {
+                        "tipo_agrupamento": dialog.result_payload.get("tipo_agrupamento"),
+                        "item_principal": dialog.result_payload.get("item_principal"),
+                    }
+                    for child in grouped_children:
+                        if child.get("id") == row_item.get("id"):
+                            continue
+                        sibling_payload = dict(group_payload)
+                        sibling_payload["parte"] = (child.get("agrupamento") or {}).get("parte") or child.get("parte")
+                        self.api_client.update_checklist_item(child["id"], sibling_payload)
                 show_notice(self, "Item atualizado", "Item atualizado com sucesso.", icon_name="dashboard")
                 self.refresh(row_item.get("id"))
                 self.data_changed.emit()
@@ -443,17 +524,20 @@ class ChecklistItemsPage(QFrame):
         if not target_item:
             return
         self.current_item = target_item
+        children = target_item.get("_children") or [target_item]
+        target_name = target_item.get("item_nome") or target_item.get("agrupamento", {}).get("item_principal") or "item"
         confirm = ask_confirmation(
             self,
             "Inativar item",
-            f"Deseja retirar o item {target_item['item_nome']} do checklist ativo?",
+            f"Deseja retirar o item {target_name} do checklist ativo?",
             confirm_text="Sim",
             cancel_text="Não",
             icon_name="warning",
         )
         if confirm:
             try:
-                self.api_client.delete_checklist_item(target_item["id"])
+                for child in children:
+                    self.api_client.delete_checklist_item(child["id"])
                 show_notice(self, "Item inativado", "Item retirado do checklist ativo.", icon_name="dashboard")
                 self.refresh()
                 self.data_changed.emit()
