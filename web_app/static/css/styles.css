@@ -2034,6 +2034,10 @@ textarea {
     cursor: pointer;
 }
 
+.nc-detail-mode #non-conformities-checklist-section {
+    margin-top: 0;
+}
+
 .nc-report-row.is-selected {
     border-color: rgba(7, 86, 181, 0.28);
     background: #f8fbff;

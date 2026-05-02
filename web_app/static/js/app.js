@@ -266,6 +266,10 @@ const elements = {
     nonConformitiesMicroList: document.getElementById("non-conformities-micro-list"),
     nonConformitiesChecklistList: document.getElementById("non-conformities-checklist-list"),
     nonConformitiesMechanicList: document.getElementById("non-conformities-mechanic-list"),
+    nonConformitiesTotalToolbar: document.getElementById("non-conformities-total-toolbar"),
+    nonConformitiesFilterSection: document.getElementById("non-conformities-filter-section"),
+    nonConformitiesChecklistSection: document.getElementById("non-conformities-checklist-section"),
+    nonConformitiesMechanicSection: document.getElementById("non-conformities-mechanic-section"),
     maintenanceBackButton: document.getElementById("maintenance-back-button"),
     maintenanceCounter: document.getElementById("maintenance-counter"),
     maintenanceSummary: document.getElementById("maintenance-summary"),
@@ -814,6 +818,7 @@ async function openNonConformitiesMenu() {
         showToast("MÓDULO DE NÃO CONFORMIDADES RESTRITO AO MECÂNICO E GESTÃO.", true);
         return;
     }
+    state.selectedNonConformityItem = "";
     setActiveScreen("nonConformities");
     elements.nonConformitiesCounter.textContent = "CARREGANDO...";
     elements.nonConformitiesMacroCounter.textContent = "CARREGANDO...";
@@ -1107,6 +1112,7 @@ function renderNonConformities() {
     if (!elements.nonConformitiesSummary) {
         return;
     }
+    const detailMode = Boolean(state.selectedNonConformityItem);
     const checklistOpen = state.nonConformityMacro.reduce((total, row) => total + Number(row.abertas || 0), 0);
     const checklistResolved = state.nonConformityMacro.reduce((total, row) => total + Number(row.resolvidas || 0), 0);
     const mechanicOpen = state.nonConformityMechanic.filter((row) => !row.resolvido).length;
@@ -1139,6 +1145,15 @@ function renderNonConformities() {
         <span class="progress-hint">Priorize os blocos macro e micro para localizar reincidencia antes de abrir cada registro.</span>
     `;
 
+    screens.nonConformities?.classList.toggle("nc-detail-mode", detailMode);
+    if (elements.nonConformitiesBackButton) {
+        elements.nonConformitiesBackButton.textContent = detailMode ? "VOLTAR" : "MENU";
+    }
+    elements.nonConformitiesSummary.classList.toggle("hidden", detailMode);
+    elements.nonConformitiesTotalToolbar?.classList.toggle("hidden", detailMode);
+    elements.nonConformitiesFilterSection?.classList.toggle("hidden", detailMode);
+    elements.nonConformitiesMechanicSection?.classList.toggle("hidden", detailMode);
+
     elements.nonConformitiesCounter.textContent = `${openTotal} ABERTAS`;
     elements.nonConformitiesMacroCounter.textContent = `${state.nonConformityMacro.length} ITENS`;
     elements.nonConformitiesChecklistCounter.textContent = `${filterChecklistNonConformitiesBySelectedItem(state.nonConformityChecklist).length} REGISTROS`;
@@ -1155,25 +1170,26 @@ function renderNonConformities() {
 }
 
 function renderNonConformityReports() {
-    const macroTop = state.nonConformityMacro.slice(0, 5);
-    const microTop = state.nonConformityMicro.slice(0, 5);
+    const macroRows = state.nonConformityMacro || [];
     const selectedItem = state.selectedNonConformityItem;
 
-    if (!macroTop.length) {
+    elements.nonConformitiesMicroList.innerHTML = "";
+
+    if (!macroRows.length) {
         elements.nonConformitiesMacroList.innerHTML = `
             <article class="empty-state compact">
-                <strong>SEM DADOS NO MACRO.</strong>
+                <strong>SEM NÃO CONFORMIDADES NO FILTRO.</strong>
                 <span>AS NÃO CONFORMIDADES DO CHECKLIST APARECERÃO AQUI.</span>
             </article>
         `;
     } else {
         elements.nonConformitiesMacroList.innerHTML = `
             <article class="list-toolbar">
-                <strong>TOP ITENS COM NÃO CONFORMIDADE</strong>
-                <span>VISAO MACRO</span>
+                <strong>TIPOS DE NÃO CONFORMIDADE</strong>
+                <span>TOQUE PARA ABRIR</span>
             </article>
             <div class="nc-grid">
-                ${macroTop.map((row) => `
+                ${macroRows.map((row) => `
                     <article class="nc-report-row ${selectedItem === row.item_nome ? "is-selected" : ""}" data-nc-filter-item="${escapeHtml(row.item_nome || "")}">
                         <div>
                             <strong>${escapeHtml(String(row.item_nome || "-").toUpperCase())}</strong>
@@ -1201,36 +1217,18 @@ function renderNonConformityReports() {
             });
         });
     }
-
-    if (!microTop.length) {
-        elements.nonConformitiesMicroList.innerHTML = `
-            <article class="empty-state compact">
-                <strong>SEM DADOS NO MICRO.</strong>
-                <span>O RESUMO POR EQUIPAMENTO APARECERA AQUI.</span>
-            </article>
-        `;
-    } else {
-        elements.nonConformitiesMicroList.innerHTML = `
-            <article class="list-toolbar">
-                <strong>TOP EQUIPAMENTOS COM NÃO CONFORMIDADE</strong>
-                <span>VISAO MICRO</span>
-            </article>
-            <div class="nc-grid">
-                ${microTop.map((row) => `
-                    <article class="nc-report-row">
-                        <div>
-                            <strong>${escapeHtml(String(row.frota || "-").toUpperCase())}</strong>
-                            <span>${escapeHtml(String(row.placa || "-").toUpperCase())} | ${escapeHtml(String(row.tipo || "-").toUpperCase())}</span>
-                        </div>
-                        <em>${Number(row.total_nc || 0)} NÃO CONFORMIDADES</em>
-                    </article>
-                `).join("")}
-            </div>
-        `;
-    }
 }
 
 function renderChecklistNonConformities() {
+    if (!state.selectedNonConformityItem) {
+        elements.nonConformitiesChecklistList.innerHTML = `
+            <article class="empty-state compact">
+                <strong>SELECIONE UMA NÃO CONFORMIDADE ACIMA.</strong>
+                <span>TOQUE EM UM TIPO PARA ABRIR A TELA PRÓPRIA COM OS REGISTROS.</span>
+            </article>
+        `;
+        return;
+    }
     const rows = filterChecklistNonConformitiesBySelectedItem(state.nonConformityChecklist || []);
     elements.nonConformitiesChecklistList.innerHTML = "";
 
@@ -1248,10 +1246,10 @@ function renderChecklistNonConformities() {
         elements.nonConformitiesChecklistList.innerHTML = `
             <article class="nc-section-filter">
                 <div>
-                    <span>TIPO FILTRADO</span>
+                    <span>NÃO CONFORMIDADE</span>
                     <strong>${escapeHtml(String(state.selectedNonConformityItem).toUpperCase())}</strong>
                 </div>
-                <button type="button" data-nc-clear-filter="true">LIMPAR</button>
+                <button type="button" data-nc-clear-filter="true">VOLTAR</button>
             </article>
         `;
         elements.nonConformitiesChecklistList.querySelector("[data-nc-clear-filter]")?.addEventListener("click", () => {
@@ -4413,6 +4411,11 @@ on(elements.maintenanceBackButton, "click", () => {
     setActiveScreen("home");
 });
 on(elements.nonConformitiesBackButton, "click", () => {
+    if (state.selectedNonConformityItem) {
+        state.selectedNonConformityItem = "";
+        renderNonConformities();
+        return;
+    }
     renderHome();
     setActiveScreen("home");
 });
