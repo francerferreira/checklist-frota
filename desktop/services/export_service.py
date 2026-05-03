@@ -328,7 +328,9 @@ def export_checklist_detail_pdf(
     checklist: dict,
     *,
     output_path: str | Path,
+    logo_path: str | Path | None = None,
     generated_by: str = "",
+    item_images: dict[int, dict[str, bytes | None]] | None = None,
 ) -> Path:
     path = Path(output_path)
     path.parent.mkdir(parents=True, exist_ok=True)
@@ -336,31 +338,40 @@ def export_checklist_detail_pdf(
     doc = SimpleDocTemplate(
         str(path),
         pagesize=landscape(A4),
-        leftMargin=9 * mm,
-        rightMargin=9 * mm,
-        topMargin=9 * mm,
+        leftMargin=10 * mm,
+        rightMargin=10 * mm,
+        topMargin=10 * mm,
         bottomMargin=8 * mm,
     )
     styles = _styles()
-    compact = ParagraphStyle(
-        "ChecklistCompactCell",
-        parent=styles["table_cell"],
-        fontSize=6.2,
-        leading=7.2,
-        spaceAfter=0,
+    item_images = item_images or {}
+    title_style = ParagraphStyle(
+        "ChecklistHeroTitle",
+        parent=styles["title"],
+        fontName="Helvetica-Bold",
+        fontSize=21,
+        leading=24,
+        textColor=colors.HexColor(BRAND_BLUE),
     )
-    header = ParagraphStyle(
-        "ChecklistCompactHeader",
-        parent=styles["table_header"],
-        fontSize=6.8,
-        leading=7.6,
-        spaceAfter=0,
+    equipment_style = ParagraphStyle(
+        "ChecklistEquipment",
+        parent=styles["title"],
+        fontName="Helvetica-Bold",
+        fontSize=15,
+        leading=18,
+        textColor=colors.HexColor(PRIMARY_BLUE),
     )
-    small = ParagraphStyle(
-        "ChecklistSmall",
+    small_style = ParagraphStyle(
+        "ChecklistSmallText",
         parent=styles["body"],
-        fontSize=7.2,
-        leading=8.4,
+        fontSize=7.4,
+        leading=8.6,
+    )
+    tiny_style = ParagraphStyle(
+        "ChecklistTinyText",
+        parent=styles["body"],
+        fontSize=6.6,
+        leading=7.4,
     )
 
     vehicle = checklist.get("vehicle") or {}
@@ -370,77 +381,191 @@ def export_checklist_detail_pdf(
     ok_items = [item for item in items if item.get("status") == "OK"]
     created_at = _format_datetime(checklist.get("created_at"))
 
-    story = [
-        Paragraph("Relatório compacto de checklist", styles["title"]),
-        Paragraph(
-            f"{vehicle.get('frota') or '-'} | {vehicle.get('placa') or '-'} | {vehicle.get('modelo') or '-'}",
-            small,
-        ),
-        Spacer(1, 3),
-    ]
-    story.extend(
-        _build_summary_cards(
-            [
-                ("Data/hora", created_at),
-                ("Executor", user.get("nome") or user.get("login") or "-"),
-                ("Itens", str(len(items))),
-                ("Não conformidades", str(len(nc_items))),
-            ],
-            styles,
-        )
+    logo_cell = (
+        Image(str(logo_path), width=34 * mm, height=18 * mm)
+        if logo_path and Path(logo_path).exists()
+        else Paragraph("CHECKLIST", title_style)
     )
-    story.append(Spacer(1, 4))
+    hero_text = [
+        Paragraph("Checklist", title_style),
+        Paragraph(_safe_paragraph_text(str(vehicle.get("frota") or "-").upper()), equipment_style),
+        Paragraph(
+            _safe_paragraph_text(
+                f"{vehicle.get('placa') or '-'} | {vehicle.get('modelo') or '-'} | {(vehicle.get('tipo') or '-').upper()}"
+            ),
+            small_style,
+        ),
+    ]
+    hero = Table([[logo_cell, hero_text]], colWidths=[42 * mm, 226 * mm])
+    hero.setStyle(TableStyle([
+        ("BACKGROUND", (0, 0), (-1, -1), colors.HexColor("#F8FAFC")),
+        ("BOX", (0, 0), (-1, -1), 0.7, colors.HexColor("#D8E5F5")),
+        ("LEFTPADDING", (0, 0), (-1, -1), 10),
+        ("RIGHTPADDING", (0, 0), (-1, -1), 10),
+        ("TOPPADDING", (0, 0), (-1, -1), 8),
+        ("BOTTOMPADDING", (0, 0), (-1, -1), 8),
+        ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
+    ]))
 
+    details = Table(
+        [[
+            _checklist_detail_line("Checklist", str(checklist.get("id") or "-"), small_style),
+            _checklist_detail_line("Frota", vehicle.get("frota") or "-", small_style),
+            _checklist_detail_line("Placa", vehicle.get("placa") or "-", small_style),
+            _checklist_detail_line("Modelo", vehicle.get("modelo") or "-", small_style),
+            _checklist_detail_line("Tipo", (vehicle.get("tipo") or "-").upper(), small_style),
+        ]],
+        colWidths=[40 * mm, 42 * mm, 42 * mm, 88 * mm, 56 * mm],
+    )
+    details.setStyle(TableStyle([
+        ("BACKGROUND", (0, 0), (-1, -1), colors.HexColor("#EFF6FF")),
+        ("BOX", (0, 0), (-1, -1), 0.5, colors.HexColor("#BFDBFE")),
+        ("LEFTPADDING", (0, 0), (-1, -1), 6),
+        ("RIGHTPADDING", (0, 0), (-1, -1), 6),
+        ("TOPPADDING", (0, 0), (-1, -1), 5),
+        ("BOTTOMPADDING", (0, 0), (-1, -1), 5),
+        ("VALIGN", (0, 0), (-1, -1), "TOP"),
+    ]))
+
+    summary = Table([[
+        _checklist_metric_card("Data / hora", created_at, small_style),
+        _checklist_metric_card("Executor", user.get("nome") or user.get("login") or "-", small_style),
+        _checklist_metric_card("Itens verificados", str(len(items)), small_style),
+        _checklist_metric_card("Não conformidades", str(len(nc_items)), small_style, alert=bool(nc_items)),
+    ]], colWidths=[67 * mm, 67 * mm, 67 * mm, 67 * mm])
+    summary.setStyle(TableStyle([
+        ("LEFTPADDING", (0, 0), (-1, -1), 0),
+        ("RIGHTPADDING", (0, 0), (-1, -1), 4),
+        ("TOPPADDING", (0, 0), (-1, -1), 0),
+        ("BOTTOMPADDING", (0, 0), (-1, -1), 0),
+    ]))
+
+    story = [hero, Spacer(1, 4), details, Spacer(1, 5), summary, Spacer(1, 7)]
     story.append(Paragraph("Não conformidades", styles["section"]))
-    story.append(_compact_checklist_table(nc_items, header, compact, empty_text="Sem não conformidades."))
-    story.append(Spacer(1, 5))
+    story.extend(_checklist_nc_cards(nc_items, item_images, styles, small_style))
+    story.append(Spacer(1, 6))
     story.append(Paragraph("Itens OK", styles["section"]))
-    story.append(_compact_checklist_table(ok_items, header, compact, empty_text="Sem itens OK."))
-    story.append(Spacer(1, 4))
-    story.append(Paragraph(f"Gerado por {generated_by or '-'} em {datetime.now().strftime('%d/%m/%Y %H:%M')}", small))
+    story.append(_checklist_ok_board(ok_items, tiny_style))
+    story.append(Spacer(1, 5))
+    story.append(Paragraph(f"Gerado por {generated_by or '-'} em {datetime.now().strftime('%d/%m/%Y %H:%M')}", small_style))
 
-    doc.build(story)
+    doc.build(
+        story,
+        onFirstPage=lambda canvas, document: _draw_footer(canvas, document, generated_by),
+        onLaterPages=lambda canvas, document: _draw_footer(canvas, document, generated_by),
+    )
     return path
 
 
-def _compact_checklist_table(items: list[dict], header_style, cell_style, *, empty_text: str):
+def _checklist_detail_line(label: str, value: str, style):
+    return Paragraph(
+        f"<font color='{MUTED}'><b>{_safe_paragraph_text(label.upper())}</b></font><br/>"
+        f"<font color='{BRAND_BLUE}'>{_safe_paragraph_text(str(value or '-'))}</font>",
+        style,
+    )
+
+
+def _checklist_metric_card(label: str, value: str, style, *, alert: bool = False):
+    bg = SEVERITY_RED_BG if alert else "#FFFFFF"
+    border = SEVERITY_RED if alert else "#D8E5F5"
+    value_color = SEVERITY_RED if alert else BRAND_BLUE
+    card = Table([[
+        Paragraph(f"<font color='{MUTED}'><b>{_safe_paragraph_text(label.upper())}</b></font><br/>"
+                  f"<font color='{value_color}'>{_safe_paragraph_text(str(value or '-'))}</font>", style)
+    ]], colWidths=[63 * mm])
+    card.setStyle(TableStyle([
+        ("BACKGROUND", (0, 0), (-1, -1), colors.HexColor(bg)),
+        ("BOX", (0, 0), (-1, -1), 0.6, colors.HexColor(border)),
+        ("LEFTPADDING", (0, 0), (-1, -1), 8),
+        ("RIGHTPADDING", (0, 0), (-1, -1), 8),
+        ("TOPPADDING", (0, 0), (-1, -1), 7),
+        ("BOTTOMPADDING", (0, 0), (-1, -1), 7),
+    ]))
+    return card
+
+
+def _checklist_nc_cards(items: list[dict], item_images: dict[int, dict[str, bytes | None]], styles, text_style):
     if not items:
-        return Paragraph(empty_text, cell_style)
-    data = [[
-        Paragraph("Item", header_style),
-        Paragraph("Status", header_style),
-        Paragraph("Observação", header_style),
-        Paragraph("Peça", header_style),
-        Paragraph("Resolução", header_style),
-    ]]
-    for item in items:
-        piece = " ".join(
-            value for value in [
-                item.get("codigo_peca") or "",
-                item.get("descricao_peca") or "",
-            ] if value
-        ) or "-"
-        resolution = item.get("data_resolucao") or ("Resolvido" if item.get("resolvido") else "-")
-        data.append([
-            Paragraph(_safe_paragraph_text(item.get("item_label") or item.get("item_nome") or "-"), cell_style),
-            Paragraph(_safe_paragraph_text(item.get("status") or "-"), cell_style),
-            Paragraph(_safe_paragraph_text(item.get("observacao") or "-"), cell_style),
-            Paragraph(_safe_paragraph_text(piece), cell_style),
-            Paragraph(_safe_paragraph_text(_format_datetime(resolution)), cell_style),
-        ])
-    table = Table(data, repeatRows=1, colWidths=[74 * mm, 15 * mm, 78 * mm, 55 * mm, 34 * mm])
+        return [Paragraph("Nenhuma não conformidade registrada neste checklist.", styles["muted_box"])]
+    cards = []
+    for index, item in enumerate(items, start=1):
+        images = item_images.get(item.get("id"), {})
+        before = images.get("before")
+        after = images.get("after")
+        title = item.get("item_label") or item.get("item_nome") or "-"
+        piece = " ".join(value for value in [item.get("codigo_peca") or "", item.get("descricao_peca") or ""] if value) or "-"
+        left = [
+            Paragraph(f"<b>{index:02d}. {_safe_paragraph_text(title)}</b>", styles["section"]),
+            Paragraph(_safe_paragraph_text(f"Observação: {item.get('observacao') or '-'}"), text_style),
+            Paragraph(_safe_paragraph_text(f"Peça: {piece}"), text_style),
+            Paragraph(_safe_paragraph_text(f"Status: {'Resolvida' if item.get('resolvido') else 'Aberta'}"), text_style),
+        ]
+        photos = _checklist_photo_pair(before, after, styles)
+        card = Table([[left, photos]], colWidths=[150 * mm, 109 * mm])
+        card.setStyle(TableStyle([
+            ("BACKGROUND", (0, 0), (-1, -1), colors.HexColor("#FFF7ED")),
+            ("BOX", (0, 0), (-1, -1), 0.7, colors.HexColor("#FDBA74")),
+            ("LEFTPADDING", (0, 0), (-1, -1), 8),
+            ("RIGHTPADDING", (0, 0), (-1, -1), 8),
+            ("TOPPADDING", (0, 0), (-1, -1), 6),
+            ("BOTTOMPADDING", (0, 0), (-1, -1), 6),
+            ("VALIGN", (0, 0), (-1, -1), "TOP"),
+        ]))
+        cards.extend([card, Spacer(1, 4)])
+    return cards
+
+
+def _checklist_photo_pair(before: bytes | None, after: bytes | None, styles):
+    before_flow = _reportlab_image(before, 50 * mm, 34 * mm) if before else Paragraph("Sem foto antes", styles["muted_box"])
+    after_flow = _reportlab_image(after, 50 * mm, 34 * mm) if after else Paragraph("Sem foto depois", styles["muted_box"])
+    table = Table(
+        [
+            [
+                Paragraph("<b>Foto antes</b>", styles["table_cell"]),
+                Paragraph("<b>Foto depois</b>", styles["table_cell"]),
+            ],
+            [before_flow, after_flow],
+        ],
+        colWidths=[53 * mm, 53 * mm],
+    )
     table.setStyle(TableStyle([
-        ("BACKGROUND", (0, 0), (-1, 0), colors.HexColor(PRIMARY_BLUE)),
-        ("TEXTCOLOR", (0, 0), (-1, 0), colors.white),
-        ("ROWBACKGROUNDS", (0, 1), (-1, -1), [colors.white, colors.HexColor(LIGHT_BG)]),
-        ("LINEBELOW", (0, 0), (-1, -1), 0.25, colors.HexColor("#E2E8F0")),
+        ("BACKGROUND", (0, 0), (-1, 0), colors.HexColor("#FFEDD5")),
+        ("BOX", (0, 0), (-1, -1), 0.4, colors.HexColor("#FED7AA")),
+        ("LINEBELOW", (0, 0), (-1, 0), 0.25, colors.HexColor("#FED7AA")),
         ("LEFTPADDING", (0, 0), (-1, -1), 3),
         ("RIGHTPADDING", (0, 0), (-1, -1), 3),
-        ("TOPPADDING", (0, 0), (-1, -1), 2),
-        ("BOTTOMPADDING", (0, 0), (-1, -1), 2),
-        ("VALIGN", (0, 0), (-1, -1), "TOP"),
+        ("TOPPADDING", (0, 0), (-1, -1), 3),
+        ("BOTTOMPADDING", (0, 0), (-1, -1), 3),
+        ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
     ]))
     return table
+
+
+def _checklist_ok_board(items: list[dict], style):
+    if not items:
+        return Paragraph("Nenhum item OK registrado.", style)
+    chunks = []
+    for item in items:
+        label = item.get("item_label") or item.get("item_nome") or "-"
+        chunks.append(Paragraph(f"OK - {_safe_paragraph_text(label)}", style))
+    columns = 3
+    rows = []
+    for index in range(0, len(chunks), columns):
+        row = chunks[index:index + columns]
+        while len(row) < columns:
+            row.append(Paragraph(" ", style))
+        rows.append(row)
+    board = Table(rows, colWidths=[86 * mm, 86 * mm, 86 * mm])
+    board.setStyle(TableStyle([
+        ("BACKGROUND", (0, 0), (-1, -1), colors.HexColor("#F0FDF4")),
+        ("BOX", (0, 0), (-1, -1), 0.6, colors.HexColor("#BBF7D0")),
+        ("LEFTPADDING", (0, 0), (-1, -1), 5),
+        ("RIGHTPADDING", (0, 0), (-1, -1), 5),
+        ("TOPPADDING", (0, 0), (-1, -1), 3),
+        ("BOTTOMPADDING", (0, 0), (-1, -1), 3),
+        ("VALIGN", (0, 0), (-1, -1), "TOP"),
+    ]))
+    return board
 
 
 def export_vehicle_detail_pdf(

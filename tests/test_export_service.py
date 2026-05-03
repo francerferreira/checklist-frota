@@ -123,8 +123,8 @@ class ExportServiceTests(unittest.TestCase):
         self.assertTrue(path.exists())
         self.assertGreater(path.stat().st_size, 1000)
 
-    def test_export_checklist_detail_pdf_creates_compact_file(self):
-        path = self.output_dir / "checklist_compacto.pdf"
+    def test_export_checklist_detail_pdf_creates_professional_file(self):
+        path = self.output_dir / "checklist_profissional.pdf"
         export_checklist_detail_pdf(
             {
                 "vehicle": {"frota": "CV001", "placa": "ABC-1234", "modelo": "CAVALO"},
@@ -133,12 +133,13 @@ class ExportServiceTests(unittest.TestCase):
                 "total_itens": 2,
                 "total_nc": 1,
                 "itens": [
-                    {"item_label": "FREIOS", "status": "OK", "resolvido": True},
-                    {"item_label": "FAROL", "status": "NC", "observacao": "Quebrado", "resolvido": False},
+                    {"id": 1, "item_label": "FREIOS", "status": "OK", "resolvido": True},
+                    {"id": 2, "item_label": "FAROL", "status": "NC", "observacao": "Quebrado", "resolvido": False},
                 ],
             },
             output_path=path,
             generated_by="Administrador",
+            item_images={2: {"before": self.sample_png, "after": self.sample_png}},
         )
         self.assertTrue(path.exists())
         self.assertGreater(path.stat().st_size, 1000)

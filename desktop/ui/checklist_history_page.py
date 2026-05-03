@@ -23,6 +23,7 @@ from PySide6.QtWidgets import (
 )
 
 from components import open_exported_pdf, show_notice
+from runtime_paths import asset_path
 from services import export_checklist_detail_pdf
 from services.export_service import make_default_export_path
 from theme import configure_dialog_window, configure_table, make_table_item, style_filter_bar, style_table_card
@@ -182,15 +183,39 @@ class ChecklistDetailDialog(QDialog):
         if not filename:
             return
         try:
+            logo_path = asset_path("app-logo-cover.png")
+            if not logo_path.exists():
+                logo_path = asset_path("cf-logo-cover.png")
+            item_images = self._collect_non_conformity_images()
             path = export_checklist_detail_pdf(
                 self.checklist,
                 output_path=filename,
+                logo_path=logo_path if logo_path.exists() else None,
                 generated_by=(self.api_client.user or {}).get("nome") or (self.api_client.user or {}).get("login") or "",
+                item_images=item_images,
             )
             show_notice(self, "PDF gerado", f"Arquivo salvo em:\n{path}", icon_name="reports")
             open_exported_pdf(path)
         except Exception as exc:
             show_notice(self, "Falha ao exportar PDF", str(exc), icon_name="warning")
+
+    def _collect_non_conformity_images(self) -> dict[int, dict[str, bytes | None]]:
+        images: dict[int, dict[str, bytes | None]] = {}
+        for item in self.checklist.get("itens") or []:
+            if item.get("status") != "NC" or item.get("id") is None:
+                continue
+            item_id = int(item.get("id"))
+            images[item_id] = {
+                "before": self._fetch_checklist_image(item.get("foto_antes")),
+                "after": self._fetch_checklist_image(item.get("foto_depois")),
+            }
+        return images
+
+    def _fetch_checklist_image(self, relative_path: str | None) -> bytes | None:
+        try:
+            return self.api_client.fetch_image(relative_path)
+        except Exception:
+            return None
 
 
 class ChecklistHistoryPage(QWidget):
