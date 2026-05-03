@@ -17,7 +17,8 @@ const OFFLINE_VEHICLES_KEY = "offlineVehicles";
 const OFFLINE_CATALOG_KEY = "offlineCatalog";
 const ACTIVE_CHECKLIST_DRAFT_KEY = "activeChecklistDraftVehicleId";
 const SESSION_STARTED_AT_KEY = "sessionStartedAt";
-const SESSION_MAX_AGE_MS = 8 * 60 * 60 * 1000;
+const SESSION_LAST_ACTIVITY_AT_KEY = "sessionLastActivityAt";
+const SESSION_INACTIVITY_LIMIT_MS = 30 * 60 * 1000;
 const appTopbar = document.querySelector(".app-topbar");
 const PULL_REFRESH_TRIGGER_PX = 84;
 const PULL_REFRESH_MAX_PX = 112;
@@ -115,20 +116,90 @@ function readJsonStorage(key, fallback = null) {
 function hasValidSession() {
     const token = localStorage.getItem("token") || "";
     const user = readJsonStorage("user", null);
-    const startedAt = Number(localStorage.getItem(SESSION_STARTED_AT_KEY) || 0);
-    return Boolean(token && user && startedAt && Date.now() - startedAt < SESSION_MAX_AGE_MS);
+    const lastActivityAt = Number(
+        localStorage.getItem(SESSION_LAST_ACTIVITY_AT_KEY)
+            || localStorage.getItem(SESSION_STARTED_AT_KEY)
+            || 0
+    );
+    return Boolean(token && user && lastActivityAt && Date.now() - lastActivityAt < SESSION_INACTIVITY_LIMIT_MS);
 }
 
 function saveSession(token, user) {
     localStorage.setItem("token", token);
     localStorage.setItem("user", JSON.stringify(user));
-    localStorage.setItem(SESSION_STARTED_AT_KEY, String(Date.now()));
+    localStorage.setItem(SESSION_LAST_ACTIVITY_AT_KEY, String(Date.now()));
+    localStorage.removeItem(SESSION_STARTED_AT_KEY);
 }
 
 function clearSession() {
     localStorage.removeItem("token");
     localStorage.removeItem("user");
+    localStorage.removeItem(SESSION_LAST_ACTIVITY_AT_KEY);
     localStorage.removeItem(SESSION_STARTED_AT_KEY);
+}
+
+let sessionInactivityTimer = null;
+
+function refreshSessionActivity() {
+    if (!state.token || !state.user) {
+        return;
+    }
+    localStorage.setItem(SESSION_LAST_ACTIVITY_AT_KEY, String(Date.now()));
+    localStorage.removeItem(SESSION_STARTED_AT_KEY);
+    scheduleSessionInactivityCheck();
+}
+
+function resetLoginControls() {
+    if (elements.loginForm) {
+        elements.loginForm.reset();
+    }
+    if (elements.loginButton) {
+        elements.loginButton.disabled = false;
+        elements.loginButton.textContent = "ENTRAR NO SISTEMA";
+    }
+}
+
+function expireSessionForInactivity() {
+    state.token = "";
+    state.user = null;
+    state.selectedVehicle = null;
+    if (sessionInactivityTimer) {
+        window.clearTimeout(sessionInactivityTimer);
+        sessionInactivityTimer = null;
+    }
+    closePasswordResetModal();
+    clearSession();
+    resetLoginControls();
+    setActiveScreen("login");
+    setLoginStatus("Sessao encerrada por 30 minutos de inatividade. Informe login e senha novamente.", true);
+}
+
+function scheduleSessionInactivityCheck() {
+    if (sessionInactivityTimer) {
+        window.clearTimeout(sessionInactivityTimer);
+        sessionInactivityTimer = null;
+    }
+    if (!state.token || !state.user) {
+        return;
+    }
+    const lastActivityAt = Number(localStorage.getItem(SESSION_LAST_ACTIVITY_AT_KEY) || 0);
+    const remainingMs = SESSION_INACTIVITY_LIMIT_MS - (Date.now() - lastActivityAt);
+    if (remainingMs <= 0) {
+        expireSessionForInactivity();
+        return;
+    }
+    sessionInactivityTimer = window.setTimeout(expireSessionForInactivity, remainingMs + 250);
+}
+
+function trackSessionActivity() {
+    if (!state.token || !state.user) {
+        return;
+    }
+    if (!hasValidSession()) {
+        expireSessionForInactivity();
+        return;
+    }
+    refreshSessionActivity();
 }
 
 const state = {
@@ -439,9 +510,11 @@ async function login(credentials) {
 
 async function bootstrap() {
     setLoginStatus("");
+    const hadSavedSession = Boolean(localStorage.getItem("token") && readJsonStorage("user", null));
     if (hasValidSession()) {
         state.token = localStorage.getItem("token") || "";
         state.user = readJsonStorage("user", null);
+        refreshSessionActivity();
         await enterAuthenticatedApp();
         return;
     }
@@ -449,12 +522,16 @@ async function bootstrap() {
     state.user = null;
     clearSession();
     setActiveScreen("login");
+    if (hadSavedSession) {
+        setLoginStatus("Sessao encerrada por 30 minutos de inatividade. Informe login e senha novamente.", true);
+    }
 }
 
 async function enterAuthenticatedApp() {
     try {
         setLoginStatus("Carregando dados do sistema...");
         await loadVehiclesAndCatalog();
+        scheduleSessionInactivityCheck();
         if (await restoreActiveChecklistDraft()) {
             setLoginStatus("");
             syncPendingChecklists({ silent: true });
@@ -468,6 +545,10 @@ async function enterAuthenticatedApp() {
         if (error.status === 401 || error.status === 403) {
             state.token = "";
             state.user = null;
+            if (sessionInactivityTimer) {
+                window.clearTimeout(sessionInactivityTimer);
+                sessionInactivityTimer = null;
+            }
             clearSession();
             setActiveScreen("login");
             setLoginStatus("Sessão expirada. Informe login e senha novamente.", true);
@@ -489,7 +570,18 @@ window.enterChecklistApp = async () => {
         setLoginStatus("Login salvo não encontrado. Informe usuário e senha novamente.", true);
         return;
     }
-    localStorage.setItem(SESSION_STARTED_AT_KEY, localStorage.getItem(SESSION_STARTED_AT_KEY) || String(Date.now()));
+    localStorage.setItem(
+        SESSION_LAST_ACTIVITY_AT_KEY,
+        localStorage.getItem(SESSION_LAST_ACTIVITY_AT_KEY)
+            || localStorage.getItem(SESSION_STARTED_AT_KEY)
+            || String(Date.now())
+    );
+    localStorage.removeItem(SESSION_STARTED_AT_KEY);
+    if (!hasValidSession()) {
+        expireSessionForInactivity();
+        return;
+    }
+    refreshSessionActivity();
     await enterAuthenticatedApp();
 };
 
@@ -4200,16 +4292,14 @@ async function logout() {
     state.token = "";
     state.user = null;
     state.selectedVehicle = null;
+    if (sessionInactivityTimer) {
+        window.clearTimeout(sessionInactivityTimer);
+        sessionInactivityTimer = null;
+    }
     closePasswordResetModal();
     clearSession();
     setLoginStatus("");
-    if (elements.loginForm) {
-        elements.loginForm.reset();
-    }
-    if (elements.loginButton) {
-        elements.loginButton.disabled = false;
-        elements.loginButton.textContent = "ENTRAR NO SISTEMA";
-    }
+    resetLoginControls();
     setActiveScreen("login");
 }
 
@@ -4507,6 +4597,15 @@ window.addEventListener("online", () => {
     syncPendingChecklists({ silent: true });
 });
 window.addEventListener("offline", updateConnectionStatus);
+["pointerdown", "keydown", "input", "scroll", "touchstart"].forEach((eventName) => {
+    window.addEventListener(eventName, trackSessionActivity, { capture: true, passive: true });
+});
+window.addEventListener("visibilitychange", () => {
+    if (document.visibilityState === "visible") {
+        trackSessionActivity();
+    }
+});
+window.addEventListener("focus", trackSessionActivity);
 window.addEventListener("keydown", (event) => {
     if (event.key === "Escape" && elements.passwordModal && !elements.passwordModal.classList.contains("hidden")) {
         event.preventDefault();

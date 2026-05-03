@@ -26,8 +26,8 @@ if str(BACKEND_ROOT) not in sys.path:
 
 TEST_DB_PATH = Path(tempfile.gettempdir()) / "checklist_frota_web_mobile_playwright.db"
 os.environ["DATABASE_URL"] = f"sqlite:///{TEST_DB_PATH}"
-os.environ["INVENTORY_FILE"] = ""
-os.environ["WASH_CONTROL_FILE"] = ""
+os.environ["INVENTORY_FILE"] = str(Path(tempfile.gettempdir()) / "checklist_frota_no_inventory.xlsx")
+os.environ["WASH_CONTROL_FILE"] = str(Path(tempfile.gettempdir()) / "checklist_frota_no_wash.xlsx")
 
 from app import create_app
 from app.extensions import db
@@ -249,6 +249,20 @@ class WebMobilePlaywrightTests(unittest.TestCase):
         self._wait_for_screen("maintenance-screen")
         expect(self.page.locator("#maintenance-counter")).not_to_have_text("FALHA")
         expect(self.page.locator("#maintenance-calendar")).to_be_visible()
+
+    def test_session_requires_login_after_30_minutes_without_activity(self):
+        self._login()
+
+        self.page.evaluate(
+            """() => {
+                localStorage.setItem("sessionLastActivityAt", String(Date.now() - (31 * 60 * 1000)));
+            }"""
+        )
+        self.page.reload(wait_until="domcontentloaded")
+        self._wait_for_screen("login-screen")
+
+        expect(self.page.locator("#login-status")).to_contain_text("30 minutos de inatividade")
+        self.assertFalse(self.page.evaluate("""() => Boolean(localStorage.getItem("token"))"""))
 
     def test_checklist_flow_updates_progress_and_blocks_incomplete_submit(self):
         self._login()

@@ -134,6 +134,8 @@
                 const payload = Object.prototype.hasOwnProperty.call(body, "data") ? body.data : body;
                 localStorage.setItem("token", payload.token);
                 localStorage.setItem("user", JSON.stringify(payload.user));
+                localStorage.setItem("sessionLastActivityAt", String(Date.now()));
+                localStorage.removeItem("sessionStartedAt");
                 status.textContent = "Login OK. Abrindo sistema...";
                 window.location.href = "./?app=web-mobile&login=ok";
             } catch (error) {

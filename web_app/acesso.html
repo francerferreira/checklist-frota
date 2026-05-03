@@ -134,6 +134,8 @@
                 localStorage.setItem("apiBaseUrl", api);
                 localStorage.setItem("token", body.token);
                 localStorage.setItem("user", JSON.stringify(body.user));
+                localStorage.setItem("sessionLastActivityAt", String(Date.now()));
+                localStorage.removeItem("sessionStartedAt");
                 setStatus("Login OK. Abrindo sistema completo...", "ok");
                 menu.classList.remove("hidden");
                 window.location.href = "./?app=web-mobile";
