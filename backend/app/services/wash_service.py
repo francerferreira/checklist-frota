@@ -222,17 +222,12 @@ def load_wash_category_values(path: Path | None = None) -> dict[str, Decimal]:
 
 
 def discover_wash_file(explicit_path: str | None = None) -> Path | None:
+    project_root = Path(__file__).resolve().parents[3]
     if explicit_path:
-        path = Path(explicit_path).expanduser()
-        if path.exists():
+        path = Path(explicit_path).expanduser().resolve()
+        if path.exists() and path.is_file() and path.is_relative_to(project_root):
             return path
 
-    home = Path.home()
-    for candidate in home.glob(f"OneDrive*/*{WASH_FILE_PATTERN}"):
-        if candidate.is_file():
-            return candidate
-
-    project_root = Path(__file__).resolve().parents[3]
     for candidate in project_root.glob(WASH_FILE_PATTERN):
         if candidate.is_file():
             return candidate

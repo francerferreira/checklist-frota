@@ -23,17 +23,16 @@ def _normalize_year(value) -> str | None:
 
 
 def discover_inventory_file(configured_path: str | None = None) -> Path | None:
-    if configured_path:
-        path = Path(configured_path)
-        return path if path.exists() else None
+    if not configured_path:
+        return None
 
-    user_home = Path.home()
-    candidates = []
-    for root in user_home.glob("OneDrive*"):
-        documents = root / "Documentos"
-        if documents.exists():
-            candidates.extend(documents.glob("*FROTA*2026*.xlsx"))
-    return candidates[0] if candidates else None
+    project_root = Path(__file__).resolve().parents[3]
+    path = Path(configured_path).expanduser().resolve()
+    if not path.exists() or not path.is_file():
+        return None
+    if not path.is_relative_to(project_root):
+        return None
+    return path
 
 
 def _map_carreta(row: tuple) -> dict:
