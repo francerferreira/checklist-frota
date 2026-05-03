@@ -23,6 +23,7 @@ from services.export_service import (
     export_rows_to_xlsx,
     export_vehicle_detail_pdf,
 )
+from services.wash_reporting_service import export_wash_month_pdf
 from PIL import Image
 
 
@@ -255,6 +256,64 @@ class ExportServiceTests(unittest.TestCase):
             output_path=path,
             generated_by="Administrador",
             item_images={10: {"before": self.sample_png, "after": self.sample_png}},
+        )
+        self.assertTrue(path.exists())
+        self.assertGreater(path.stat().st_size, 1000)
+
+    def test_export_wash_month_pdf_creates_file_with_total_highlight(self):
+        path = self.output_dir / "lavagens_mensal.pdf"
+        export_wash_month_pdf(
+            {
+                "periodo": {"mes": 5, "ano": 2026, "rotulo": "Maio/2026"},
+                "resumo": {"lavados_mes": 3, "valor_total": 1875.5},
+                "indicadores": {
+                    "por_categoria": [
+                        {"categoria": "Lavagem completa", "quantidade": 2, "valor": 1250.0},
+                        {"categoria": "Lavagem simples", "quantidade": 1, "valor": 625.5},
+                    ],
+                    "por_veiculo": [
+                        {"referencia": "CV801", "quantidade": 2, "valor": 1250.0},
+                        {"referencia": "CV905", "quantidade": 1, "valor": 625.5},
+                    ],
+                },
+                "historico": [
+                    {
+                        "status": "LAVADO",
+                        "wash_date": "2026-05-01T08:00:00",
+                        "referencia": "CV801",
+                        "carreta": "SR001",
+                        "tipo_equipamento": "Lavagem completa",
+                        "turno": "manha",
+                        "local": "Pátio 1",
+                        "valor": 625.0,
+                        "vehicle": {"placa": "ABC-1234", "modelo": "Scania"},
+                    },
+                    {
+                        "status": "LAVADO",
+                        "wash_date": "2026-05-02T13:00:00",
+                        "referencia": "CV801",
+                        "carreta": "SR001",
+                        "tipo_equipamento": "Lavagem completa",
+                        "turno": "tarde",
+                        "local": "Pátio 1",
+                        "valor": 625.0,
+                        "vehicle": {"placa": "ABC-1234", "modelo": "Scania"},
+                    },
+                    {
+                        "status": "LAVADO",
+                        "wash_date": "2026-05-03T13:00:00",
+                        "referencia": "CV905",
+                        "carreta": "SR002",
+                        "tipo_equipamento": "Lavagem simples",
+                        "turno": "tarde",
+                        "local": "Pátio 2",
+                        "valor": 625.5,
+                        "vehicle": {"placa": "DEF-5678", "modelo": "Volvo"},
+                    },
+                ],
+            },
+            output_path=path,
+            generated_by="Administrador",
         )
         self.assertTrue(path.exists())
         self.assertGreater(path.stat().st_size, 1000)

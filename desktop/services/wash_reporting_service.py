@@ -5,6 +5,7 @@ from datetime import date, datetime
 from pathlib import Path
 
 from reportlab.lib import colors
+from reportlab.lib.styles import ParagraphStyle
 from reportlab.lib.pagesizes import A4, landscape
 from reportlab.lib.units import mm
 from reportlab.platypus import PageBreak, Paragraph, SimpleDocTemplate, Spacer, Table, TableStyle
@@ -70,6 +71,7 @@ def export_wash_month_pdf(
         bottomMargin=14 * mm,
     )
     styles = _styles()
+    wash_styles = _wash_styles(styles)
 
     story = _build_cover_page(
         "Relatório mensal de lavagens",
@@ -80,17 +82,23 @@ def export_wash_month_pdf(
         landscape_mode=True,
     )
     story.append(PageBreak())
+    story.append(_build_total_value_spotlight(total_value, resumo.get("lavados_mes", 0), period_label, wash_styles))
+    story.append(Spacer(1, 8))
     story.extend(
         _build_summary_cards(
             [
                 ("Lavados no mês", str(resumo.get("lavados_mes", 0))),
-                ("Valor total", _format_currency(total_value)),
                 ("Categorias atendidas", str(len(indicadores.get("por_categoria", [])))),
                 ("Veículos lavados", str(len(indicadores.get("por_veiculo", [])))),
+                ("Ticket médio", _format_currency((total_value / max(1, int(resumo.get("lavados_mes", 0) or 0))))),
             ],
             styles,
         )
     )
+    story.append(Spacer(1, 8))
+    story.append(Paragraph("Destaques do mês", styles["section"]))
+    story.append(Spacer(1, 4))
+    story.append(_build_wash_highlights(indicadores, wash_styles))
     story.append(Spacer(1, 8))
     story.append(Paragraph("Indicadores por categoria", styles["section"]))
     story.append(Spacer(1, 4))
@@ -182,11 +190,6 @@ def export_wash_month_pdf(
             f"Programação e execução de {period_label}",
             logo_path,
         )
-        canvas.saveState()
-        canvas.setFillColor(colors.HexColor("#0B1220"))
-        canvas.setFont("Helvetica-Bold", 8)
-        canvas.drawRightString(document.leftMargin + document.width, 8 * mm, f"Valor total do mês: {_format_currency(total_value)}")
-        canvas.restoreState()
 
     doc.build(story, onFirstPage=footer, onLaterPages=footer)
     return path
@@ -402,4 +405,142 @@ def _format_currency(value) -> str:
     except (TypeError, ValueError):
         amount = 0.0
     return f"R$ {amount:,.2f}".replace(",", "X").replace(".", ",").replace("X", ".")
+
+
+def _wash_styles(styles):
+    return {
+        "spotlight_value": ParagraphStyle(
+            "WashSpotlightValue",
+            parent=styles["cover_title"],
+            fontSize=26,
+            leading=30,
+            textColor=colors.white,
+        ),
+        "spotlight_label": ParagraphStyle(
+            "WashSpotlightLabel",
+            parent=styles["cover_band"],
+            fontSize=9.5,
+            leading=12,
+            textColor=colors.HexColor("#DBEAFE"),
+        ),
+        "spotlight_caption": ParagraphStyle(
+            "WashSpotlightCaption",
+            parent=styles["body"],
+            fontSize=10,
+            leading=13,
+            textColor=colors.white,
+        ),
+        "highlight_title": ParagraphStyle(
+            "WashHighlightTitle",
+            parent=styles["summary_label"],
+            fontSize=8.5,
+            leading=10,
+            textColor=colors.HexColor("#475569"),
+        ),
+        "highlight_value": ParagraphStyle(
+            "WashHighlightValue",
+            parent=styles["body"],
+            fontName="Helvetica-Bold",
+            fontSize=12,
+            leading=15,
+            textColor=colors.HexColor("#0B1220"),
+        ),
+        "highlight_detail": ParagraphStyle(
+            "WashHighlightDetail",
+            parent=styles["table_cell"],
+            fontSize=8.8,
+            leading=11,
+            textColor=colors.HexColor("#334155"),
+        ),
+    }
+
+
+def _build_total_value_spotlight(total_value, lavados_mes: int, period_label: str, styles) -> Table:
+    block = Table(
+        [[
+            Paragraph(
+                f"FATURAMENTO DE LAVAGENS<br/>{_format_currency(total_value)}",
+                styles["spotlight_value"],
+            ),
+            Paragraph(
+                (
+                    f"<b>Período:</b> {_safe_paragraph_text(period_label)}<br/>"
+                    f"<b>Lavagens concluídas:</b> {_safe_paragraph_text(str(lavados_mes))}<br/>"
+                    "Indicador financeiro principal do relatório mensal."
+                ),
+                styles["spotlight_caption"],
+            ),
+        ]],
+        colWidths=[120 * mm, 126 * mm],
+    )
+    block.setStyle(
+        TableStyle(
+            [
+                ("BACKGROUND", (0, 0), (-1, -1), colors.HexColor("#1D4ED8")),
+                ("BOX", (0, 0), (-1, -1), 0.7, colors.HexColor("#1E40AF")),
+                ("LEFTPADDING", (0, 0), (-1, -1), 12),
+                ("RIGHTPADDING", (0, 0), (-1, -1), 12),
+                ("TOPPADDING", (0, 0), (-1, -1), 12),
+                ("BOTTOMPADDING", (0, 0), (-1, -1), 12),
+                ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
+            ]
+        )
+    )
+    return block
+
+
+def _build_wash_highlights(indicadores: dict, styles) -> Table:
+    top_category = (indicadores.get("por_categoria") or [{}])[0]
+    top_vehicle = (indicadores.get("por_veiculo") or [{}])[0]
+    cards = [
+        _wash_highlight_card(
+            "Categoria líder",
+            top_category.get("categoria") or "Sem dados",
+            f"{top_category.get('quantidade', 0)} lavagem(ns) • {_format_currency(top_category.get('valor'))}",
+            styles,
+        ),
+        _wash_highlight_card(
+            "Veículo com maior volume",
+            top_vehicle.get("referencia") or "Sem dados",
+            f"{top_vehicle.get('quantidade', 0)} lavagem(ns) • {_format_currency(top_vehicle.get('valor'))}",
+            styles,
+        ),
+    ]
+    table = Table([cards], colWidths=[123 * mm, 123 * mm])
+    table.setStyle(
+        TableStyle(
+            [
+                ("LEFTPADDING", (0, 0), (-1, -1), 0),
+                ("RIGHTPADDING", (0, 0), (-1, -1), 6),
+                ("TOPPADDING", (0, 0), (-1, -1), 0),
+                ("BOTTOMPADDING", (0, 0), (-1, -1), 0),
+                ("VALIGN", (0, 0), (-1, -1), "TOP"),
+            ]
+        )
+    )
+    return table
+
+
+def _wash_highlight_card(label: str, title: str, detail: str, styles) -> Table:
+    card = Table(
+            [[
+                Paragraph(_safe_paragraph_text(label.upper()), styles["highlight_title"]),
+                Paragraph(_safe_paragraph_text(title), styles["highlight_value"]),
+                Paragraph(_safe_paragraph_text(detail), styles["highlight_detail"]),
+            ]],
+        colWidths=[118 * mm],
+    )
+    card.setStyle(
+        TableStyle(
+            [
+                ("BACKGROUND", (0, 0), (-1, -1), colors.HexColor("#F8FAFC")),
+                ("BOX", (0, 0), (-1, -1), 0.6, colors.HexColor("#D9E2EF")),
+                ("LEFTPADDING", (0, 0), (-1, -1), 10),
+                ("RIGHTPADDING", (0, 0), (-1, -1), 10),
+                ("TOPPADDING", (0, 0), (-1, -1), 8),
+                ("BOTTOMPADDING", (0, 0), (-1, -1), 8),
+            ]
+        )
+    )
+    return card
 
