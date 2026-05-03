@@ -5,7 +5,7 @@ from pathlib import Path
 
 from PySide6.QtCore import QObject, QThread, QTimer, Qt, Signal, Slot, QUrl
 from PySide6.QtGui import QDesktopServices
-from PySide6.QtWidgets import QDialog, QHBoxLayout, QLabel, QProgressBar, QVBoxLayout
+from PySide6.QtWidgets import QDialog, QFileDialog, QHBoxLayout, QLabel, QProgressBar, QVBoxLayout
 
 from components.confirmation_dialog import show_notice
 from theme import configure_dialog_window, style_card
@@ -13,6 +13,15 @@ from theme import configure_dialog_window, style_card
 
 ProgressCallback = Callable[[int, str], None]
 ExportTask = Callable[[ProgressCallback], object]
+
+
+def choose_export_file_path(parent, title: str, default_path: str | Path, file_filter: str) -> str | None:
+    filename, _ = QFileDialog.getSaveFileName(parent, title, str(default_path), file_filter)
+    return filename or None
+
+
+def choose_pdf_save_path(parent, title: str, default_path: str | Path) -> str | None:
+    return choose_export_file_path(parent, title, default_path, "PDF (*.pdf)")
 
 
 def open_exported_pdf(result: object) -> bool:
@@ -24,6 +33,18 @@ def open_exported_pdf(result: object) -> bool:
     if not path.exists():
         return False
     return QDesktopServices.openUrl(QUrl.fromLocalFile(str(path.resolve())))
+
+
+def finalize_export_result(
+    parent,
+    result: object,
+    *,
+    success_title: str = "PDF gerado",
+    success_template: str = "Arquivo salvo em:\n{result}",
+    icon_name: str = "reports",
+) -> None:
+    show_notice(parent, success_title, success_template.format(result=result), icon_name=icon_name)
+    open_exported_pdf(result)
 
 
 class ExportWorker(QObject):
@@ -99,13 +120,13 @@ class ExportTaskController(QObject):
         self.dialog.mark_finished()
         if self.thread.isRunning():
             self.thread.quit()
-        show_notice(
+        finalize_export_result(
             self.parent_widget,
-            self.success_title,
-            self.success_template.format(result=result),
+            result,
+            success_title=self.success_title,
+            success_template=self.success_template,
             icon_name=self.icon_name,
         )
-        open_exported_pdf(result)
         self.dialog.accept()
 
     def _handle_failed(self, message: str):

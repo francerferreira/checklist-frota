@@ -25,7 +25,7 @@ from PySide6.QtWidgets import (
     QVBoxLayout,
 )
 
-from components import TableSkeletonOverlay, ask_confirmation, make_icon, show_notice, start_export_task
+from components import TableSkeletonOverlay, ask_confirmation, choose_export_file_path, choose_pdf_save_path, make_icon, show_notice, start_export_task
 from components import MessageComposerDialog
 from runtime_paths import asset_path
 from services.export_service import (
@@ -517,7 +517,7 @@ class MaterialReportDialog(QDialog):
             table.setSortingEnabled(True)
 
     def export_xlsx(self):
-        filename, _ = QFileDialog.getSaveFileName(
+        filename = choose_export_file_path(
             self,
             "Exportar relatório de estoque",
             make_default_export_path("relatorio_estoque", "xlsx"),
@@ -532,12 +532,7 @@ class MaterialReportDialog(QDialog):
             show_notice(self, "Falha na exportação", str(exc), icon_name="warning")
 
     def export_pdf(self):
-        filename, _ = QFileDialog.getSaveFileName(
-            self,
-            "Exportar relatório de estoque",
-            make_default_export_path("relatorio_estoque", "pdf"),
-            "PDF (*.pdf)",
-        )
+        filename = choose_pdf_save_path(self, "Exportar relatório de estoque", make_default_export_path("relatorio_estoque", "pdf"))
         if not filename:
             return
         report = dict(self.report)

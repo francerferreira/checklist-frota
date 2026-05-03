@@ -37,7 +37,7 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
-from components import MessageComposerDialog, TableSkeletonOverlay, make_icon, show_notice, start_export_task
+from components import MessageComposerDialog, TableSkeletonOverlay, choose_pdf_save_path, make_icon, show_notice, start_export_task
 from runtime_paths import asset_path
 from services.wash_reporting_service import (
     build_wash_tomorrow_message_package,
@@ -1678,12 +1678,7 @@ class WashesPage(QFrame):
     def export_month_pdf(self):
         logo_path = asset_path("app-logo-cover.png")
         overview = dict(self.overview)
-        filename, _ = QFileDialog.getSaveFileName(
-            self,
-            "Exportar PDF mensal de lavagens",
-            make_default_export_path("lavagens_mensal", "pdf"),
-            "PDF (*.pdf)",
-        )
+        filename = choose_pdf_save_path(self, "Exportar PDF mensal de lavagens", make_default_export_path("lavagens_mensal", "pdf"))
         if not filename:
             return
 
@@ -1709,12 +1704,7 @@ class WashesPage(QFrame):
     def export_schedule_pdf(self):
         logo_path = asset_path("app-logo-cover.png")
         overview = dict(self.overview)
-        filename, _ = QFileDialog.getSaveFileName(
-            self,
-            "Exportar PDF do cronograma de lavagens",
-            make_default_export_path("lavagens_cronograma", "pdf"),
-            "PDF (*.pdf)",
-        )
+        filename = choose_pdf_save_path(self, "Exportar PDF do cronograma de lavagens", make_default_export_path("lavagens_cronograma", "pdf"))
         if not filename:
             return
 

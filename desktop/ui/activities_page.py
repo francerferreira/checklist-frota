@@ -25,7 +25,7 @@ from PySide6.QtWidgets import (
     QVBoxLayout,
 )
 
-from components import ImagePanel, TableSkeletonOverlay, make_icon, show_notice, start_export_task
+from components import ImagePanel, TableSkeletonOverlay, choose_export_file_path, make_icon, show_notice, start_export_task
 from components import MessageComposerDialog
 from runtime_paths import asset_path
 from services.export_service import (
@@ -1222,7 +1222,7 @@ class ActivityDetailDialog(QDialog):
             file_type,
         )
         filters = {"csv": "CSV (*.csv)", "xlsx": "Excel (*.xlsx)", "pdf": "PDF (*.pdf)"}
-        filename, _ = QFileDialog.getSaveFileName(self, "Exportar atividade", default_path, filters[file_type])
+        filename = choose_export_file_path(self, "Exportar atividade", default_path, filters[file_type])
         if not filename:
             return
 

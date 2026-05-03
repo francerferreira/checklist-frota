@@ -7,7 +7,6 @@ from PySide6.QtCore import QDate, QTimer, Qt
 from PySide6.QtWidgets import (
     QComboBox,
     QDialog,
-    QFileDialog,
     QFrame,
     QHBoxLayout,
     QLabel,
@@ -22,7 +21,7 @@ from PySide6.QtWidgets import (
     QDateEdit,
 )
 
-from components import open_exported_pdf, show_notice
+from components import choose_pdf_save_path, finalize_export_result, show_notice
 from runtime_paths import asset_path
 from services import export_checklist_detail_pdf
 from services.export_service import make_default_export_path
@@ -179,7 +178,7 @@ class ChecklistDetailDialog(QDialog):
     def export_pdf(self):
         vehicle = self.checklist.get("vehicle") or {}
         default_path = make_default_export_path(f"checklist_{vehicle.get('frota', 'frota').lower()}", "pdf")
-        filename, _ = QFileDialog.getSaveFileName(self, "Exportar checklist em PDF", default_path, "PDF (*.pdf)")
+        filename = choose_pdf_save_path(self, "Exportar checklist em PDF", default_path)
         if not filename:
             return
         try:
@@ -194,8 +193,7 @@ class ChecklistDetailDialog(QDialog):
                 generated_by=(self.api_client.user or {}).get("nome") or (self.api_client.user or {}).get("login") or "",
                 item_images=item_images,
             )
-            show_notice(self, "PDF gerado", f"Arquivo salvo em:\n{path}", icon_name="reports")
-            open_exported_pdf(path)
+            finalize_export_result(self, path)
         except Exception as exc:
             show_notice(self, "Falha ao exportar PDF", str(exc), icon_name="warning")
 

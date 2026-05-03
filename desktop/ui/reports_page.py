@@ -10,7 +10,6 @@ from PySide6.QtWidgets import (
     QComboBox,
     QDateEdit,
     QDialog,
-    QFileDialog,
     QFrame,
     QGridLayout,
     QHBoxLayout,
@@ -41,8 +40,16 @@ from services.export_service import (
     export_vehicle_detail_pdf,
     make_default_export_path,
 )
-from components import ExportProgressDialog, ExportWorker, MessageComposerDialog, TableSkeletonOverlay, open_exported_pdf
-from components import show_notice
+from components import (
+    ExportProgressDialog,
+    ExportWorker,
+    MessageComposerDialog,
+    TableSkeletonOverlay,
+    choose_export_file_path,
+    choose_pdf_save_path,
+    finalize_export_result,
+    show_notice,
+)
 from runtime_paths import asset_path
 from theme import (
     build_dialog_layout,
@@ -1181,7 +1188,7 @@ class ReportsPage(QFrame):
             return
 
         default_path = make_default_export_path(f"auditoria_{vehicle.get('frota', 'frota').lower()}", "pdf")
-        filename, _ = QFileDialog.getSaveFileName(self, "Exportar auditoria do equipamento", default_path, "PDF (*.pdf)")
+        filename = choose_pdf_save_path(self, "Exportar auditoria do equipamento", default_path)
         if not filename:
             return
 
@@ -1215,7 +1222,7 @@ class ReportsPage(QFrame):
         scope_label = self._item_scope_label()
         safe_name = "".join(char if char.isalnum() else "_" for char in scope_label.lower()).strip("_") or "nao_conformidades"
         default_path = make_default_export_path(f"auditoria_item_{safe_name}", "pdf")
-        filename, _ = QFileDialog.getSaveFileName(self, "Exportar auditoria por item", default_path, "PDF (*.pdf)")
+        filename = choose_pdf_save_path(self, "Exportar auditoria por item", default_path)
         if not filename:
             return
         rows = list(self.item_rows)
@@ -1248,7 +1255,7 @@ class ReportsPage(QFrame):
         scope_label = self.item_filter.text().strip() or "Não conformidades resolvidas"
         safe_name = "".join(char if char.isalnum() else "_" for char in scope_label.lower()).strip("_") or "nao_conformidades_resolvidas"
         default_path = make_default_export_path(f"resolvidos_{safe_name}", "pdf")
-        filename, _ = QFileDialog.getSaveFileName(self, "Exportar PDF de resolvidos", default_path, "PDF (*.pdf)")
+        filename = choose_pdf_save_path(self, "Exportar PDF de resolvidos", default_path)
         if not filename:
             return
         rows = list(self.resolved_rows)
@@ -1369,12 +1376,7 @@ class ReportsPage(QFrame):
             "xlsx": "Excel (*.xlsx)",
             "pdf": "PDF (*.pdf)",
         }
-        filename, _ = QFileDialog.getSaveFileName(
-            self,
-            "Exportar relatório",
-            default_path,
-            filters[file_type],
-        )
+        filename = choose_export_file_path(self, "Exportar relatório", default_path, filters[file_type])
         if not filename:
             return
 
@@ -1507,8 +1509,7 @@ class ReportsPage(QFrame):
             dialog.mark_finished()
         if thread and thread.isRunning():
             thread.quit()
-        show_notice(self, "PDF gerado", f"Arquivo salvo em:\n{path}", icon_name="reports")
-        open_exported_pdf(path)
+        finalize_export_result(self, path)
         if dialog:
             dialog.accept()
 

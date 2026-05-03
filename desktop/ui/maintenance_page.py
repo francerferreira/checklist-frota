@@ -10,7 +10,6 @@ from PySide6.QtWidgets import (
     QComboBox,
     QDateEdit,
     QDialog,
-    QFileDialog,
     QFrame,
     QGridLayout,
     QHBoxLayout,
@@ -27,7 +26,7 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
-from components import StatCard, TableSkeletonOverlay, show_notice, start_export_task
+from components import StatCard, TableSkeletonOverlay, choose_pdf_save_path, show_notice, start_export_task
 from services.export_service import make_default_export_path
 from theme import (
     build_dialog_layout,
@@ -970,12 +969,7 @@ class MaintenancePage(QFrame):
         safe_label = report_label.lower().replace(" ", "_")
         default_name = make_default_export_path(f"relatorio_{safe_label}", "pdf")
 
-        filename, _ = QFileDialog.getSaveFileName(
-            self,
-            "Exportar relatório de manutenção",
-            default_name,
-            "PDF (*.pdf)",
-        )
+        filename = choose_pdf_save_path(self, "Exportar relatório de manutenção", default_name)
         if not filename:
             return
 
