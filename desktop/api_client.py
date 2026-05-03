@@ -331,6 +331,24 @@ class APIClient:
             params["ativos"] = ativos
         return self._request("GET", "/checklist-itens", params=params or None)
 
+    def get_checklist_history_matrix(
+        self,
+        tipo: str | None = None,
+        data_inicio: str | None = None,
+        data_fim: str | None = None,
+    ):
+        params = {}
+        if tipo:
+            params["tipo"] = tipo
+        if data_inicio:
+            params["data_inicio"] = data_inicio
+        if data_fim:
+            params["data_fim"] = data_fim
+        return self._request("GET", "/checklist/historico-matriz", params=params or None)
+
+    def get_checklist_detail(self, checklist_id: int):
+        return self._request("GET", f"/checklists/{checklist_id}")
+
     def create_checklist_item(self, payload: dict):
         return self._request("POST", "/checklist-itens", json=payload)
 

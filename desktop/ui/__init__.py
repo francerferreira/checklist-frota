@@ -1,4 +1,6 @@
 from ui.activities_page import ActivitiesPage
+from ui.checklist_history_page import ChecklistHistoryPage
+from ui.checklist_items_page import ChecklistItemsPage
 from ui.dashboard_page import DashboardPage
 from ui.equipment_page import EquipmentPage
 from ui.login_window import LoginWindow
@@ -14,6 +16,8 @@ __all__ = [
     "DashboardPage",
     "EquipmentPage",
     "ActivitiesPage",
+    "ChecklistHistoryPage",
+    "ChecklistItemsPage",
     "LoginWindow",
     "MainWindow",
     "MaintenancePage",

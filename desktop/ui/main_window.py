@@ -30,6 +30,7 @@ from theme import APP_STYLE, apply_button_styles, install_button_style_enforcer
 from ui.activities_page import ActivitiesPage
 from ui.audit_logs_page import AuditLogsPage
 from ui.checklist_items_page import ChecklistItemsPage
+from ui.checklist_history_page import ChecklistHistoryPage
 from ui.cloud_backup_page import CloudBackupPage
 from ui.dashboard_page import DashboardPage
 from ui.equipment_page import EquipmentPage
@@ -261,6 +262,7 @@ class MainWindow(QMainWindow):
         self.productivity_page = ProductivityPage(self.api_client)
         self.equipment_page = EquipmentPage(self.api_client)
         self.checklist_items_page = ChecklistItemsPage(self.api_client)
+        self.checklist_history_page = ChecklistHistoryPage(self.api_client)
         self.materials_page = MaterialsPage(self.api_client)
         self.washes_page = WashesPage(self.api_client)
         self.activities_page = ActivitiesPage(self.api_client)
@@ -275,6 +277,7 @@ class MainWindow(QMainWindow):
             "nc": self.nc_page,
             "productivity": self.productivity_page,
             "reports": self.reports_page,
+            "checklist_history": self.checklist_history_page,
         }
         if self.can_manage:
             self.page_map["equipment"] = self.equipment_page
@@ -299,6 +302,7 @@ class MainWindow(QMainWindow):
             "activities": "Atividades",
             "maintenance": "Manutenção",
             "reports": "Relatórios",
+            "checklist_history": "Histórico Checklist",
             "users": "Logins",
             "cloud_backup": "Backup",
             "audit_logs": "Logs de Auditoria",
@@ -324,7 +328,7 @@ class MainWindow(QMainWindow):
             "Cadastro": ["equipment", "users"],
             "Tabelas": ["checklist_items", "materials"],
             "Movimento": ["activities", "washes", "maintenance"],
-            "Relatórios": ["reports", "productivity"],
+            "Relatórios": ["reports", "productivity", "checklist_history"],
             "Sistema": [],
             "Utilitários": ["dashboard", "nc", "cloud_backup", "audit_logs"],
         }
@@ -378,7 +382,7 @@ class MainWindow(QMainWindow):
             ("1 - Cadastro", ["equipment", "users"]),
             ("2 - Tabelas", ["checklist_items", "materials"]),
             ("3 - Movimento", ["activities", "washes", "maintenance"]),
-            ("4 - Relatórios", ["reports", "productivity"]),
+            ("4 - Relatórios", ["reports", "productivity", "checklist_history"]),
             ("5 - Utilitários", ["dashboard", "nc", "cloud_backup", "audit_logs"]),
         ]
 
@@ -616,6 +620,8 @@ class MainWindow(QMainWindow):
                 self.maintenance_page.refresh()
             elif page_key == "reports":
                 self.reports_page.refresh()
+            elif page_key == "checklist_history":
+                self.checklist_history_page.refresh()
             elif page_key == "users":
                 self.users_page.refresh()
             elif page_key == "cloud_backup":
@@ -666,6 +672,7 @@ class MainWindow(QMainWindow):
             "activities": ("Carregando atividades", "Montando auditorias em massa, seleção e execução."),
             "maintenance": ("Carregando manutenção", "Montando cronograma mensal e tabela de programação."),
             "reports": ("Montando relatórios", "Consolidando dados macro, micro e exportações."),
+            "checklist_history": ("Carregando histórico", "Montando matriz de checklists por frota e data."),
             "users": ("Carregando acessos", "Atualizando perfis, logins e permissões disponíveis."),
             "cloud_backup": ("Verificando nuvem", "Consultando uso de banco, fotos e status do backup."),
             "audit_logs": ("Carregando auditoria", "Montando histórico completo de acessos e alterações."),

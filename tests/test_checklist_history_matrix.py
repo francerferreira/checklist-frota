@@ -120,8 +120,18 @@ class ChecklistHistoryMatrixTests(unittest.TestCase):
         self.assertEqual(row["modelo"], "MODELO TESTE")
         self.assertIn("descricao", row)
         self.assertEqual(row["checklist_count"], 3)
+        self.assertEqual(len(row["cell_details"][0]), 2)
+        self.assertEqual(row["cell_details"][0][1]["time"], "14:35")
         self.assertEqual(row["cells"][0], "14:35 - Administrador")
         self.assertEqual(row["cells"][1], "06:45 - Administrador")
+
+        detail_response = self.client.get(
+            f"/checklists/{row['cell_details'][0][0]['id']}",
+            headers=self.headers,
+        )
+        detail_payload = detail_response.get_json() or {}
+        self.assertTrue(detail_payload.get("success"))
+        self.assertIn("itens", detail_payload.get("data") or {})
 
     def test_history_matrix_excludes_inactive_and_non_matching_vehicle_types(self):
         with self.app.app_context():

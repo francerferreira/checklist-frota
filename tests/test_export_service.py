@@ -16,6 +16,7 @@ from services.export_service import (
     export_item_audit_pdf,
     export_material_report_pdf,
     export_material_report_xlsx,
+    export_checklist_detail_pdf,
     export_non_conformity_pdf,
     export_rows_to_csv,
     export_rows_to_pdf,
@@ -118,6 +119,26 @@ class ExportServiceTests(unittest.TestCase):
             generated_by="Administrador",
             before_image=self.sample_png,
             after_image=self.sample_png,
+        )
+        self.assertTrue(path.exists())
+        self.assertGreater(path.stat().st_size, 1000)
+
+    def test_export_checklist_detail_pdf_creates_compact_file(self):
+        path = self.output_dir / "checklist_compacto.pdf"
+        export_checklist_detail_pdf(
+            {
+                "vehicle": {"frota": "CV001", "placa": "ABC-1234", "modelo": "CAVALO"},
+                "user": {"nome": "MARCIO"},
+                "created_at": "2026-05-03T07:06:00",
+                "total_itens": 2,
+                "total_nc": 1,
+                "itens": [
+                    {"item_label": "FREIOS", "status": "OK", "resolvido": True},
+                    {"item_label": "FAROL", "status": "NC", "observacao": "Quebrado", "resolvido": False},
+                ],
+            },
+            output_path=path,
+            generated_by="Administrador",
         )
         self.assertTrue(path.exists())
         self.assertGreater(path.stat().st_size, 1000)

@@ -359,6 +359,7 @@ def checklist_history_matrix():
             "tipo": vehicle.tipo,
             "checklist_count": 0,
             "cells": {column["date"]: "" for column in columns},
+            "cell_details": {column["date"]: [] for column in columns},
             "_latest_by_date": {},
         }
 
@@ -380,6 +381,13 @@ def checklist_history_matrix():
         day_key = checklist.created_at.date().isoformat()
         if day_key not in row["cells"]:
             continue
+        row["cell_details"].setdefault(day_key, []).append({
+            "id": checklist.id,
+            "time": checklist.created_at.strftime("%H:%M"),
+            "user": (checklist.user.nome or checklist.user.login or "").strip(),
+            "total_itens": len(checklist.items),
+            "total_nc": sum(1 for item in checklist.items if item.status == "NC"),
+        })
 
         previous_dt = row["_latest_by_date"].get(day_key)
         if previous_dt and checklist.created_at <= previous_dt:
@@ -401,6 +409,7 @@ def checklist_history_matrix():
             "tipo": row["tipo"],
             "checklist_count": int(row["checklist_count"] or 0),
             "cells": [row["cells"].get(column["date"], "") for column in columns],
+            "cell_details": [row["cell_details"].get(column["date"], []) for column in columns],
         })
 
     data = {
@@ -412,6 +421,13 @@ def checklist_history_matrix():
         "rows": rows,
     }
     return api_response(True, data=data)
+
+
+@bp.get("/checklists/<int:checklist_id>")
+@auth_required
+def get_checklist_detail(checklist_id: int):
+    checklist = Checklist.query.get_or_404(checklist_id)
+    return api_response(True, data=checklist.to_dict(include_items=True))
 
 
 @bp.get("/checklist/<veiculo>")

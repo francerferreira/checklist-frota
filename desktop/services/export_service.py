@@ -324,6 +324,125 @@ def export_non_conformity_pdf(
     return path
 
 
+def export_checklist_detail_pdf(
+    checklist: dict,
+    *,
+    output_path: str | Path,
+    generated_by: str = "",
+) -> Path:
+    path = Path(output_path)
+    path.parent.mkdir(parents=True, exist_ok=True)
+
+    doc = SimpleDocTemplate(
+        str(path),
+        pagesize=landscape(A4),
+        leftMargin=9 * mm,
+        rightMargin=9 * mm,
+        topMargin=9 * mm,
+        bottomMargin=8 * mm,
+    )
+    styles = _styles()
+    compact = ParagraphStyle(
+        "ChecklistCompactCell",
+        parent=styles["table_cell"],
+        fontSize=6.2,
+        leading=7.2,
+        spaceAfter=0,
+    )
+    header = ParagraphStyle(
+        "ChecklistCompactHeader",
+        parent=styles["table_header"],
+        fontSize=6.8,
+        leading=7.6,
+        spaceAfter=0,
+    )
+    small = ParagraphStyle(
+        "ChecklistSmall",
+        parent=styles["body"],
+        fontSize=7.2,
+        leading=8.4,
+    )
+
+    vehicle = checklist.get("vehicle") or {}
+    user = checklist.get("user") or {}
+    items = checklist.get("itens") or []
+    nc_items = [item for item in items if item.get("status") == "NC"]
+    ok_items = [item for item in items if item.get("status") == "OK"]
+    created_at = _format_datetime(checklist.get("created_at"))
+
+    story = [
+        Paragraph("Relatório compacto de checklist", styles["title"]),
+        Paragraph(
+            f"{vehicle.get('frota') or '-'} | {vehicle.get('placa') or '-'} | {vehicle.get('modelo') or '-'}",
+            small,
+        ),
+        Spacer(1, 3),
+    ]
+    story.extend(
+        _build_summary_cards(
+            [
+                ("Data/hora", created_at),
+                ("Executor", user.get("nome") or user.get("login") or "-"),
+                ("Itens", str(len(items))),
+                ("Não conformidades", str(len(nc_items))),
+            ],
+            styles,
+        )
+    )
+    story.append(Spacer(1, 4))
+
+    story.append(Paragraph("Não conformidades", styles["section"]))
+    story.append(_compact_checklist_table(nc_items, header, compact, empty_text="Sem não conformidades."))
+    story.append(Spacer(1, 5))
+    story.append(Paragraph("Itens OK", styles["section"]))
+    story.append(_compact_checklist_table(ok_items, header, compact, empty_text="Sem itens OK."))
+    story.append(Spacer(1, 4))
+    story.append(Paragraph(f"Gerado por {generated_by or '-'} em {datetime.now().strftime('%d/%m/%Y %H:%M')}", small))
+
+    doc.build(story)
+    return path
+
+
+def _compact_checklist_table(items: list[dict], header_style, cell_style, *, empty_text: str):
+    if not items:
+        return Paragraph(empty_text, cell_style)
+    data = [[
+        Paragraph("Item", header_style),
+        Paragraph("Status", header_style),
+        Paragraph("Observação", header_style),
+        Paragraph("Peça", header_style),
+        Paragraph("Resolução", header_style),
+    ]]
+    for item in items:
+        piece = " ".join(
+            value for value in [
+                item.get("codigo_peca") or "",
+                item.get("descricao_peca") or "",
+            ] if value
+        ) or "-"
+        resolution = item.get("data_resolucao") or ("Resolvido" if item.get("resolvido") else "-")
+        data.append([
+            Paragraph(_safe_paragraph_text(item.get("item_label") or item.get("item_nome") or "-"), cell_style),
+            Paragraph(_safe_paragraph_text(item.get("status") or "-"), cell_style),
+            Paragraph(_safe_paragraph_text(item.get("observacao") or "-"), cell_style),
+            Paragraph(_safe_paragraph_text(piece), cell_style),
+            Paragraph(_safe_paragraph_text(_format_datetime(resolution)), cell_style),
+        ])
+    table = Table(data, repeatRows=1, colWidths=[74 * mm, 15 * mm, 78 * mm, 55 * mm, 34 * mm])
+    table.setStyle(TableStyle([
+        ("BACKGROUND", (0, 0), (-1, 0), colors.HexColor(PRIMARY_BLUE)),
+        ("TEXTCOLOR", (0, 0), (-1, 0), colors.white),
+        ("ROWBACKGROUNDS", (0, 1), (-1, -1), [colors.white, colors.HexColor(LIGHT_BG)]),
+        ("LINEBELOW", (0, 0), (-1, -1), 0.25, colors.HexColor("#E2E8F0")),
+        ("LEFTPADDING", (0, 0), (-1, -1), 3),
+        ("RIGHTPADDING", (0, 0), (-1, -1), 3),
+        ("TOPPADDING", (0, 0), (-1, -1), 2),
+        ("BOTTOMPADDING", (0, 0), (-1, -1), 2),
+        ("VALIGN", (0, 0), (-1, -1), "TOP"),
+    ]))
+    return table
+
+
 def export_vehicle_detail_pdf(
     vehicle: dict,
     occurrences: list[dict],

@@ -8,6 +8,7 @@ from .export_service import (
     export_vehicle_detail_pdf,
     export_non_conformity_pdf,
     export_item_audit_pdf,
+    export_checklist_detail_pdf,
 )
 from .message_service import (
     MessagePackage,
@@ -29,6 +30,7 @@ __all__ = [
     "export_vehicle_detail_pdf",
     "export_non_conformity_pdf",
     "export_item_audit_pdf",
+    "export_checklist_detail_pdf",
     "MessagePackage",
     "build_macro_message_package",
     "build_micro_message_package",

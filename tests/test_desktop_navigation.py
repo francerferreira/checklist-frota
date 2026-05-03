@@ -33,6 +33,7 @@ class FakeAPIClient:
             "reports_macro": 0,
             "reports_micro": 0,
             "reports_item": 0,
+            "checklist_history": 0,
             "users": 0,
             "images": 0,
         }
@@ -116,6 +117,13 @@ class FakeAPIClient:
     def get_item_report(self, item_name=None, **_kwargs):
         self.calls["reports_item"] += 1
         return []
+
+    def get_checklist_history_matrix(self, tipo=None, data_inicio=None, data_fim=None):
+        self.calls["checklist_history"] += 1
+        return {"columns": [], "rows": [], "periodo": {"inicio": data_inicio, "fim": data_fim}}
+
+    def get_checklist_detail(self, checklist_id):
+        return {"id": checklist_id, "vehicle": {}, "user": {}, "itens": []}
 
     def get_users(self):
         self.calls["users"] += 1
