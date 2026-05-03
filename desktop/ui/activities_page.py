@@ -25,7 +25,7 @@ from PySide6.QtWidgets import (
     QVBoxLayout,
 )
 
-from components import ImagePanel, TableSkeletonOverlay, choose_export_file_path, make_icon, show_notice, start_export_task
+from components import ImagePanel, TableSkeletonOverlay, choose_export_file_path, finalize_saved_file, make_icon, show_notice, start_export_task
 from components import MessageComposerDialog
 from runtime_paths import asset_path
 from services.export_service import (
@@ -1263,7 +1263,7 @@ class ActivityDetailDialog(QDialog):
                     failure_title="Falha na exportação",
                 )
                 return
-            show_notice(self, "Exportação concluída", f"Arquivo salvo em:\n{filename}", icon_name="reports")
+            finalize_saved_file(self, filename)
         except Exception as exc:
             show_notice(self, "Falha na exportação", str(exc), icon_name="warning")
 

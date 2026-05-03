@@ -25,7 +25,7 @@ from PySide6.QtWidgets import (
     QVBoxLayout,
 )
 
-from components import TableSkeletonOverlay, ask_confirmation, choose_export_file_path, choose_pdf_save_path, make_icon, show_notice, start_export_task
+from components import TableSkeletonOverlay, ask_confirmation, choose_export_file_path, choose_pdf_save_path, finalize_saved_file, make_icon, show_notice, start_export_task
 from components import MessageComposerDialog
 from runtime_paths import asset_path
 from services.export_service import (
@@ -527,7 +527,7 @@ class MaterialReportDialog(QDialog):
             return
         try:
             export_material_report_xlsx(self.report, output_path=filename)
-            show_notice(self, "Exportação concluída", f"Arquivo salvo em:\n{filename}", icon_name="reports")
+            finalize_saved_file(self, filename)
         except Exception as exc:
             show_notice(self, "Falha na exportação", str(exc), icon_name="warning")
 

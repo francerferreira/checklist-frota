@@ -47,6 +47,17 @@ def finalize_export_result(
     open_exported_pdf(result)
 
 
+def finalize_saved_file(
+    parent,
+    result: object,
+    *,
+    success_title: str = "Exportação concluída",
+    success_template: str = "Arquivo salvo em:\n{result}",
+    icon_name: str = "reports",
+) -> None:
+    show_notice(parent, success_title, success_template.format(result=result), icon_name=icon_name)
+
+
 class ExportWorker(QObject):
     progress = Signal(int, str)
     finished = Signal(object)

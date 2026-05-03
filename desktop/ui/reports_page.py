@@ -48,6 +48,7 @@ from components import (
     choose_export_file_path,
     choose_pdf_save_path,
     finalize_export_result,
+    finalize_saved_file,
     show_notice,
 )
 from runtime_paths import asset_path
@@ -1405,7 +1406,7 @@ class ReportsPage(QFrame):
 
                 self._run_pdf_export("Exportando PDF executivo", task)
                 return
-            show_notice(self, "Exportação concluída", f"Arquivo salvo em:\n{filename}", icon_name="reports")
+            finalize_saved_file(self, filename)
         except Exception as exc:
             show_notice(self, "Falha na exportação", str(exc), icon_name="warning")
 
