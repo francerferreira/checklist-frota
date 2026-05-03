@@ -44,6 +44,7 @@ from services.wash_reporting_service import (
     export_wash_month_pdf,
     export_wash_schedule_pdf,
 )
+from services.export_service import make_default_export_path
 from theme import (
     build_dialog_layout,
     configure_dialog_window,
@@ -1677,12 +1678,21 @@ class WashesPage(QFrame):
     def export_month_pdf(self):
         logo_path = asset_path("app-logo-cover.png")
         overview = dict(self.overview)
+        filename, _ = QFileDialog.getSaveFileName(
+            self,
+            "Exportar PDF mensal de lavagens",
+            make_default_export_path("lavagens_mensal", "pdf"),
+            "PDF (*.pdf)",
+        )
+        if not filename:
+            return
 
         def task(progress):
             progress(12, "Preparando relatório mensal de lavagens")
             progress(48, "Montando indicadores e histórico")
             path = export_wash_month_pdf(
                 overview,
+                output_path=filename,
                 logo_path=logo_path if logo_path.exists() else None,
                 generated_by=self._generated_by(),
             )
@@ -1699,12 +1709,21 @@ class WashesPage(QFrame):
     def export_schedule_pdf(self):
         logo_path = asset_path("app-logo-cover.png")
         overview = dict(self.overview)
+        filename, _ = QFileDialog.getSaveFileName(
+            self,
+            "Exportar PDF do cronograma de lavagens",
+            make_default_export_path("lavagens_cronograma", "pdf"),
+            "PDF (*.pdf)",
+        )
+        if not filename:
+            return
 
         def task(progress):
             progress(12, "Preparando cronograma de lavagens")
             progress(48, "Montando programação mensal")
             path = export_wash_schedule_pdf(
                 overview,
+                output_path=filename,
                 logo_path=logo_path if logo_path.exists() else None,
                 generated_by=self._generated_by(),
             )

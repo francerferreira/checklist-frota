@@ -17,7 +17,7 @@ from PySide6.QtWidgets import (
     QVBoxLayout,
 )
 
-from components import ImagePanel, make_icon, show_notice, start_export_task
+from components import ImagePanel, make_icon, open_exported_pdf, show_notice, start_export_task
 from runtime_paths import asset_path
 from services.export_service import export_non_conformity_pdf, export_vehicle_detail_pdf, make_default_export_path
 from theme import build_dialog_layout, configure_dialog_window, configure_table, make_table_item, style_card, style_table_card
@@ -167,6 +167,7 @@ class NonConformityDetailDialog(QDialog):
                 after_image=self._after_image,
             )
             show_notice(self, "PDF gerado", f"Arquivo salvo em:\n{filename}", icon_name="reports")
+            open_exported_pdf(filename)
         except Exception as exc:
             show_notice(self, "Falha ao exportar PDF", str(exc), icon_name="warning")
 
