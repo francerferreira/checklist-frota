@@ -617,9 +617,9 @@ QScrollArea, QStackedWidget {
     background: transparent;
 }
 QTabWidget::pane {
-    border: 1px solid #B7CBE3;
-    background: #FFFFFF;
-    top: -1px;
+    border: none;
+    background: transparent;
+    top: 0;
 }
 QTabBar::tab {
     background: #EAF3FF;
