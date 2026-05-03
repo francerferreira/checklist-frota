@@ -259,9 +259,12 @@ class ChecklistHistoryPage(QWidget):
 
         self.table = QTableWidget(0, 2)
         configure_table(self.table, stretch_last=False, auto_fit=False)
+        self.table.setShowGrid(True)
+        self.table.setGridStyle(Qt.SolidLine)
         self.table.setSortingEnabled(True)
         self.table.setWordWrap(False)
-        self.table.itemClicked.connect(self.open_cell_checklist)
+        self.table.itemDoubleClicked.connect(self.open_cell_checklist)
+        self.table.horizontalHeader().setMinimumSectionSize(44)
         root.addWidget(self.table, 1)
 
     def _field(self, label_text: str, widget: QWidget) -> QWidget:
@@ -324,9 +327,14 @@ class ChecklistHistoryPage(QWidget):
 
         self.table.setColumnWidth(0, 128)
         self.table.setColumnWidth(1, 44)
-        for column in range(2, self.table.columnCount()):
-            self.table.setColumnWidth(column, 104)
+        self._resize_date_columns_to_contents()
         self.table.setSortingEnabled(True)
+
+    def _resize_date_columns_to_contents(self):
+        for column in range(2, self.table.columnCount()):
+            self.table.resizeColumnToContents(column)
+            content_width = self.table.columnWidth(column)
+            self.table.setColumnWidth(column, max(72, content_width + 8))
 
     def _visible_rows(self) -> list[dict]:
         query = _normalize(self.search_input.text())
