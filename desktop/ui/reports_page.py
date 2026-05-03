@@ -45,10 +45,10 @@ from components import (
     ExportWorker,
     MessageComposerDialog,
     TableSkeletonOverlay,
-    choose_export_file_path,
     choose_pdf_save_path,
     finalize_export_result,
     finalize_saved_file,
+    run_export_by_type,
     show_notice,
 )
 from runtime_paths import asset_path
@@ -1377,38 +1377,47 @@ class ReportsPage(QFrame):
             "xlsx": "Excel (*.xlsx)",
             "pdf": "PDF (*.pdf)",
         }
-        filename = choose_export_file_path(self, "Exportar relatório", default_path, filters[file_type])
-        if not filename:
-            return
+        handlers = {
+            "csv": lambda target_path: self._export_dataset_csv(columns, rows, target_path),
+            "xlsx": lambda target_path: self._export_dataset_xlsx(title, columns, rows, target_path),
+            "pdf": lambda target_path: self._start_dataset_pdf_export(prefix, title, subtitle, columns, rows, target_path),
+        }
+        run_export_by_type(
+            self,
+            file_type=file_type,
+            dialog_title="Exportar relatório",
+            default_path=default_path,
+            filters=filters,
+            handlers=handlers,
+        )
 
-        try:
-            if file_type == "csv":
-                export_rows_to_csv(columns, rows, filename)
-            elif file_type == "xlsx":
-                export_rows_to_xlsx(title, columns, rows, filename)
-            else:
-                period_label = self._build_period_label(prefix, rows)
+    def _export_dataset_csv(self, columns, rows, filename: str) -> None:
+        export_rows_to_csv(columns, rows, filename)
+        finalize_saved_file(self, filename)
 
-                def task(progress):
-                    progress(12, "Organizando dados do relatório")
-                    progress(42, "Montando capa, gráficos e tabela")
-                    export_rows_to_pdf(
-                        title,
-                        subtitle,
-                        columns,
-                        rows,
-                        filename,
-                        logo_path=self.logo_path,
-                        generated_by=self.api_client.user.get("nome", ""),
-                        period_label=period_label,
-                    )
-                    return filename
+    def _export_dataset_xlsx(self, title: str, columns, rows, filename: str) -> None:
+        export_rows_to_xlsx(title, columns, rows, filename)
+        finalize_saved_file(self, filename)
 
-                self._run_pdf_export("Exportando PDF executivo", task)
-                return
-            finalize_saved_file(self, filename)
-        except Exception as exc:
-            show_notice(self, "Falha na exportação", str(exc), icon_name="warning")
+    def _start_dataset_pdf_export(self, prefix: str, title: str, subtitle: str, columns, rows, filename: str) -> None:
+        period_label = self._build_period_label(prefix, rows)
+
+        def task(progress):
+            progress(12, "Organizando dados do relatório")
+            progress(42, "Montando capa, gráficos e tabela")
+            export_rows_to_pdf(
+                title,
+                subtitle,
+                columns,
+                rows,
+                filename,
+                logo_path=self.logo_path,
+                generated_by=self.api_client.user.get("nome", ""),
+                period_label=period_label,
+            )
+            return filename
+
+        self._run_pdf_export("Exportando PDF executivo", task)
 
     def _build_period_label(self, prefix: str, rows: list[dict]) -> str:
         today = datetime.now().strftime("%d/%m/%Y")

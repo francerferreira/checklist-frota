@@ -25,7 +25,7 @@ from PySide6.QtWidgets import (
     QVBoxLayout,
 )
 
-from components import ImagePanel, TableSkeletonOverlay, choose_export_file_path, finalize_saved_file, make_icon, show_notice, start_export_task
+from components import ImagePanel, TableSkeletonOverlay, finalize_saved_file, make_icon, run_export_by_type, show_notice, start_export_task
 from components import MessageComposerDialog
 from runtime_paths import asset_path
 from services.export_service import (
@@ -1222,50 +1222,68 @@ class ActivityDetailDialog(QDialog):
             file_type,
         )
         filters = {"csv": "CSV (*.csv)", "xlsx": "Excel (*.xlsx)", "pdf": "PDF (*.pdf)"}
-        filename = choose_export_file_path(self, "Exportar atividade", default_path, filters[file_type])
-        if not filename:
+
+        if file_type == "pdf":
+            filename = run_export_by_type(
+                self,
+                file_type=file_type,
+                dialog_title="Exportar atividade",
+                default_path=default_path,
+                filters=filters,
+                handlers={
+                    "pdf": lambda target_path: self._start_activity_pdf_export(target_path, dict(self.activity), list(self.items)),
+                },
+            )
             return
 
-        try:
-            if file_type == "csv":
-                export_rows_to_csv(columns, rows, filename)
-            elif file_type == "xlsx":
-                export_rows_to_xlsx(self.activity.get("titulo") or "Atividade em massa", columns, rows, filename)
-            else:
-                activity = dict(self.activity)
-                activity_items = list(self.items)
+        run_export_by_type(
+            self,
+            file_type=file_type,
+            dialog_title="Exportar atividade",
+            default_path=default_path,
+            filters=filters,
+            handlers={
+                "csv": lambda target_path: self._export_activity_csv(columns, rows, target_path),
+                "xlsx": lambda target_path: self._export_activity_xlsx(columns, rows, target_path),
+            },
+        )
 
-                def task(progress):
-                    progress(8, "Preparando PDF da atividade")
-                    item_images = {}
-                    total = max(1, len(activity_items))
-                    for index, activity_item in enumerate(activity_items, start=1):
-                        progress(12 + int(((index - 1) / total) * 62), f"Carregando evidências {index}/{len(activity_items)}")
-                        item_images[activity_item["id"]] = {
-                            "before": self.api_client.fetch_image(self._origin_photo_path(activity_item)),
-                            "after": self.api_client.fetch_image(self._resolution_photo_path(activity_item)),
-                        }
-                    progress(82, "Montando páginas do PDF")
-                    export_activity_pdf(
-                        activity,
-                        output_path=filename,
-                        logo_path=self.logo_path,
-                        generated_by=(self.api_client.user or {}).get("nome", ""),
-                        item_images=item_images,
-                    )
-                    return filename
+    def _start_activity_pdf_export(self, filename: str, activity: dict, activity_items: list[dict]) -> None:
+        def task(progress):
+            progress(8, "Preparando PDF da atividade")
+            item_images = {}
+            total = max(1, len(activity_items))
+            for index, activity_item in enumerate(activity_items, start=1):
+                progress(12 + int(((index - 1) / total) * 62), f"Carregando evidências {index}/{len(activity_items)}")
+                item_images[activity_item["id"]] = {
+                    "before": self.api_client.fetch_image(self._origin_photo_path(activity_item)),
+                    "after": self.api_client.fetch_image(self._resolution_photo_path(activity_item)),
+                }
+            progress(82, "Montando páginas do PDF")
+            export_activity_pdf(
+                activity,
+                output_path=filename,
+                logo_path=self.logo_path,
+                generated_by=(self.api_client.user or {}).get("nome", ""),
+                item_images=item_images,
+            )
+            return filename
 
-                start_export_task(
-                    self,
-                    "Exportando PDF da atividade",
-                    task,
-                    success_title="Exportação concluída",
-                    failure_title="Falha na exportação",
-                )
-                return
-            finalize_saved_file(self, filename)
-        except Exception as exc:
-            show_notice(self, "Falha na exportação", str(exc), icon_name="warning")
+        start_export_task(
+            self,
+            "Exportando PDF da atividade",
+            task,
+            success_title="Exportação concluída",
+            failure_title="Falha na exportação",
+        )
+
+    def _export_activity_csv(self, columns, rows, filename: str) -> None:
+        export_rows_to_csv(columns, rows, filename)
+        finalize_saved_file(self, filename)
+
+    def _export_activity_xlsx(self, columns, rows, filename: str) -> None:
+        export_rows_to_xlsx(self.activity.get("titulo") or "Atividade em massa", columns, rows, filename)
+        finalize_saved_file(self, filename)
 
     def generate_message(self):
         if not self.activity or not self.items:

@@ -25,7 +25,7 @@ from PySide6.QtWidgets import (
     QVBoxLayout,
 )
 
-from components import TableSkeletonOverlay, ask_confirmation, choose_export_file_path, choose_pdf_save_path, finalize_saved_file, make_icon, show_notice, start_export_task
+from components import TableSkeletonOverlay, ask_confirmation, finalize_saved_file, make_icon, run_export_by_type, show_notice, start_export_task
 from components import MessageComposerDialog
 from runtime_paths import asset_path
 from services.export_service import (
@@ -517,24 +517,30 @@ class MaterialReportDialog(QDialog):
             table.setSortingEnabled(True)
 
     def export_xlsx(self):
-        filename = choose_export_file_path(
+        run_export_by_type(
             self,
-            "Exportar relatório de estoque",
-            make_default_export_path("relatorio_estoque", "xlsx"),
-            "Excel (*.xlsx)",
+            file_type="xlsx",
+            dialog_title="Exportar relatório de estoque",
+            default_path=make_default_export_path("relatorio_estoque", "xlsx"),
+            filters={"xlsx": "Excel (*.xlsx)"},
+            handlers={"xlsx": self._export_materials_xlsx},
         )
-        if not filename:
-            return
-        try:
-            export_material_report_xlsx(self.report, output_path=filename)
-            finalize_saved_file(self, filename)
-        except Exception as exc:
-            show_notice(self, "Falha na exportação", str(exc), icon_name="warning")
 
     def export_pdf(self):
-        filename = choose_pdf_save_path(self, "Exportar relatório de estoque", make_default_export_path("relatorio_estoque", "pdf"))
-        if not filename:
-            return
+        run_export_by_type(
+            self,
+            file_type="pdf",
+            dialog_title="Exportar relatório de estoque",
+            default_path=make_default_export_path("relatorio_estoque", "pdf"),
+            filters={"pdf": "PDF (*.pdf)"},
+            handlers={"pdf": self._start_materials_pdf_export},
+        )
+
+    def _export_materials_xlsx(self, filename: str) -> None:
+        export_material_report_xlsx(self.report, output_path=filename)
+        finalize_saved_file(self, filename)
+
+    def _start_materials_pdf_export(self, filename: str) -> None:
         report = dict(self.report)
 
         def task(progress):

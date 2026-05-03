@@ -13,6 +13,7 @@ from theme import configure_dialog_window, style_card
 
 ProgressCallback = Callable[[int, str], None]
 ExportTask = Callable[[ProgressCallback], object]
+FileExportHandler = Callable[[str], None]
 
 
 def choose_export_file_path(parent, title: str, default_path: str | Path, file_filter: str) -> str | None:
@@ -56,6 +57,33 @@ def finalize_saved_file(
     icon_name: str = "reports",
 ) -> None:
     show_notice(parent, success_title, success_template.format(result=result), icon_name=icon_name)
+
+
+def run_export_by_type(
+    parent,
+    *,
+    file_type: str,
+    dialog_title: str,
+    default_path: str | Path,
+    filters: dict[str, str],
+    handlers: dict[str, FileExportHandler],
+    failure_title: str = "Falha na exportação",
+) -> bool:
+    file_filter = filters.get(file_type)
+    export_handler = handlers.get(file_type)
+    if not file_filter or not export_handler:
+        raise ValueError(f"Tipo de exportação não suportado: {file_type}")
+
+    filename = choose_export_file_path(parent, dialog_title, default_path, file_filter)
+    if not filename:
+        return False
+
+    try:
+        export_handler(filename)
+    except Exception as exc:
+        show_notice(parent, failure_title, str(exc), icon_name="warning")
+        return False
+    return True
 
 
 class ExportWorker(QObject):

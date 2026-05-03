@@ -11,6 +11,7 @@ from components.export_progress import (
     finalize_saved_file,
     finalize_export_result,
     open_exported_pdf,
+    run_export_by_type,
     start_export_task,
 )
 from components.message_dialog import MessageComposerDialog
@@ -36,6 +37,7 @@ __all__ = [
     "TableSkeletonOverlay",
     "ask_confirmation",
     "show_notice",
+    "run_export_by_type",
     "start_export_task",
     "make_icon",
     "open_exported_pdf",
