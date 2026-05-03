@@ -25,7 +25,7 @@ from PySide6.QtWidgets import (
     QVBoxLayout,
 )
 
-from components import ImagePanel, TableSkeletonOverlay, finalize_saved_file, make_icon, run_export_by_type, show_notice, start_export_task
+from components import ImagePanel, TableSkeletonOverlay, finalize_saved_file, make_icon, run_export_by_type, show_notice, start_export_task_with_preset
 from components import MessageComposerDialog
 from runtime_paths import asset_path
 from services.export_service import (
@@ -1269,12 +1269,10 @@ class ActivityDetailDialog(QDialog):
             )
             return filename
 
-        start_export_task(
+        start_export_task_with_preset(
             self,
-            "Exportando PDF da atividade",
+            "activity_pdf",
             task,
-            success_title="Exportação concluída",
-            failure_title="Falha na exportação",
         )
 
     def _export_activity_csv(self, columns, rows, filename: str) -> None:

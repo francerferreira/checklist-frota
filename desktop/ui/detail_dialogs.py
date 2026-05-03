@@ -14,7 +14,7 @@ from PySide6.QtWidgets import (
     QVBoxLayout,
 )
 
-from components import ImagePanel, choose_pdf_save_path, finalize_export_result, make_icon, show_notice, start_export_task
+from components import ImagePanel, choose_pdf_save_path, finalize_export_result, make_icon, show_notice, start_export_task_with_preset
 from runtime_paths import asset_path
 from services.export_service import export_non_conformity_pdf, export_vehicle_detail_pdf, make_default_export_path
 from theme import build_dialog_layout, configure_dialog_window, configure_table, make_table_item, style_card, style_table_card
@@ -416,7 +416,7 @@ class VehicleDetailDialog(QDialog):
             )
             return filename
 
-        start_export_task(self, "Exportando auditoria do equipamento", task)
+        start_export_task_with_preset(self, "vehicle_audit_pdf", task)
 
     def _collect_occurrence_images_with_progress(self, occurrences: list[dict], progress, *, start: int, end: int):
         images = {}

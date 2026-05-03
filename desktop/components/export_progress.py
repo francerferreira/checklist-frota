@@ -15,6 +15,56 @@ ProgressCallback = Callable[[int, str], None]
 ExportTask = Callable[[ProgressCallback], object]
 FileExportHandler = Callable[[str], None]
 
+EXPORT_TEXT_PRESETS = {
+    "default_pdf": {
+        "dialog_title": "Exportando PDF",
+        "success_title": "PDF gerado",
+        "success_template": "Arquivo salvo em:\n{result}",
+        "failure_title": "Falha ao exportar PDF",
+    },
+    "default_file": {
+        "success_title": "Exportação concluída",
+        "success_template": "Arquivo salvo em:\n{result}",
+        "failure_title": "Falha na exportação",
+    },
+    "activity_pdf": {
+        "dialog_title": "Exportando PDF da atividade",
+    },
+    "materials_pdf": {
+        "dialog_title": "Exportando PDF de estoque",
+    },
+    "maintenance_pdf": {
+        "dialog_title": "Exportando PDF da manutenção",
+    },
+    "vehicle_audit_pdf": {
+        "dialog_title": "Exportando auditoria do equipamento",
+    },
+    "item_audit_pdf": {
+        "dialog_title": "Exportando auditoria por item",
+    },
+    "resolved_audit_pdf": {
+        "dialog_title": "Exportando PDF de resolvidos",
+    },
+    "executive_report_pdf": {
+        "dialog_title": "Exportando PDF executivo",
+    },
+    "wash_month_pdf": {
+        "dialog_title": "Exportando PDF mensal",
+        "failure_title": "Falha ao exportar",
+    },
+    "wash_schedule_pdf": {
+        "dialog_title": "Exportando PDF do cronograma",
+        "success_title": "PDF do cronograma",
+        "failure_title": "Falha ao exportar",
+    },
+}
+
+
+def export_text_preset(name: str, *, base: str) -> dict[str, str]:
+    payload = dict(EXPORT_TEXT_PRESETS.get(base, {}))
+    payload.update(EXPORT_TEXT_PRESETS.get(name, {}))
+    return payload
+
 
 def choose_export_file_path(parent, title: str, default_path: str | Path, file_filter: str) -> str | None:
     filename, _ = QFileDialog.getSaveFileName(parent, title, str(default_path), file_filter)
@@ -84,6 +134,17 @@ def run_export_by_type(
         show_notice(parent, failure_title, str(exc), icon_name="warning")
         return False
     return True
+
+
+def start_export_task_with_preset(parent, preset_name: str, task: ExportTask, **overrides) -> "ExportTaskController":
+    config = export_text_preset(preset_name, base="default_pdf")
+    config.update(overrides)
+    return start_export_task(
+        parent,
+        config.pop("dialog_title"),
+        task,
+        **config,
+    )
 
 
 class ExportWorker(QObject):

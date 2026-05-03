@@ -37,7 +37,7 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
-from components import MessageComposerDialog, TableSkeletonOverlay, choose_pdf_save_path, make_icon, show_notice, start_export_task
+from components import MessageComposerDialog, TableSkeletonOverlay, choose_pdf_save_path, make_icon, show_notice, start_export_task_with_preset
 from runtime_paths import asset_path
 from services.wash_reporting_service import (
     build_wash_tomorrow_message_package,
@@ -1693,12 +1693,11 @@ class WashesPage(QFrame):
             )
             return path
 
-        start_export_task(
+        start_export_task_with_preset(
             self,
-            "Exportando PDF mensal",
+            "wash_month_pdf",
             task,
             success_template="Relatório salvo em:\n{result}",
-            failure_title="Falha ao exportar",
         )
 
     def export_schedule_pdf(self):
@@ -1719,13 +1718,11 @@ class WashesPage(QFrame):
             )
             return path
 
-        start_export_task(
+        start_export_task_with_preset(
             self,
-            "Exportando PDF do cronograma",
+            "wash_schedule_pdf",
             task,
-            success_title="PDF do cronograma",
             success_template="Relatório salvo em:\n{result}",
-            failure_title="Falha ao exportar",
         )
 
     def open_values_dialog(self):

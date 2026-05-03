@@ -49,6 +49,7 @@ from components import (
     finalize_export_result,
     finalize_saved_file,
     run_export_by_type,
+    start_export_task_with_preset,
     show_notice,
 )
 from runtime_paths import asset_path
@@ -1214,7 +1215,7 @@ class ReportsPage(QFrame):
             )
             return filename
 
-        self._run_pdf_export("Exportando auditoria do equipamento", task)
+        self._run_pdf_export("vehicle_audit_pdf", task, use_preset=True)
 
     def export_item_audit_pdf(self):
         if not self.item_rows:
@@ -1247,7 +1248,7 @@ class ReportsPage(QFrame):
             )
             return filename
 
-        self._run_pdf_export("Exportando auditoria por item", task)
+        self._run_pdf_export("item_audit_pdf", task, use_preset=True)
 
     def export_resolved_audit_pdf(self):
         if not self.resolved_rows:
@@ -1280,7 +1281,7 @@ class ReportsPage(QFrame):
             )
             return filename
 
-        self._run_pdf_export("Exportando PDF de resolvidos", task)
+        self._run_pdf_export("resolved_audit_pdf", task, use_preset=True)
 
     def export_macro(self, file_type: str):
         columns = [
@@ -1417,7 +1418,7 @@ class ReportsPage(QFrame):
             )
             return filename
 
-        self._run_pdf_export("Exportando PDF executivo", task)
+        self._run_pdf_export("executive_report_pdf", task, use_preset=True)
 
     def _build_period_label(self, prefix: str, rows: list[dict]) -> str:
         today = datetime.now().strftime("%d/%m/%Y")
@@ -1487,7 +1488,10 @@ class ReportsPage(QFrame):
         payload = item or {}
         return payload.get("foto_resolucao") or payload.get("foto_depois")
 
-    def _run_pdf_export(self, title: str, task):
+    def _run_pdf_export(self, title: str, task, *, use_preset: bool = False):
+        if use_preset:
+            start_export_task_with_preset(self, title, task)
+            return
         dialog = ExportProgressDialog(title, self)
         thread = QThread(self)
         worker = ExportWorker(task)

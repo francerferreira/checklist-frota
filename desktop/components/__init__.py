@@ -8,10 +8,12 @@ from components.export_progress import (
     ExportWorker,
     choose_export_file_path,
     choose_pdf_save_path,
+    export_text_preset,
     finalize_saved_file,
     finalize_export_result,
     open_exported_pdf,
     run_export_by_type,
+    start_export_task_with_preset,
     start_export_task,
 )
 from components.message_dialog import MessageComposerDialog
@@ -24,6 +26,7 @@ __all__ = [
     "ConfirmationDialog",
     "choose_export_file_path",
     "choose_pdf_save_path",
+    "export_text_preset",
     "finalize_saved_file",
     "ExportProgressDialog",
     "ExportTaskController",
@@ -38,6 +41,7 @@ __all__ = [
     "ask_confirmation",
     "show_notice",
     "run_export_by_type",
+    "start_export_task_with_preset",
     "start_export_task",
     "make_icon",
     "open_exported_pdf",

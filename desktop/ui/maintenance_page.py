@@ -26,7 +26,7 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
-from components import StatCard, TableSkeletonOverlay, choose_pdf_save_path, show_notice, start_export_task
+from components import StatCard, TableSkeletonOverlay, choose_pdf_save_path, show_notice, start_export_task_with_preset
 from services.export_service import make_default_export_path
 from theme import (
     build_dialog_layout,
@@ -990,12 +990,10 @@ class MaintenancePage(QFrame):
             progress(88, "Finalizando arquivo PDF")
             return filename
 
-        start_export_task(
+        start_export_task_with_preset(
             self,
-            "Exportando PDF da manutenção",
+            "maintenance_pdf",
             task,
-            success_title="Exportação concluída",
-            failure_title="Falha na exportação",
         )
 
     def apply_filters(self):
