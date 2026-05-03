@@ -14,7 +14,7 @@
     <title>CHECKLIST DE FROTA</title>
     <link rel="icon" type="image/png" sizes="192x192" href="./static/icons/icon-192.png?v=20260421-02">
     <link rel="apple-touch-icon" href="./static/icons/icon-192.png?v=20260421-02">
-    <link rel="stylesheet" href="./static/css/styles.css?v=20260502-03">
+    <link rel="stylesheet" href="./static/css/styles.css?v=20260503-01">
 </head>
 <body>
     <div class="mobile-shell">
@@ -124,6 +124,10 @@
                         <em id="checklist-history-counter">0 FROTAS</em>
                     </div>
                     <div class="history-filters">
+                        <label class="history-search-filter">
+                            <span>EQUIPAMENTO</span>
+                            <input type="search" id="checklist-history-equipment-search" placeholder="FROTA, PLACA, MODELO OU DESCRIÇÃO">
+                        </label>
                         <label>
                             <span>TIPO</span>
                             <select id="checklist-history-type-filter">
@@ -140,7 +144,6 @@
                             <span>DATA FINAL</span>
                             <input type="date" id="checklist-history-end-date">
                         </label>
-                        <button id="checklist-history-apply-filter" class="icon-button" type="button">APLICAR</button>
                     </div>
                 </section>
 
@@ -441,7 +444,7 @@
 
     <div id="toast" class="toast hidden"></div>
     <script src="./static/js/config.js?v=20260428-01"></script>
-    <script src="./static/js/app.js?v=20260502-03"></script>
+    <script src="./static/js/app.js?v=20260503-01"></script>
 </body>
 </html>
 

@@ -235,6 +235,9 @@ const state = {
         tipo: "",
         dataInicio: "",
         dataFim: "",
+        equipmentSearch: "",
+        sortKey: "frota",
+        sortDirection: "asc",
         columns: [],
         rows: [],
         expandedVehicleId: "",
@@ -312,10 +315,10 @@ const elements = {
     washesBackButton: document.getElementById("washes-back-button"),
     checklistHistoryBackButton: document.getElementById("checklist-history-back-button"),
     checklistHistoryCounter: document.getElementById("checklist-history-counter"),
+    checklistHistoryEquipmentSearch: document.getElementById("checklist-history-equipment-search"),
     checklistHistoryTypeFilter: document.getElementById("checklist-history-type-filter"),
     checklistHistoryStartDate: document.getElementById("checklist-history-start-date"),
     checklistHistoryEndDate: document.getElementById("checklist-history-end-date"),
-    checklistHistoryApplyFilter: document.getElementById("checklist-history-apply-filter"),
     checklistHistorySummaryCard: document.getElementById("checklist-history-summary-card"),
     checklistHistoryTableWrap: document.getElementById("checklist-history-table-wrap"),
     washCounter: document.getElementById("wash-counter"),
@@ -367,6 +370,7 @@ const elements = {
 
 let passwordModalFocusOrigin = null;
 let photoViewerFocusOrigin = null;
+let checklistHistoryFilterTimer = null;
 const pullRefresh = {
     active: false,
     armed: false,
@@ -838,6 +842,9 @@ async function openChecklistHistoryMenu() {
         if (elements.checklistHistoryTypeFilter) {
             elements.checklistHistoryTypeFilter.value = state.checklistHistory.tipo || "";
         }
+        if (elements.checklistHistoryEquipmentSearch) {
+            elements.checklistHistoryEquipmentSearch.value = state.checklistHistory.equipmentSearch || "";
+        }
         if (elements.checklistHistoryStartDate) {
             elements.checklistHistoryStartDate.value = state.checklistHistory.dataInicio || "";
         }
@@ -1051,15 +1058,94 @@ async function loadChecklistHistory() {
     renderChecklistHistory();
 }
 
+function normalizeHistorySearch(value) {
+    return String(value || "")
+        .normalize("NFD")
+        .replace(/[\u0300-\u036f]/g, "")
+        .trim()
+        .toUpperCase();
+}
+
+function historyRowMatchesEquipmentSearch(row) {
+    const search = normalizeHistorySearch(state.checklistHistory.equipmentSearch);
+    if (!search) {
+        return true;
+    }
+    const haystack = normalizeHistorySearch([
+        row.frota,
+        row.placa,
+        row.modelo,
+        row.descricao,
+    ].join(" "));
+    return haystack.includes(search);
+}
+
+function compareChecklistHistoryRows(left, right) {
+    const sortKey = state.checklistHistory.sortKey || "frota";
+    const direction = state.checklistHistory.sortDirection === "desc" ? -1 : 1;
+
+    if (sortKey === "count") {
+        const leftValue = Number(left.checklist_count || 0);
+        const rightValue = Number(right.checklist_count || 0);
+        if (leftValue !== rightValue) {
+            return (leftValue - rightValue) * direction;
+        }
+    } else if (sortKey.startsWith("date:")) {
+        const columnIndex = Number(sortKey.split(":")[1]);
+        const leftValue = normalizeHistorySearch((left.cells || [])[columnIndex] || "");
+        const rightValue = normalizeHistorySearch((right.cells || [])[columnIndex] || "");
+        const compare = leftValue.localeCompare(rightValue, "pt-BR", { numeric: true, sensitivity: "base" });
+        if (compare !== 0) {
+            return compare * direction;
+        }
+    } else {
+        const leftValue = normalizeHistorySearch(left.frota || "");
+        const rightValue = normalizeHistorySearch(right.frota || "");
+        const compare = leftValue.localeCompare(rightValue, "pt-BR", { numeric: true, sensitivity: "base" });
+        if (compare !== 0) {
+            return compare * direction;
+        }
+    }
+
+    return normalizeHistorySearch(left.frota || "").localeCompare(
+        normalizeHistorySearch(right.frota || ""),
+        "pt-BR",
+        { numeric: true, sensitivity: "base" }
+    );
+}
+
+function getVisibleChecklistHistoryRows() {
+    return [...(state.checklistHistory.rows || [])]
+        .filter(historyRowMatchesEquipmentSearch)
+        .sort(compareChecklistHistoryRows);
+}
+
+function makeChecklistHistorySortHeader(label, sortKey, extraClass = "") {
+    const isActive = state.checklistHistory.sortKey === sortKey;
+    const direction = isActive ? state.checklistHistory.sortDirection : "";
+    const indicator = direction === "asc" ? "▲" : direction === "desc" ? "▼" : "";
+    return `
+        <th class="${extraClass} history-sort-header ${isActive ? "active" : ""}" data-history-sort="${escapeHtml(sortKey)}">
+            <button type="button">
+                <span>${escapeHtml(label)}</span>
+                <em>${indicator}</em>
+            </button>
+        </th>
+    `;
+}
+
 function renderChecklistHistory() {
     if (!elements.checklistHistoryTableWrap || !elements.checklistHistoryCounter) {
         return;
     }
 
     const columns = state.checklistHistory.columns || [];
-    const rows = state.checklistHistory.rows || [];
+    const rows = getVisibleChecklistHistoryRows();
 
     elements.checklistHistoryCounter.textContent = `${rows.length} FROTAS`;
+    if (elements.checklistHistoryEquipmentSearch) {
+        elements.checklistHistoryEquipmentSearch.value = state.checklistHistory.equipmentSearch || "";
+    }
     if (elements.checklistHistoryStartDate) {
         elements.checklistHistoryStartDate.value = state.checklistHistory.dataInicio || "";
     }
@@ -1102,7 +1188,7 @@ function renderChecklistHistory() {
         : "PERÍODO NÃO INFORMADO";
 
     const headerColumns = columns
-        .map((column) => `<th>${escapeHtml(String(column.label || "-"))}</th>`)
+        .map((column, index) => makeChecklistHistorySortHeader(String(column.label || "-"), `date:${index}`))
         .join("");
     const bodyRows = rows
         .map((row) => {
@@ -1117,6 +1203,7 @@ function renderChecklistHistory() {
                     <th class="history-vehicle-cell" data-vehicle-id="${escapeHtml(vehicleId)}" title="Toque para expandir/recolher">
                         <strong>${escapeHtml(String(row.frota || "-"))}</strong>
                         <span>${escapeHtml(String(row.placa || "-").toUpperCase())}</span>
+                        ${row.modelo || row.descricao ? `<small>${escapeHtml(String(row.modelo || row.descricao || "-").toUpperCase())}</small>` : ""}
                     </th>
                     <td class="history-count-cell">${checklistCount}</td>
                     ${cellValues}
@@ -1149,8 +1236,8 @@ function renderChecklistHistory() {
         <table class="history-table">
             <thead>
                 <tr>
-                    <th class="history-frota-header">FROTA</th>
-                    <th class="history-count-header">Nº</th>
+                    ${makeChecklistHistorySortHeader("FROTA", "frota", "history-frota-header")}
+                    ${makeChecklistHistorySortHeader("Nº", "count", "history-count-header")}
                     ${headerColumns}
                 </tr>
             </thead>
@@ -1160,6 +1247,7 @@ function renderChecklistHistory() {
         </table>
     `;
     bindChecklistHistoryExpansion();
+    bindChecklistHistorySorting();
 }
 
 function bindChecklistHistoryExpansion() {
@@ -1175,6 +1263,22 @@ function bindChecklistHistoryExpansion() {
             if (nextVehicleId) {
                 cell.closest("tr")?.classList.add("history-row-selected");
             }
+        });
+    });
+}
+
+function bindChecklistHistorySorting() {
+    elements.checklistHistoryTableWrap.querySelectorAll("[data-history-sort]").forEach((header) => {
+        header.addEventListener("click", () => {
+            const sortKey = String(header.dataset.historySort || "frota");
+            if (state.checklistHistory.sortKey === sortKey) {
+                state.checklistHistory.sortDirection = state.checklistHistory.sortDirection === "asc" ? "desc" : "asc";
+            } else {
+                state.checklistHistory.sortKey = sortKey;
+                state.checklistHistory.sortDirection = "asc";
+            }
+            state.checklistHistory.expandedVehicleId = "";
+            renderChecklistHistory();
         });
     });
 }
@@ -1198,6 +1302,21 @@ async function applyChecklistHistoryFilters() {
     } catch (error) {
         showToast(error.message, true);
     }
+}
+
+function scheduleChecklistHistoryFilters() {
+    if (checklistHistoryFilterTimer) {
+        window.clearTimeout(checklistHistoryFilterTimer);
+    }
+    checklistHistoryFilterTimer = window.setTimeout(() => {
+        applyChecklistHistoryFilters();
+    }, 350);
+}
+
+function updateChecklistHistoryEquipmentSearch() {
+    state.checklistHistory.equipmentSearch = elements.checklistHistoryEquipmentSearch?.value || "";
+    state.checklistHistory.expandedVehicleId = "";
+    renderChecklistHistory();
 }
 
 function renderNonConformities() {
@@ -4495,7 +4614,10 @@ on(elements.checklistHistoryBackButton, "click", () => {
     renderHome();
     setActiveScreen("home");
 });
-on(elements.checklistHistoryApplyFilter, "click", applyChecklistHistoryFilters);
+on(elements.checklistHistoryEquipmentSearch, "input", updateChecklistHistoryEquipmentSearch);
+on(elements.checklistHistoryTypeFilter, "change", scheduleChecklistHistoryFilters);
+on(elements.checklistHistoryStartDate, "change", scheduleChecklistHistoryFilters);
+on(elements.checklistHistoryEndDate, "change", scheduleChecklistHistoryFilters);
 on(elements.maintenanceBackButton, "click", () => {
     renderHome();
     setActiveScreen("home");

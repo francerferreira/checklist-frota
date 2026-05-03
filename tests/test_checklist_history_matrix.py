@@ -117,6 +117,8 @@ class ChecklistHistoryMatrixTests(unittest.TestCase):
         self.assertEqual(len(data.get("rows") or []), 1)
         row = data["rows"][0]
         self.assertEqual(row["tipo"], "carreta")
+        self.assertEqual(row["modelo"], "MODELO TESTE")
+        self.assertIn("descricao", row)
         self.assertEqual(row["checklist_count"], 3)
         self.assertEqual(row["cells"][0], "14:35 - Administrador")
         self.assertEqual(row["cells"][1], "06:45 - Administrador")

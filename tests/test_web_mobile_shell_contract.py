@@ -16,8 +16,8 @@ class WebMobileShellContractTests(unittest.TestCase):
         cls.legacy_readme = LEGACY_README_PATH.read_text(encoding="utf-8")
 
     def test_index_uses_canonical_frontend_bundle(self):
-        self.assertIn('./static/js/app.js?v=20260502-03', self.index_html)
-        self.assertIn('./static/css/styles.css?v=20260502-03', self.index_html)
+        self.assertIn('./static/js/app.js?v=20260503-01', self.index_html)
+        self.assertIn('./static/css/styles.css?v=20260503-01', self.index_html)
         self.assertNotIn("app-20260419-", self.index_html)
 
     def test_frontend_uses_manaus_timezone_for_dates(self):
@@ -53,6 +53,7 @@ class WebMobileShellContractTests(unittest.TestCase):
             'id="open-maintenance-menu"',
             'id="checklist-history-screen"',
             'class="module-section history-filter-card"',
+            'id="checklist-history-equipment-search"',
             'id="checklist-history-summary-card"',
             'id="maintenance-screen"',
             'id="wash-calendar"',
@@ -64,6 +65,14 @@ class WebMobileShellContractTests(unittest.TestCase):
         for fragment in expected_fragments:
             with self.subTest(fragment=fragment):
                 self.assertIn(fragment, self.index_html)
+        self.assertNotIn('id="checklist-history-apply-filter"', self.index_html)
+
+    def test_checklist_history_has_auto_filters_and_sortable_headers(self):
+        app_js = (PROJECT_ROOT / "web_app" / "static" / "js" / "app.js").read_text(encoding="utf-8")
+        self.assertIn("updateChecklistHistoryEquipmentSearch", app_js)
+        self.assertIn("scheduleChecklistHistoryFilters", app_js)
+        self.assertIn("makeChecklistHistorySortHeader", app_js)
+        self.assertIn("data-history-sort", app_js)
 
     def test_index_removes_screen_overlines_from_operational_shell(self):
         self.assertNotIn('class="overline"', self.index_html)

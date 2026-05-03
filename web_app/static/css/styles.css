@@ -769,10 +769,14 @@ textarea {
 
 .history-filters {
     display: grid;
-    grid-template-columns: repeat(4, minmax(0, 1fr)) auto;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
     gap: 10px;
     align-items: end;
     margin-top: 12px;
+}
+
+.history-search-filter {
+    min-width: 0;
 }
 
 .history-filter-card .history-filters {
@@ -791,12 +795,6 @@ textarea {
     box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.72), 0 8px 18px rgba(15, 23, 42, 0.04);
 }
 
-.history-filter-card .history-filters .icon-button {
-    border-color: rgba(7, 86, 181, 0.14);
-    background: #ffffff;
-    box-shadow: 0 8px 18px rgba(7, 86, 181, 0.06);
-}
-
 .history-filters label {
     display: grid;
     gap: 6px;
@@ -806,11 +804,6 @@ textarea {
 .history-filters label span {
     margin: 0;
     white-space: normal;
-}
-
-.history-filters .icon-button {
-    min-height: 48px;
-    justify-self: stretch;
 }
 
 @media (max-width: 760px) {
@@ -878,10 +871,6 @@ textarea {
         grid-template-columns: 1fr;
     }
 
-    .history-filters .icon-button {
-        width: 100%;
-    }
-
     .history-summary {
         grid-template-columns: 1fr;
     }
@@ -928,6 +917,50 @@ textarea {
     font-size: 0.72rem;
     font-weight: 900;
     white-space: nowrap;
+}
+
+.history-table thead th.history-sort-header {
+    padding: 0;
+    cursor: pointer;
+}
+
+.history-table thead th.history-sort-header button {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 4px;
+    width: 100%;
+    min-height: 38px;
+    padding: 10px 7px;
+    border: 0;
+    background: transparent;
+    color: inherit;
+    font: inherit;
+    cursor: pointer;
+}
+
+.history-table thead th.history-frota-header button {
+    justify-content: flex-start;
+    padding-left: 6px;
+    padding-right: 4px;
+}
+
+.history-table thead th.history-count-header button {
+    padding-left: 2px;
+    padding-right: 2px;
+}
+
+.history-table thead th.history-sort-header em {
+    display: inline-block;
+    min-width: 9px;
+    color: var(--blue);
+    font-size: 0.58rem;
+    font-style: normal;
+    font-weight: 950;
+}
+
+.history-table thead th.history-sort-header.active {
+    background: #e2efff;
 }
 
 .history-table thead th.history-frota-header {
@@ -980,7 +1013,8 @@ textarea {
 }
 
 .history-table tbody th strong,
-.history-table tbody th span {
+.history-table tbody th span,
+.history-table tbody th small {
     display: block;
     overflow: hidden;
     text-overflow: ellipsis;
@@ -994,6 +1028,13 @@ textarea {
     margin-top: 2px;
 }
 
+.history-table tbody th small {
+    margin-top: 2px;
+    color: #6b7c94;
+    font-size: 0.58rem;
+    font-weight: 800;
+}
+
 .history-table tbody tr.history-row-selected th,
 .history-table tbody tr.history-row-selected td {
     background: #fff7d7;
@@ -1004,7 +1045,8 @@ textarea {
 }
 
 .history-table tbody tr.history-row-selected th strong,
-.history-table tbody tr.history-row-selected th span {
+.history-table tbody tr.history-row-selected th span,
+.history-table tbody tr.history-row-selected th small {
     overflow: visible;
     text-overflow: clip;
     white-space: normal;
@@ -2555,10 +2597,6 @@ textarea {
 
     .history-filters {
         grid-template-columns: 1fr;
-    }
-
-    .history-filters .icon-button {
-        width: 100%;
     }
 
     .history-table {

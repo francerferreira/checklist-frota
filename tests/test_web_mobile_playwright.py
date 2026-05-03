@@ -219,6 +219,13 @@ class WebMobilePlaywrightTests(unittest.TestCase):
         self._wait_for_screen("checklist-history-screen")
         expect(self.page.locator("#checklist-history-counter")).to_contain_text("FROTAS")
         expect(self.page.locator("#checklist-history-table-wrap")).to_contain_text(self.vehicle_frota)
+        expect(self.page.locator("#checklist-history-apply-filter")).to_have_count(0)
+        self.page.locator("#checklist-history-equipment-search").fill("sem resultado")
+        expect(self.page.locator("#checklist-history-counter")).to_contain_text("0 FROTAS")
+        self.page.locator("#checklist-history-equipment-search").fill(self.vehicle_frota)
+        expect(self.page.locator("#checklist-history-counter")).to_contain_text("1 FROTAS")
+        self.page.locator(".history-frota-header").tap()
+        expect(self.page.locator(".history-frota-header")).to_contain_text("▼")
 
         self.page.locator("#checklist-history-back-button").tap()
         self._wait_for_screen("home-screen")
