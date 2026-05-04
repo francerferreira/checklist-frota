@@ -196,13 +196,57 @@ class AccessDialog(QDialog):
 
 
 class MainWindow(QMainWindow):
+    PAGE_ACCESS_BY_ROLE = {
+        "admin": {
+            "dashboard",
+            "nc",
+            "productivity",
+            "reports",
+            "checklist_history",
+            "equipment",
+            "checklist_items",
+            "materials",
+            "washes",
+            "activities",
+            "maintenance",
+            "users",
+            "cloud_backup",
+            "audit_logs",
+        },
+        "gestor": {
+            "dashboard",
+            "nc",
+            "productivity",
+            "reports",
+            "checklist_history",
+            "equipment",
+            "checklist_items",
+            "materials",
+            "washes",
+            "activities",
+            "maintenance",
+        },
+        "mecanico": {
+            "dashboard",
+            "nc",
+            "productivity",
+            "activities",
+            "maintenance",
+        },
+        "motorista": {
+            "dashboard",
+        },
+    }
+
     def __init__(self, api_client, user, parent=None):
         super().__init__(parent)
         self.api_client = api_client
         self.user = user
         self.page_animation = None
-        self.is_admin = self.user["tipo"] == "admin"
-        self.can_manage = self.user["tipo"] in {"admin", "gestor"}
+        self.user_role = str(self.user.get("tipo") or "").strip().lower()
+        self.is_admin = self.user_role == "admin"
+        self.can_manage = self.user_role in {"admin", "gestor"}
+        self.allowed_pages = set(self.PAGE_ACCESS_BY_ROLE.get(self.user_role, {"dashboard"}))
         self.app_icon_path = asset_path("app-icon.ico")
         self.current_page_key = ""
         self.dirty_pages: set[str] = set()
@@ -272,24 +316,23 @@ class MainWindow(QMainWindow):
         self.cloud_backup_page = CloudBackupPage(self.api_client)
         self.audit_logs_page = AuditLogsPage(self.api_client)
 
-        self.page_map = {
+        all_pages = {
             "dashboard": self.dashboard_page,
             "nc": self.nc_page,
             "productivity": self.productivity_page,
-            "reports": self.reports_page,
             "checklist_history": self.checklist_history_page,
+            "reports": self.reports_page,
+            "equipment": self.equipment_page,
+            "checklist_items": self.checklist_items_page,
+            "materials": self.materials_page,
+            "washes": self.washes_page,
+            "activities": self.activities_page,
+            "maintenance": self.maintenance_page,
+            "users": self.users_page,
+            "cloud_backup": self.cloud_backup_page,
+            "audit_logs": self.audit_logs_page,
         }
-        if self.can_manage:
-            self.page_map["equipment"] = self.equipment_page
-            self.page_map["checklist_items"] = self.checklist_items_page
-            self.page_map["materials"] = self.materials_page
-            self.page_map["washes"] = self.washes_page
-            self.page_map["activities"] = self.activities_page
-            self.page_map["maintenance"] = self.maintenance_page
-            if self.is_admin:
-                self.page_map["users"] = self.users_page
-                self.page_map["cloud_backup"] = self.cloud_backup_page
-                self.page_map["audit_logs"] = self.audit_logs_page
+        self.page_map = {key: page for key, page in all_pages.items() if key in self.allowed_pages}
 
         self.page_titles = {
             "dashboard": "Dashboard",
@@ -310,15 +353,20 @@ class MainWindow(QMainWindow):
         self.dirty_pages = set(self.page_map.keys())
 
         self.nc_page.data_changed.connect(lambda: self.handle_data_changed("nc"))
-        if self.can_manage:
+        if "equipment" in self.page_map:
             self.equipment_page.data_changed.connect(lambda: self.handle_data_changed("equipment"))
+        if "checklist_items" in self.page_map:
             self.checklist_items_page.data_changed.connect(lambda: self.handle_data_changed("checklist_items"))
+        if "materials" in self.page_map:
             self.materials_page.data_changed.connect(lambda: self.handle_data_changed("materials"))
+        if "washes" in self.page_map:
             self.washes_page.data_changed.connect(lambda: self.handle_data_changed("washes"))
+        if "activities" in self.page_map:
             self.activities_page.data_changed.connect(lambda: self.handle_data_changed("activities"))
+        if "maintenance" in self.page_map:
             self.maintenance_page.data_changed.connect(lambda: self.handle_data_changed("maintenance"))
-            if self.is_admin:
-                self.users_page.data_changed.connect(lambda: self.handle_data_changed("users"))
+        if "users" in self.page_map:
+            self.users_page.data_changed.connect(lambda: self.handle_data_changed("users"))
 
     def _build_menu_bar(self):
         menubar = self.menuBar()

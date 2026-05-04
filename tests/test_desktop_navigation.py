@@ -214,6 +214,27 @@ class DesktopNavigationTests(unittest.TestCase):
         self.assertEqual(self.api_client.calls["users"], 0)
         self.assertEqual(self.api_client.calls["reports_macro"], 0)
 
+    def test_role_access_hides_pages_from_gestor_and_motorista(self):
+        gestor_window = MainWindow(
+            self.api_client,
+            {"nome": "Gestor", "tipo": "gestor", "login": "gestor"},
+        )
+        motorista_window = MainWindow(
+            self.api_client,
+            {"nome": "Motorista", "tipo": "motorista", "login": "motorista"},
+        )
+        try:
+            self.assertNotIn("users", gestor_window.page_map)
+            self.assertNotIn("cloud_backup", gestor_window.page_map)
+            self.assertNotIn("audit_logs", gestor_window.page_map)
+            self.assertIn("maintenance", gestor_window.page_map)
+
+            self.assertEqual(set(motorista_window.page_map.keys()), {"dashboard"})
+        finally:
+            gestor_window.close()
+            motorista_window.close()
+            self.app.processEvents()
+
 
 class APIClientCacheTests(unittest.TestCase):
     def test_fetch_image_uses_cache_for_same_path(self):
