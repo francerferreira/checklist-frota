@@ -1,0 +1,501 @@
+SISTEMA DE CHECKLIST DE FROTA
+FOTO TÉCNICA DO PROJETO
+
+1. O QUE É ESTE SISTEMA
+
+Este sistema é um produto corporativo com duas frentes de uso:
+
+- Desktop administrativo e operacional
+- Web mobile para uso em celular
+
+Na prática, ele funciona como uma oficina organizada em setores:
+
+- o backend é o motor e as regras
+- o banco é a memória
+- a API é a ponte de conversa
+- o desktop é o painel completo de gestão
+- o web mobile é a versão enxuta para operação em campo
+
+
+2. POR QUE ESTE SISTEMA FUNCIONA
+
+Ele funciona porque a responsabilidade foi separada em camadas.
+
+Exemplo simples:
+
+- o usuário clica em um botão no desktop ou no web mobile
+- a tela envia a solicitação para a API
+- a API chama a regra de negócio no backend
+- o backend valida, grava no banco e devolve o resultado
+- a tela atualiza a informação para o usuário
+
+Isso é importante porque evita misturar tudo no mesmo lugar.
+
+Se um sistema mistura tela, regra, banco e integração no mesmo arquivo, ele vira um cabo embolado.
+Aqui, a estrutura já está separada, o que facilita manutenção, evolução e reaproveitamento.
+
+
+3. TIPOS DE SISTEMA USADOS NESTE PROJETO
+
+Este projeto usa mais de um tipo de aplicação dentro do mesmo ecossistema:
+
+- Sistema desktop
+- Sistema web mobile
+- API REST
+- Banco relacional
+- Geração de relatórios PDF e Excel
+- Upload e consumo de imagens/evidências
+
+Resumo:
+
+- Desktop: operação completa de gestão
+- Web mobile: operação rápida em campo
+- API: integração entre telas e regras
+- Banco: persistência dos dados
+
+
+4. BACKEND
+
+Tecnologia principal:
+
+- Python
+- Flask
+- Flask-SQLAlchemy
+- Flask-Migrate
+- Flask-Cors
+
+Pasta principal:
+
+- backend/app/
+
+Função do backend:
+
+- autenticação
+- cadastro de equipamentos
+- checklist
+- não conformidades
+- atividades
+- manutenção
+- materiais
+- lavagens
+- relatórios
+- upload de arquivos
+- auditoria
+
+Arquitetura do backend:
+
+- routes/: entrada HTTP da API
+- models/: estrutura das tabelas e entidades
+- services/: regras de negócio
+- utils/: funções auxiliares
+
+Analogia:
+
+O backend é como a sala técnica da empresa.
+O usuário não vê tudo, mas é ali que mora a regra real do sistema.
+
+
+5. FRONTEND
+
+Este projeto possui dois frontends diferentes:
+
+5.1. Desktop
+
+Tecnologia:
+
+- Python
+- PySide6
+
+Arquivo de entrada:
+
+- desktop/main.py
+
+Função:
+
+- gestão administrativa
+- telas completas
+- tabelas
+- filtros
+- exportações
+- dashboards
+- relatórios
+
+Características:
+
+- interface rica
+- múltiplos módulos
+- visual corporativo
+- integração direta com a API
+
+5.2. Web mobile
+
+Tecnologia:
+
+- HTML
+- CSS
+- JavaScript puro
+
+Pasta principal:
+
+- web_app/
+
+Arquivos centrais:
+
+- web_app/index.html
+- web_app/static/css/styles.css
+- web_app/static/js/app.js
+- web_app/static/js/config.js
+
+Função:
+
+- checklist em celular
+- uso em campo
+- operação enxuta
+- recursos offline locais
+- controle de sessão por inatividade
+
+Características:
+
+- layout responsivo
+- foco em toque
+- uso de localStorage e IndexedDB
+- PWA preparada por manifesto e service worker
+
+Analogia:
+
+O desktop é a mesa completa do escritório.
+O web mobile é a prancheta de campo.
+
+
+6. BANCO DE DADOS
+
+Tecnologia principal:
+
+- SQLAlchemy como ORM
+- SQLite como fallback local
+- PostgreSQL como estrutura recomendada para produção
+
+Arquivo de configuração:
+
+- backend/app/config.py
+
+Comportamento identificado:
+
+- se DATABASE_URL não existir, o sistema usa SQLite local
+- se DATABASE_URL existir, o sistema pode trabalhar com PostgreSQL
+
+Resumo prático:
+
+- desenvolvimento rápido: SQLite
+- produção séria e escalável: PostgreSQL
+
+Principais grupos de dados:
+
+- usuários
+- veículos
+- checklist
+- itens de checklist
+- não conformidades
+- atividades
+- manutenção
+- materiais
+- lavagens
+- auditoria
+
+
+7. API
+
+Padrão:
+
+- API REST
+
+Comunicação:
+
+- JSON
+- HTTP
+
+Base técnica:
+
+- Flask routes
+
+Alguns grupos de endpoints encontrados:
+
+- /login
+- /veiculos
+- /usuarios
+- /checklist
+- /checklist-itens
+- /nao_conformidades
+- /atividades
+- /manutencao
+- /materiais
+- /lavagens
+- /relatorios
+- /upload
+
+No desktop, a comunicação acontece principalmente por:
+
+- desktop/api_client.py
+
+No web mobile, a comunicação acontece principalmente por:
+
+- web_app/static/js/app.js
+- web_app/static/js/config.js
+
+Analogia:
+
+A API é como o recepcionista central.
+Toda tela fala com ela para pedir, gravar, alterar ou consultar informação.
+
+
+8. COMO É O DESKTOP
+
+Tecnologia:
+
+- PySide6
+
+Pontos fortes:
+
+- interface mais robusta
+- muitos módulos em paralelo
+- melhor para gestão, análise e administração
+- exportações PDF/XLSX/CSV
+- dashboards, filtros, grids e auditorias
+
+Módulos identificados:
+
+- dashboard
+- equipamentos
+- checklist
+- histórico de checklist
+- não conformidades
+- atividades
+- manutenção
+- materiais
+- lavagens
+- relatórios
+- usuários
+- auditoria
+- backup
+
+Padrão visual identificado:
+
+- estilo corporativo claro
+- bordas finas
+- azul como cor dominante operacional
+- branco como base de painel
+- cartões e tabelas com aparência sóbria
+- visual de sistema de operação interna, não de marketing
+
+
+9. COMO É O WEB MOBILE
+
+Tecnologia:
+
+- HTML + CSS + JavaScript puro
+
+Características operacionais:
+
+- uso no celular
+- foco em checklist
+- navegação simples
+- login
+- controle de sessão por inatividade
+- suporte a dados locais para operação offline/parcial
+
+Recursos técnicos identificados:
+
+- localStorage
+- IndexedDB
+- service worker
+- manifest.json
+
+Padrão visual identificado:
+
+- design mobile-first
+- uso forte de azul corporativo
+- cartões arredondados
+- hierarquia visual simples
+- otimização para toque e leitura rápida
+
+
+10. TEMAS UTILIZADOS
+
+10.1. Tema visual do desktop
+
+Arquivo:
+
+- desktop/theme.py
+
+Características:
+
+- fundo branco
+- azul institucional/corporativo
+- contornos azulados claros
+- aparência de sistema de escritório
+- tipografia principal com Tahoma e Segoe UI
+- bordas discretas e layout limpo
+
+Resumo do tema desktop:
+
+- corporativo
+- operacional
+- sóbrio
+- claro
+
+10.2. Tema visual do web mobile
+
+Arquivo:
+
+- web_app/static/css/styles.css
+
+Características:
+
+- gradiente azul na área superior
+- fundo claro acinzentado
+- cartões brancos
+- sombras suaves
+- tipografia Bahnschrift e Segoe UI
+- layout moderno para operação em campo
+
+Resumo do tema web mobile:
+
+- moderno
+- corporativo
+- limpo
+- focado em leitura rápida
+
+
+11. COMO REUTILIZAR ESTE SISTEMA COMO MODELO
+
+Este sistema já serve bem como molde para outros produtos internos.
+
+Exemplos citados:
+
+- RH
+- Manutenção
+- Materiais
+
+Motivo:
+
+Ele já tem a estrutura base que normalmente dá mais trabalho para montar do zero:
+
+- login
+- sessão
+- controle de usuários
+- backend organizado
+- API separada
+- banco estruturado
+- desktop robusto
+- web mobile enxuto
+- geração de PDF/Excel/CSV
+- upload de evidências
+- relatórios
+- padrão visual corporativo
+
+Melhor forma de reaproveitar:
+
+- manter a arquitetura
+- trocar os módulos de negócio
+- reaproveitar autenticação
+- reaproveitar API client
+- reaproveitar padrão visual
+- reaproveitar estrutura de exportação
+- reaproveitar componentes de tabela, cards, diálogo e relatórios
+
+Exemplo de reaproveitamento:
+
+- RH:
+  cadastro de colaboradores, documentos, férias, advertências, relatórios
+- Manutenção:
+  ordens de serviço, cronogramas, peças, execução, evidências
+- Materiais:
+  estoque, movimentação, consumo, auditoria, relatórios
+
+
+12. RESUMO DA PILHA TECNOLÓGICA
+
+Backend:
+
+- Python
+- Flask
+- SQLAlchemy
+- Flask-Migrate
+- Flask-Cors
+
+Frontend desktop:
+
+- Python
+- PySide6
+
+Frontend web mobile:
+
+- HTML
+- CSS
+- JavaScript puro
+
+Banco:
+
+- SQLite
+- PostgreSQL
+
+Integração:
+
+- API REST
+- JSON
+- Requests no desktop
+- Fetch/JS no web mobile
+
+Relatórios:
+
+- ReportLab
+- OpenPyXL
+
+Empacotamento:
+
+- PyInstaller
+
+
+13. MODELO DE CLASSIFICAÇÃO DO SISTEMA
+
+Este sistema pode ser classificado como:
+
+- sistema corporativo interno
+- sistema operacional de frota
+- sistema híbrido desktop + web mobile
+- sistema com API central
+- sistema com banco relacional
+- sistema modular reutilizável
+
+
+14. CONCLUSÃO
+
+Este projeto não é apenas um sistema de checklist.
+Ele já é uma plataforma-base para sistemas internos.
+
+O que você já tem aqui:
+
+- uma arquitetura pronta
+- um padrão visual corporativo
+- uma separação boa entre tela, regra e banco
+- um modelo forte para replicar em outros domínios
+
+Se a ideia é usar isso como matriz para RH, manutenção e materiais, a melhor estratégia é tratar este projeto como SISTEMA-MODELO e clonar sua estrutura, não apenas copiar telas.
+
+
+15. ARQUIVOS-CHAVE PARA CONSULTA FUTURA
+
+- README.md
+- requirements.txt
+- backend/app/__init__.py
+- backend/app/config.py
+- backend/app/routes/__init__.py
+- backend/app/models/__init__.py
+- desktop/main.py
+- desktop/api_client.py
+- desktop/theme.py
+- web_app/index.html
+- web_app/static/css/styles.css
+- web_app/static/js/config.js
+- web_app/static/js/app.js
+
