@@ -154,9 +154,11 @@ Saída:
 
 ```text
 dist\ChecklistFrotaPortable\ChecklistFrotaPortable.exe
+dist\ChecklistFrotaPortable_v1_0_0_0.zip
 ```
 
 Essa versão sai em pasta (`onedir`), o que costuma abrir mais rápido que um executável único muito compactado, porque não precisa descompactar tudo a cada abertura.
+No final do processo, o script também gera automaticamente um `.zip` de distribuição com o nome da versão atual do sistema.
 
 ## Executando o web app mobile
 
