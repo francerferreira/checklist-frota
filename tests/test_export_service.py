@@ -260,7 +260,7 @@ class ExportServiceTests(unittest.TestCase):
         self.assertTrue(path.exists())
         self.assertGreater(path.stat().st_size, 1000)
 
-    def test_export_wash_month_pdf_creates_file_with_total_highlight(self):
+    def test_export_wash_month_pdf_creates_file_with_chart_and_total(self):
         path = self.output_dir / "lavagens_mensal.pdf"
         export_wash_month_pdf(
             {

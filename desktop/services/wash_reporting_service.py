@@ -4,6 +4,8 @@ import calendar as month_calendar
 from datetime import date, datetime
 from pathlib import Path
 
+from reportlab.graphics.charts.barcharts import VerticalBarChart
+from reportlab.graphics.shapes import Drawing, String
 from reportlab.lib import colors
 from reportlab.lib.styles import ParagraphStyle
 from reportlab.lib.pagesizes import A4, landscape
@@ -13,11 +15,11 @@ from reportlab.platypus import PageBreak, Paragraph, SimpleDocTemplate, Spacer, 
 from .export_service import (
     _build_cover_page,
     _build_signature_block,
-    _build_summary_cards,
+    _chart_card,
     _draw_page_frame,
-    _key_value_table,
     _safe_paragraph_text,
     _styles,
+    _truncate_label,
     make_default_export_path,
 )
 from .message_service import MessagePackage
@@ -82,56 +84,6 @@ def export_wash_month_pdf(
         landscape_mode=True,
     )
     story.append(PageBreak())
-    story.append(_build_total_value_spotlight(total_value, resumo.get("lavados_mes", 0), period_label, wash_styles))
-    story.append(Spacer(1, 8))
-    story.extend(
-        _build_summary_cards(
-            [
-                ("Lavados no mês", str(resumo.get("lavados_mes", 0))),
-                ("Categorias atendidas", str(len(indicadores.get("por_categoria", [])))),
-                ("Veículos lavados", str(len(indicadores.get("por_veiculo", [])))),
-                ("Ticket médio", _format_currency((total_value / max(1, int(resumo.get("lavados_mes", 0) or 0))))),
-            ],
-            styles,
-        )
-    )
-    story.append(Spacer(1, 8))
-    story.append(Paragraph("Destaques do mês", styles["section"]))
-    story.append(Spacer(1, 4))
-    story.append(_build_wash_highlights(indicadores, wash_styles))
-    story.append(Spacer(1, 8))
-    story.append(Paragraph("Indicadores por categoria", styles["section"]))
-    story.append(Spacer(1, 4))
-    story.append(
-        _key_value_table(
-            [
-                [
-                    item.get("categoria") or "-",
-                    f"{item.get('quantidade', 0)} lavagem(ns) • {_format_currency(item.get('valor'))}",
-                ]
-                for item in indicadores.get("por_categoria", [])
-            ]
-            or [["Sem dados", "Não houve lavagens registradas no período."]],
-            styles,
-        )
-    )
-    story.append(Spacer(1, 8))
-    story.append(Paragraph("Indicadores por veículo", styles["section"]))
-    story.append(Spacer(1, 4))
-    story.append(
-        _key_value_table(
-            [
-                [
-                    item.get("referencia") or "-",
-                    f"{item.get('quantidade', 0)} lavagem(ns) • {_format_currency(item.get('valor'))}",
-                ]
-                for item in indicadores.get("por_veiculo", [])[:12]
-            ]
-            or [["Sem dados", "Não houve lavagens registradas no período."]],
-            styles,
-        )
-    )
-    story.append(Spacer(1, 10))
     story.append(Paragraph("Lavagens executadas", styles["section"]))
     story.append(Spacer(1, 4))
 
@@ -178,6 +130,12 @@ def export_wash_month_pdf(
         )
     )
     story.append(table)
+    story.append(Spacer(1, 10))
+    story.append(Paragraph("Indicador por tipo de equipamento", styles["section"]))
+    story.append(Spacer(1, 4))
+    story.append(_build_wash_volume_chart(indicadores.get("por_categoria", []), indicadores.get("por_veiculo", []), wash_styles))
+    story.append(Spacer(1, 10))
+    story.append(_build_total_value_footer(total_value, wash_styles))
     story.append(Spacer(1, 12))
     story.extend(_build_signature_block(generated_by, styles))
 
@@ -430,6 +388,20 @@ def _wash_styles(styles):
             leading=13,
             textColor=colors.white,
         ),
+        "total_footer_label": ParagraphStyle(
+            "WashTotalFooterLabel",
+            parent=styles["summary_label"],
+            fontSize=9.5,
+            leading=12,
+            textColor=colors.HexColor("#1E3A8A"),
+        ),
+        "total_footer_value": ParagraphStyle(
+            "WashTotalFooterValue",
+            parent=styles["cover_title"],
+            fontSize=22,
+            leading=26,
+            textColor=colors.HexColor("#0B1220"),
+        ),
         "highlight_title": ParagraphStyle(
             "WashHighlightTitle",
             parent=styles["summary_label"],
@@ -489,38 +461,6 @@ def _build_total_value_spotlight(total_value, lavados_mes: int, period_label: st
     return block
 
 
-def _build_wash_highlights(indicadores: dict, styles) -> Table:
-    top_category = (indicadores.get("por_categoria") or [{}])[0]
-    top_vehicle = (indicadores.get("por_veiculo") or [{}])[0]
-    cards = [
-        _wash_highlight_card(
-            "Categoria líder",
-            top_category.get("categoria") or "Sem dados",
-            f"{top_category.get('quantidade', 0)} lavagem(ns) • {_format_currency(top_category.get('valor'))}",
-            styles,
-        ),
-        _wash_highlight_card(
-            "Veículo com maior volume",
-            top_vehicle.get("referencia") or "Sem dados",
-            f"{top_vehicle.get('quantidade', 0)} lavagem(ns) • {_format_currency(top_vehicle.get('valor'))}",
-            styles,
-        ),
-    ]
-    table = Table([cards], colWidths=[123 * mm, 123 * mm])
-    table.setStyle(
-        TableStyle(
-            [
-                ("LEFTPADDING", (0, 0), (-1, -1), 0),
-                ("RIGHTPADDING", (0, 0), (-1, -1), 6),
-                ("TOPPADDING", (0, 0), (-1, -1), 0),
-                ("BOTTOMPADDING", (0, 0), (-1, -1), 0),
-                ("VALIGN", (0, 0), (-1, -1), "TOP"),
-            ]
-        )
-    )
-    return table
-
-
 def _wash_highlight_card(label: str, title: str, detail: str, styles) -> Table:
     card = Table(
             [[
@@ -543,4 +483,108 @@ def _wash_highlight_card(label: str, title: str, detail: str, styles) -> Table:
         )
     )
     return card
+
+
+def _build_wash_volume_chart(category_rows: list[dict], vehicle_rows: list[dict], styles) -> Table:
+    ordered = sorted(
+        [
+            {
+                "label": item.get("categoria") or "-",
+                "quantidade": int(item.get("quantidade", 0) or 0),
+                "valor": float(item.get("valor", 0) or 0),
+            }
+            for item in category_rows
+        ],
+        key=lambda row: (row["quantidade"], row["valor"]),
+        reverse=True,
+    )
+    if not ordered:
+        return _wash_highlight_card("Sem dados", "Nenhuma lavagem registrada", "Não há dados para montar o gráfico.", styles)
+
+    labels = [_truncate_label(row["label"], 18) for row in ordered]
+    quantities = [row["quantidade"] for row in ordered]
+    axis_max = max(1, max(quantities))
+
+    drawing = Drawing(470, 185)
+    drawing.add(String(10, 165, "Quantidade de lavagens por tipo", fontName="Helvetica-Bold", fontSize=11, fillColor=colors.HexColor("#0B1220")))
+
+    chart = VerticalBarChart()
+    chart.x = 18
+    chart.y = 30
+    chart.height = 118
+    chart.width = 420
+    chart.data = [tuple(quantities)]
+    chart.categoryAxis.categoryNames = labels
+    chart.categoryAxis.labels.angle = 18
+    chart.categoryAxis.labels.boxAnchor = "ne"
+    chart.categoryAxis.labels.fontName = "Helvetica"
+    chart.categoryAxis.labels.fontSize = 7.2
+    chart.valueAxis.valueMin = 0
+    chart.valueAxis.valueMax = axis_max + max(1, round(axis_max * 0.2))
+    chart.valueAxis.valueStep = max(1, int(round(chart.valueAxis.valueMax / 5)))
+    chart.valueAxis.labels.fontName = "Helvetica"
+    chart.valueAxis.labels.fontSize = 7
+    chart.bars[0].fillColor = colors.HexColor("#2563EB")
+    chart.bars[0].strokeColor = colors.HexColor("#1D4ED8")
+    chart.bars[0].strokeWidth = 0.3
+    drawing.add(chart)
+
+    vehicle_names = [item.get("referencia") or "-" for item in vehicle_rows]
+    unique_vehicles = []
+    for name in vehicle_names:
+        if name not in unique_vehicles:
+            unique_vehicles.append(name)
+    side_summary = _wash_highlight_card(
+        "Resumo lateral",
+        f"{len(unique_vehicles)} carro(s) lavado(s)",
+        f"{', '.join(unique_vehicles[:8]) or 'Sem veículos'}",
+        styles,
+    )
+    total_summary = _wash_highlight_card(
+        "Total no gráfico",
+        f"{sum(quantities)} lavagem(ns)",
+        "Ordem do maior volume para o menor.",
+        styles,
+    )
+
+    wrapper = Table(
+        [[_chart_card(drawing, 163 * mm), Table([[side_summary], [Spacer(1, 4)], [total_summary]], colWidths=[74 * mm])]],
+        colWidths=[168 * mm, 76 * mm],
+    )
+    wrapper.setStyle(
+        TableStyle(
+            [
+                ("LEFTPADDING", (0, 0), (-1, -1), 0),
+                ("RIGHTPADDING", (0, 0), (-1, -1), 0),
+                ("TOPPADDING", (0, 0), (-1, -1), 0),
+                ("BOTTOMPADDING", (0, 0), (-1, -1), 0),
+                ("VALIGN", (0, 0), (-1, -1), "TOP"),
+            ]
+        )
+    )
+    return wrapper
+
+
+def _build_total_value_footer(total_value, styles) -> Table:
+    block = Table(
+        [[
+            Paragraph("VALOR TOTAL DAS LAVAGENS", styles["total_footer_label"]),
+            Paragraph(_format_currency(total_value), styles["total_footer_value"]),
+        ]],
+        colWidths=[82 * mm, 162 * mm],
+    )
+    block.setStyle(
+        TableStyle(
+            [
+                ("BACKGROUND", (0, 0), (-1, -1), colors.HexColor("#EAF4FF")),
+                ("BOX", (0, 0), (-1, -1), 0.7, colors.HexColor("#BFDBFE")),
+                ("LEFTPADDING", (0, 0), (-1, -1), 12),
+                ("RIGHTPADDING", (0, 0), (-1, -1), 12),
+                ("TOPPADDING", (0, 0), (-1, -1), 10),
+                ("BOTTOMPADDING", (0, 0), (-1, -1), 10),
+                ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
+            ]
+        )
+    )
+    return block
 
