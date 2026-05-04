@@ -136,6 +136,28 @@ No desktop voce tera:
 - `Equipamentos`: cadastrar, editar, retirar, anexar foto e importar inventario
 - `Logins`: criar e gerenciar acessos
 
+## Gerando portable do desktop
+
+Para gerar uma versão portable mais leve para abrir rápido e sem terminal junto:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\tools\build_portable_desktop.ps1 -Clean
+```
+
+Ou pelo atalho:
+
+```text
+gerar_portable_checklist_frota.bat
+```
+
+Saída:
+
+```text
+dist\ChecklistFrotaPortable\ChecklistFrotaPortable.exe
+```
+
+Essa versão sai em pasta (`onedir`), o que costuma abrir mais rápido que um executável único muito compactado, porque não precisa descompactar tudo a cada abertura.
+
 ## Executando o web app mobile
 
 Sirva a pasta `web_app` localmente:
