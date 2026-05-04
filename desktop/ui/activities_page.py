@@ -25,6 +25,7 @@ from PySide6.QtWidgets import (
     QVBoxLayout,
 )
 
+from access import user_can
 from components import ImagePanel, TableSkeletonOverlay, finalize_saved_file, make_icon, run_export_by_type, show_notice, start_export_task_with_preset
 from components import MessageComposerDialog
 from runtime_paths import asset_path
@@ -866,8 +867,7 @@ class ActivityDetailDialog(QDialog):
         self.activity = {}
         self.items = []
         self.updated = False
-        user_tipo = str((self.api_client.user or {}).get("tipo") or "").strip().lower()
-        self.can_manage_materials = user_tipo in {"admin", "gestor"}
+        self.can_manage_materials = user_can(self.api_client.user, "manage_activity_materials")
 
         self.setWindowTitle("Detalhes da atividade")
         configure_dialog_window(self, width=1760, height=940, min_width=1240, min_height=760)

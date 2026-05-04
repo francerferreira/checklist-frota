@@ -16,8 +16,10 @@ if str(DESKTOP_ROOT) not in sys.path:
 from PySide6.QtTest import QTest
 from PySide6.QtWidgets import QApplication
 
+from access import allowed_pages_for_role, user_can
 from api_client import APIClient
 from ui.main_window import MainWindow
+from ui.users_page import UsersPage
 
 
 class FakeAPIClient:
@@ -233,6 +235,28 @@ class DesktopNavigationTests(unittest.TestCase):
         finally:
             gestor_window.close()
             motorista_window.close()
+            self.app.processEvents()
+
+    def test_central_access_map_controls_pages_and_actions(self):
+        self.assertEqual(allowed_pages_for_role("motorista"), {"dashboard"})
+        self.assertNotIn("users", allowed_pages_for_role("gestor"))
+        self.assertTrue(user_can({"tipo": "admin"}, "manage_users"))
+        self.assertFalse(user_can({"tipo": "gestor"}, "manage_users"))
+        self.assertTrue(user_can({"tipo": "gestor"}, "manage_activity_materials"))
+        self.assertFalse(user_can({"tipo": "motorista"}, "view_wash_values"))
+
+    def test_users_page_hides_admin_buttons_for_gestor(self):
+        gestor_page = UsersPage(
+            self.api_client,
+            {"nome": "Gestor", "tipo": "gestor", "login": "gestor"},
+        )
+        try:
+            self.assertFalse(gestor_page.add_button.isVisible())
+            self.assertFalse(gestor_page.edit_button.isVisible())
+            self.assertFalse(gestor_page.delete_button.isVisible())
+            self.assertIn("Somente o administrador", gestor_page.info_label.text())
+        finally:
+            gestor_page.close()
             self.app.processEvents()
 
 

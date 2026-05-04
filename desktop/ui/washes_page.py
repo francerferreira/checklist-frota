@@ -37,6 +37,7 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
+from access import user_can
 from components import MessageComposerDialog, TableSkeletonOverlay, choose_pdf_save_path, make_icon, show_notice, start_export_task_with_preset
 from runtime_paths import asset_path
 from services.wash_reporting_service import (
@@ -1535,7 +1536,7 @@ class WashesPage(QFrame):
         self.preventive_button.setEnabled(False)
 
     def _can_view_values(self) -> bool:
-        return str((self.api_client.user or {}).get("tipo") or "").lower() in {"admin", "gestor"}
+        return user_can(self.api_client.user, "view_wash_values")
 
     def set_loading_state(self, loading: bool):
         if loading:

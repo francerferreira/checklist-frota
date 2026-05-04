@@ -17,6 +17,7 @@ from PySide6.QtWidgets import (
     QVBoxLayout,
 )
 
+from access import user_can
 from components import TableSkeletonOverlay, ask_confirmation, make_icon, show_notice
 from theme import build_dialog_layout, configure_dialog_window, configure_table, make_table_item, style_card, style_table_card
 
@@ -152,7 +153,7 @@ class UsersPage(QFrame):
         super().__init__(parent)
         self.api_client = api_client
         self.current_user = current_user or {}
-        self.is_admin = self.current_user.get("tipo") == "admin"
+        self.can_manage_users = user_can(self.current_user, "manage_users")
         self.users = []
         self.current_user_item = None
         self.setObjectName("ContentSurface")
@@ -177,16 +178,16 @@ class UsersPage(QFrame):
         add_button = QPushButton("Novo login")
         add_button.setProperty("variant", "primary")
         add_button.clicked.connect(self.add_user)
-        add_button.setVisible(self.is_admin)
+        add_button.setVisible(self.can_manage_users)
 
         edit_button = QPushButton("Editar selecionado")
         edit_button.clicked.connect(self.edit_selected)
-        edit_button.setVisible(self.is_admin)
+        edit_button.setVisible(self.can_manage_users)
 
         delete_button = QPushButton("Excluir selecionado")
         delete_button.setProperty("variant", "danger")
         delete_button.clicked.connect(self.delete_selected)
-        delete_button.setVisible(self.is_admin)
+        delete_button.setVisible(self.can_manage_users)
 
         header.addLayout(text_wrap)
         header.addStretch()
@@ -217,7 +218,7 @@ class UsersPage(QFrame):
         self.table.horizontalHeader().sortIndicatorChanged.connect(lambda *_: self._selection_changed())
 
         self.info_label = QLabel(
-            "Somente o administrador pode criar ou alterar logins." if not self.is_admin else "Selecione um login para editar."
+            "Somente o administrador pode criar ou alterar logins." if not self.can_manage_users else "Selecione um login para editar."
         )
         self.info_label.setObjectName("MutedText")
         self.info_label.setWordWrap(True)
@@ -256,7 +257,7 @@ class UsersPage(QFrame):
             self.table.blockSignals(False)
             self.table.setUpdatesEnabled(True)
             self.table.setSortingEnabled(True)
-        enable_actions = self.is_admin and bool(self.users)
+        enable_actions = self.can_manage_users and bool(self.users)
         self.edit_button.setEnabled(enable_actions)
         self.delete_button.setEnabled(enable_actions)
         if self.users:
@@ -277,7 +278,7 @@ class UsersPage(QFrame):
             self.current_user_item = None
             self.info_label.setText(
                 "Somente o administrador pode criar ou alterar logins."
-                if not self.is_admin
+                if not self.can_manage_users
                 else "Selecione um login para editar."
             )
             self.edit_button.setEnabled(False)
@@ -299,7 +300,7 @@ class UsersPage(QFrame):
             f"perfil {self.current_user_item['tipo']} \u2022 "
             f"{'ativo' if self.current_user_item['ativo'] else 'inativo'}"
         )
-        allow_actions = self.is_admin
+        allow_actions = self.can_manage_users
         self.edit_button.setEnabled(allow_actions)
         self.delete_button.setEnabled(allow_actions and self.current_user_item["id"] != self.current_user.get("id"))
 
@@ -315,7 +316,7 @@ class UsersPage(QFrame):
         return self.current_user_item
 
     def add_user(self):
-        if not self.is_admin:
+        if not self.can_manage_users:
             show_notice(self, "Acesso restrito", "Somente o administrador pode criar logins.", icon_name="warning")
             return
         dialog = UserDialog(self.api_client, parent=self)
@@ -329,7 +330,7 @@ class UsersPage(QFrame):
                 show_notice(self, "Falha ao criar", str(exc), icon_name="warning")
 
     def edit_selected(self):
-        if not self.is_admin:
+        if not self.can_manage_users:
             show_notice(self, "Acesso restrito", "Somente o administrador pode alterar logins.", icon_name="warning")
             return
         target_user = self._selected_user()
@@ -347,7 +348,7 @@ class UsersPage(QFrame):
                 show_notice(self, "Falha ao atualizar", str(exc), icon_name="warning")
 
     def delete_selected(self):
-        if not self.is_admin:
+        if not self.can_manage_users:
             show_notice(self, "Acesso restrito", "Somente o administrador pode excluir logins.", icon_name="warning")
             return
         target_user = self._selected_user()

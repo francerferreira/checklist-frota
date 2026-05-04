@@ -24,6 +24,7 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
+from access import PAGE_ACCESS_BY_ROLE, allowed_pages_for_role, normalize_user_role
 from components import LoadingOverlay, make_icon, show_notice
 from runtime_paths import asset_path
 from theme import APP_STYLE, apply_button_styles, install_button_style_enforcer
@@ -196,57 +197,17 @@ class AccessDialog(QDialog):
 
 
 class MainWindow(QMainWindow):
-    PAGE_ACCESS_BY_ROLE = {
-        "admin": {
-            "dashboard",
-            "nc",
-            "productivity",
-            "reports",
-            "checklist_history",
-            "equipment",
-            "checklist_items",
-            "materials",
-            "washes",
-            "activities",
-            "maintenance",
-            "users",
-            "cloud_backup",
-            "audit_logs",
-        },
-        "gestor": {
-            "dashboard",
-            "nc",
-            "productivity",
-            "reports",
-            "checklist_history",
-            "equipment",
-            "checklist_items",
-            "materials",
-            "washes",
-            "activities",
-            "maintenance",
-        },
-        "mecanico": {
-            "dashboard",
-            "nc",
-            "productivity",
-            "activities",
-            "maintenance",
-        },
-        "motorista": {
-            "dashboard",
-        },
-    }
+    PAGE_ACCESS_BY_ROLE = PAGE_ACCESS_BY_ROLE
 
     def __init__(self, api_client, user, parent=None):
         super().__init__(parent)
         self.api_client = api_client
         self.user = user
         self.page_animation = None
-        self.user_role = str(self.user.get("tipo") or "").strip().lower()
+        self.user_role = normalize_user_role(self.user)
         self.is_admin = self.user_role == "admin"
         self.can_manage = self.user_role in {"admin", "gestor"}
-        self.allowed_pages = set(self.PAGE_ACCESS_BY_ROLE.get(self.user_role, {"dashboard"}))
+        self.allowed_pages = allowed_pages_for_role(self.user_role)
         self.app_icon_path = asset_path("app-icon.ico")
         self.current_page_key = ""
         self.dirty_pages: set[str] = set()
