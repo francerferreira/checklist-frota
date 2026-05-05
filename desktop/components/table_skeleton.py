@@ -10,7 +10,7 @@ class TableSkeletonOverlay(QWidget):
         super().__init__(parent)
         self._rows = rows
         self._progress = 0.0
-        self._animation = None
+        self._animation: QPropertyAnimation | None = None
 
         self.setAttribute(Qt.WA_StyledBackground, True)
         self.setStyleSheet(
@@ -58,6 +58,7 @@ class TableSkeletonOverlay(QWidget):
     def show_skeleton(self, message: str = "Carregando dados da tabela"):
         self.caption.setText(message)
         self._sync_geometry()
+        self._stop_animation()
         self.raise_()
         self.show()
         self._fade_to(1.0, duration=90)
@@ -65,12 +66,12 @@ class TableSkeletonOverlay(QWidget):
     def hide_skeleton(self):
         if not self.isVisible():
             return
-        if self._animation:
-            self._animation.stop()
-            self._animation = None
-        self._fade_to(0.0, duration=80, on_finished=self.hide)
+        self._stop_animation()
+        self.opacity_effect.setOpacity(0.0)
+        self.hide()
 
     def _fade_to(self, target: float, duration: int = 180, on_finished=None):
+        self._stop_animation()
         animation = QPropertyAnimation(self.opacity_effect, b"opacity", self)
         animation.setDuration(duration)
         animation.setStartValue(self.opacity_effect.opacity())
@@ -78,10 +79,20 @@ class TableSkeletonOverlay(QWidget):
         animation.setEasingCurve(QEasingCurve.OutCubic)
         if on_finished:
             animation.finished.connect(on_finished)
+        animation.finished.connect(self._clear_animation)
+        self._animation = animation
         animation.start()
 
     def _start_animation(self):
         return
+
+    def _stop_animation(self):
+        if self._animation:
+            self._animation.stop()
+            self._animation = None
+
+    def _clear_animation(self):
+        self._animation = None
 
     def get_progress(self) -> float:
         return self._progress

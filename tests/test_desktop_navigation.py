@@ -14,10 +14,11 @@ if str(DESKTOP_ROOT) not in sys.path:
     sys.path.insert(0, str(DESKTOP_ROOT))
 
 from PySide6.QtTest import QTest
-from PySide6.QtWidgets import QApplication
+from PySide6.QtWidgets import QApplication, QFrame
 
 from access import allowed_pages_for_role, user_can
 from api_client import APIClient
+from components.table_skeleton import TableSkeletonOverlay
 from ui.main_window import MainWindow
 from ui.users_page import UsersPage
 
@@ -257,6 +258,25 @@ class DesktopNavigationTests(unittest.TestCase):
             self.assertIn("Somente o administrador", gestor_page.info_label.text())
         finally:
             gestor_page.close()
+            self.app.processEvents()
+
+    def test_table_skeleton_hides_immediately_after_loading(self):
+        host = QFrame()
+        host.resize(420, 260)
+        host.show()
+        skeleton = TableSkeletonOverlay(host, rows=4)
+        try:
+            skeleton.show_skeleton("Carregando teste")
+            QTest.qWait(120)
+            self.app.processEvents()
+            self.assertTrue(skeleton.isVisible())
+
+            skeleton.hide_skeleton()
+            QTest.qWait(30)
+            self.app.processEvents()
+            self.assertFalse(skeleton.isVisible())
+        finally:
+            host.close()
             self.app.processEvents()
 
 
