@@ -16,15 +16,7 @@ datas = [
     (str(desktop_root / "assets" / "cf-logo-cover.png"), "assets"),
 ]
 
-excludes = [
-    "playwright",
-    "pytest",
-    "test_assets",
-    "tests",
-    "tkinter",
-    "unittest",
-    "pydoc",
-]
+excludes = []
 
 
 a = Analysis(
@@ -37,8 +29,8 @@ a = Analysis(
     hooksconfig={},
     runtime_hooks=[],
     excludes=excludes,
-    noarchive=False,
-    optimize=1,
+    noarchive=True,
+    optimize=0,
 )
 pyz = PYZ(a.pure)
 
