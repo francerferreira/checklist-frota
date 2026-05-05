@@ -18,6 +18,7 @@ from PySide6.QtWidgets import QApplication, QFrame
 
 from access import allowed_pages_for_role, user_can
 from api_client import APIClient
+from components.loading_overlay import LoadingOverlay
 from components.table_skeleton import TableSkeletonOverlay
 from ui.main_window import MainWindow
 from ui.users_page import UsersPage
@@ -275,6 +276,25 @@ class DesktopNavigationTests(unittest.TestCase):
             QTest.qWait(30)
             self.app.processEvents()
             self.assertFalse(skeleton.isVisible())
+        finally:
+            host.close()
+            self.app.processEvents()
+
+    def test_loading_overlay_hides_immediately_after_loading(self):
+        host = QFrame()
+        host.resize(420, 260)
+        host.show()
+        overlay = LoadingOverlay(host)
+        try:
+            overlay.show_loading("Carregando teste")
+            QTest.qWait(120)
+            self.app.processEvents()
+            self.assertTrue(overlay.isVisible())
+
+            overlay.hide_loading()
+            QTest.qWait(30)
+            self.app.processEvents()
+            self.assertFalse(overlay.isVisible())
         finally:
             host.close()
             self.app.processEvents()

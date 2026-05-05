@@ -22,7 +22,7 @@ class LoadingOverlay(QWidget):
 
         self._base_message = "Carregando painel"
         self._visible_since = None
-        self._fade_animation = None
+        self._fade_animation: QPropertyAnimation | None = None
 
         self._timer = QTimer(self)
         self._timer.setInterval(320)
@@ -136,6 +136,7 @@ class LoadingOverlay(QWidget):
             self.setGeometry(parent.rect())
 
     def show_loading(self, title: str, subtitle: str | None = None):
+        self._stop_animation()
         self._base_message = title
         self.title_label.setText(title)
         self.subtitle_label.setText(subtitle or "Aguarde um instante enquanto os dados são preparados.")
@@ -152,7 +153,9 @@ class LoadingOverlay(QWidget):
         if not self.isVisible():
             return
         self._timer.stop()
-        self._fade_to(0.0, 80, on_finished=self.hide)
+        self._stop_animation()
+        self.opacity_effect.setOpacity(0.0)
+        self.hide()
 
     def _advance_dots(self):
         dots = "." * ((self._dot_index % 3) + 1)
@@ -160,6 +163,7 @@ class LoadingOverlay(QWidget):
         self._dot_index += 1
 
     def _fade_to(self, target: float, duration: int, on_finished=None):
+        self._stop_animation()
         animation = QPropertyAnimation(self.opacity_effect, b"opacity", self)
         animation.setDuration(duration)
         animation.setStartValue(self.opacity_effect.opacity())
@@ -167,5 +171,15 @@ class LoadingOverlay(QWidget):
         animation.setEasingCurve(QEasingCurve.OutCubic)
         if on_finished:
             animation.finished.connect(on_finished)
-        animation.start()
         self._fade_animation = animation
+        animation.finished.connect(self._clear_animation)
+        animation.start()
+
+    def _stop_animation(self):
+        if self._fade_animation is not None:
+            self._fade_animation.stop()
+            self._fade_animation.deleteLater()
+            self._fade_animation = None
+
+    def _clear_animation(self):
+        self._fade_animation = None
