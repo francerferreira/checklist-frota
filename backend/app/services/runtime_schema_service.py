@@ -5,6 +5,7 @@ from sqlalchemy import inspect, text
 from app.extensions import db
 from app.models.activity import ActivityNonConformityLink
 from app.models.resolution_package import ResolutionPackage, ResolutionPackageLink
+from app.models.maintenance import MaintenanceWorkOrder
 from app.services.checklist_catalog import classify_catalog_item_group
 
 
@@ -238,3 +239,4 @@ def ensure_runtime_schema() -> None:
     ActivityNonConformityLink.__table__.create(bind=db.engine, checkfirst=True)
     ResolutionPackage.__table__.create(bind=db.engine, checkfirst=True)
     ResolutionPackageLink.__table__.create(bind=db.engine, checkfirst=True)
+    MaintenanceWorkOrder.__table__.create(bind=db.engine, checkfirst=True)

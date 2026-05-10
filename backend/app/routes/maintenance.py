@@ -18,6 +18,7 @@ from app.services.maintenance_service import (
     mechanic_items_for_user,
     program_maintenance_schedule,
     reprogram_schedule_item,
+    suggest_schedule_window,
     suggest_mechanic_for_payload,
     sync_checklist_non_conformities,
     update_schedule_item,
@@ -134,6 +135,21 @@ def suggest_maintenance_mechanic_route():
 
     payload = request.get_json(silent=True) or {}
     suggestion = suggest_mechanic_for_payload(payload)
+    return api_response(True, data=suggestion)
+
+
+@bp.post("/manutencao/sugestao-agenda")
+@auth_required
+def suggest_maintenance_schedule_window_route():
+    denied = _guard_management_access()
+    if denied:
+        return denied
+
+    payload = request.get_json(silent=True) or {}
+    try:
+        suggestion = suggest_schedule_window(payload)
+    except ValueError as exc:
+        return api_response(False, error=str(exc), status_code=400)
     return api_response(True, data=suggestion)
 
 

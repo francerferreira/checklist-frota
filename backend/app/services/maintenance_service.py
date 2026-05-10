@@ -5,7 +5,17 @@ from datetime import date, datetime, timedelta
 
 from app.extensions import db
 from app.utils.timezone import now_manaus_naive, today_manaus
-from app.models import Activity, ChecklistItem, Material, MaintenanceMaterial, MaintenanceSchedule, MaintenanceScheduleItem, ResolutionPackage, WashQueueItem
+from app.models import (
+    Activity,
+    ChecklistItem,
+    Material,
+    MaintenanceMaterial,
+    MaintenanceSchedule,
+    MaintenanceScheduleItem,
+    MaintenanceWorkOrder,
+    ResolutionPackage,
+    WashQueueItem,
+)
 from app.models.maintenance import PACKAGE_SOURCE_PREFIX
 from app.services.material_service import register_material_movement
 
@@ -69,6 +79,15 @@ def _normalize_daily_capacity(value, *, default: int = 1) -> int:
     if capacity <= 0:
         raise ValueError("A capacidade diária deve ser maior que zero.")
     return capacity
+
+
+def _parse_int(value, default: int | None = None) -> int | None:
+    try:
+        if value is None or str(value).strip() == "":
+            return default
+        return int(value)
+    except (TypeError, ValueError):
+        return default
 
 
 def _normalize_item_key_from_text(value: str | None) -> str:
@@ -224,6 +243,222 @@ def suggest_mechanic_for_payload(payload: dict) -> dict | None:
     }
 
 
+def _item_label_for_work_order(item: MaintenanceScheduleItem) -> str:
+    if item.checklist_item:
+        return _clean(item.checklist_item.item_nome) or _clean(item.checklist_item.item_principal) or "Não conformidade"
+    if item.activity:
+        return _clean(item.activity.item_nome) or _clean(item.activity.titulo) or "Atividade"
+    if item.schedule:
+        return _clean(item.schedule.item_name) or _clean(item.schedule.title) or "Manutenção"
+    return "Manutenção"
+
+
+def _schedule_primary_package_id(schedule: MaintenanceSchedule | None) -> int | None:
+    if not schedule:
+        return None
+    source_key = str(schedule.source_key or "")
+    if not source_key.startswith(PACKAGE_SOURCE_PREFIX):
+        return None
+    package_ids = source_key.removeprefix(PACKAGE_SOURCE_PREFIX).split(",")
+    return _parse_int(package_ids[0])
+
+
+def _work_order_status_from_item(item: MaintenanceScheduleItem) -> str:
+    mapping = {
+        "PENDENTE": "ABERTA",
+        "PROGRAMADO": "PROGRAMADA",
+        "AGUARDANDO_MATERIAL": "AGUARDANDO_MATERIAL",
+        "INSTALADO": "CONCLUIDA",
+        "NAO_EXECUTADO": "NAO_EXECUTADA",
+        "REPROGRAMADO": "REPROGRAMADA",
+        "CANCELADO": "CANCELADA",
+    }
+    return mapping.get(str(item.status or "").upper(), "ABERTA")
+
+
+def _sync_work_order_for_item(item: MaintenanceScheduleItem) -> MaintenanceWorkOrder:
+    schedule = item.schedule
+    if not schedule:
+        raise ValueError("Item de manutenção sem programação vinculada.")
+
+    work_order = item.work_order
+    if not work_order:
+        work_order = MaintenanceWorkOrder(
+            order_number=f"OS-PEND-{item.id or 0}",
+            schedule_id=schedule.id,
+            schedule_item_id=item.id,
+            resolution_package_id=_schedule_primary_package_id(schedule),
+            vehicle_id=item.vehicle_id,
+            opened_by_user_id=schedule.created_by_user_id,
+            title=_clean(schedule.title) or "Ordem de serviço de manutenção",
+            item_name=_item_label_for_work_order(item),
+            status=_work_order_status_from_item(item),
+            scheduled_date=item.scheduled_date,
+            assigned_mechanic_user_id=item.assigned_mechanic_user_id or schedule.assigned_mechanic_user_id,
+        )
+        db.session.add(work_order)
+        db.session.flush()
+        work_order.order_number = f"OS-{work_order.id:06d}"
+    else:
+        work_order.schedule_id = schedule.id
+        work_order.resolution_package_id = _schedule_primary_package_id(schedule)
+        work_order.vehicle_id = item.vehicle_id
+        work_order.opened_by_user_id = schedule.created_by_user_id
+        work_order.title = _clean(schedule.title) or work_order.title or "Ordem de serviço de manutenção"
+        work_order.item_name = _item_label_for_work_order(item)
+        work_order.status = _work_order_status_from_item(item)
+        work_order.scheduled_date = item.scheduled_date
+        work_order.assigned_mechanic_user_id = item.assigned_mechanic_user_id or schedule.assigned_mechanic_user_id
+        if not _clean(work_order.order_number):
+            work_order.order_number = f"OS-{work_order.id:06d}"
+    return work_order
+
+
+def _sync_schedule_work_orders(schedule: MaintenanceSchedule) -> None:
+    for item in schedule.items:
+        _sync_work_order_for_item(item)
+
+
+def _ensure_work_orders_backfilled() -> None:
+    rows = (
+        MaintenanceScheduleItem.query.outerjoin(MaintenanceWorkOrder, MaintenanceWorkOrder.schedule_item_id == MaintenanceScheduleItem.id)
+        .filter(MaintenanceWorkOrder.id.is_(None))
+        .all()
+    )
+    if not rows:
+        return
+    for row in rows:
+        _sync_work_order_for_item(row)
+    db.session.commit()
+
+
+def _open_work_order_statuses() -> set[str]:
+    return {"ABERTA", "PROGRAMADA", "AGUARDANDO_MATERIAL", "EM_EXECUCAO", "REPROGRAMADA"}
+
+
+def _open_item_statuses() -> set[str]:
+    return {"PENDENTE", "PROGRAMADO", "AGUARDANDO_MATERIAL", "REPROGRAMADO"}
+
+
+def build_mechanic_load_summary(mechanic_user_id: int | None, *, start_date: date | None = None, days: int = 7) -> dict | None:
+    mechanic_id = _parse_int(mechanic_user_id)
+    if not mechanic_id:
+        return None
+
+    today = today_manaus()
+    start = start_date or today
+    end = start + timedelta(days=max(days, 1) - 1)
+    rows = (
+        MaintenanceWorkOrder.query.filter(MaintenanceWorkOrder.assigned_mechanic_user_id == mechanic_id)
+        .order_by(MaintenanceWorkOrder.scheduled_date.asc().nullslast(), MaintenanceWorkOrder.id.asc())
+        .all()
+    )
+    open_statuses = _open_work_order_statuses()
+    open_rows = [row for row in rows if str(row.status or "").upper() in open_statuses]
+    overdue_rows = [
+        row
+        for row in open_rows
+        if row.scheduled_date and row.scheduled_date < today
+    ]
+    window_rows = [
+        row
+        for row in open_rows
+        if row.scheduled_date and start <= row.scheduled_date <= end
+    ]
+    by_day: dict[str, int] = {}
+    for row in window_rows:
+        if not row.scheduled_date:
+            continue
+        key = row.scheduled_date.isoformat()
+        by_day[key] = by_day.get(key, 0) + 1
+
+    mechanic = None
+    if rows:
+        mechanic = rows[0].assigned_mechanic
+    return {
+        "user_id": mechanic_id,
+        "user": mechanic.to_dict() if mechanic else None,
+        "open_work_orders": len(open_rows),
+        "overdue_work_orders": len(overdue_rows),
+        "scheduled_in_window": len(window_rows),
+        "daily_window": by_day,
+    }
+
+
+def suggest_schedule_window(payload: dict) -> dict:
+    start_date = _parse_date(payload.get("start_date") or payload.get("data_inicio"), default=today_manaus()) or today_manaus()
+    daily_capacity = _normalize_daily_capacity(payload.get("daily_capacity") or payload.get("capacidade_diaria") or 1)
+    mechanic_id = _parse_int(payload.get("assigned_mechanic_user_id") or payload.get("mecanico_id"))
+    source_type = _normalize_type(payload.get("source_type") or payload.get("tipo") or payload.get("origem"))
+    total_items = int(payload.get("selected_total") or 0)
+
+    if total_items <= 0:
+        package_ids = [int(value) for value in payload.get("package_ids") or []]
+        activity_ids = [int(value) for value in payload.get("activity_ids") or []]
+        vehicle_ids = [int(value) for value in payload.get("vehicle_ids") or []]
+        checklist_item_ids = [int(value) for value in payload.get("checklist_item_ids") or []]
+        if source_type == "PACOTE_RESOLUCAO" and package_ids:
+            total_items = sum(len(package.links or []) for package in ResolutionPackage.query.filter(ResolutionPackage.id.in_(package_ids)).all())
+        elif source_type == "ATIVIDADE" and activity_ids:
+            total_items = sum(len(activity.items or []) for activity in Activity.query.filter(Activity.id.in_(activity_ids)).all())
+        elif checklist_item_ids:
+            total_items = len(checklist_item_ids)
+        else:
+            total_items = len(vehicle_ids)
+
+    total_items = max(total_items, 0)
+    if total_items <= 0:
+        return {
+            "suggested_start_date": start_date.isoformat(),
+            "suggested_end_date": start_date.isoformat(),
+            "total_items": 0,
+            "daily_capacity": daily_capacity,
+            "mechanic_load": build_mechanic_load_summary(mechanic_id, start_date=start_date),
+            "reason": "Nenhum item selecionado para agenda.",
+        }
+
+    open_statuses = _open_work_order_statuses()
+    day_loads: dict[date, int] = {}
+    if mechanic_id:
+        work_orders = (
+            MaintenanceWorkOrder.query.filter(MaintenanceWorkOrder.assigned_mechanic_user_id == mechanic_id)
+            .order_by(MaintenanceWorkOrder.scheduled_date.asc().nullslast())
+            .all()
+        )
+        for row in work_orders:
+            if row.scheduled_date and str(row.status or "").upper() in open_statuses:
+                day_loads[row.scheduled_date] = day_loads.get(row.scheduled_date, 0) + 1
+
+    allocated_dates: list[date] = []
+    remaining = total_items
+    cursor = start_date
+    while remaining > 0:
+        occupied = day_loads.get(cursor, 0)
+        free_slots = max(daily_capacity - occupied, 0)
+        if free_slots > 0:
+            allocate = min(free_slots, remaining)
+            allocated_dates.extend([cursor] * allocate)
+            remaining -= allocate
+        cursor = cursor + timedelta(days=1)
+
+    suggested_start = allocated_dates[0] if allocated_dates else start_date
+    suggested_end = allocated_dates[-1] if allocated_dates else start_date
+    reason = "Agenda livre a partir da data solicitada."
+    if mechanic_id and suggested_start > start_date:
+        reason = "A agenda do mecânico já possui carga na data inicial. O sistema sugeriu a primeira janela com folga."
+    elif mechanic_id:
+        reason = "A agenda do mecânico ainda comporta este pacote dentro da capacidade diária."
+
+    return {
+        "suggested_start_date": suggested_start.isoformat(),
+        "suggested_end_date": suggested_end.isoformat(),
+        "total_items": total_items,
+        "daily_capacity": daily_capacity,
+        "mechanic_load": build_mechanic_load_summary(mechanic_id, start_date=suggested_start),
+        "reason": reason,
+    }
+
+
 def _group_key_for_nc(item: ChecklistItem) -> str:
     return f"CHECKLIST_NC:{item.item_nome.strip().upper()}"
 
@@ -261,6 +496,7 @@ def ensure_schedule_for_checklist_item(item: ChecklistItem) -> MaintenanceSchedu
         db.session.add(schedule_item)
         db.session.flush()
 
+    _sync_schedule_work_orders(schedule)
     recalculate_schedule(schedule)
     return schedule
 
@@ -349,6 +585,7 @@ def _build_month_calendar(items: list[MaintenanceScheduleItem], *, year: int, mo
 
 
 def build_maintenance_overview(*, year: int | None = None, month: int | None = None, assigned_to_user_id: int | None = None) -> dict:
+    _ensure_work_orders_backfilled()
     today = today_manaus()
     year = year or today.year
     month = month or today.month
@@ -552,6 +789,7 @@ def create_maintenance_schedule(payload: dict, *, created_by_user_id: int) -> Ma
 
     schedule.end_date = assigned_dates[-1] if assigned_dates else start_date
     db.session.flush()
+    _sync_schedule_work_orders(schedule)
 
     for package in selected_packages:
         package.status = "EM_MANUTENCAO"
@@ -590,6 +828,7 @@ def program_maintenance_schedule(schedule_id: int, payload: dict, *, user_id: in
     schedule.end_date = assigned_dates[-1] if assigned_dates else start_date
     schedule.daily_capacity = daily_capacity
     db.session.flush()
+    _sync_schedule_work_orders(schedule)
     _ensure_preventive_wash_queue_items(schedule)
     recalculate_schedule(schedule)
     db.session.commit()
@@ -610,6 +849,8 @@ def reprogram_schedule_item(item_id: int, payload: dict, *, user) -> Maintenance
     if item.status not in {"INSTALADO", "CANCELADO"}:
         item.status = "REPROGRAMADO"
     item.observation = _clean(payload.get("observation") or payload.get("observacao")) or item.observation
+    db.session.flush()
+    _sync_work_order_for_item(item)
     recalculate_schedule(item.schedule)
     db.session.commit()
     return item
@@ -726,12 +967,15 @@ def update_schedule_item(item_id: int, payload: dict, *, user) -> MaintenanceSch
     else:
         item.status = new_status
 
+    db.session.flush()
+    _sync_work_order_for_item(item)
     recalculate_schedule(item.schedule)
     db.session.commit()
     return item
 
 
 def mechanic_items_for_user(user_id: int) -> list[MaintenanceScheduleItem]:
+    _ensure_work_orders_backfilled()
     rows = MaintenanceScheduleItem.query.order_by(MaintenanceScheduleItem.scheduled_date.asc().nullslast()).all()
     return [
         item
@@ -742,6 +986,7 @@ def mechanic_items_for_user(user_id: int) -> list[MaintenanceScheduleItem]:
 
 
 def build_vehicle_maintenance_history(vehicle_id: int) -> dict:
+    _ensure_work_orders_backfilled()
     items = (
         MaintenanceScheduleItem.query.filter_by(vehicle_id=vehicle_id)
         .order_by(MaintenanceScheduleItem.scheduled_date.desc().nullslast(), MaintenanceScheduleItem.created_at.desc())
@@ -753,6 +998,7 @@ def build_vehicle_maintenance_history(vehicle_id: int) -> dict:
 
 
 def _maintenance_report_items(*, year: int | None = None, month: int | None = None) -> list[MaintenanceScheduleItem]:
+    _ensure_work_orders_backfilled()
     query = MaintenanceScheduleItem.query.order_by(MaintenanceScheduleItem.scheduled_date.desc().nullslast(), MaintenanceScheduleItem.id.desc())
     if year:
         query = query.filter(db.extract("year", MaintenanceScheduleItem.scheduled_date) == year)

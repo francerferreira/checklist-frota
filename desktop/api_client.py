@@ -194,6 +194,9 @@ class APIClient:
     def get_maintenance_mechanic_suggestion(self, payload: dict):
         return self._request("POST", "/manutencao/sugestao-responsavel", json=payload)
 
+    def get_maintenance_schedule_suggestion(self, payload: dict):
+        return self._request("POST", "/manutencao/sugestao-agenda", json=payload)
+
     def link_maintenance_schedule_material(self, schedule_id: int, payload: dict):
         return self._request("POST", f"/manutencao/programacoes/{schedule_id}/materiais", json=payload)
 

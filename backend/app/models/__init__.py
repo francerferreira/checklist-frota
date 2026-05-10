@@ -2,7 +2,7 @@ from app.models.activity import Activity, ActivityItem, ActivityNonConformityLin
 from app.models.audit_log import AuditLog
 from app.models.checklist import Checklist, ChecklistItem
 from app.models.checklist_catalog_item import ChecklistCatalogItem
-from app.models.maintenance import MaintenanceMaterial, MaintenanceSchedule, MaintenanceScheduleItem
+from app.models.maintenance import MaintenanceMaterial, MaintenanceSchedule, MaintenanceScheduleItem, MaintenanceWorkOrder
 from app.models.material import Material, MaterialMovement
 from app.models.mechanic_non_conformity import MechanicNonConformity
 from app.models.resolution_package import ResolutionPackage, ResolutionPackageLink
@@ -21,6 +21,7 @@ __all__ = [
     "MaintenanceMaterial",
     "MaintenanceSchedule",
     "MaintenanceScheduleItem",
+    "MaintenanceWorkOrder",
     "Material",
     "MaterialMovement",
     "MechanicNonConformity",

@@ -99,6 +99,7 @@ class MaintenanceScheduleCreateDialog(QDialog):
         self.mechanics: list[dict] = []
         self.result_payload: dict | None = None
         self.suggested_mechanic_user_id: int | None = None
+        self.suggested_start_date_iso: str | None = None
 
         self.setWindowTitle("Nova programação de manutenção")
         configure_dialog_window(self, width=1060, height=760, min_width=900, min_height=640)
@@ -140,6 +141,7 @@ class MaintenanceScheduleCreateDialog(QDialog):
         self.start_date_input.setCalendarPopup(True)
         self.start_date_input.setDate(QDate.currentDate())
         self.start_date_input.setDisplayFormat("dd/MM/yyyy")
+        self.start_date_input.dateChanged.connect(self._apply_schedule_suggestion)
 
         self.daily_capacity_input = QSpinBox()
         self.daily_capacity_input.setMinimum(1)
@@ -154,9 +156,18 @@ class MaintenanceScheduleCreateDialog(QDialog):
         self.selection_badge.setObjectName("TopBarPill")
         self.suggestion_badge = QLabel("Sugestão de responsável: selecione registros para o sistema analisar o histórico.")
         self.suggestion_badge.setObjectName("TopBarPill")
+        self.mechanic_load_badge = QLabel("Carga do mecânico: selecione um responsável para ver a fila atual.")
+        self.mechanic_load_badge.setObjectName("TopBarPill")
+        self.schedule_suggestion_badge = QLabel("Sugestão de agenda: selecione registros para o sistema encontrar a melhor janela.")
+        self.schedule_suggestion_badge.setObjectName("TopBarPill")
 
         self.mechanic_combo = QComboBox()
         self.mechanic_combo.setMinimumHeight(34)
+        self.mechanic_combo.currentIndexChanged.connect(self._apply_schedule_suggestion)
+        self.apply_suggested_date_button = QPushButton("Usar data sugerida")
+        self.apply_suggested_date_button.setMinimumHeight(34)
+        self.apply_suggested_date_button.clicked.connect(self._apply_suggested_start_date)
+        self.apply_suggested_date_button.setEnabled(False)
 
         form.addWidget(QLabel("Origem"), 0, 0)
         form.addWidget(self.source_combo, 1, 0)
@@ -169,9 +180,12 @@ class MaintenanceScheduleCreateDialog(QDialog):
         form.addWidget(QLabel("Responsável sugerido"), 2, 0)
         form.addWidget(self.mechanic_combo, 3, 0, 1, 2)
         form.addWidget(self.suggestion_badge, 3, 2, 1, 2)
-        form.addWidget(QLabel("Observação"), 4, 0, 1, 4)
-        form.addWidget(self.observation_input, 5, 0, 1, 4)
-        form.addWidget(self.selection_badge, 6, 0, 1, 4)
+        form.addWidget(self.mechanic_load_badge, 4, 0, 1, 4)
+        form.addWidget(self.schedule_suggestion_badge, 5, 0, 1, 3)
+        form.addWidget(self.apply_suggested_date_button, 5, 3)
+        form.addWidget(QLabel("Observação"), 6, 0, 1, 4)
+        form.addWidget(self.observation_input, 7, 0, 1, 4)
+        form.addWidget(self.selection_badge, 8, 0, 1, 4)
 
         table_card = QFrame()
         style_table_card(table_card)
@@ -308,8 +322,6 @@ class MaintenanceScheduleCreateDialog(QDialog):
                     self.source_table.setItem(row_index, column, make_table_item(value, payload=payload))
 
         self._clear_selection()
-        self._update_selection_summary()
-        self._apply_mechanic_suggestion()
 
     def _selected_payloads(self) -> list[dict]:
         model = self.source_table.selectionModel()
@@ -338,13 +350,31 @@ class MaintenanceScheduleCreateDialog(QDialog):
         days = ceil(total / capacity) if total else 0
         self.selection_badge.setText(f"{total} selecionados | estimativa {days} dia(s)")
         self._apply_mechanic_suggestion()
+        self._apply_schedule_suggestion()
 
     def _suggestion_payload(self) -> dict:
         source_type = self.source_combo.currentData()
         selected = self._selected_payloads()
+        selected_total = 0
+        if source_type == "PACOTE_RESOLUCAO":
+            for row in selected:
+                resumo = row.get("resumo") or {}
+                selected_total += int(resumo.get("abertas") or resumo.get("total") or 0)
+        elif source_type == "ATIVIDADE":
+            for row in selected:
+                item_rows = list(row.get("itens") or [])
+                selected_total += sum(
+                    1 for item in item_rows if str(item.get("status_execucao") or "PENDENTE").upper() != "INSTALADO"
+                )
+        else:
+            selected_total = len(selected)
         payload: dict = {
             "source_type": source_type,
             "item_name": (self.title_input.text() or "").strip(),
+            "start_date": self.start_date_input.date().toString("yyyy-MM-dd"),
+            "daily_capacity": int(self.daily_capacity_input.value()),
+            "assigned_mechanic_user_id": self.mechanic_combo.currentData(),
+            "selected_total": selected_total,
         }
         if source_type == "PACOTE_RESOLUCAO":
             payload["package_ids"] = sorted({int(row.get("id")) for row in selected if row.get("id")})
@@ -376,6 +406,55 @@ class MaintenanceScheduleCreateDialog(QDialog):
         mechanic_name = user.get("nome") or user.get("login") or f"Mecânico {self.suggested_mechanic_user_id}"
         reason = suggestion.get("reason") or "Histórico parecido encontrado"
         self.suggestion_badge.setText(f"Sugestão de responsável: {mechanic_name} | {reason}")
+
+    def _apply_schedule_suggestion(self):
+        selected = self._selected_payloads()
+        if not selected:
+            self.suggested_start_date_iso = None
+            self.schedule_suggestion_badge.setText("Sugestão de agenda: selecione registros para o sistema encontrar a melhor janela.")
+            self.mechanic_load_badge.setText("Carga do mecânico: selecione um responsável para ver a fila atual.")
+            self.apply_suggested_date_button.setEnabled(False)
+            return
+        try:
+            suggestion = self.api_client.get_maintenance_schedule_suggestion(self._suggestion_payload())
+        except Exception:
+            suggestion = None
+        if not suggestion:
+            self.suggested_start_date_iso = None
+            self.schedule_suggestion_badge.setText("Sugestão de agenda: não foi possível calcular a janela agora.")
+            self.mechanic_load_badge.setText("Carga do mecânico: histórico indisponível no momento.")
+            self.apply_suggested_date_button.setEnabled(False)
+            return
+
+        self.suggested_start_date_iso = suggestion.get("suggested_start_date")
+        suggested_end_date = suggestion.get("suggested_end_date")
+        total_items = int(suggestion.get("total_items") or 0)
+        reason = suggestion.get("reason") or "Janela calculada pela capacidade da agenda."
+        self.schedule_suggestion_badge.setText(
+            f"Sugestão de agenda: {self._format_date(self.suggested_start_date_iso)} até {self._format_date(suggested_end_date)} | "
+            f"{total_items} serviço(s) | {reason}"
+        )
+        self.apply_suggested_date_button.setEnabled(bool(self.suggested_start_date_iso))
+
+        mechanic_load = suggestion.get("mechanic_load") or {}
+        if not mechanic_load:
+            self.mechanic_load_badge.setText("Carga do mecânico: sem responsável fixo selecionado.")
+            return
+        user = mechanic_load.get("user") or {}
+        mechanic_name = user.get("nome") or user.get("login") or f"Mecânico {mechanic_load.get('user_id')}"
+        self.mechanic_load_badge.setText(
+            f"Carga do mecânico: {mechanic_name} | "
+            f"{int(mechanic_load.get('open_work_orders') or 0)} OS abertas | "
+            f"{int(mechanic_load.get('overdue_work_orders') or 0)} atrasadas | "
+            f"{int(mechanic_load.get('scheduled_in_window') or 0)} já na janela"
+        )
+
+    def _apply_suggested_start_date(self):
+        if not self.suggested_start_date_iso:
+            return
+        target = QDate.fromString(str(self.suggested_start_date_iso), "yyyy-MM-dd")
+        if target.isValid():
+            self.start_date_input.setDate(target)
 
     def _submit(self):
         source_type = self.source_combo.currentData()
@@ -842,10 +921,11 @@ class MaintenancePage(QFrame):
         self.details_hint_label.setObjectName("PageSubtitle")
         self.details_hint_label.setWordWrap(True)
 
-        self.items_table = QTableWidget(0, 8)
+        self.items_table = QTableWidget(0, 10)
         self.items_table.setHorizontalHeaderLabels(
             [
                 "ID item",
+                "OS",
                 "Veículo",
                 "Origem",
                 "Serviço",
@@ -1787,6 +1867,7 @@ class MaintenancePage(QFrame):
                 item_label = self._item_label(item, schedule)
                 values = [
                     item.get("id"),
+                    ((item.get("work_order") or {}).get("order_number") or "-"),
                     self._vehicle_table_label(vehicle),
                     source_label,
                     item_label,
@@ -1956,13 +2037,14 @@ class MaintenancePage(QFrame):
 
     def _apply_items_table_layout(self):
         widths = {
-            1: 230,
-            2: 90,
-            3: 220,
-            4: 90,
-            5: 115,
-            6: 170,
-            7: 150,
+            1: 120,
+            2: 230,
+            3: 90,
+            4: 220,
+            5: 90,
+            6: 115,
+            7: 170,
+            8: 150,
         }
         for column, width in widths.items():
             self.items_table.setColumnWidth(column, width)

@@ -31,6 +31,7 @@ class MaintenanceSchedule(db.Model):
     assigned_mechanic = db.relationship("User", foreign_keys=[assigned_mechanic_user_id], lazy="joined")
     items = db.relationship("MaintenanceScheduleItem", back_populates="schedule", cascade="all, delete-orphan", lazy="joined")
     materials = db.relationship("MaintenanceMaterial", back_populates="schedule", cascade="all, delete-orphan", lazy="joined")
+    work_orders = db.relationship("MaintenanceWorkOrder", back_populates="schedule", cascade="all, delete-orphan", lazy="joined")
 
     __table_args__ = (
         db.CheckConstraint(
@@ -67,7 +68,7 @@ class MaintenanceSchedule(db.Model):
             return "PACOTE_RESOLUCAO"
         return self.source_type
 
-    def to_dict(self, include_items: bool = False, include_materials: bool = False) -> dict:
+    def to_dict(self, include_items: bool = False, include_materials: bool = False, include_work_orders: bool = False) -> dict:
         data = {
             "id": self.id,
             "source_type": self.source_type,
@@ -87,11 +88,19 @@ class MaintenanceSchedule(db.Model):
             "created_by": self.created_by.to_dict() if self.created_by else None,
             "assigned_mechanic": self.assigned_mechanic.to_dict() if self.assigned_mechanic else None,
             "resumo": self.counts(),
+            "ordens_servico_resumo": {
+                "total": len(self.work_orders),
+                "abertas": sum(1 for order in self.work_orders if order.status in {"ABERTA", "PROGRAMADA", "AGUARDANDO_MATERIAL", "EM_EXECUCAO", "REPROGRAMADA"}),
+                "concluidas": sum(1 for order in self.work_orders if order.status == "CONCLUIDA"),
+                "nao_executadas": sum(1 for order in self.work_orders if order.status == "NAO_EXECUTADA"),
+            },
         }
         if include_items:
             data["itens"] = [item.to_dict() for item in self.items]
         if include_materials:
             data["materiais"] = [material.to_dict() for material in self.materials]
+        if include_work_orders:
+            data["ordens_servico"] = [work_order.to_dict() for work_order in self.work_orders]
         return data
 
 
@@ -120,6 +129,7 @@ class MaintenanceScheduleItem(db.Model):
     activity = db.relationship("Activity", lazy="joined")
     assigned_mechanic = db.relationship("User", foreign_keys=[assigned_mechanic_user_id], lazy="joined")
     executed_by = db.relationship("User", foreign_keys=[executed_by_user_id], lazy="joined")
+    work_order = db.relationship("MaintenanceWorkOrder", back_populates="schedule_item", uselist=False, lazy="joined")
 
     __table_args__ = (
         db.CheckConstraint(
@@ -152,6 +162,7 @@ class MaintenanceScheduleItem(db.Model):
             "activity": self.activity.to_dict() if self.activity else None,
             "assigned_mechanic": self.assigned_mechanic.to_dict() if self.assigned_mechanic else None,
             "executed_by": self.executed_by.to_dict() if self.executed_by else None,
+            "work_order": self.work_order.to_dict() if self.work_order else None,
         }
 
 
@@ -195,4 +206,58 @@ class MaintenanceMaterial(db.Model):
             "created_at": self.created_at.isoformat() if self.created_at else None,
             "updated_at": self.updated_at.isoformat() if self.updated_at else None,
             "material": self.material.to_dict() if self.material else None,
+        }
+
+
+class MaintenanceWorkOrder(db.Model):
+    __tablename__ = "maintenance_work_orders"
+
+    id = db.Column(db.Integer, primary_key=True)
+    order_number = db.Column(db.String(40), nullable=False, unique=True, index=True)
+    schedule_id = db.Column(db.Integer, db.ForeignKey("maintenance_schedules.id"), nullable=False, index=True)
+    schedule_item_id = db.Column(db.Integer, db.ForeignKey("maintenance_schedule_items.id"), nullable=False, unique=True, index=True)
+    resolution_package_id = db.Column(db.Integer, db.ForeignKey("resolution_packages.id"), nullable=True, index=True)
+    vehicle_id = db.Column(db.Integer, db.ForeignKey("vehicles.id"), nullable=False, index=True)
+    assigned_mechanic_user_id = db.Column(db.Integer, db.ForeignKey("users.id"), nullable=True, index=True)
+    opened_by_user_id = db.Column(db.Integer, db.ForeignKey("users.id"), nullable=True, index=True)
+    title = db.Column(db.String(200), nullable=False, index=True)
+    item_name = db.Column(db.String(160), nullable=True, index=True)
+    status = db.Column(db.String(30), nullable=False, default="ABERTA", index=True)
+    scheduled_date = db.Column(db.Date, nullable=True, index=True)
+    created_at = db.Column(db.DateTime, nullable=False, default=now_manaus_naive, index=True)
+    updated_at = db.Column(db.DateTime, nullable=False, default=now_manaus_naive, onupdate=now_manaus_naive)
+
+    schedule = db.relationship("MaintenanceSchedule", back_populates="work_orders")
+    schedule_item = db.relationship("MaintenanceScheduleItem", back_populates="work_order")
+    vehicle = db.relationship("Vehicle", lazy="joined")
+    assigned_mechanic = db.relationship("User", foreign_keys=[assigned_mechanic_user_id], lazy="joined")
+    opened_by = db.relationship("User", foreign_keys=[opened_by_user_id], lazy="joined")
+    resolution_package = db.relationship("ResolutionPackage", lazy="joined")
+
+    __table_args__ = (
+        db.CheckConstraint(
+            "status IN ('ABERTA', 'PROGRAMADA', 'AGUARDANDO_MATERIAL', 'EM_EXECUCAO', 'CONCLUIDA', 'NAO_EXECUTADA', 'REPROGRAMADA', 'CANCELADA')",
+            name="ck_maintenance_work_order_status",
+        ),
+    )
+
+    def to_dict(self) -> dict:
+        return {
+            "id": self.id,
+            "order_number": self.order_number,
+            "schedule_id": self.schedule_id,
+            "schedule_item_id": self.schedule_item_id,
+            "resolution_package_id": self.resolution_package_id,
+            "vehicle_id": self.vehicle_id,
+            "assigned_mechanic_user_id": self.assigned_mechanic_user_id,
+            "opened_by_user_id": self.opened_by_user_id,
+            "title": self.title,
+            "item_name": self.item_name,
+            "status": self.status,
+            "scheduled_date": self.scheduled_date.isoformat() if self.scheduled_date else None,
+            "created_at": self.created_at.isoformat() if self.created_at else None,
+            "updated_at": self.updated_at.isoformat() if self.updated_at else None,
+            "vehicle": self.vehicle.to_dict() if self.vehicle else None,
+            "assigned_mechanic": self.assigned_mechanic.to_dict() if self.assigned_mechanic else None,
+            "opened_by": self.opened_by.to_dict() if self.opened_by else None,
         }
