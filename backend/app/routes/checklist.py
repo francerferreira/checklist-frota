@@ -17,7 +17,6 @@ from app.services.checklist_catalog import (
     normalize_item_name,
 )
 from app.services.activity_link_service import auto_link_non_conformities_to_open_activities
-from app.services.maintenance_service import sync_checklist_non_conformities
 from app.services.vehicle_type_service import resolve_vehicle_type_for_checklist
 from app.utils.responses import api_response
 
@@ -284,7 +283,6 @@ def create_checklist():
     db.session.commit()
     nc_items = ChecklistItem.query.filter_by(checklist_id=checklist.id, status="NC").all()
     if nc_items:
-        sync_checklist_non_conformities(nc_items)
         auto_link_non_conformities_to_open_activities(nc_items)
     return api_response(True, data=checklist.to_dict(include_items=True), status_code=201)
 

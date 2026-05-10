@@ -93,7 +93,6 @@ class MaintenanceScheduleCreateDialog(QDialog):
     def __init__(self, api_client, parent=None):
         super().__init__(parent)
         self.api_client = api_client
-        self.activities: list[dict] = []
         self.packages: list[dict] = []
         self.vehicles: list[dict] = []
         self.mechanics: list[dict] = []
@@ -239,7 +238,6 @@ class MaintenanceScheduleCreateDialog(QDialog):
         self._render_source_rows()
 
     def _load_sources(self):
-        self.activities = self.api_client.get_activities(status="ABERTA") or []
         self.packages = self.api_client.get_resolution_packages(status="ABERTO") or []
         self.vehicles = self.api_client.get_equipment(ativos=True) or []
         self.mechanics = self.api_client.get_mechanics() or []
@@ -275,29 +273,6 @@ class MaintenanceScheduleCreateDialog(QDialog):
                     row.get("reference_label") or "-",
                     row.get("priority_score") or 0,
                     resumo.get("abertas", 0),
-                ]
-                for column, value in enumerate(values):
-                    payload = row if column == 0 else None
-                    self.source_table.setItem(row_index, column, make_table_item(value, payload=payload))
-        elif source_type == "ATIVIDADE":
-            self.source_title.setText("Inspeções legadas ainda abertas")
-            self.source_table.setColumnCount(5)
-            self.source_table.setHorizontalHeaderLabels(["ID", "Atividade", "Módulo", "Tipo", "Abertas"])
-            rows = self.activities
-            self.source_table.setRowCount(len(rows))
-            for row_index, row in enumerate(rows):
-                item_rows = list(row.get("itens") or [])
-                pending = sum(
-                    1
-                    for item in item_rows
-                    if str(item.get("status_execucao") or "PENDENTE").upper() != "INSTALADO"
-                )
-                values = [
-                    row.get("id"),
-                    row.get("item_nome") or row.get("titulo") or "-",
-                    row.get("modulo") or "-",
-                    row.get("tipo") or "-",
-                    pending,
                 ]
                 for column, value in enumerate(values):
                     payload = row if column == 0 else None
@@ -359,12 +334,6 @@ class MaintenanceScheduleCreateDialog(QDialog):
             for row in selected:
                 resumo = row.get("resumo") or {}
                 selected_total += int(resumo.get("abertas") or resumo.get("total") or 0)
-        elif source_type == "ATIVIDADE":
-            for row in selected:
-                item_rows = list(row.get("itens") or [])
-                selected_total += sum(
-                    1 for item in item_rows if str(item.get("status_execucao") or "PENDENTE").upper() != "INSTALADO"
-                )
         else:
             selected_total = len(selected)
         payload: dict = {
@@ -377,8 +346,6 @@ class MaintenanceScheduleCreateDialog(QDialog):
         }
         if source_type == "PACOTE_RESOLUCAO":
             payload["package_ids"] = sorted({int(row.get("id")) for row in selected if row.get("id")})
-        elif source_type == "ATIVIDADE":
-            payload["activity_ids"] = sorted({int(row.get("id")) for row in selected if row.get("id")})
         else:
             payload["vehicle_ids"] = sorted({int(row.get("id")) for row in selected if row.get("id")})
         return payload
@@ -478,9 +445,6 @@ class MaintenanceScheduleCreateDialog(QDialog):
         if source_type == "PACOTE_RESOLUCAO":
             payload["package_ids"] = sorted({int(row.get("id")) for row in selected if row.get("id")})
             payload["item_name"] = "Pacotes de resolução selecionados"
-        elif source_type == "ATIVIDADE":
-            payload["activity_ids"] = sorted({int(row.get("id")) for row in selected if row.get("id")})
-            payload["item_name"] = "Atividades selecionadas"
         else:
             payload["vehicle_ids"] = sorted({int(row.get("id")) for row in selected if row.get("id")})
             payload["item_name"] = "Preventiva de frota"
@@ -551,10 +515,6 @@ class MaintenancePage(QFrame):
         self.new_schedule_button.setMinimumHeight(34)
         self.new_schedule_button.clicked.connect(self.create_schedule)
 
-        self.sync_nc_button = QPushButton("NC via Central")
-        self.sync_nc_button.setMinimumHeight(34)
-        self.sync_nc_button.clicked.connect(self.sync_non_conformities)
-
         refresh_button = QPushButton("Atualizar")
         refresh_button.setProperty("variant", "success")
         refresh_button.setMinimumHeight(34)
@@ -562,7 +522,6 @@ class MaintenancePage(QFrame):
 
         header.addLayout(text_wrap, 1)
         header.addWidget(self.new_schedule_button)
-        header.addWidget(self.sync_nc_button)
         header.addWidget(refresh_button)
 
         cards_layout = QGridLayout()
@@ -590,9 +549,9 @@ class MaintenancePage(QFrame):
 
         self.source_filter = QComboBox()
         self.source_filter.addItem("Todas as origens", "ALL")
-        self.source_filter.addItem("Não conformidade", "CHECKLIST_NC")
+        self.source_filter.addItem("Não conformidade legada", "CHECKLIST_NC")
         self.source_filter.addItem("Pacote de resolução", "PACOTE_RESOLUCAO")
-        self.source_filter.addItem("Atividade", "ATIVIDADE")
+        self.source_filter.addItem("Inspeção legada", "ATIVIDADE")
         self.source_filter.addItem("Preventiva", "PREVENTIVA")
 
         self.status_filter = QComboBox()
@@ -1303,14 +1262,6 @@ class MaintenancePage(QFrame):
         finally:
             button.setEnabled(True)
             button.setText("Nova programação")
-
-    def sync_non_conformities(self):
-        show_notice(
-            self,
-            "Fluxo migrado",
-            "Abertura direta por NC foi desativada. Agora o caminho correto é: Central de Resolução -> criar pacote -> enviar para Manutenção.",
-            icon_name="warning",
-        )
 
     def redistribute_selected_schedule(self):
         schedule = self._selected_schedule()

@@ -188,9 +188,6 @@ class APIClient:
     def get_maintenance_schedules(self):
         return self._request("GET", "/manutencao/programacoes")
 
-    def sync_maintenance_from_non_conformities(self):
-        return self._request("POST", "/manutencao/programacoes/sincronizar-nc", json={})
-
     def create_maintenance_schedule(self, payload: dict):
         return self._request("POST", "/manutencao/programacoes", json=payload)
 

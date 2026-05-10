@@ -677,7 +677,7 @@ function renderHome() {
             <strong>${state.vehicles.length} ATIVOS</strong>
         </div>
         <div>
-            <span>ATIVIDADES</span>
+            <span>INSPEÇÕES</span>
             <strong>${openActivitiesCount} ABERTAS</strong>
         </div>
         <div>
@@ -906,8 +906,8 @@ async function openActivitiesMenu() {
     setActiveScreen("activities");
     elements.activityCounter.textContent = "CARREGANDO...";
     renderStateCard(elements.activitiesList, {
-        title: "CARREGANDO ATIVIDADES",
-        message: "Buscando as atividades em aberto para execução em campo.",
+        title: "CARREGANDO INSPEÇÕES",
+        message: "Buscando as inspeções em aberto para conferência em campo.",
         tone: "loading",
     });
     try {
@@ -917,7 +917,7 @@ async function openActivitiesMenu() {
     } catch (error) {
         elements.activityCounter.textContent = "FALHA";
         renderStateCard(elements.activitiesList, {
-            title: "NÃO FOI POSSÍVEL CARREGAR AS ATIVIDADES",
+            title: "NÃO FOI POSSÍVEL CARREGAR AS INSPEÇÕES",
             message: error.message || "Verifique a conexão e tente novamente.",
             tone: "error",
         });
