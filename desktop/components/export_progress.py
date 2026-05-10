@@ -28,7 +28,7 @@ EXPORT_TEXT_PRESETS = {
         "failure_title": "Falha na exportação",
     },
     "activity_pdf": {
-        "dialog_title": "Exportando PDF da atividade",
+        "dialog_title": "Exportando PDF da inspeção",
     },
     "materials_pdf": {
         "dialog_title": "Exportando PDF de estoque",

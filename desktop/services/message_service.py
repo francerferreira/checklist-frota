@@ -396,17 +396,17 @@ def build_activity_message_package(activity: dict, generated_by: str = "") -> Me
         leader = "-"
 
     summary_items = [
-        ("Atividade", activity.get("titulo") or "-"),
+        ("Inspeção", activity.get("titulo") or "-"),
         ("Período", period_label),
         ("Total", str(total)),
-        ("Instalados", str(installed)),
-        ("Não instalados", str(not_installed)),
+        ("Conformes", str(installed)),
+        ("Não conformes", str(not_installed)),
         ("Pendentes", str(pending)),
     ]
 
     whatsapp_lines = [
-        "**RELATÓRIO EXECUTIVO - ATIVIDADE EM MASSA**",
-        f"_Atividade: {activity.get('titulo') or '-'}_",
+        "**RELATÓRIO EXECUTIVO - INSPEÇÃO EM MASSA**",
+        f"_Inspeção: {activity.get('titulo') or '-'}_",
         f"_Período: {period_label}_",
     ]
     if generated_by:
@@ -416,8 +416,8 @@ def build_activity_message_package(activity: dict, generated_by: str = "") -> Me
             "",
             "**Resumo geral**",
             f"- Equipamentos auditados: {total}",
-            f"- Instalados: {installed}",
-            f"- Não instalados: {not_installed}",
+            f"- Conformes: {installed}",
+            f"- Não conformes: {not_installed}",
             f"- Pendentes: {pending}",
             f"- Prioridade executiva: {priority['label']}",
             "",
@@ -434,8 +434,8 @@ def build_activity_message_package(activity: dict, generated_by: str = "") -> Me
     )
 
     email_lines = [
-        "RELATÓRIO EXECUTIVO - ATIVIDADE EM MASSA",
-        f"Atividade: {activity.get('titulo') or '-'}",
+        "RELATÓRIO EXECUTIVO - INSPEÇÃO EM MASSA",
+        f"Inspeção: {activity.get('titulo') or '-'}",
         f"Período: {period_label}",
     ]
     if generated_by:
@@ -445,8 +445,8 @@ def build_activity_message_package(activity: dict, generated_by: str = "") -> Me
             "",
             "Resumo geral:",
             f"- Equipamentos auditados: {total}",
-            f"- Instalados: {installed}",
-            f"- Não instalados: {not_installed}",
+            f"- Conformes: {installed}",
+            f"- Não conformes: {not_installed}",
             f"- Pendentes: {pending}",
             f"- Prioridade executiva: {priority['label']}",
             "",
@@ -463,8 +463,8 @@ def build_activity_message_package(activity: dict, generated_by: str = "") -> Me
     )
 
     return MessagePackage(
-        title="Mensagem executiva - Atividade em massa",
-        email_subject=f"Atividade em massa - {activity.get('titulo') or '-'} | {period_label}",
+        title="Mensagem executiva - Inspeção em massa",
+        email_subject=f"Inspeção em massa - {activity.get('titulo') or '-'} | {period_label}",
         whatsapp_text="\n".join(whatsapp_lines).strip(),
         email_body="\n".join(email_lines).strip(),
         summary_items=summary_items,
@@ -503,8 +503,8 @@ def _activity_lines(items: list[dict]) -> list[str]:
 
 def _activity_status_label(value: str | None) -> str:
     return {
-        "INSTALADO": "Instalado",
-        "NAO_INSTALADO": "Não instalado",
+        "INSTALADO": "Conforme",
+        "NAO_INSTALADO": "Não conforme",
         "PENDENTE": "Pendente",
     }.get(value or "", value or "-")
 
@@ -576,15 +576,15 @@ def _activity_conclusion(
 ) -> str:
     if priority_label == "Alta prioridade":
         return (
-            f"Concluir a atividade {item_name} com prioridade em {leader}. "
-            f"Há {not_installed} itens não instalados e {pending} pendentes em um total de {total} equipamentos."
+            f"Concluir a inspeção {item_name} com prioridade em {leader}. "
+            f"Há {not_installed} itens não conformes e {pending} pendentes em um total de {total} equipamentos."
         )
     if priority_label == "Prioridade moderada":
         return (
-            f"Atividade {item_name} em acompanhamento. "
-            f"Já foram instalados {installed} equipamentos, mas ainda existem itens pendentes para fechamento."
+            f"Inspeção {item_name} em acompanhamento. "
+            f"Já foram conferidos {installed} equipamentos como conformes, mas ainda existem itens pendentes para fechamento."
         )
-    return f"Atividade {item_name} em situação controlada, com {installed} equipamentos instalados e acompanhamento normal."
+    return f"Inspeção {item_name} em situação controlada, com {installed} equipamentos conformes e acompanhamento normal."
 
 
 def _numbered_lines(rows: list[dict], label_key: str, value_key: str, suffix: str) -> list[str]:
@@ -621,4 +621,3 @@ def _as_int(value) -> int:
         return int(value or 0)
     except (TypeError, ValueError):
         return 0
-

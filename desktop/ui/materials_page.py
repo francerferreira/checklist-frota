@@ -661,7 +661,7 @@ class MaterialsPage(QFrame):
         text_wrap = QVBoxLayout()
         title = QLabel("Controle de material")
         title.setObjectName("PageTitle")
-        subtitle = QLabel("Cadastre materiais, acompanhe estoque mínimo e ajuste saldo para suportar atividades e manutenções.")
+        subtitle = QLabel("Cadastre materiais, acompanhe estoque mínimo e ajuste saldo para suportar inspeções e manutenções.")
         subtitle.setObjectName("SectionCaption")
         subtitle.setWordWrap(True)
         text_wrap.addWidget(title)

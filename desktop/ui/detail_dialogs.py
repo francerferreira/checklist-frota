@@ -278,7 +278,7 @@ class VehicleDetailDialog(QDialog):
 
         table_title = QLabel("Histórico operacional")
         table_title.setObjectName("SectionTitle")
-        table_caption = QLabel("Não conformidades, manutenções, atividades e lavagens associadas a este equipamento.")
+        table_caption = QLabel("Não conformidades, manutenções, inspeções e lavagens associadas a este equipamento.")
         table_caption.setObjectName("SectionCaption")
 
         self.table = QTableWidget(0, 5)
@@ -347,8 +347,8 @@ class VehicleDetailDialog(QDialog):
             rows.append(
                 {
                     "date": item.get("instalado_em") or item.get("updated_at"),
-                    "origin": "Atividade",
-                    "item": activity.get("item_nome") or activity.get("titulo") or f"Atividade #{item.get('activity_id') or '-'}",
+                    "origin": "Inspeção",
+                    "item": activity.get("item_nome") or activity.get("titulo") or f"Inspeção #{item.get('activity_id') or '-'}",
                     "status": str(item.get("status_execucao") or "-").replace("_", " "),
                     "owner": item.get("executado_por_nome") or "-",
                     "occurrence": None,

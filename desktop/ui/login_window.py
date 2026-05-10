@@ -252,7 +252,7 @@ class LoginWindow(QDialog):
         title.setObjectName("HeroTitle")
 
         subtitle = QLabel(
-            "Controle de manutenção, auditoria operacional, estoque e atividades em massa com visual executivo."
+            "Controle de manutenção, auditoria operacional, estoque e inspeções em massa com visual executivo."
         )
         subtitle.setObjectName("HeroSubtitle")
         subtitle.setWordWrap(True)
@@ -262,7 +262,7 @@ class LoginWindow(QDialog):
         points.setSpacing(10)
         for text in (
             "Gestão integrada de equipamentos, materiais e evidências",
-            "Acompanhamento de não conformidades e atividades por lote",
+            "Acompanhamento de não conformidades e inspeções por lote",
             "Relatórios executivos em PDF, Excel e CSV",
         ):
             point = QLabel(f"• {text}")

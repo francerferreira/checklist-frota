@@ -124,27 +124,27 @@ class DashboardPage(QFrame):
             conversion_layout.setColumnStretch(column, 1)
 
         self.converted_nc_card = StatCard(
-            "NC convertidas em atividade",
+            "NC convertidas em inspeção",
             "0",
             "Ocorrências com tratativa formal iniciada",
             icon_name="activities",
         )
         self.unlinked_nc_card = StatCard(
-            "NC sem atividade",
+            "NC sem inspeção",
             "0",
-            "Ocorrências sem abertura no módulo de atividades",
+            "Ocorrências sem abertura no módulo de inspeções",
             icon_name="warning",
         )
         self.nc_to_activity_time_card = StatCard(
-            "Tempo médio NC -> atividade",
+            "Tempo médio NC -> inspeção",
             "-",
             "Velocidade média para iniciar tratativa",
             icon_name="dashboard",
         )
         self.activity_to_resolution_time_card = StatCard(
-            "Tempo médio atividade -> resolução",
+            "Tempo médio inspeção -> resolução",
             "-",
-            "Tempo médio da atividade até a finalização",
+            "Tempo médio da inspeção até a finalização",
             icon_name="reports",
         )
         conversion_layout.addWidget(self.converted_nc_card, 0, 0)
@@ -220,24 +220,24 @@ class DashboardPage(QFrame):
             "Ativos impactados por n\u00e3o conformidades",
         )
         self.converted_nc_card.set_content(
-            "NC convertidas em atividade",
+            "NC convertidas em inspeção",
             str(dashboard.get("nc_convertidas_em_atividade", 0)),
             "Ocorrências com tratativa formal iniciada",
         )
         self.unlinked_nc_card.set_content(
-            "NC sem atividade",
+            "NC sem inspeção",
             str(dashboard.get("nc_sem_atividade", 0)),
-            "Ocorrências sem abertura no módulo de atividades",
+            "Ocorrências sem abertura no módulo de inspeções",
         )
         self.nc_to_activity_time_card.set_content(
-            "Tempo médio NC -> atividade",
+            "Tempo médio NC -> inspeção",
             _format_minutes(dashboard.get("tempo_medio_nc_para_atividade_minutos")),
             "Velocidade média para iniciar tratativa",
         )
         self.activity_to_resolution_time_card.set_content(
-            "Tempo médio atividade -> resolução",
+            "Tempo médio inspeção -> resolução",
             _format_minutes(dashboard.get("tempo_medio_atividade_para_resolucao_minutos")),
-            "Tempo médio da atividade até a finalização",
+            "Tempo médio da inspeção até a finalização",
         )
 
         critical_items = dashboard.get("itens_criticos", [])

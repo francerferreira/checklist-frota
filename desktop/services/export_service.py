@@ -974,7 +974,7 @@ def export_activity_pdf(
     itens = activity.get("itens", [])
     item_images = item_images or {}
 
-    title = activity.get("titulo") or "Atividade em massa"
+    title = activity.get("titulo") or "Inspeção em massa"
     subtitle = f"{activity.get('item_nome') or '-'} • {(activity.get('tipo_equipamento') or '-').title()}"
 
     story = _build_cover_page(title, subtitle, generated_by, logo_path, styles, landscape_mode=False)
@@ -983,15 +983,15 @@ def export_activity_pdf(
         _build_summary_cards(
             [
                 ("Equipamentos", str(resumo.get("total", len(itens)))),
-                ("Instalados", str(resumo.get("instalados", 0))),
-                ("Não instalados", str(resumo.get("nao_instalados", 0))),
+                ("Conformes", str(resumo.get("instalados", 0))),
+                ("Não conformes", str(resumo.get("nao_instalados", 0))),
                 ("Pendentes", str(resumo.get("pendentes", 0))),
             ],
             styles,
         )
     )
     story.append(Spacer(1, 8))
-    story.append(Paragraph("Resumo da atividade", styles["section"]))
+    story.append(Paragraph("Resumo da inspeção", styles["section"]))
     story.append(Spacer(1, 4))
     story.append(
         _key_value_table(
@@ -1019,8 +1019,8 @@ def export_activity_pdf(
         ("Modelo", "modelo"),
         ("Material", "material"),
         ("Qtd", "quantidade_peca"),
-        ("Status da atividade", "status"),
-        ("Instalado em", "instalado_em"),
+        ("Status da inspeção", "status"),
+        ("Conferido em", "instalado_em"),
         ("Executado por", "executado_por"),
     ]
     summary_rows = []
@@ -1111,7 +1111,7 @@ def export_activity_pdf(
                     ["Qtd. peça", str(item.get("quantidade_peca") or activity.get("quantidade_por_equipamento") or 1)],
                     ["Código da peça", item.get("codigo_peca") or activity.get("codigo_peca") or "-"],
                     ["Descrição da peça", item.get("descricao_peca") or activity.get("descricao_peca") or "-"],
-                    ["Status da atividade", status_text],
+                    ["Status da inspeção", status_text],
                     ["Executado em", _format_datetime(item.get("instalado_em"))],
                     ["Executado por", item.get("executado_por_nome") or "-"],
                     ["Login do executor", item.get("executado_por_login") or "-"],
