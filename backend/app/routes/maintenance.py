@@ -18,6 +18,7 @@ from app.services.maintenance_service import (
     mechanic_items_for_user,
     program_maintenance_schedule,
     reprogram_schedule_item,
+    suggest_mechanic_for_payload,
     sync_checklist_non_conformities,
     update_schedule_item,
 )
@@ -122,6 +123,18 @@ def create_maintenance_schedule_route():
     except ValueError as exc:
         return api_response(False, error=str(exc), status_code=400)
     return api_response(True, data=schedule.to_dict(include_items=True, include_materials=True), status_code=201)
+
+
+@bp.post("/manutencao/sugestao-responsavel")
+@auth_required
+def suggest_maintenance_mechanic_route():
+    denied = _guard_management_access()
+    if denied:
+        return denied
+
+    payload = request.get_json(silent=True) or {}
+    suggestion = suggest_mechanic_for_payload(payload)
+    return api_response(True, data=suggestion)
 
 
 @bp.post("/manutencao/programacoes/sincronizar-nc")

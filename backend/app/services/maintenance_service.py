@@ -71,6 +71,10 @@ def _normalize_daily_capacity(value, *, default: int = 1) -> int:
     return capacity
 
 
+def _normalize_item_key_from_text(value: str | None) -> str:
+    return (_clean(value) or "").strip().upper()
+
+
 def _month_label(year: int, month: int) -> str:
     labels = [
         "janeiro",
@@ -96,6 +100,128 @@ def _schedule_source_origin_type(schedule: MaintenanceSchedule | None) -> str:
     if source_key.startswith(PACKAGE_SOURCE_PREFIX):
         return "PACOTE_RESOLUCAO"
     return str(schedule.source_type or "-").upper()
+
+
+def _effective_item_name_for_history(item: MaintenanceScheduleItem) -> str:
+    if item.checklist_item:
+        return _normalize_item_key_from_text(item.checklist_item.item_principal or item.checklist_item.item_nome)
+    if item.activity:
+        return _normalize_item_key_from_text(item.activity.item_nome or item.activity.titulo)
+    if item.schedule:
+        return _normalize_item_key_from_text(item.schedule.item_name or item.schedule.title)
+    return ""
+
+
+def _extract_suggestion_targets(payload: dict) -> tuple[set[str], set[int]]:
+    source_type = _normalize_type(payload.get("source_type") or payload.get("tipo") or payload.get("origem"))
+    item_names: set[str] = set()
+    vehicle_ids: set[int] = set()
+
+    package_ids = [int(value) for value in payload.get("package_ids") or []]
+    activity_ids = [int(value) for value in payload.get("activity_ids") or []]
+    checklist_item_ids = [int(value) for value in payload.get("checklist_item_ids") or []]
+    payload_vehicle_ids = [int(value) for value in payload.get("vehicle_ids") or []]
+
+    if source_type == "PACOTE_RESOLUCAO" and package_ids:
+        packages = ResolutionPackage.query.filter(ResolutionPackage.id.in_(package_ids)).all()
+        for package in packages:
+            if package.item_name:
+                item_names.add(_normalize_item_key_from_text(package.item_name))
+            for link in package.links:
+                checklist_item = link.checklist_item
+                if not checklist_item:
+                    continue
+                item_names.add(_normalize_item_key_from_text(checklist_item.item_principal or checklist_item.item_nome))
+                if checklist_item.checklist and checklist_item.checklist.vehicle_id:
+                    vehicle_ids.add(int(checklist_item.checklist.vehicle_id))
+    elif source_type == "ATIVIDADE" and activity_ids:
+        activities = Activity.query.filter(Activity.id.in_(activity_ids)).all()
+        for activity in activities:
+            item_names.add(_normalize_item_key_from_text(activity.item_nome or activity.titulo))
+            for activity_item in activity.items:
+                if activity_item.vehicle_id:
+                    vehicle_ids.add(int(activity_item.vehicle_id))
+    elif checklist_item_ids:
+        checklist_items = ChecklistItem.query.filter(ChecklistItem.id.in_(checklist_item_ids)).all()
+        for checklist_item in checklist_items:
+            item_names.add(_normalize_item_key_from_text(checklist_item.item_principal or checklist_item.item_nome))
+            if checklist_item.checklist and checklist_item.checklist.vehicle_id:
+                vehicle_ids.add(int(checklist_item.checklist.vehicle_id))
+    else:
+        for vehicle_id in payload_vehicle_ids:
+            vehicle_ids.add(int(vehicle_id))
+        fallback_item = _normalize_item_key_from_text(payload.get("item_name") or payload.get("item_nome"))
+        if fallback_item:
+            item_names.add(fallback_item)
+
+    item_names.discard("")
+    return item_names, vehicle_ids
+
+
+def suggest_mechanic_for_payload(payload: dict) -> dict | None:
+    target_item_names, target_vehicle_ids = _extract_suggestion_targets(payload)
+    history_rows = MaintenanceScheduleItem.query.order_by(
+        MaintenanceScheduleItem.executed_at.desc().nullslast(),
+        MaintenanceScheduleItem.updated_at.desc(),
+    ).all()
+
+    scores: dict[int, dict] = {}
+    for row in history_rows:
+        mechanic = row.assigned_mechanic or (row.schedule.assigned_mechanic if row.schedule else None)
+        mechanic_id = row.assigned_mechanic_user_id or (row.schedule.assigned_mechanic_user_id if row.schedule else None)
+        if not mechanic_id or not mechanic:
+            continue
+
+        score = 0
+        row_item_name = _effective_item_name_for_history(row)
+        if row_item_name and row_item_name in target_item_names:
+            score += 5
+        if row.vehicle_id and int(row.vehicle_id) in target_vehicle_ids:
+            score += 2
+        if row.status == "INSTALADO":
+            score += 1
+        if score <= 0:
+            continue
+
+        entry = scores.setdefault(
+            int(mechanic_id),
+            {
+                "user_id": int(mechanic_id),
+                "user": mechanic.to_dict(),
+                "score": 0,
+                "item_matches": 0,
+                "vehicle_matches": 0,
+                "resolved_matches": 0,
+            },
+        )
+        entry["score"] += score
+        if row_item_name and row_item_name in target_item_names:
+            entry["item_matches"] += 1
+        if row.vehicle_id and int(row.vehicle_id) in target_vehicle_ids:
+            entry["vehicle_matches"] += 1
+        if row.status == "INSTALADO":
+            entry["resolved_matches"] += 1
+
+    if not scores:
+        return None
+
+    best = max(
+        scores.values(),
+        key=lambda row: (row["score"], row["item_matches"], row["resolved_matches"], row["vehicle_matches"], -row["user_id"]),
+    )
+    reason_parts: list[str] = []
+    if best["item_matches"]:
+        reason_parts.append(f"{best['item_matches']} histórico(s) com item parecido")
+    if best["vehicle_matches"]:
+        reason_parts.append(f"{best['vehicle_matches']} histórico(s) com equipamento parecido")
+    if best["resolved_matches"]:
+        reason_parts.append(f"{best['resolved_matches']} conclusão(ões) já executadas")
+    return {
+        "user_id": best["user_id"],
+        "user": best["user"],
+        "score": best["score"],
+        "reason": " | ".join(reason_parts) if reason_parts else "Histórico parecido encontrado",
+    }
 
 
 def _group_key_for_nc(item: ChecklistItem) -> str:

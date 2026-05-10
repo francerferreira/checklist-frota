@@ -96,7 +96,9 @@ class MaintenanceScheduleCreateDialog(QDialog):
         self.activities: list[dict] = []
         self.packages: list[dict] = []
         self.vehicles: list[dict] = []
+        self.mechanics: list[dict] = []
         self.result_payload: dict | None = None
+        self.suggested_mechanic_user_id: int | None = None
 
         self.setWindowTitle("Nova programação de manutenção")
         configure_dialog_window(self, width=1060, height=760, min_width=900, min_height=640)
@@ -150,6 +152,11 @@ class MaintenanceScheduleCreateDialog(QDialog):
 
         self.selection_badge = QLabel("0 selecionados | estimativa 0 dia(s)")
         self.selection_badge.setObjectName("TopBarPill")
+        self.suggestion_badge = QLabel("Sugestão de responsável: selecione registros para o sistema analisar o histórico.")
+        self.suggestion_badge.setObjectName("TopBarPill")
+
+        self.mechanic_combo = QComboBox()
+        self.mechanic_combo.setMinimumHeight(34)
 
         form.addWidget(QLabel("Origem"), 0, 0)
         form.addWidget(self.source_combo, 1, 0)
@@ -159,9 +166,12 @@ class MaintenanceScheduleCreateDialog(QDialog):
         form.addWidget(self.start_date_input, 1, 2)
         form.addWidget(QLabel("Capacidade diária"), 0, 3)
         form.addWidget(self.daily_capacity_input, 1, 3)
-        form.addWidget(QLabel("Observação"), 2, 0, 1, 4)
-        form.addWidget(self.observation_input, 3, 0, 1, 4)
-        form.addWidget(self.selection_badge, 4, 0, 1, 4)
+        form.addWidget(QLabel("Responsável sugerido"), 2, 0)
+        form.addWidget(self.mechanic_combo, 3, 0, 1, 2)
+        form.addWidget(self.suggestion_badge, 3, 2, 1, 2)
+        form.addWidget(QLabel("Observação"), 4, 0, 1, 4)
+        form.addWidget(self.observation_input, 5, 0, 1, 4)
+        form.addWidget(self.selection_badge, 6, 0, 1, 4)
 
         table_card = QFrame()
         style_table_card(table_card)
@@ -212,12 +222,28 @@ class MaintenanceScheduleCreateDialog(QDialog):
         layout.addWidget(footer)
 
         self._load_sources()
+        self._populate_mechanic_combo()
         self._render_source_rows()
 
     def _load_sources(self):
         self.activities = self.api_client.get_activities(status="ABERTA") or []
         self.packages = self.api_client.get_resolution_packages(status="ABERTO") or []
         self.vehicles = self.api_client.get_equipment(ativos=True) or []
+        self.mechanics = self.api_client.get_mechanics() or []
+
+    def _populate_mechanic_combo(self):
+        current_value = self.mechanic_combo.currentData()
+        self.mechanic_combo.blockSignals(True)
+        try:
+            self.mechanic_combo.clear()
+            self.mechanic_combo.addItem("Sem responsável fixo", None)
+            for mechanic in sorted(self.mechanics, key=lambda row: (row.get("nome") or row.get("login") or "").upper()):
+                name = mechanic.get("nome") or mechanic.get("login") or f"Mecânico {mechanic.get('id')}"
+                self.mechanic_combo.addItem(name, int(mechanic.get("id")))
+            index = self.mechanic_combo.findData(current_value)
+            self.mechanic_combo.setCurrentIndex(index if index >= 0 else 0)
+        finally:
+            self.mechanic_combo.blockSignals(False)
 
     def _render_source_rows(self):
         source_type = self.source_combo.currentData()
@@ -283,6 +309,7 @@ class MaintenanceScheduleCreateDialog(QDialog):
 
         self._clear_selection()
         self._update_selection_summary()
+        self._apply_mechanic_suggestion()
 
     def _selected_payloads(self) -> list[dict]:
         model = self.source_table.selectionModel()
@@ -310,6 +337,45 @@ class MaintenanceScheduleCreateDialog(QDialog):
         capacity = max(1, int(self.daily_capacity_input.value()))
         days = ceil(total / capacity) if total else 0
         self.selection_badge.setText(f"{total} selecionados | estimativa {days} dia(s)")
+        self._apply_mechanic_suggestion()
+
+    def _suggestion_payload(self) -> dict:
+        source_type = self.source_combo.currentData()
+        selected = self._selected_payloads()
+        payload: dict = {
+            "source_type": source_type,
+            "item_name": (self.title_input.text() or "").strip(),
+        }
+        if source_type == "PACOTE_RESOLUCAO":
+            payload["package_ids"] = sorted({int(row.get("id")) for row in selected if row.get("id")})
+        elif source_type == "ATIVIDADE":
+            payload["activity_ids"] = sorted({int(row.get("id")) for row in selected if row.get("id")})
+        else:
+            payload["vehicle_ids"] = sorted({int(row.get("id")) for row in selected if row.get("id")})
+        return payload
+
+    def _apply_mechanic_suggestion(self):
+        selected = self._selected_payloads()
+        if not selected:
+            self.suggested_mechanic_user_id = None
+            self.suggestion_badge.setText("Sugestão de responsável: selecione registros para o sistema analisar o histórico.")
+            return
+        try:
+            suggestion = self.api_client.get_maintenance_mechanic_suggestion(self._suggestion_payload())
+        except Exception:
+            suggestion = None
+        if not suggestion:
+            self.suggested_mechanic_user_id = None
+            self.suggestion_badge.setText("Sugestão de responsável: sem histórico suficiente. Você ainda pode definir manualmente.")
+            return
+        user = suggestion.get("user") or {}
+        self.suggested_mechanic_user_id = suggestion.get("user_id")
+        index = self.mechanic_combo.findData(self.suggested_mechanic_user_id)
+        if index >= 0:
+            self.mechanic_combo.setCurrentIndex(index)
+        mechanic_name = user.get("nome") or user.get("login") or f"Mecânico {self.suggested_mechanic_user_id}"
+        reason = suggestion.get("reason") or "Histórico parecido encontrado"
+        self.suggestion_badge.setText(f"Sugestão de responsável: {mechanic_name} | {reason}")
 
     def _submit(self):
         source_type = self.source_combo.currentData()
@@ -329,6 +395,7 @@ class MaintenanceScheduleCreateDialog(QDialog):
             "start_date": start_date,
             "daily_capacity": daily_capacity,
             "observation": observation,
+            "assigned_mechanic_user_id": self.mechanic_combo.currentData(),
         }
         if source_type == "PACOTE_RESOLUCAO":
             payload["package_ids"] = sorted({int(row.get("id")) for row in selected if row.get("id")})
