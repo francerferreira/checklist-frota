@@ -267,15 +267,18 @@ def build_material_message_package(report: dict, period_label: str, generated_by
     below_stock = report.get("baixo_estoque", [])
     consumption = report.get("consumo_periodo", [])
     ranking = report.get("ranking_uso", [])
+    reserve_alerts = report.get("alertas_reserva_consumo", [])
 
     total_materials = _as_int(resumo.get("total_materiais"))
     below_minimum = _as_int(resumo.get("abaixo_minimo"))
     saldo_total = _as_int(resumo.get("saldo_total"))
+    reserve_total = _as_int(resumo.get("reservas_ativas"))
     consumption_total = _as_int(resumo.get("consumo_total_periodo"))
+    reserve_alert_total = _as_int(resumo.get("alertas_reserva_consumo"))
     priority = overall_executive_status(
-        [{"total_nc": below_minimum, "abertas": below_minimum}],
-        below_minimum,
-        below_minimum,
+        [{"total_nc": below_minimum + reserve_alert_total, "abertas": below_minimum + reserve_alert_total}],
+        below_minimum + reserve_alert_total,
+        below_minimum + reserve_alert_total,
     )
     leader = ranking[0]["descricao"] if ranking else "-"
 
@@ -284,7 +287,9 @@ def build_material_message_package(report: dict, period_label: str, generated_by
         ("Materiais", str(total_materials)),
         ("Abaixo do mínimo", str(below_minimum)),
         ("Saldo total", str(saldo_total)),
+        ("Reservas ativas", str(reserve_total)),
         ("Consumo no período", str(consumption_total)),
+        ("Alertas reserva x consumo", str(reserve_alert_total)),
         ("Prioridade", priority["label"]),
     ]
 
@@ -301,7 +306,9 @@ def build_material_message_package(report: dict, period_label: str, generated_by
             f"- Materiais cadastrados: {total_materials}",
             f"- Materiais abaixo do mínimo: {below_minimum}",
             f"- Saldo total em estoque: {saldo_total}",
+            f"- Reservas ativas: {reserve_total}",
             f"- Consumo no período: {consumption_total}",
+            f"- Alertas reserva x consumo: {reserve_alert_total}",
             f"- Prioridade executiva: {priority['label']}",
             "",
             "**Ranking dos mais usados**",
@@ -311,6 +318,9 @@ def build_material_message_package(report: dict, period_label: str, generated_by
     if below_stock:
         whatsapp_lines.extend(["", "**Materiais abaixo do mínimo**"])
         whatsapp_lines.extend(_numbered_lines(below_stock[:5], "descricao", "deficit", "unidades em déficit"))
+    if reserve_alerts:
+        whatsapp_lines.extend(["", "**Alertas de reserva alta e consumo baixo**"])
+        whatsapp_lines.extend(_numbered_lines(reserve_alerts[:5], "descricao", "reservado_total", "unidades reservadas"))
     whatsapp_lines.extend(
         [
             "",
@@ -332,7 +342,9 @@ def build_material_message_package(report: dict, period_label: str, generated_by
             f"- Materiais cadastrados: {total_materials}",
             f"- Materiais abaixo do mínimo: {below_minimum}",
             f"- Saldo total em estoque: {saldo_total}",
+            f"- Reservas ativas: {reserve_total}",
             f"- Consumo no período: {consumption_total}",
+            f"- Alertas reserva x consumo: {reserve_alert_total}",
             f"- Prioridade executiva: {priority['label']}",
             "",
             "Ranking dos mais usados:",
@@ -342,6 +354,9 @@ def build_material_message_package(report: dict, period_label: str, generated_by
     if below_stock:
         email_lines.extend(["", "Materiais abaixo do mínimo:"])
         email_lines.extend(_numbered_lines(below_stock[:5], "descricao", "deficit", "unidades em déficit"))
+    if reserve_alerts:
+        email_lines.extend(["", "Alertas de reserva alta e consumo baixo:"])
+        email_lines.extend(_numbered_lines(reserve_alerts[:5], "descricao", "reservado_total", "unidades reservadas"))
     email_lines.extend(
         [
             "",
@@ -606,5 +621,4 @@ def _as_int(value) -> int:
         return int(value or 0)
     except (TypeError, ValueError):
         return 0
-
 

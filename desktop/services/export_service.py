@@ -1187,7 +1187,10 @@ def export_material_report_xlsx(
         ("Total de materiais", resumo.get("total_materiais", 0)),
         ("Abaixo do mínimo", resumo.get("abaixo_minimo", 0)),
         ("Saldo total", resumo.get("saldo_total", 0)),
+        ("Entradas no período", resumo.get("entradas_total_periodo", 0)),
         ("Consumo total no período", resumo.get("consumo_total_periodo", 0)),
+        ("Reservas ativas", resumo.get("reservas_ativas", 0)),
+        ("Alertas reserva x consumo", resumo.get("alertas_reserva_consumo", 0)),
     ]
     for row_index, (label, value) in enumerate(summary_rows, start=3):
         summary_sheet.cell(row=row_index, column=1, value=label)
@@ -1218,9 +1221,56 @@ def export_material_report_xlsx(
         report.get("consumo_periodo", []),
     )
     fill_sheet(
+        "Entradas",
+        [("Referência", "referencia"), ("Descrição", "descricao"), ("Entradas", "total"), ("Último movimento", "ultimo_movimento")],
+        report.get("entrada_periodo", []),
+    )
+    fill_sheet(
+        "Saidas",
+        [("Referência", "referencia"), ("Descrição", "descricao"), ("Saídas", "total"), ("Último movimento", "ultimo_movimento")],
+        report.get("saida_periodo", report.get("consumo_periodo", [])),
+    )
+    fill_sheet(
+        "Reservas",
+        [
+            ("Referência", "referencia"),
+            ("Descrição", "descricao"),
+            ("Família", "familia_veiculo"),
+            ("Reservado", "reservado_total"),
+            ("Necessário", "necessario_total"),
+            ("Programações", "programacoes"),
+            ("OS", "ordens_servico"),
+            ("Pacotes", "pacotes"),
+        ],
+        report.get("reservas_atuais", []),
+    )
+    fill_sheet(
+        "Alertas",
+        [
+            ("Referência", "referencia"),
+            ("Descrição", "descricao"),
+            ("Reservado", "reservado_total"),
+            ("Consumo", "consumo_total"),
+            ("Programações", "programacoes"),
+            ("Bloqueios", "materiais_bloqueados"),
+            ("Leitura", "leitura"),
+        ],
+        report.get("alertas_reserva_consumo", []),
+    )
+    fill_sheet(
+        "Linha do Tempo",
+        [
+            ("Data", "data"),
+            ("Entradas", "entradas"),
+            ("Saídas", "saidas"),
+            ("Reservas", "reservas"),
+        ],
+        report.get("grafico_temporal", []),
+    )
+    fill_sheet(
         "Ranking Top 5",
-        [("Referência", "referencia"), ("Descrição", "descricao"), ("Consumo", "consumo_total"), ("Último consumo", "ultimo_consumo")],
-        report.get("ranking_uso", []),
+        [("Referência", "referencia"), ("Descrição", "descricao"), ("Saídas", "total"), ("Último movimento", "ultimo_movimento")],
+        report.get("ranking_saida", report.get("ranking_uso", [])),
     )
 
     workbook.save(path)
@@ -1260,7 +1310,10 @@ def export_material_report_pdf(
                 ("Total de materiais", str(resumo.get("total_materiais", 0))),
                 ("Abaixo do mínimo", str(resumo.get("abaixo_minimo", 0))),
                 ("Saldo total", str(resumo.get("saldo_total", 0))),
+                ("Entradas no período", str(resumo.get("entradas_total_periodo", 0))),
                 ("Consumo no período", str(resumo.get("consumo_total_periodo", 0))),
+                ("Reservas ativas", str(resumo.get("reservas_ativas", 0))),
+                ("Alertas", str(resumo.get("alertas_reserva_consumo", 0))),
             ],
             styles,
         )
@@ -1279,9 +1332,50 @@ def export_material_report_pdf(
             report.get("consumo_periodo", []),
         ),
         (
+            "Entradas no período",
+            [("Referência", "referencia"), ("Descrição", "descricao"), ("Entradas", "total"), ("Último movimento", "ultimo_movimento")],
+            report.get("entrada_periodo", []),
+        ),
+        (
+            "Saídas no período",
+            [("Referência", "referencia"), ("Descrição", "descricao"), ("Saídas", "total"), ("Último movimento", "ultimo_movimento")],
+            report.get("saida_periodo", report.get("consumo_periodo", [])),
+        ),
+        (
+            "Reservas ativas",
+            [
+                ("Referência", "referencia"),
+                ("Descrição", "descricao"),
+                ("Família", "familia_veiculo"),
+                ("Reservado", "reservado_total"),
+                ("Necessário", "necessario_total"),
+                ("Programações", "programacoes"),
+                ("OS", "ordens_servico"),
+            ],
+            report.get("reservas_atuais", []),
+        ),
+        (
+            "Alertas de reserva alta e consumo baixo",
+            [
+                ("Referência", "referencia"),
+                ("Descrição", "descricao"),
+                ("Reservado", "reservado_total"),
+                ("Consumo", "consumo_total"),
+                ("Programações", "programacoes"),
+                ("Bloqueios", "materiais_bloqueados"),
+                ("Leitura", "leitura"),
+            ],
+            report.get("alertas_reserva_consumo", []),
+        ),
+        (
+            "Linha do tempo",
+            [("Data", "data"), ("Entradas", "entradas"), ("Saídas", "saidas"), ("Reservas", "reservas")],
+            report.get("grafico_temporal", []),
+        ),
+        (
             "Ranking Top 5",
-            [("Referência", "referencia"), ("Descrição", "descricao"), ("Consumo", "consumo_total"), ("Último consumo", "ultimo_consumo")],
-            report.get("ranking_uso", []),
+            [("Referência", "referencia"), ("Descrição", "descricao"), ("Saídas", "total"), ("Último movimento", "ultimo_movimento")],
+            report.get("ranking_saida", report.get("ranking_uso", [])),
         ),
     ]
 

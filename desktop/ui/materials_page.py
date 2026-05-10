@@ -19,6 +19,7 @@ from PySide6.QtWidgets import (
     QHeaderView,
     QPushButton,
     QSpinBox,
+    QTabWidget,
     QTableWidget,
     QTableWidgetItem,
     QTextEdit,
@@ -309,7 +310,7 @@ class MaterialMovementsDialog(QDialog):
         title = QLabel(f"{material.get('referencia')} - {material.get('descricao')}")
         title.setObjectName("DialogHeaderTitle")
         title.setWordWrap(True)
-        subtitle = QLabel("Movimentações de estoque, consumo por atividade e saídas para resolução de não conformidade.")
+        subtitle = QLabel("Movimentações de estoque, consumo, reservas e baixas ligadas a pacote, manutenção e ordem de serviço.")
         subtitle.setObjectName("DialogHeaderSubtitle")
         subtitle.setWordWrap(True)
         header_layout.addWidget(title)
@@ -387,7 +388,7 @@ class MaterialReportDialog(QDialog):
         title_wrap = QVBoxLayout()
         title = QLabel("Relatório de estoque")
         title.setObjectName("DialogHeaderTitle")
-        subtitle = QLabel("Análise de materiais abaixo do mínimo, consumo no período e ranking dos mais utilizados.")
+        subtitle = QLabel("Dashboard de materiais com baixo estoque, entradas, saídas, reservas, alertas e leitura temporal.")
         subtitle.setObjectName("DialogHeaderSubtitle")
         subtitle.setWordWrap(True)
         title_wrap.addWidget(title)
@@ -440,22 +441,49 @@ class MaterialReportDialog(QDialog):
         self.stock_badge.setObjectName("TopBarPill")
         self.consumption_badge = QLabel("Consumo 0")
         self.consumption_badge.setObjectName("TopBarPill")
+        self.entry_badge = QLabel("Entradas 0")
+        self.entry_badge.setObjectName("TopBarPill")
+        self.reserve_badge = QLabel("Reservas 0")
+        self.reserve_badge.setObjectName("TopBarPill")
+        self.alert_badge = QLabel("Alertas 0")
+        self.alert_badge.setObjectName("TopBarPill")
         summary_layout.addWidget(self.total_badge)
         summary_layout.addWidget(self.low_badge)
         summary_layout.addWidget(self.stock_badge)
         summary_layout.addWidget(self.consumption_badge)
+        summary_layout.addWidget(self.entry_badge)
+        summary_layout.addWidget(self.reserve_badge)
+        summary_layout.addWidget(self.alert_badge)
         summary_layout.addStretch()
 
         self.low_table = self._make_table(["Referência", "Descrição", "Aplicação", "Estoque", "Mínimo", "Déficit"])
-        self.consumption_table = self._make_table(["Referência", "Descrição", "Consumo", "Último consumo"])
-        self.ranking_table = self._make_table(["Referência", "Descrição", "Consumo", "Último consumo"])
+        self.exit_table = self._make_table(["Referência", "Descrição", "Saídas", "Último movimento"])
+        self.entry_table = self._make_table(["Referência", "Descrição", "Entradas", "Último movimento"])
+        self.reserve_table = self._make_table(
+            ["Referência", "Descrição", "Família", "Reservado", "Necessário", "Programações", "OS", "Pacotes", "Atualização"]
+        )
+        self.alert_table = self._make_table(
+            ["Referência", "Descrição", "Reservado", "Consumo", "Programações", "Bloqueios", "Leitura"]
+        )
+        self.timeline_table = self._make_table(
+            ["Data", "Entradas", "Barra", "Saídas", "Barra", "Reservas", "Barra"]
+        )
+        self.ranking_table = self._make_table(["Referência", "Descrição", "Saídas", "Último movimento"])
+
+        tabs = QTabWidget()
+        tabs.setDocumentMode(True)
+        tabs.addTab(self._wrap_table("Materiais abaixo do mínimo", self.low_table), "Baixo estoque")
+        tabs.addTab(self._wrap_table("Saídas no período", self.exit_table), "Saídas")
+        tabs.addTab(self._wrap_table("Entradas no período", self.entry_table), "Entradas")
+        tabs.addTab(self._wrap_table("Reservas ativas", self.reserve_table), "Reservas")
+        tabs.addTab(self._wrap_table("Alertas de reserva alta e consumo baixo", self.alert_table), "Alertas")
+        tabs.addTab(self._wrap_table("Linha do tempo de entradas, saídas e reservas", self.timeline_table), "Linha do tempo")
+        tabs.addTab(self._wrap_table("Ranking de maior saída", self.ranking_table), "Ranking")
 
         layout.addWidget(header)
         layout.addWidget(filter_card)
         layout.addWidget(summary_card)
-        layout.addWidget(self._wrap_table("Materiais abaixo do mínimo", self.low_table), 1)
-        layout.addWidget(self._wrap_table("Consumo no periodo", self.consumption_table), 1)
-        layout.addWidget(self._wrap_table("Ranking Top 5", self.ranking_table), 1)
+        layout.addWidget(tabs, 1)
 
         self.refresh()
 
@@ -494,10 +522,29 @@ class MaterialReportDialog(QDialog):
         self.total_badge.setText(f"{resumo.get('total_materiais', 0)} materiais")
         self.low_badge.setText(f"{resumo.get('abaixo_minimo', 0)} abaixo do mínimo")
         self.stock_badge.setText(f"Saldo {resumo.get('saldo_total', 0)}")
-        self.consumption_badge.setText(f"Consumo {resumo.get('consumo_total_periodo', 0)}")
+        self.consumption_badge.setText(f"Saídas {resumo.get('saidas_total_periodo', resumo.get('consumo_total_periodo', 0))}")
+        self.entry_badge.setText(f"Entradas {resumo.get('entradas_total_periodo', 0)}")
+        self.reserve_badge.setText(f"Reservas {resumo.get('reservas_ativas', 0)}")
+        self.alert_badge.setText(f"Alertas {resumo.get('alertas_reserva_consumo', 0)}")
         self._fill_table(self.low_table, self.report.get("baixo_estoque", []), ["referencia", "descricao", "aplicacao_tipo", "quantidade_estoque", "estoque_minimo", "deficit"])
-        self._fill_table(self.consumption_table, self.report.get("consumo_periodo", []), ["referencia", "descricao", "consumo_total", "ultimo_consumo"])
-        self._fill_table(self.ranking_table, self.report.get("ranking_uso", []), ["referencia", "descricao", "consumo_total", "ultimo_consumo"])
+        self._fill_table(self.exit_table, self.report.get("saida_periodo", self.report.get("consumo_periodo", [])), ["referencia", "descricao", "total", "ultimo_movimento"])
+        self._fill_table(self.entry_table, self.report.get("entrada_periodo", []), ["referencia", "descricao", "total", "ultimo_movimento"])
+        self._fill_table(
+            self.reserve_table,
+            self.report.get("reservas_atuais", []),
+            ["referencia", "descricao", "familia_veiculo", "reservado_total", "necessario_total", "programacoes", "ordens_servico", "pacotes", "ultima_atualizacao"],
+        )
+        self._fill_table(
+            self.alert_table,
+            self.report.get("alertas_reserva_consumo", []),
+            ["referencia", "descricao", "reservado_total", "consumo_total", "programacoes", "materiais_bloqueados", "leitura"],
+        )
+        self._fill_table(
+            self.timeline_table,
+            self.report.get("grafico_temporal", []),
+            ["data", "entradas", "entradas_barra", "saidas", "saidas_barra", "reservas", "reservas_barra"],
+        )
+        self._fill_table(self.ranking_table, self.report.get("ranking_saida", self.report.get("ranking_uso", [])), ["referencia", "descricao", "total", "ultimo_movimento"])
 
     def _fill_table(self, table: QTableWidget, rows: list[dict], keys: list[str]):
         table.setSortingEnabled(False)
@@ -508,8 +555,10 @@ class MaterialReportDialog(QDialog):
             for row_index, row in enumerate(rows):
                 for col_index, key in enumerate(keys):
                     value = row.get(key)
-                    if key == "ultimo_consumo" and value:
+                    if key in {"ultimo_consumo", "ultimo_movimento", "ultima_atualizacao"} and value:
                         value = value.replace("T", " ")[:19]
+                    if key == "data" and value:
+                        value = self._format_date(value)
                     table.setItem(row_index, col_index, make_table_item(value if value is not None else "-"))
         finally:
             table.blockSignals(False)

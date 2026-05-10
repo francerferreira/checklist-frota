@@ -1,12 +1,13 @@
 from __future__ import annotations
 
-from datetime import datetime, time
+from collections import defaultdict
+from datetime import date, datetime, time, timedelta
 
 from flask import Blueprint, g, request
 from sqlalchemy import func
 
 from app.extensions import db
-from app.models import Material, MaterialMovement
+from app.models import MaintenanceMaterial, Material, MaterialMovement
 from app.services.auth_service import auth_required, user_has_management_access
 from app.services.material_service import register_material_movement
 from app.utils.responses import api_response
@@ -50,6 +51,212 @@ def _parse_date(value: str | None, *, end_of_day: bool = False):
         parsed_date = parsed.date()
         return datetime.combine(parsed_date, time.max if end_of_day else time.min)
     return parsed
+
+
+def _movement_delta(movement: MaterialMovement) -> int:
+    return int(movement.saldo_posterior or 0) - int(movement.saldo_anterior or 0)
+
+
+def _build_movement_rows(movements: list[MaterialMovement], *, positive: bool) -> list[dict]:
+    grouped: dict[int, dict] = {}
+    for movement in movements:
+        delta = _movement_delta(movement)
+        quantity = delta if positive else abs(delta)
+        if positive and quantity <= 0:
+            continue
+        if not positive and delta >= 0:
+            continue
+        material = movement.material
+        if not material:
+            continue
+        row = grouped.setdefault(
+            int(material.id),
+            {
+                "material_id": material.id,
+                "referencia": material.referencia,
+                "descricao": material.descricao,
+                "aplicacao_tipo": material.aplicacao_tipo,
+                "total": 0,
+                "ultimo_movimento": None,
+            },
+        )
+        row["total"] += int(quantity)
+        if movement.created_at and (not row["ultimo_movimento"] or movement.created_at > row["ultimo_movimento"]):
+            row["ultimo_movimento"] = movement.created_at
+
+    rows = list(grouped.values())
+    rows.sort(key=lambda row: (-int(row["total"] or 0), str(row["descricao"] or "").upper()))
+    for row in rows:
+        row["ultimo_movimento"] = row["ultimo_movimento"].isoformat() if row["ultimo_movimento"] else None
+    return rows
+
+
+def _build_reservation_rows(links: list[MaintenanceMaterial]) -> list[dict]:
+    grouped: dict[int, dict] = {}
+    for link in links:
+        material = link.material
+        schedule = link.schedule
+        if not material or not schedule:
+            continue
+        row = grouped.setdefault(
+            int(material.id),
+            {
+                "material_id": material.id,
+                "referencia": material.referencia,
+                "descricao": material.descricao,
+                "aplicacao_tipo": material.aplicacao_tipo,
+                "familias": set(),
+                "reservado_total": 0,
+                "necessario_total": 0,
+                "programacoes": set(),
+                "pacotes": set(),
+                "ordens_servico": set(),
+                "materiais_bloqueados": 0,
+                "ultima_atualizacao": None,
+            },
+        )
+        row["reservado_total"] += int(link.quantity_reserved or 0)
+        row["necessario_total"] += int(link.quantity_required or 0)
+        row["programacoes"].add(int(schedule.id))
+        if schedule.package_reference_label():
+            row["pacotes"].add(schedule.package_reference_label())
+        for order in schedule.work_orders:
+            if order.order_number:
+                row["ordens_servico"].add(order.order_number)
+        family = str(schedule.vehicle_family() or "ambos").strip().lower()
+        if family:
+            row["familias"].add(family)
+        if str(link.status or "").upper() in {"AGUARDANDO_MATERIAL", "EM_COMPRAS"}:
+            row["materiais_bloqueados"] += 1
+        if link.updated_at and (not row["ultima_atualizacao"] or link.updated_at > row["ultima_atualizacao"]):
+            row["ultima_atualizacao"] = link.updated_at
+
+    rows = []
+    for row in grouped.values():
+        rows.append(
+            {
+                "material_id": row["material_id"],
+                "referencia": row["referencia"],
+                "descricao": row["descricao"],
+                "aplicacao_tipo": row["aplicacao_tipo"],
+                "familia_veiculo": " / ".join(sorted(row["familias"])) if row["familias"] else "ambos",
+                "reservado_total": int(row["reservado_total"] or 0),
+                "necessario_total": int(row["necessario_total"] or 0),
+                "programacoes": len(row["programacoes"]),
+                "pacotes": ", ".join(sorted(row["pacotes"])) if row["pacotes"] else "-",
+                "ordens_servico": len(row["ordens_servico"]),
+                "materiais_bloqueados": int(row["materiais_bloqueados"] or 0),
+                "ultima_atualizacao": row["ultima_atualizacao"].isoformat() if row["ultima_atualizacao"] else None,
+            }
+        )
+    rows.sort(key=lambda row: (-int(row["reservado_total"] or 0), str(row["descricao"] or "").upper()))
+    return rows
+
+
+def _timeline_dates(
+    date_from: datetime | None,
+    date_to: datetime | None,
+    movement_dates: list[date],
+    reservation_dates: list[date],
+) -> list[date]:
+    if date_from and date_to:
+        start_date = date_from.date()
+        end_date = date_to.date()
+    else:
+        end_date = date.today()
+        start_date = end_date - timedelta(days=13)
+        if movement_dates or reservation_dates:
+            event_dates = sorted(movement_dates + reservation_dates)
+            start_date = min(start_date, event_dates[0])
+            end_date = max(end_date, event_dates[-1])
+            if (end_date - start_date).days > 30:
+                start_date = end_date - timedelta(days=29)
+    if end_date < start_date:
+        end_date = start_date
+    days: list[date] = []
+    current = start_date
+    while current <= end_date:
+        days.append(current)
+        current += timedelta(days=1)
+    return days
+
+
+def _build_timeline_rows(
+    movements: list[MaterialMovement],
+    links: list[MaintenanceMaterial],
+    *,
+    date_from: datetime | None,
+    date_to: datetime | None,
+) -> list[dict]:
+    entries_by_day: dict[date, int] = defaultdict(int)
+    exits_by_day: dict[date, int] = defaultdict(int)
+    reserves_by_day: dict[date, int] = defaultdict(int)
+
+    movement_dates: list[date] = []
+    for movement in movements:
+        if not movement.created_at:
+            continue
+        movement_day = movement.created_at.date()
+        movement_dates.append(movement_day)
+        delta = _movement_delta(movement)
+        if delta > 0:
+            entries_by_day[movement_day] += int(delta)
+        elif delta < 0:
+            exits_by_day[movement_day] += abs(int(delta))
+
+    reservation_dates: list[date] = []
+    for link in links:
+        if not link.updated_at:
+            continue
+        updated_day = link.updated_at.date()
+        reservation_dates.append(updated_day)
+        reserves_by_day[updated_day] += int(link.quantity_reserved or 0)
+
+    rows = []
+    for day in _timeline_dates(date_from, date_to, movement_dates, reservation_dates):
+        entries = int(entries_by_day.get(day, 0))
+        exits = int(exits_by_day.get(day, 0))
+        reserves = int(reserves_by_day.get(day, 0))
+        max_value = max(entries, exits, reserves, 1)
+        rows.append(
+            {
+                "data": day.isoformat(),
+                "entradas": entries,
+                "saidas": exits,
+                "reservas": reserves,
+                "entradas_barra": "█" * max(1, round((entries / max_value) * 10)) if entries else "",
+                "saidas_barra": "█" * max(1, round((exits / max_value) * 10)) if exits else "",
+                "reservas_barra": "█" * max(1, round((reserves / max_value) * 10)) if reserves else "",
+            }
+        )
+    return rows
+
+
+def _build_reserve_alerts(reserve_rows: list[dict], exit_rows: list[dict]) -> list[dict]:
+    exit_by_material = {int(row["material_id"]): int(row["total"] or 0) for row in exit_rows}
+    alerts: list[dict] = []
+    for row in reserve_rows:
+        reserved_total = int(row.get("reservado_total") or 0)
+        consumption_total = int(exit_by_material.get(int(row["material_id"]), 0))
+        blocked = int(row.get("materiais_bloqueados") or 0)
+        high_reserve = reserved_total >= max(3, consumption_total + 2)
+        low_consumption = consumption_total <= max(1, reserved_total // 3)
+        if not (high_reserve and low_consumption):
+            continue
+        alerts.append(
+            {
+                "material_id": row["material_id"],
+                "referencia": row["referencia"],
+                "descricao": row["descricao"],
+                "reservado_total": reserved_total,
+                "consumo_total": consumption_total,
+                "programacoes": row.get("programacoes", 0),
+                "materiais_bloqueados": blocked,
+                "leitura": "Há muita peça comprometida e pouca saída real. Vale revisar agenda, pacote ou compra parada.",
+            }
+        )
+    alerts.sort(key=lambda row: (-int(row["reservado_total"] or 0), str(row["descricao"] or "").upper()))
+    return alerts
 
 
 @bp.get("/materiais")
@@ -108,6 +315,11 @@ def material_report():
         movements_query = movements_query.filter(MaterialMovement.created_at >= date_from)
     if date_to:
         movements_query = movements_query.filter(MaterialMovement.created_at <= date_to)
+    movements = (
+        movements_query.join(Material, Material.id == MaterialMovement.material_id)
+        .order_by(MaterialMovement.created_at.desc(), Material.descricao.asc())
+        .all()
+    )
 
     consumption_types = ("SAIDA", "ATIVIDADE", "NAO_CONFORMIDADE")
     consumption_rows = (
@@ -142,9 +354,23 @@ def material_report():
         for row in consumption_rows
     ]
     ranking = consumption[:5]
+    entry_rows = _build_movement_rows(movements, positive=True)
+    exit_rows = _build_movement_rows(movements, positive=False)
+
+    reservation_links_query = MaintenanceMaterial.query.join(Material, Material.id == MaintenanceMaterial.material_id)
+    if date_from:
+        reservation_links_query = reservation_links_query.filter(MaintenanceMaterial.updated_at >= date_from)
+    if date_to:
+        reservation_links_query = reservation_links_query.filter(MaintenanceMaterial.updated_at <= date_to)
+    reservation_links = reservation_links_query.order_by(MaintenanceMaterial.updated_at.desc()).all()
+    reserve_rows = _build_reservation_rows(reservation_links)
+    reserve_alerts = _build_reserve_alerts(reserve_rows, exit_rows)
+    timeline_rows = _build_timeline_rows(movements, reservation_links, date_from=date_from, date_to=date_to)
 
     total_stock = sum(int(material.quantidade_estoque or 0) for material in materials)
     total_consumed = sum(item["consumo_total"] for item in consumption)
+    total_entries = sum(int(item["total"] or 0) for item in entry_rows)
+    total_reserved = sum(int(item["reservado_total"] or 0) for item in reserve_rows)
 
     data = {
         "periodo": {
@@ -155,11 +381,23 @@ def material_report():
             "total_materiais": len(materials),
             "abaixo_minimo": len(low_stock_rows),
             "saldo_total": total_stock,
+            "entradas_total_periodo": total_entries,
             "consumo_total_periodo": total_consumed,
+            "saidas_total_periodo": total_consumed,
+            "reservas_ativas": total_reserved,
+            "materiais_com_reserva": sum(1 for row in reserve_rows if int(row.get("reservado_total") or 0) > 0),
+            "alertas_reserva_consumo": len(reserve_alerts),
         },
         "baixo_estoque": low_stock_rows,
         "consumo_periodo": consumption,
         "ranking_uso": ranking,
+        "entrada_periodo": entry_rows,
+        "saida_periodo": exit_rows,
+        "ranking_entrada": entry_rows[:5],
+        "ranking_saida": exit_rows[:5],
+        "reservas_atuais": reserve_rows,
+        "alertas_reserva_consumo": reserve_alerts,
+        "grafico_temporal": timeline_rows,
     }
     return api_response(True, data=data)
 
