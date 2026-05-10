@@ -786,7 +786,7 @@ class NonConformitiesPage(QFrame):
         blockers_layout = QVBoxLayout(blockers_tab)
         blockers_layout.setContentsMargins(10, 10, 10, 10)
         blockers_layout.setSpacing(8)
-        blockers_caption = QLabel("Bloqueios e alertas da triagem antes de mandar a resolução para a manutenção.")
+        blockers_caption = QLabel("Bloqueios e alertas da triagem e da execução oficial, para mostrar onde a resolução travou.")
         blockers_caption.setObjectName("SectionCaption")
         blockers_caption.setWordWrap(True)
         self.blockers_table = QTableWidget(0, 4)
@@ -938,6 +938,7 @@ class NonConformitiesPage(QFrame):
             status=self.status_filter.currentData() or None,
         )
         self.packages = self.api_client.get_resolution_packages() if self._user_has_management_access() else []
+        self.maintenance_overview = self.api_client.get_maintenance_overview() if self._user_has_management_access() else {}
         self.table.setSortingEnabled(False)
         self.table.setUpdatesEnabled(False)
         self.table.blockSignals(True)
@@ -1156,6 +1157,17 @@ class NonConformitiesPage(QFrame):
                         True,
                     )
                 )
+        maintenance_blockers = list((self.maintenance_overview or {}).get("bloqueios") or [])
+        for blocker in maintenance_blockers:
+            rows.append(
+                (
+                    str(blocker.get("type") or "Bloqueio de manutenção"),
+                    str(blocker.get("reference") or "Manutenção"),
+                    str(blocker.get("quantity") or 0),
+                    str(blocker.get("reading") or "A manutenção identificou um bloqueio operacional."),
+                    bool(blocker.get("critical")),
+                )
+            )
         self.blockers_table.setRowCount(len(rows))
         for row, values in enumerate(rows):
             for column, value in enumerate(values[:4]):

@@ -1588,6 +1588,7 @@ function renderMaintenanceSummary(resumo) {
     const overdueOrders = Number(resumo.os_atrasadas || 0);
     const blockedOrders = Number(resumo.os_bloqueadas || 0);
     const completedOrders = Number(resumo.os_concluidas || 0);
+    const totalBlockers = Number((state.maintenanceOverview?.bloqueios || []).length || 0);
     elements.maintenanceSummary.innerHTML = `
         <div>
             <strong>${Number(resumo.pendentes || 0)} PENDENTES</strong>
@@ -1608,7 +1609,7 @@ function renderMaintenanceSummary(resumo) {
         <div class="progress-track" aria-hidden="true">
             <span style="width:${Math.min(100, Math.max(0, percent))}%"></span>
         </div>
-        <span class="progress-hint">CAPACIDADE MEDIA ${Number(resumo.capacidade_media || 0)} | ACOMPANHE O DIA SELECIONADO PARA EXECUTAR E REPROGRAMAR.</span>
+        <span class="progress-hint">CAPACIDADE MEDIA ${Number(resumo.capacidade_media || 0)} | BLOQUEIOS ATIVOS ${totalBlockers} | ACOMPANHE O DIA SELECIONADO PARA EXECUTAR E REPROGRAMAR.</span>
     `;
 }
 
@@ -1780,6 +1781,8 @@ function makeMaintenanceItemCard(item, index) {
     const schedule = item.schedule || {};
     const workOrder = item.work_order || {};
     const materials = schedule.materiais || [];
+    const packageLabel = String(schedule.package_reference_label || "").trim();
+    const blockerSummary = schedule.bloqueios_resumo || {};
     const photoAfter = item.photo_after ? makeAbsoluteUrl(item.photo_after) : "";
     const status = String(item.status || "PENDENTE").toUpperCase();
     const canExecute = maintenanceItemCanInstall(item);
@@ -1804,13 +1807,21 @@ function makeMaintenanceItemCard(item, index) {
             <span>DATA PROGRAMADA: ${item.scheduled_date ? formatDateTime(`${item.scheduled_date}T00:00:00`) : "SEM DATA"}</span>
             <span>STATUS: ${escapeHtml(status.replace(/_/g, " "))}</span>
             <span>PROGRAMAÇÃO: ${escapeHtml(String(schedule.status || "-").replace(/_/g, " "))}</span>
+            ${packageLabel ? `<span>${escapeHtml(packageLabel.toUpperCase())}</span>` : ""}
             ${schedule.assigned_mechanic ? `<span>MECÂNICO: ${escapeHtml(String(schedule.assigned_mechanic.nome || "").toUpperCase())}</span>` : ""}
         </div>
+        ${(Number(blockerSummary.materiais_bloqueados || 0) || Number(blockerSummary.ordens_bloqueadas || 0) || blockerSummary.sem_responsavel) ? `
+            <div class="nc-meta-list">
+                ${Number(blockerSummary.materiais_bloqueados || 0) ? `<span>PEÇAS BLOQUEANDO: ${Number(blockerSummary.materiais_bloqueados || 0)}</span>` : ""}
+                ${Number(blockerSummary.ordens_bloqueadas || 0) ? `<span>OS BLOQUEADAS: ${Number(blockerSummary.ordens_bloqueadas || 0)}</span>` : ""}
+                ${blockerSummary.sem_responsavel ? `<span>SEM RESPONSÁVEL DEFINIDO</span>` : ""}
+            </div>
+        ` : ""}
         ${materials.length ? `
             <div class="nc-meta-list">
                 ${materials.map((link) => {
                     const material = link.material || {};
-                    return `<span>MATERIAL: ${escapeHtml(String(material.referencia || "-").toUpperCase())} | ${escapeHtml(String(material.descricao || "-").toUpperCase())} | ESTOQUE ${Number(material.quantidade_estoque || 0)} | NECESSÁRIO ${Number(link.quantity_required || 0)} | ${escapeHtml(String(link.status || "").replace(/_/g, " "))}</span>`;
+                    return `<span>MATERIAL: ${escapeHtml(String(material.referencia || "-").toUpperCase())} | ${escapeHtml(String(material.descricao || "-").toUpperCase())} | ESTOQUE ${Number(material.quantidade_estoque || 0)} | NECESSÁRIO ${Number(link.quantity_required || 0)} | RESERVADO ${Number(link.quantity_reserved || 0)} | ${escapeHtml(String(link.status || "").replace(/_/g, " "))}</span>`;
                 }).join("")}
             </div>
         ` : `

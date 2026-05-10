@@ -9,6 +9,43 @@ from app.utils.timezone import now_manaus_naive
 PACKAGE_SOURCE_PREFIX = "PACOTE_RESOLUCAO:"
 
 
+def _package_ids_from_source_key(source_key: str | None) -> list[int]:
+    raw = str(source_key or "")
+    if not raw.startswith(PACKAGE_SOURCE_PREFIX):
+        return []
+    values: list[int] = []
+    for chunk in raw.removeprefix(PACKAGE_SOURCE_PREFIX).split(","):
+        try:
+            number = int(str(chunk).strip())
+        except (TypeError, ValueError):
+            continue
+        if number > 0:
+            values.append(number)
+    return values
+
+
+def _package_reference_label(package_ids: list[int]) -> str | None:
+    if not package_ids:
+        return None
+    if len(package_ids) == 1:
+        return f"Pacote #{package_ids[0]}"
+    return "Pacotes " + ", ".join(f"#{package_id}" for package_id in package_ids)
+
+
+def _vehicle_family_from_items(items: list["MaintenanceScheduleItem"]) -> str:
+    families = {
+        str((item.vehicle.tipo if item.vehicle else "") or "").strip().lower()
+        for item in items
+        if item.vehicle and str(item.vehicle.tipo or "").strip()
+    }
+    families.discard("")
+    if not families:
+        return "ambos"
+    if len(families) == 1:
+        return families.pop()
+    return "misto"
+
+
 class MaintenanceSchedule(db.Model):
     __tablename__ = "maintenance_schedules"
 
@@ -62,6 +99,37 @@ class MaintenanceSchedule(db.Model):
             "reprogramados": sum(1 for item in self.items if item.status == "REPROGRAMADO"),
         }
 
+    def package_ids(self) -> list[int]:
+        return _package_ids_from_source_key(self.source_key)
+
+    def package_reference_label(self) -> str | None:
+        return _package_reference_label(self.package_ids())
+
+    def vehicle_family(self) -> str:
+        return _vehicle_family_from_items(self.items)
+
+    def blocker_summary(self) -> dict:
+        blocked_materials = sum(1 for material in self.materials if material.status in {"AGUARDANDO_MATERIAL", "EM_COMPRAS"})
+        blocked_work_orders = sum(1 for order in self.work_orders if order.status == "AGUARDANDO_MATERIAL")
+        open_items = sum(1 for item in self.items if item.status in {"PENDENTE", "PROGRAMADO", "AGUARDANDO_MATERIAL", "REPROGRAMADO"})
+        return {
+            "sem_responsavel": bool(open_items and not self.assigned_mechanic_user_id),
+            "materiais_bloqueados": blocked_materials,
+            "ordens_bloqueadas": blocked_work_orders,
+            "itens_em_aberto": open_items,
+        }
+
+    def material_context_summary(self) -> dict:
+        return {
+            "familia_veiculo": self.vehicle_family(),
+            "quantidade_links": len(self.materials),
+            "quantidade_prevista": sum(int(material.quantity_required or 0) for material in self.materials),
+            "quantidade_reservada": sum(int(material.quantity_reserved or 0) for material in self.materials),
+            "quantidade_bloqueada": sum(
+                1 for material in self.materials if material.status in {"AGUARDANDO_MATERIAL", "EM_COMPRAS"}
+            ),
+        }
+
     def source_origin_type(self) -> str:
         source_key = str(self.source_key or "")
         if source_key.startswith(PACKAGE_SOURCE_PREFIX):
@@ -88,6 +156,11 @@ class MaintenanceSchedule(db.Model):
             "created_by": self.created_by.to_dict() if self.created_by else None,
             "assigned_mechanic": self.assigned_mechanic.to_dict() if self.assigned_mechanic else None,
             "resumo": self.counts(),
+            "package_ids": self.package_ids(),
+            "package_reference_label": self.package_reference_label(),
+            "vehicle_family": self.vehicle_family(),
+            "bloqueios_resumo": self.blocker_summary(),
+            "materiais_resumo": self.material_context_summary(),
             "ordens_servico_resumo": {
                 "total": len(self.work_orders),
                 "abertas": sum(1 for order in self.work_orders if order.status in {"ABERTA", "PROGRAMADA", "AGUARDANDO_MATERIAL", "EM_EXECUCAO", "REPROGRAMADA"}),
@@ -194,6 +267,8 @@ class MaintenanceMaterial(db.Model):
     )
 
     def to_dict(self) -> dict:
+        schedule = self.schedule
+        package_ids = schedule.package_ids() if schedule else []
         return {
             "id": self.id,
             "schedule_id": self.schedule_id,
@@ -205,6 +280,14 @@ class MaintenanceMaterial(db.Model):
             "observation": self.observation,
             "created_at": self.created_at.isoformat() if self.created_at else None,
             "updated_at": self.updated_at.isoformat() if self.updated_at else None,
+            "blocked": str(self.status or "").upper() in {"AGUARDANDO_MATERIAL", "EM_COMPRAS"},
+            "schedule_title": schedule.title if schedule else None,
+            "source_origin_type": schedule.source_origin_type() if schedule else None,
+            "vehicle_family": schedule.vehicle_family() if schedule else "ambos",
+            "package_ids": package_ids,
+            "package_reference_label": schedule.package_reference_label() if schedule else None,
+            "linked_work_orders_count": len(schedule.work_orders) if schedule else 0,
+            "linked_work_orders": [order.order_number for order in (schedule.work_orders if schedule else []) if order.order_number],
             "material": self.material.to_dict() if self.material else None,
         }
 
@@ -257,6 +340,8 @@ class MaintenanceWorkOrder(db.Model):
             "scheduled_date": self.scheduled_date.isoformat() if self.scheduled_date else None,
             "created_at": self.created_at.isoformat() if self.created_at else None,
             "updated_at": self.updated_at.isoformat() if self.updated_at else None,
+            "schedule_title": self.schedule.title if self.schedule else None,
+            "resolution_package_label": f"Pacote #{self.resolution_package_id}" if self.resolution_package_id else None,
             "vehicle": self.vehicle.to_dict() if self.vehicle else None,
             "assigned_mechanic": self.assigned_mechanic.to_dict() if self.assigned_mechanic else None,
             "opened_by": self.opened_by.to_dict() if self.opened_by else None,

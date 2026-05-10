@@ -272,6 +272,27 @@ def _schedule_primary_package_id(schedule: MaintenanceSchedule | None) -> int | 
     return _parse_int(package_ids[0])
 
 
+def _schedule_package_ids(schedule: MaintenanceSchedule | None) -> list[int]:
+    if not schedule:
+        return []
+    return list(schedule.package_ids())
+
+
+def _schedule_package_label(schedule: MaintenanceSchedule | None) -> str:
+    if not schedule:
+        return "-"
+    return schedule.package_reference_label() or "-"
+
+
+def _schedule_context_label(schedule: MaintenanceSchedule | None) -> str:
+    if not schedule:
+        return "Programação não encontrada"
+    package_label = _schedule_package_label(schedule)
+    if package_label != "-":
+        return f"Prog #{schedule.id} | {package_label}"
+    return f"Prog #{schedule.id} | {schedule.title}"
+
+
 def _work_order_status_from_item(item: MaintenanceScheduleItem) -> str:
     mapping = {
         "PENDENTE": "ABERTA",
@@ -347,6 +368,66 @@ def _open_work_order_statuses() -> set[str]:
 
 def _open_item_statuses() -> set[str]:
     return {"PENDENTE", "PROGRAMADO", "AGUARDANDO_MATERIAL", "REPROGRAMADO"}
+
+
+def _build_maintenance_blockers(
+    schedules: list[MaintenanceSchedule],
+    work_orders: list[MaintenanceWorkOrder],
+) -> list[dict]:
+    rows: list[dict] = []
+    open_item_statuses = _open_item_statuses()
+    work_orders_by_schedule: dict[int, list[MaintenanceWorkOrder]] = {}
+    for work_order in work_orders:
+        work_orders_by_schedule.setdefault(int(work_order.schedule_id or 0), []).append(work_order)
+
+    for schedule in schedules:
+        open_items = [item for item in schedule.items if str(item.status or "").upper() in open_item_statuses]
+        if not open_items:
+            continue
+
+        context_label = _schedule_context_label(schedule)
+        blocked_materials = [
+            link
+            for link in schedule.materials
+            if str(link.status or "").upper() in {"AGUARDANDO_MATERIAL", "EM_COMPRAS"}
+        ]
+        blocked_work_orders = [
+            order
+            for order in work_orders_by_schedule.get(int(schedule.id or 0), [])
+            if str(order.status or "").upper() == "AGUARDANDO_MATERIAL"
+        ]
+
+        if not schedule.assigned_mechanic_user_id:
+            rows.append(
+                {
+                    "type": "Sem responsável",
+                    "reference": context_label,
+                    "quantity": len(open_items),
+                    "reading": "A programação está aberta, mas ainda sem mecânico responsável definido.",
+                    "critical": False,
+                }
+            )
+        if blocked_materials:
+            rows.append(
+                {
+                    "type": "Material bloqueando",
+                    "reference": context_label,
+                    "quantity": len(blocked_materials),
+                    "reading": "Existe peça aguardando compra ou liberação, então a execução ainda está travada.",
+                    "critical": False,
+                }
+            )
+        if blocked_work_orders:
+            rows.append(
+                {
+                    "type": "OS bloqueada",
+                    "reference": context_label,
+                    "quantity": len(blocked_work_orders),
+                    "reading": "Há ordem de serviço parada porque a peça ainda não liberou a execução.",
+                    "critical": False,
+                }
+            )
+    return rows
 
 
 def build_mechanic_load_summary(mechanic_user_id: int | None, *, start_date: date | None = None, days: int = 7) -> dict | None:
@@ -776,6 +857,7 @@ def build_maintenance_overview(*, year: int | None = None, month: int | None = N
     overdue_work_orders = [row for row in open_work_orders if row.scheduled_date and row.scheduled_date < today]
     blocked_work_orders = [row for row in work_orders if str(row.status or "").upper() == "AGUARDANDO_MATERIAL"]
     completed_work_orders = [row for row in work_orders if str(row.status or "").upper() == "CONCLUIDA"]
+    blockers = _build_maintenance_blockers(schedules, work_orders)
 
     return {
         "periodo": {
@@ -805,6 +887,7 @@ def build_maintenance_overview(*, year: int | None = None, month: int | None = N
         "programacoes": [schedule.to_dict(include_items=True, include_materials=True) for schedule in schedules],
         "itens": [item.to_dict() for item in items],
         "materiais": [material.to_dict() for material in materials],
+        "bloqueios": blockers,
     }
 
 
@@ -1057,6 +1140,12 @@ def link_schedule_material(schedule_id: int, payload: dict, *, user_id: int) -> 
         link.quantity_reserved = total_required
     elif material.quantidade_estoque < total_required:
         link.status = "EM_COMPRAS"
+    if not _clean(link.observation):
+        link.observation = (
+            f"{_schedule_context_label(schedule)} | "
+            f"Peça prevista para {schedule.vehicle_family()} | "
+            f"Qtd por veículo {quantity_per_vehicle}"
+        )
 
     recalculate_schedule(schedule)
     db.session.commit()
@@ -1093,6 +1182,10 @@ def update_schedule_item(item_id: int, payload: dict, *, user) -> MaintenanceSch
         allowed, message = _can_execute_with_material(item)
         if not allowed:
             raise ValueError(message or "Material indisponível para concluir a instalação.")
+        work_order = item.work_order
+        work_order_label = work_order.order_number if work_order and work_order.order_number else "OS sem número"
+        package_label = _schedule_package_label(item.schedule)
+        vehicle_label = item.vehicle.frota if item.vehicle and item.vehicle.frota else f"Veículo {item.vehicle_id}"
         for link in item.schedule.materials:
             required = int(link.quantity_per_vehicle or 1)
             register_material_movement(
@@ -1100,7 +1193,10 @@ def update_schedule_item(item_id: int, payload: dict, *, user) -> MaintenanceSch
                 quantity=required,
                 movement_type="ATIVIDADE",
                 delta=-required,
-                observation=f"Baixa para manutenção: {item.schedule.title}",
+                observation=(
+                    f"Baixa para manutenção: {item.schedule.title} | "
+                    f"{package_label} | {work_order_label} | {vehicle_label}"
+                ),
                 activity_id=item.activity_id,
                 checklist_item_id=item.checklist_item_id,
             )

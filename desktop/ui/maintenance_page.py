@@ -1543,12 +1543,17 @@ class MaintenancePage(QFrame):
             self.materials_badge.setText("0 peças")
             self.governance_badge.setText("Responsável e peças: selecione um planejamento")
             self.material_suggestion_badge.setText("Sugestão de peça: selecione um planejamento para o sistema analisar o histórico.")
+            self.management_help_label.setText(
+                "As definições de responsável e peça só são liberadas depois que um planejamento é selecionado."
+            )
             self._set_management_controls_enabled(False)
             return
 
         self._set_management_controls_enabled(True)
         title = str(schedule.get("title") or f"Programação #{schedule.get('id')}")
-        self.governance_badge.setText(f"#{schedule.get('id')} | {title}")
+        package_label = str(schedule.get("package_reference_label") or "Sem pacote")
+        self.governance_badge.setText(f"#{schedule.get('id')} | {title} | {package_label}")
+        self.management_help_label.setText(self._management_context_text(schedule))
 
         assigned_id = schedule.get("assigned_mechanic_user_id")
         current_mechanic_index = self.mechanic_combo.findData(assigned_id)
@@ -1623,7 +1628,7 @@ class MaintenancePage(QFrame):
         self.pending_card.set_content(
             "Serviços pendentes",
             str(summary.get("pendentes", 0)),
-            f"Aguardando material: {summary.get('aguardando_material', 0)}",
+            f"Aguardando material: {summary.get('aguardando_material', 0)} | OS bloqueadas: {summary.get('os_bloqueadas', 0)}",
         )
         self.installed_card.set_content(
             "Serviços concluídos",
@@ -1906,10 +1911,12 @@ class MaintenancePage(QFrame):
         if hasattr(self, "details_hint_label"):
             if self.selected_calendar_day_iso:
                 self.details_hint_label.setText(
-                    f"Serviços filtrados para {self._format_date(self.selected_calendar_day_iso)} dentro do planejamento selecionado."
+                    f"Serviços filtrados para {self._format_date(self.selected_calendar_day_iso)} dentro do planejamento selecionado. {self._execution_context_text(schedule)}"
                 )
             else:
-                self.details_hint_label.setText("Aqui estão os serviços do planejamento selecionado. Use o calendário para focar um dia.")
+                self.details_hint_label.setText(
+                    f"Aqui estão os serviços do planejamento selecionado. Use o calendário para focar um dia. {self._execution_context_text(schedule)}"
+                )
 
         start_date = str(schedule.get("start_date") or "")
         start_qdate = QDate.fromString(start_date, "yyyy-MM-dd")
@@ -2030,7 +2037,7 @@ class MaintenancePage(QFrame):
                 )
 
         if hasattr(self, "management_help_label"):
-            self.management_help_label.setVisible(not schedule_selected)
+            self.management_help_label.setVisible(True)
 
     def _set_action_controls_enabled(self, enabled: bool):
         self.item_status_filter.setEnabled(enabled)
@@ -2148,6 +2155,35 @@ class MaintenancePage(QFrame):
         if counters.get("UTILIZADO"):
             parts.append(f"Utilizado {counters['UTILIZADO']}")
         return " | ".join(parts) if parts else "Com material"
+
+    def _management_context_text(self, schedule: dict) -> str:
+        blockers = schedule.get("bloqueios_resumo") or {}
+        materials = schedule.get("materiais_resumo") or {}
+        family = str(materials.get("familia_veiculo") or schedule.get("vehicle_family") or "ambos").replace("_", " ")
+        parts = [f"Família {family}"]
+        if blockers.get("sem_responsavel"):
+            parts.append("sem responsável")
+        if int(blockers.get("materiais_bloqueados") or 0):
+            parts.append(f"{int(blockers.get('materiais_bloqueados') or 0)} peça(s) bloqueando")
+        if int(blockers.get("ordens_bloqueadas") or 0):
+            parts.append(f"{int(blockers.get('ordens_bloqueadas') or 0)} OS bloqueada(s)")
+        if int(materials.get("quantidade_reservada") or 0):
+            parts.append(f"reservado {int(materials.get('quantidade_reservada') or 0)}")
+        if int(materials.get("quantidade_prevista") or 0):
+            parts.append(f"previsto {int(materials.get('quantidade_prevista') or 0)}")
+        return "Leitura rápida: " + " | ".join(parts)
+
+    def _execution_context_text(self, schedule: dict) -> str:
+        blockers = schedule.get("bloqueios_resumo") or {}
+        package_label = str(schedule.get("package_reference_label") or "Sem pacote")
+        parts = [package_label]
+        if int(blockers.get("materiais_bloqueados") or 0):
+            parts.append(f"{int(blockers.get('materiais_bloqueados') or 0)} bloqueio(s) de peça")
+        if int(blockers.get("ordens_bloqueadas") or 0):
+            parts.append(f"{int(blockers.get('ordens_bloqueadas') or 0)} OS travada(s)")
+        if blockers.get("sem_responsavel"):
+            parts.append("sem responsável definido")
+        return " | ".join(parts)
 
     @staticmethod
     def _format_date(value: str | None) -> str:
