@@ -226,6 +226,7 @@ const state = {
     maintenanceYear: INITIAL_MANAUS_DATE.year,
     maintenanceMonth: INITIAL_MANAUS_DATE.month,
     selectedMaintenanceDate: "",
+    maintenanceStatusFilter: "ABERTAS",
     selectedActivity: null,
     selectedVehicle: null,
     currentModule: "TODOS",
@@ -492,6 +493,43 @@ async function apiFetch(path, options = {}) {
         }
         throw error;
     }
+}
+
+async function downloadAuthenticatedFile(path, filenameHint = "arquivo.pdf") {
+    const headers = new Headers(optionsLikeHeaders({}));
+    const response = await fetch(`${state.apiBaseUrl}${path}`, {
+        method: "GET",
+        headers,
+    });
+    if (!response.ok) {
+        let payload = {};
+        try {
+            payload = await response.json();
+        } catch {
+            payload = {};
+        }
+        throw new Error(payload.error || "Falha ao baixar arquivo.");
+    }
+    const blob = await response.blob();
+    const objectUrl = URL.createObjectURL(blob);
+    const anchor = document.createElement("a");
+    anchor.href = objectUrl;
+    anchor.download = filenameHint;
+    document.body.appendChild(anchor);
+    anchor.click();
+    anchor.remove();
+    window.setTimeout(() => URL.revokeObjectURL(objectUrl), 1000);
+}
+
+function optionsLikeHeaders(customHeaders = {}) {
+    const headers = {
+        Accept: "application/json",
+        ...customHeaders,
+    };
+    if (state.token) {
+        headers.Authorization = `Bearer ${state.token}`;
+    }
+    return headers;
 }
 
 async function login(credentials) {
@@ -1515,7 +1553,7 @@ function renderMaintenance() {
     const resumo = overview.resumo || {};
     const days = overview.cronograma?.days || [];
     const selectedDay = ensureSelectedMaintenanceDate(days);
-    const selectedItems = selectedDay?.items || [];
+    const selectedItems = filterMaintenanceItemsForMobile(selectedDay?.items || []);
     const selectedDayLabel = selectedDay?.date ? formatDate(selectedDay.date) : "SEM DIA";
 
     elements.maintenanceCounter.textContent = `${Number(resumo.programados || resumo.itens || 0)} PROGRAMADOS`;
@@ -1546,6 +1584,10 @@ function renderMaintenanceSummary(resumo) {
         return;
     }
     const percent = Number(resumo.percentual_conclusao || 0);
+    const openOrders = Number(resumo.os_abertas || 0);
+    const overdueOrders = Number(resumo.os_atrasadas || 0);
+    const blockedOrders = Number(resumo.os_bloqueadas || 0);
+    const completedOrders = Number(resumo.os_concluidas || 0);
     elements.maintenanceSummary.innerHTML = `
         <div>
             <strong>${Number(resumo.pendentes || 0)} PENDENTES</strong>
@@ -1558,6 +1600,10 @@ function renderMaintenanceSummary(resumo) {
         <div>
             <strong>${percent}% CONCLUIDO</strong>
             <span>${Number(resumo.dias_utilizados || 0)} DIAS UTILIZADOS</span>
+        </div>
+        <div>
+            <strong>${openOrders} OS ABERTAS</strong>
+            <span>${overdueOrders} ATRASADAS | ${blockedOrders} BLOQUEADAS | ${completedOrders} CONCLUÍDAS</span>
         </div>
         <div class="progress-track" aria-hidden="true">
             <span style="width:${Math.min(100, Math.max(0, percent))}%"></span>
@@ -1643,6 +1689,7 @@ function renderMaintenanceDayPanel(day) {
     const pending = Number(selectedDay.pendentes || 0);
     const installed = Number(selectedDay.instalados || 0);
     const notExecuted = Number(selectedDay.nao_executados || 0);
+    const filter = state.maintenanceStatusFilter || "ABERTAS";
     elements.maintenanceDayPanel.innerHTML = `
         <section class="wash-day-summary maintenance-focus">
             <div>
@@ -1662,8 +1709,43 @@ function renderMaintenanceDayPanel(day) {
                 <strong>${installed}</strong>
             </div>
         </section>
+        <section class="wash-shift-tabs" role="tablist" aria-label="Filtro do painel do mecânico">
+            <button type="button" class="wash-shift-tab ${filter === "ABERTAS" ? "active" : ""}" data-maint-filter="ABERTAS">ABERTAS</button>
+            <button type="button" class="wash-shift-tab ${filter === "ATRASADAS" ? "active" : ""}" data-maint-filter="ATRASADAS">ATRASADAS</button>
+            <button type="button" class="wash-shift-tab ${filter === "AGUARDANDO_MATERIAL" ? "active" : ""}" data-maint-filter="AGUARDANDO_MATERIAL">BLOQUEADAS</button>
+            <button type="button" class="wash-shift-tab ${filter === "CONCLUIDAS" ? "active" : ""}" data-maint-filter="CONCLUIDAS">CONCLUÍDAS</button>
+        </section>
         <p class="section-caption">NÃO EXECUTADOS NO DIA: ${notExecuted}. Use os cards abaixo para instalar, justificar ou reprogramar.</p>
     `;
+    elements.maintenanceDayPanel.querySelectorAll("[data-maint-filter]").forEach((button) => {
+        button.addEventListener("click", () => {
+            state.maintenanceStatusFilter = button.dataset.maintFilter || "ABERTAS";
+            renderMaintenance();
+        });
+    });
+}
+
+function filterMaintenanceItemsForMobile(items) {
+    const filter = state.maintenanceStatusFilter || "ABERTAS";
+    const todayKey = getManausDateKey();
+    const openStatuses = new Set(["PENDENTE", "PROGRAMADO", "REPROGRAMADO"]);
+    if (filter === "ABERTAS") {
+        return items.filter((item) => openStatuses.has(String(item.status || "").toUpperCase()));
+    }
+    if (filter === "ATRASADAS") {
+        return items.filter((item) => {
+            const status = String(item.status || "").toUpperCase();
+            const scheduled = String(item.scheduled_date || "");
+            return openStatuses.has(status) && scheduled && scheduled < todayKey;
+        });
+    }
+    if (filter === "AGUARDANDO_MATERIAL") {
+        return items.filter((item) => String(item.status || "").toUpperCase() === "AGUARDANDO_MATERIAL");
+    }
+    if (filter === "CONCLUIDAS") {
+        return items.filter((item) => String(item.status || "").toUpperCase() === "INSTALADO");
+    }
+    return items;
 }
 
 function maintenanceItemCanInstall(item) {
@@ -1696,6 +1778,7 @@ function maintenanceItemCanInstall(item) {
 function makeMaintenanceItemCard(item, index) {
     const vehicle = item.vehicle || {};
     const schedule = item.schedule || {};
+    const workOrder = item.work_order || {};
     const materials = schedule.materiais || [];
     const photoAfter = item.photo_after ? makeAbsoluteUrl(item.photo_after) : "";
     const status = String(item.status || "PENDENTE").toUpperCase();
@@ -1708,6 +1791,10 @@ function makeMaintenanceItemCard(item, index) {
         <div class="item-topline">
             <span>${String(index).padStart(2, "0")}</span>
             <h3>${escapeHtml(String(schedule.title || item.item_name || "PROGRAMACAO DE MANUTENCAO").toUpperCase())}</h3>
+        </div>
+        <div class="activity-meta">
+            <strong>OS ${escapeHtml(String(workOrder.order_number || "-").toUpperCase())}</strong>
+            <span>${escapeHtml(String(workOrder.status || status).replace(/_/g, " "))}</span>
         </div>
         <div class="activity-meta">
             <strong>${escapeHtml(String(vehicle.frota || "EQUIPAMENTO").toUpperCase())} | ${escapeHtml(String(vehicle.placa || "-").toUpperCase())}</strong>
@@ -1733,6 +1820,7 @@ function makeMaintenanceItemCard(item, index) {
         `}
         ${item.observation ? `<div class="nc-meta-list"><span>OBSERVAÇÃO: ${escapeHtml(item.observation)}</span></div>` : ""}
         ${status !== "INSTALADO" && !canExecute.allowed ? `<span class="maintenance-flag">AGUARDANDO MATERIAL / BLOQUEIO</span>` : ""}
+        ${workOrder.id ? `<button type="button" class="share-button maintenance-pdf-button">EXPORTAR PDF DA OS</button>` : ""}
         ${status === "INSTALADO" ? `
             <span class="nc-resolved-flag">INSTALADO</span>
             ${item.executed_by ? `<div class="nc-meta-list"><span>EXECUTADO POR: ${escapeHtml(String(item.executed_by.nome || "").toUpperCase())}</span><span>EXECUÇÃO EM: ${formatDateTime(item.executed_at)}</span></div>` : ""}
@@ -1786,9 +1874,28 @@ function makeMaintenanceItemCard(item, index) {
         card.querySelector(".maintenance-not-executed-button")?.addEventListener("click", () => submitMaintenanceItem(card, item, "NAO_EXECUTADO"));
         card.querySelector(".maintenance-reprogram-button")?.addEventListener("click", () => reprogramMaintenanceItem(card, item));
     }
+    card.querySelector(".maintenance-pdf-button")?.addEventListener("click", () => exportMaintenanceWorkOrderPdf(item));
     hydrateProtectedImages(card);
     attachCollapsibleCard(card);
     return card;
+}
+
+async function exportMaintenanceWorkOrderPdf(item) {
+    const workOrder = item.work_order || {};
+    const workOrderId = Number(workOrder.id || 0);
+    if (!workOrderId) {
+        showToast("OS NÃO DISPONÍVEL NESTE ITEM.", true);
+        return;
+    }
+    try {
+        await downloadAuthenticatedFile(
+            `/manutencao/os/${workOrderId}/pdf`,
+            `ordem_servico_${String(workOrder.order_number || workOrderId).toLowerCase().replace(/[^a-z0-9_-]/g, "_")}.pdf`
+        );
+        showToast("PDF DA OS BAIXADO COM SUCESSO.");
+    } catch (error) {
+        showToast(error.message || "FALHA AO EXPORTAR PDF DA OS.", true);
+    }
 }
 
 async function reprogramMaintenanceItem(card, item) {

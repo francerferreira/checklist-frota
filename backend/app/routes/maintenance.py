@@ -11,6 +11,7 @@ from flask import Blueprint, g, request, send_file
 from app.models import MaintenanceSchedule, MaintenanceScheduleItem
 from app.services.auth_service import auth_required, user_has_management_access, user_has_mechanic_workspace_access
 from app.services.maintenance_service import (
+    build_work_order_report_payload,
     build_maintenance_overview,
     build_maintenance_report_payload,
     create_maintenance_schedule,
@@ -18,6 +19,7 @@ from app.services.maintenance_service import (
     mechanic_items_for_user,
     program_maintenance_schedule,
     reprogram_schedule_item,
+    suggest_material_for_schedule,
     suggest_schedule_window,
     suggest_mechanic_for_payload,
     sync_checklist_non_conformities,
@@ -111,6 +113,37 @@ def maintenance_pdf_report():
     )
 
 
+@bp.get("/manutencao/os/<int:work_order_id>/pdf")
+@auth_required
+def maintenance_work_order_pdf_report(work_order_id: int):
+    denied = _guard_workspace_access()
+    if denied:
+        return denied
+
+    item = MaintenanceScheduleItem.query.filter(MaintenanceScheduleItem.work_order.has(id=work_order_id)).first()
+    if not item or not item.work_order:
+        return api_response(False, error="Ordem de serviço não encontrada.", status_code=404)
+    if g.current_user.tipo == "mecanico":
+        assigned_ids = {item.assigned_mechanic_user_id, item.schedule.assigned_mechanic_user_id if item.schedule else None, item.work_order.assigned_mechanic_user_id}
+        if g.current_user.id not in assigned_ids:
+            return api_response(False, error="Esta ordem de serviço não foi direcionada para você.", status_code=403)
+
+    payload = build_work_order_report_payload(work_order_id)
+    tmp = tempfile.NamedTemporaryFile(prefix="ordem_servico_", suffix=".pdf", delete=False)
+    tmp_path = Path(tmp.name)
+    tmp.close()
+    export_maintenance_pdf(payload, tmp_path, generated_by=g.current_user.nome or g.current_user.login)
+    pdf_buffer = BytesIO(tmp_path.read_bytes())
+    tmp_path.unlink(missing_ok=True)
+    pdf_buffer.seek(0)
+    return send_file(
+        pdf_buffer,
+        mimetype="application/pdf",
+        as_attachment=True,
+        download_name=payload["filename"],
+    )
+
+
 @bp.post("/manutencao/programacoes")
 @auth_required
 def create_maintenance_schedule_route():
@@ -150,6 +183,17 @@ def suggest_maintenance_schedule_window_route():
         suggestion = suggest_schedule_window(payload)
     except ValueError as exc:
         return api_response(False, error=str(exc), status_code=400)
+    return api_response(True, data=suggestion)
+
+
+@bp.get("/manutencao/programacoes/<int:schedule_id>/sugestao-peca")
+@auth_required
+def suggest_maintenance_material_route(schedule_id: int):
+    denied = _guard_management_access()
+    if denied:
+        return denied
+
+    suggestion = suggest_material_for_schedule(schedule_id)
     return api_response(True, data=suggestion)
 
 

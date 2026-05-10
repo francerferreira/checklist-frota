@@ -197,6 +197,9 @@ class APIClient:
     def get_maintenance_schedule_suggestion(self, payload: dict):
         return self._request("POST", "/manutencao/sugestao-agenda", json=payload)
 
+    def get_maintenance_material_suggestion(self, schedule_id: int):
+        return self._request("GET", f"/manutencao/programacoes/{schedule_id}/sugestao-peca")
+
     def link_maintenance_schedule_material(self, schedule_id: int, payload: dict):
         return self._request("POST", f"/manutencao/programacoes/{schedule_id}/materiais", json=payload)
 
@@ -241,6 +244,26 @@ class APIClient:
             except ValueError:
                 payload = {}
             raise RuntimeError(payload.get("error") or "Falha ao baixar relatorio de manutencao.")
+
+        path = Path(output_path)
+        path.parent.mkdir(parents=True, exist_ok=True)
+        with path.open("wb") as file_handle:
+            for chunk in response.iter_content(chunk_size=1024 * 512):
+                if chunk:
+                    file_handle.write(chunk)
+
+    def download_maintenance_work_order_pdf(self, work_order_id: int, output_path: str) -> None:
+        response = self.session.get(
+            f"{self.base_url}/manutencao/os/{int(work_order_id)}/pdf",
+            timeout=180,
+            stream=True,
+        )
+        if not response.ok:
+            try:
+                payload = response.json()
+            except ValueError:
+                payload = {}
+            raise RuntimeError(payload.get("error") or "Falha ao baixar ordem de serviço.")
 
         path = Path(output_path)
         path.parent.mkdir(parents=True, exist_ok=True)

@@ -737,6 +737,9 @@ class MaintenancePage(QFrame):
         self.remove_button.setProperty("variant", "danger")
         self.remove_button.setMinimumHeight(34)
         self.remove_button.clicked.connect(self.remove_selected_items)
+        self.export_work_order_button = QPushButton("Exportar OS")
+        self.export_work_order_button.setMinimumHeight(34)
+        self.export_work_order_button.clicked.connect(self.export_selected_work_order_pdf)
 
         self.redistribute_start_input = QDateEdit()
         self.redistribute_start_input.setCalendarPopup(True)
@@ -765,12 +768,13 @@ class MaintenancePage(QFrame):
         action_layout.addWidget(QLabel("Nova data"), 2, 2)
         action_layout.addWidget(self.move_date_input, 2, 3)
         action_layout.addWidget(self.move_button, 2, 4)
-        action_layout.addWidget(self.remove_button, 3, 4)
+        action_layout.addWidget(self.export_work_order_button, 3, 4)
+        action_layout.addWidget(self.remove_button, 4, 4)
         action_layout.addWidget(QLabel("Início da redistribuição"), 3, 0)
         action_layout.addWidget(self.redistribute_start_input, 3, 1)
         action_layout.addWidget(QLabel("Cap./dia"), 3, 2)
         action_layout.addWidget(self.redistribute_capacity_input, 3, 3)
-        action_layout.addWidget(self.redistribute_button, 4, 3, 1, 2)
+        action_layout.addWidget(self.redistribute_button, 5, 3, 1, 2)
         action_layout.setColumnStretch(1, 1)
         action_layout.setColumnStretch(4, 1)
 
@@ -791,6 +795,12 @@ class MaintenancePage(QFrame):
 
         self.material_combo = QComboBox()
         self.material_combo.currentIndexChanged.connect(self._sync_material_form_with_link)
+        self.material_suggestion_badge = QLabel("Sugestão de peça: selecione um planejamento para o sistema analisar o histórico.")
+        self.material_suggestion_badge.setObjectName("TopBarPill")
+        self.material_suggest_button = QPushButton("Aplicar sugestão")
+        self.material_suggest_button.setMinimumHeight(34)
+        self.material_suggest_button.clicked.connect(self.apply_material_suggestion_for_selected_schedule)
+        self.material_suggest_button.setEnabled(False)
         self.material_qty_input = QSpinBox()
         self.material_qty_input.setMinimum(1)
         self.material_qty_input.setMaximum(999)
@@ -851,14 +861,16 @@ class MaintenancePage(QFrame):
         material_form_hint.setWordWrap(True)
         material_form_layout.addWidget(material_form_title, 0, 0, 1, 4)
         material_form_layout.addWidget(material_form_hint, 1, 0, 1, 4)
-        material_form_layout.addWidget(QLabel("Peça / material"), 2, 0)
-        material_form_layout.addWidget(self.material_combo, 3, 0, 1, 2)
-        material_form_layout.addWidget(QLabel("Quantidade por veículo"), 2, 2)
-        material_form_layout.addWidget(self.material_qty_input, 3, 2)
-        material_form_layout.addWidget(QLabel("Situação da peça"), 4, 0)
-        material_form_layout.addWidget(self.material_status_combo, 5, 0, 1, 2)
-        material_form_layout.addWidget(self.material_observation_input, 5, 2)
-        material_form_layout.addWidget(self.link_material_button, 3, 3, 3, 1)
+        material_form_layout.addWidget(self.material_suggestion_badge, 2, 0, 1, 3)
+        material_form_layout.addWidget(self.material_suggest_button, 2, 3)
+        material_form_layout.addWidget(QLabel("Peça / material"), 3, 0)
+        material_form_layout.addWidget(self.material_combo, 4, 0, 1, 2)
+        material_form_layout.addWidget(QLabel("Quantidade por veículo"), 3, 2)
+        material_form_layout.addWidget(self.material_qty_input, 4, 2)
+        material_form_layout.addWidget(QLabel("Situação da peça"), 5, 0)
+        material_form_layout.addWidget(self.material_status_combo, 6, 0, 1, 2)
+        material_form_layout.addWidget(self.material_observation_input, 6, 2)
+        material_form_layout.addWidget(self.link_material_button, 4, 3, 3, 1)
         material_form_layout.setColumnStretch(1, 1)
         material_form_layout.setColumnStretch(2, 1)
 
@@ -1402,6 +1414,32 @@ class MaintenancePage(QFrame):
         icon = "dashboard" if removed else "warning"
         show_notice(self, "Retirada do cronograma", summary, icon_name=icon)
 
+    def export_selected_work_order_pdf(self):
+        selected_items = self._selected_item_payloads()
+        if not selected_items:
+            show_notice(self, "Seleção obrigatória", "Selecione um item com OS para exportar.", icon_name="warning")
+            return
+        work_order = (selected_items[0].get("work_order") or {})
+        work_order_id = int(work_order.get("id") or 0)
+        order_number = str(work_order.get("order_number") or "os")
+        if not work_order_id:
+            show_notice(self, "OS indisponível", "Este item ainda não possui ordem de serviço formal.", icon_name="warning")
+            return
+
+        default_name = make_default_export_path(f"ordem_servico_{order_number.lower().replace('-', '_')}", "pdf")
+        filename = choose_pdf_save_path(self, "Exportar ordem de serviço", default_name)
+        if not filename:
+            return
+
+        def task(progress):
+            progress(12, "Preparando ordem de serviço")
+            progress(38, "Solicitando PDF rico da OS")
+            self.api_client.download_maintenance_work_order_pdf(work_order_id, filename)
+            progress(92, "Finalizando arquivo PDF")
+            return filename
+
+        start_export_task_with_preset(self, "maintenance_pdf", task)
+
     def assign_schedule_mechanic(self):
         schedule = self._selected_schedule()
         if not schedule:
@@ -1461,12 +1499,50 @@ class MaintenancePage(QFrame):
             button.setEnabled(True)
             button.setText("Salvar peça")
 
+    def apply_material_suggestion_for_selected_schedule(self):
+        schedule = self._selected_schedule()
+        if not schedule:
+            show_notice(self, "Seleção obrigatória", "Selecione um planejamento para sugerir a peça.", icon_name="warning")
+            return
+        button = self.material_suggest_button
+        button.setEnabled(False)
+        button.setText("Sugerindo...")
+        try:
+            suggestion = self.api_client.get_maintenance_material_suggestion(int(schedule.get("id"))) or {}
+            material = suggestion.get("material") or {}
+            material_id = int(material.get("id") or 0)
+            if not material_id:
+                show_notice(self, "Sem sugestão", "O sistema não encontrou peça compatível para este planejamento.", icon_name="warning")
+                return
+            combo_index = -1
+            for index in range(self.material_combo.count()):
+                payload = self.material_combo.itemData(index)
+                if isinstance(payload, dict) and int(payload.get("id") or 0) == material_id:
+                    combo_index = index
+                    break
+            if combo_index >= 0:
+                self.material_combo.setCurrentIndex(combo_index)
+            self.material_qty_input.setValue(max(1, int(suggestion.get("quantity_per_vehicle") or 1)))
+            status_index = self.material_status_combo.findData(str(suggestion.get("status") or "").upper())
+            self.material_status_combo.setCurrentIndex(status_index if status_index >= 0 else 0)
+            self.material_observation_input.setText(str(suggestion.get("reason") or "Sugestão automática aplicada."))
+            self.material_suggestion_badge.setText(
+                f"Sugestão de peça: {(material.get('referencia') or 'Peça')} | {suggestion.get('reason') or 'Histórico analisado'}"
+            )
+            show_notice(self, "Sugestão aplicada", "A peça sugerida foi carregada no formulário para conferência.", icon_name="dashboard")
+        except Exception as exc:
+            show_notice(self, "Falha na sugestão de peça", str(exc), icon_name="warning")
+        finally:
+            button.setEnabled(True)
+            button.setText("Aplicar sugestão")
+
     def render_selected_schedule_materials(self):
         schedule = self._selected_schedule()
         if not schedule:
             self.materials_table.setRowCount(0)
             self.materials_badge.setText("0 peças")
             self.governance_badge.setText("Responsável e peças: selecione um planejamento")
+            self.material_suggestion_badge.setText("Sugestão de peça: selecione um planejamento para o sistema analisar o histórico.")
             self._set_management_controls_enabled(False)
             return
 
@@ -1506,6 +1582,7 @@ class MaintenancePage(QFrame):
 
         summary = self._material_summary_for_schedule(schedule)
         self.materials_badge.setText(f"{len(materials)} peças | {summary}")
+        self.material_suggestion_badge.setText("Sugestão de peça: use o botão para buscar a peça mais provável para este planejamento.")
         self._sync_material_form_with_link()
 
     def _sync_material_form_with_link(self):
@@ -1931,6 +2008,7 @@ class MaintenancePage(QFrame):
         self.redistribute_button.setEnabled(schedule_selected)
         self.move_date_input.setEnabled(schedule_selected and item_selected)
         self.move_button.setEnabled(schedule_selected and item_selected)
+        self.export_work_order_button.setEnabled(schedule_selected and item_selected)
         self.remove_button.setEnabled(schedule_selected and item_selected)
         self.clear_calendar_filter_button.setEnabled(schedule_selected and bool(self.selected_calendar_day_iso))
         if hasattr(self, "link_material_button"):
@@ -1958,6 +2036,7 @@ class MaintenancePage(QFrame):
         self.item_status_filter.setEnabled(enabled)
         self.move_date_input.setEnabled(False)
         self.move_button.setEnabled(False)
+        self.export_work_order_button.setEnabled(False)
         self.remove_button.setEnabled(False)
         self.redistribute_start_input.setEnabled(enabled)
         self.redistribute_capacity_input.setEnabled(enabled)
@@ -1973,6 +2052,7 @@ class MaintenancePage(QFrame):
         self.material_status_combo.setEnabled(enabled)
         self.material_observation_input.setEnabled(enabled)
         self.link_material_button.setEnabled(enabled)
+        self.material_suggest_button.setEnabled(enabled)
         self._refresh_contextual_actions()
 
     def _item_source_label(self, item: dict, schedule: dict) -> str:

@@ -253,6 +253,15 @@ def _item_label_for_work_order(item: MaintenanceScheduleItem) -> str:
     return "Manutenção"
 
 
+def _vehicle_family_from_type(value: str | None) -> str:
+    normalized = _normalize_item_key_from_text(value)
+    if normalized == "CAVALO":
+        return "cavalo"
+    if normalized == "CARRETA":
+        return "carreta"
+    return "ambos"
+
+
 def _schedule_primary_package_id(schedule: MaintenanceSchedule | None) -> int | None:
     if not schedule:
         return None
@@ -459,6 +468,146 @@ def suggest_schedule_window(payload: dict) -> dict:
     }
 
 
+def suggest_material_for_schedule(schedule_id: int) -> dict | None:
+    schedule = MaintenanceSchedule.query.get_or_404(schedule_id)
+    target_item_names: set[str] = set()
+    target_families: set[str] = set()
+
+    if schedule.item_name:
+        target_item_names.add(_normalize_item_key_from_text(schedule.item_name))
+    for item in schedule.items:
+        target_item_names.add(_normalize_item_key_from_text(_item_label_for_work_order(item)))
+        vehicle_type = item.vehicle.tipo if item.vehicle else None
+        target_families.add(_vehicle_family_from_type(vehicle_type))
+
+    target_item_names.discard("")
+    target_families.discard("")
+    if not target_families:
+        target_families.add("ambos")
+
+    scores: dict[int, dict] = {}
+    history_links = MaintenanceMaterial.query.order_by(MaintenanceMaterial.created_at.desc()).all()
+    for link in history_links:
+        material = link.material
+        schedule_ref = link.schedule
+        if not material or not schedule_ref:
+            continue
+
+        schedule_item_names = {_normalize_item_key_from_text(schedule_ref.item_name)}
+        for schedule_item in schedule_ref.items:
+            schedule_item_names.add(_normalize_item_key_from_text(_item_label_for_work_order(schedule_item)))
+        schedule_item_names.discard("")
+
+        score = 0
+        item_matches = len(schedule_item_names.intersection(target_item_names))
+        if item_matches:
+            score += 5 * item_matches
+        material_family = str(material.aplicacao_tipo or "ambos").lower()
+        if material_family in target_families or material_family == "ambos":
+            score += 2
+        if str(link.status or "").upper() in {"UTILIZADO", "RESERVADO", "DISPONIVEL_EM_ESTOQUE"}:
+            score += 1
+        if score <= 0:
+            continue
+
+        entry = scores.setdefault(
+            int(material.id),
+            {
+                "material": material.to_dict(),
+                "score": 0,
+                "item_matches": 0,
+                "family_matches": 0,
+                "quantity_per_vehicle": int(link.quantity_per_vehicle or 1),
+                "history_count": 0,
+            },
+        )
+        entry["score"] += score
+        entry["item_matches"] += item_matches
+        if material_family in target_families or material_family == "ambos":
+            entry["family_matches"] += 1
+        entry["history_count"] += 1
+        if entry["history_count"] == 1:
+            entry["quantity_per_vehicle"] = int(link.quantity_per_vehicle or 1)
+
+    if scores:
+        best = max(
+            scores.values(),
+            key=lambda row: (row["score"], row["item_matches"], row["family_matches"], row["history_count"]),
+        )
+        material = best["material"]
+        return {
+            "material": material,
+            "quantity_per_vehicle": best["quantity_per_vehicle"],
+            "status": "DISPONIVEL_EM_ESTOQUE" if int(material.get("quantidade_estoque") or 0) > 0 else "AGUARDANDO_MATERIAL",
+            "reason": (
+                f"{best['item_matches']} histórico(s) com item parecido | "
+                f"{best['family_matches']} histórico(s) com família compatível"
+            ),
+            "strategy": "history",
+        }
+
+    fallback_materials = [
+        material
+        for material in Material.query.filter_by(ativo=True).order_by(Material.referencia.asc()).all()
+        if str(material.aplicacao_tipo or "ambos").lower() in target_families or str(material.aplicacao_tipo or "ambos").lower() == "ambos"
+    ]
+    if not fallback_materials:
+        fallback_materials = Material.query.filter_by(ativo=True).order_by(Material.referencia.asc()).all()
+    if not fallback_materials:
+        return None
+
+    material = fallback_materials[0]
+    return {
+        "material": material.to_dict(),
+        "quantity_per_vehicle": 1,
+        "status": "DISPONIVEL_EM_ESTOQUE" if int(material.quantidade_estoque or 0) > 0 else "AGUARDANDO_MATERIAL",
+        "reason": "Sem histórico suficiente. Aplicada regra simplificada pela peça padrão disponível para o item.",
+        "strategy": "fallback",
+    }
+
+
+def build_work_order_report_payload(work_order_id: int) -> dict:
+    work_order = MaintenanceWorkOrder.query.get_or_404(work_order_id)
+    schedule = work_order.schedule
+    item = work_order.schedule_item
+    vehicle = work_order.vehicle
+    materials = schedule.materials if schedule else []
+    material_text = "; ".join(
+        f"{(link.material.referencia if link.material else '-') } | {(link.material.descricao if link.material else '-') } | "
+        f"Qtd/veículo {int(link.quantity_per_vehicle or 0)} | Status {str(link.status or '-').replace('_', ' ')}"
+        for link in materials
+    ) or "Sem peça vinculada"
+
+    rows = [
+        {"campo": "Número da OS", "valor": work_order.order_number},
+        {"campo": "Programação", "valor": schedule.title if schedule else "-"},
+        {"campo": "Pacote de resolução", "valor": f"#{work_order.resolution_package_id}" if work_order.resolution_package_id else "-"},
+        {"campo": "Serviço", "valor": work_order.item_name or "-"},
+        {"campo": "Veículo", "valor": f"{vehicle.frota if vehicle else '-'} | {vehicle.placa if vehicle else '-'} | {vehicle.modelo if vehicle else '-'}"},
+        {"campo": "Situação da OS", "valor": str(work_order.status or "-").replace("_", " ")},
+        {"campo": "Situação da manutenção", "valor": str(schedule.status or "-").replace("_", " ") if schedule else "-"},
+        {"campo": "Mecânico responsável", "valor": (work_order.assigned_mechanic.nome if work_order.assigned_mechanic else "-")},
+        {"campo": "Data programada", "valor": work_order.scheduled_date.strftime("%d/%m/%Y") if work_order.scheduled_date else "-"},
+        {"campo": "Aberta por", "valor": (work_order.opened_by.nome if work_order.opened_by else "-")},
+        {"campo": "Aberta em", "valor": work_order.created_at.strftime("%d/%m/%Y %H:%M") if work_order.created_at else "-"},
+        {"campo": "Peças e materiais", "valor": material_text},
+        {"campo": "Observação técnica", "valor": item.observation if item else "-"},
+        {"campo": "Motivo de não execução", "valor": item.not_executed_reason if item else "-"},
+        {"campo": "Foto antes", "valor": ((item.checklist_item.foto_antes if item and item.checklist_item else None) or "-")},
+        {"campo": "Foto depois", "valor": ((item.photo_after if item else None) or "-")},
+        {"campo": "Executado por", "valor": (item.executed_by.nome if item and item.executed_by else "-")},
+        {"campo": "Executado em", "valor": item.executed_at.strftime("%d/%m/%Y %H:%M") if item and item.executed_at else "-"},
+    ]
+    return {
+        "title": f"Ordem de Serviço {work_order.order_number}",
+        "subtitle": f"{work_order.item_name or 'Manutenção'} | {vehicle.frota if vehicle else '-'}",
+        "period_label": work_order.scheduled_date.strftime("%d/%m/%Y") if work_order.scheduled_date else "Sem data programada",
+        "columns": [("Campo", "campo"), ("Valor", "valor")],
+        "rows": rows,
+        "filename": f"ordem_servico_{work_order.order_number.lower()}.pdf",
+    }
+
+
 def _group_key_for_nc(item: ChecklistItem) -> str:
     return f"CHECKLIST_NC:{item.item_nome.strip().upper()}"
 
@@ -592,6 +741,7 @@ def build_maintenance_overview(*, year: int | None = None, month: int | None = N
     schedules = MaintenanceSchedule.query.order_by(MaintenanceSchedule.created_at.desc()).all()
     items = MaintenanceScheduleItem.query.order_by(MaintenanceScheduleItem.scheduled_date.asc().nullslast()).all()
     materials = MaintenanceMaterial.query.order_by(MaintenanceMaterial.created_at.desc()).all()
+    work_orders = MaintenanceWorkOrder.query.order_by(MaintenanceWorkOrder.scheduled_date.asc().nullslast(), MaintenanceWorkOrder.id.asc()).all()
 
     items = [
         item
@@ -612,6 +762,7 @@ def build_maintenance_overview(*, year: int | None = None, month: int | None = N
             if item.assigned_mechanic_user_id == assigned_to_user_id
             or (item.schedule and item.schedule.assigned_mechanic_user_id == assigned_to_user_id)
         ]
+        work_orders = [row for row in work_orders if row.assigned_mechanic_user_id == assigned_to_user_id]
 
     programmed = [item for item in items if item.scheduled_date]
     installed = sum(1 for item in items if item.status == "INSTALADO")
@@ -620,6 +771,11 @@ def build_maintenance_overview(*, year: int | None = None, month: int | None = N
     days_used = len({item.scheduled_date for item in programmed})
     total_done = installed + not_executed
     completion_base = len(items) or 1
+    open_order_statuses = _open_work_order_statuses()
+    open_work_orders = [row for row in work_orders if str(row.status or "").upper() in open_order_statuses]
+    overdue_work_orders = [row for row in open_work_orders if row.scheduled_date and row.scheduled_date < today]
+    blocked_work_orders = [row for row in work_orders if str(row.status or "").upper() == "AGUARDANDO_MATERIAL"]
+    completed_work_orders = [row for row in work_orders if str(row.status or "").upper() == "CONCLUIDA"]
 
     return {
         "periodo": {
@@ -640,6 +796,10 @@ def build_maintenance_overview(*, year: int | None = None, month: int | None = N
             "dias_utilizados": days_used,
             "capacidade_media": round(len(programmed) / days_used, 1) if days_used else 0,
             "percentual_conclusao": round((total_done / completion_base) * 100, 1) if items else 0,
+            "os_abertas": len(open_work_orders),
+            "os_atrasadas": len(overdue_work_orders),
+            "os_bloqueadas": len(blocked_work_orders),
+            "os_concluidas": len(completed_work_orders),
         },
         "cronograma": _build_month_calendar(items, year=year, month=month),
         "programacoes": [schedule.to_dict(include_items=True, include_materials=True) for schedule in schedules],
