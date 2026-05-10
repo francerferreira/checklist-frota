@@ -531,7 +531,7 @@ class MaintenancePage(QFrame):
         action_layout.setHorizontalSpacing(8)
         action_layout.setVerticalSpacing(6)
 
-        self.selected_schedule_badge = QLabel("Nenhuma programação selecionada")
+        self.selected_schedule_badge = QLabel("Nenhum planejamento selecionado")
         self.selected_schedule_badge.setObjectName("TopBarPill")
 
         self.item_status_filter = QComboBox()
@@ -603,7 +603,7 @@ class MaintenancePage(QFrame):
         governance_header_layout.setContentsMargins(12, 10, 12, 10)
         governance_header_layout.setSpacing(6)
 
-        self.governance_badge = QLabel("Responsável e peças: selecione uma programação")
+        self.governance_badge = QLabel("Responsável e peças: selecione um planejamento")
         self.governance_badge.setObjectName("TopBarPill")
 
         self.mechanic_combo = QComboBox()
@@ -695,7 +695,7 @@ class MaintenancePage(QFrame):
         materials_top = QHBoxLayout()
         materials_title = QLabel("Peças da programação")
         materials_title.setObjectName("SectionTitle")
-        self.materials_badge = QLabel("0 materiais")
+        self.materials_badge = QLabel("0 peças")
         self.materials_badge.setObjectName("TopBarPill")
         materials_top.addWidget(materials_title)
         materials_top.addStretch()
@@ -1107,7 +1107,7 @@ class MaintenancePage(QFrame):
                     self.month_input.setDate(date_value)
             self.refresh()
             self.data_changed.emit()
-            show_notice(self, "Programação criada", "Cronograma criado e pronto para gestão na tabela.", icon_name="dashboard")
+            show_notice(self, "Planejamento criado", "Planejamento registrado e pronto para distribuição na agenda.", icon_name="dashboard")
         except Exception as exc:
             show_notice(self, "Falha ao criar programação", str(exc), icon_name="warning")
         finally:
@@ -1125,7 +1125,7 @@ class MaintenancePage(QFrame):
             show_notice(
                 self,
                 "Sincronização concluída",
-                f"{int(payload.get('updated') or 0)} programação(ões) atualizada(s) a partir das NC.",
+                f"{int(payload.get('updated') or 0)} planejamento(s) atualizado(s) a partir das NC.",
                 icon_name="dashboard",
             )
         except Exception as exc:
@@ -1152,7 +1152,7 @@ class MaintenancePage(QFrame):
             )
             self.refresh()
             self.data_changed.emit()
-            show_notice(self, "Cronograma redistribuido", "Distribuicao atualizada por data inicial e capacidade.", icon_name="dashboard")
+            show_notice(self, "Agenda recalculada", "Distribuição atualizada pela nova data inicial e capacidade diária.", icon_name="dashboard")
         except Exception as exc:
             show_notice(self, "Falha na redistribuicao", str(exc), icon_name="warning")
         finally:
@@ -1183,7 +1183,7 @@ class MaintenancePage(QFrame):
         if moved:
             self.refresh()
             self.data_changed.emit()
-        summary = f"Itens movidos: {moved} | ignorados: {skipped}"
+        summary = f"Itens reprogramados: {moved} | ignorados: {skipped}"
         if errors:
             summary += f" | falhas: {len(errors)}"
         icon = "dashboard" if moved else "warning"
@@ -1227,7 +1227,7 @@ class MaintenancePage(QFrame):
     def assign_schedule_mechanic(self):
         schedule = self._selected_schedule()
         if not schedule:
-            show_notice(self, "Seleção obrigatória", "Selecione uma programação para definir o mecânico.", icon_name="warning")
+            show_notice(self, "Seleção obrigatória", "Selecione um planejamento para definir o responsável.", icon_name="warning")
             return
 
         start_date = str(schedule.get("start_date") or QDate.currentDate().toString("yyyy-MM-dd"))
@@ -1245,7 +1245,7 @@ class MaintenancePage(QFrame):
             self.api_client.program_maintenance_schedule(int(schedule.get("id")), payload)
             self.refresh()
             self.data_changed.emit()
-            show_notice(self, "Mecânico aplicado", "Responsável atualizado na programação selecionada.", icon_name="dashboard")
+            show_notice(self, "Responsável definido", "Responsável atualizado no planejamento selecionado.", icon_name="dashboard")
         except Exception as exc:
             show_notice(self, "Falha ao aplicar mecânico", str(exc), icon_name="warning")
         finally:
@@ -1255,12 +1255,12 @@ class MaintenancePage(QFrame):
     def link_material_for_selected_schedule(self):
         schedule = self._selected_schedule()
         if not schedule:
-            show_notice(self, "Seleção obrigatória", "Selecione uma programação para vincular material.", icon_name="warning")
+            show_notice(self, "Seleção obrigatória", "Selecione um planejamento para salvar a peça.", icon_name="warning")
             return
 
         material = self.material_combo.currentData()
         if not isinstance(material, dict) or not material.get("id"):
-            show_notice(self, "Material obrigatorio", "Selecione um material valido.", icon_name="warning")
+            show_notice(self, "Peça obrigatória", "Selecione uma peça/material válida.", icon_name="warning")
             return
 
         payload = {
@@ -1276,9 +1276,9 @@ class MaintenancePage(QFrame):
             self.api_client.link_maintenance_schedule_material(int(schedule.get("id")), payload)
             self.refresh()
             self.data_changed.emit()
-            show_notice(self, "Material vinculado", "Controle de peças atualizado na programação.", icon_name="dashboard")
+            show_notice(self, "Peça salva", "Controle de peças atualizado no planejamento.", icon_name="dashboard")
         except Exception as exc:
-            show_notice(self, "Falha ao vincular material", str(exc), icon_name="warning")
+            show_notice(self, "Falha ao salvar peça", str(exc), icon_name="warning")
         finally:
             button.setEnabled(True)
             button.setText("Salvar peça")
@@ -1287,8 +1287,8 @@ class MaintenancePage(QFrame):
         schedule = self._selected_schedule()
         if not schedule:
             self.materials_table.setRowCount(0)
-            self.materials_badge.setText("0 materiais")
-            self.governance_badge.setText("Responsável e peças: selecione uma programação")
+            self.materials_badge.setText("0 peças")
+            self.governance_badge.setText("Responsável e peças: selecione um planejamento")
             self._set_management_controls_enabled(False)
             return
 
@@ -1327,7 +1327,7 @@ class MaintenancePage(QFrame):
             self.materials_table.setSortingEnabled(True)
 
         summary = self._material_summary_for_schedule(schedule)
-        self.materials_badge.setText(f"{len(materials)} materiais | {summary}")
+        self.materials_badge.setText(f"{len(materials)} peças | {summary}")
         self._sync_material_form_with_link()
 
     def _sync_material_form_with_link(self):
@@ -1636,7 +1636,7 @@ class MaintenancePage(QFrame):
     def render_selected_schedule_items(self):
         schedule = self._selected_schedule()
         if not schedule:
-            self.selected_schedule_badge.setText("Nenhuma programação selecionada")
+            self.selected_schedule_badge.setText("Nenhum planejamento selecionado")
             self.items_table.setRowCount(0)
             if hasattr(self, "details_hint_label"):
                 self.details_hint_label.setText("Selecione um planejamento e, se quiser, um dia no calendário para ver os serviços.")
