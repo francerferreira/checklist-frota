@@ -3,7 +3,7 @@ from __future__ import annotations
 import json
 
 from app.extensions import db
-from app.models import ChecklistItem, MaintenanceSchedule, MaintenanceWorkOrder, Material, ResolutionPackage, SystemSetting
+from app.models import AuditLog, ChecklistItem, MaintenanceSchedule, MaintenanceWorkOrder, Material, ResolutionPackage, SystemSetting
 
 
 DEFAULT_INTELLIGENT_RULES = {
@@ -111,4 +111,71 @@ def build_compatibility_status() -> dict:
             "materiais_sem_movimento": len(materials_without_movement),
         },
         "leituras": alerts,
+    }
+
+
+def build_homologation_status() -> dict:
+    packages = ResolutionPackage.query.all()
+    schedules = MaintenanceSchedule.query.all()
+    work_orders = MaintenanceWorkOrder.query.all()
+    exported_work_orders = AuditLog.query.filter_by(entity_type="MAINTENANCE_WORK_ORDER", action="EXPORT_PDF").count()
+
+    item_packages = [row for row in packages if str(row.grouping_mode or "").upper() == "POR_ITEM"]
+    equipment_packages = [row for row in packages if str(row.grouping_mode or "").upper() == "POR_EQUIPAMENTO"]
+    package_schedules = [row for row in schedules if row.source_origin_type() == "PACOTE_RESOLUCAO"]
+    work_orders_with_package = [row for row in work_orders if row.resolution_package_id]
+    assigned_work_orders = [row for row in work_orders if row.assigned_mechanic_user_id]
+    schedules_with_materials = [row for row in schedules if row.materials]
+    schedules_with_blockers = [row for row in schedules if row.blocker_summary().get("materiais_bloqueados") or row.blocker_summary().get("ordens_bloqueadas")]
+
+    scenarios = [
+        {
+            "cenario": "Pacote por item",
+            "status": "COM_EVIDENCIA" if item_packages else "PRONTO_PARA_VALIDAR",
+            "quantidade": len(item_packages),
+            "leitura": "Agrupamento por item distinto pronto para uso na Central de Resolução.",
+        },
+        {
+            "cenario": "Pacote por equipamento",
+            "status": "COM_EVIDENCIA" if equipment_packages else "PRONTO_PARA_VALIDAR",
+            "quantidade": len(equipment_packages),
+            "leitura": "Agrupamento por equipamento pronto para consolidar várias NCs da mesma unidade.",
+        },
+        {
+            "cenario": "Pacote enviado para manutenção",
+            "status": "COM_EVIDENCIA" if package_schedules else "PRONTO_PARA_VALIDAR",
+            "quantidade": len(package_schedules),
+            "leitura": "A manutenção já consegue receber pacote como origem oficial da execução.",
+        },
+        {
+            "cenario": "OS formal e PDF",
+            "status": "COM_EVIDENCIA" if work_orders_with_package or exported_work_orders else "PRONTO_PARA_VALIDAR",
+            "quantidade": len(work_orders_with_package),
+            "leitura": "Ordens de serviço já nascem formais e podem ser exportadas em PDF rico.",
+        },
+        {
+            "cenario": "Painel do mecânico",
+            "status": "COM_EVIDENCIA" if assigned_work_orders else "PRONTO_PARA_VALIDAR",
+            "quantidade": len(assigned_work_orders),
+            "leitura": "O Web/Mobile já consegue entregar fila por mecânico com OS visível.",
+        },
+        {
+            "cenario": "Materiais e bloqueios",
+            "status": "COM_EVIDENCIA" if schedules_with_materials or schedules_with_blockers else "PRONTO_PARA_VALIDAR",
+            "quantidade": len(schedules_with_materials),
+            "leitura": "Peças, reservas e travas já conversam com programação e OS.",
+        },
+    ]
+
+    ready = sum(1 for row in scenarios if row["status"] == "PRONTO_PARA_VALIDAR")
+    evidenced = sum(1 for row in scenarios if row["status"] == "COM_EVIDENCIA")
+    return {
+        "status_geral": "PRONTO_PARA_HOMOLOGAR" if ready or evidenced else "SEM_BASE",
+        "resumo": {
+            "cenarios_total": len(scenarios),
+            "cenarios_com_evidencia": evidenced,
+            "cenarios_prontos_para_validar": ready,
+            "pdfs_os_exportados": exported_work_orders,
+        },
+        "cenarios": scenarios,
     }

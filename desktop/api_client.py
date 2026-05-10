@@ -442,6 +442,9 @@ class APIClient:
     def get_compatibility_status(self):
         return self._request("GET", "/admin/compatibility-status")
 
+    def get_homologation_status(self):
+        return self._request("GET", "/admin/homologation-status")
+
     def logout(self):
         return self._request("POST", "/logout", timeout=8)
 

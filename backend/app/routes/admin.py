@@ -13,7 +13,12 @@ from app.services.backup_service import (
     safe_backup_path,
     storage_status,
 )
-from app.services.intelligent_rules_service import build_compatibility_status, get_intelligent_rules, update_intelligent_rules
+from app.services.intelligent_rules_service import (
+    build_compatibility_status,
+    build_homologation_status,
+    get_intelligent_rules,
+    update_intelligent_rules,
+)
 from app.services.auth_service import user_has_management_access
 from app.utils.responses import api_response
 
@@ -115,6 +120,15 @@ def get_compatibility_status_route():
     if denied:
         return denied
     return api_response(True, data=build_compatibility_status())
+
+
+@bp.get("/homologation-status")
+@auth_required
+def get_homologation_status_route():
+    denied = _guard_management_access()
+    if denied:
+        return denied
+    return api_response(True, data=build_homologation_status())
 
 
 @bp.post("/backups/create")

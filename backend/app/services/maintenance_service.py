@@ -933,6 +933,11 @@ def create_maintenance_schedule(payload: dict, *, created_by_user_id: int) -> Ma
     start_date = _parse_date(payload.get("start_date") or payload.get("data_inicio"), default=today_manaus())
     daily_capacity = _normalize_daily_capacity(payload.get("daily_capacity") or payload.get("capacidade_diaria"))
 
+    if source_type in {"ATIVIDADE", "CHECKLIST_NC"}:
+        raise ValueError(
+            "Novas resoluções corretivas devem entrar pela Central de Resolução, virar Pacote de Resolução e só depois seguir para a manutenção."
+        )
+
     package_ids = [int(value) for value in payload.get("package_ids") or []]
     selected_packages: list[ResolutionPackage] = []
     if source_type == "PACOTE_RESOLUCAO":
@@ -991,19 +996,18 @@ def create_maintenance_schedule(payload: dict, *, created_by_user_id: int) -> Ma
                 source_items.append((vehicle_id, checklist_item.id, None))
                 seen_checklist_ids.add(checklist_item.id)
     elif checklist_item_ids:
-        checklist_items = ChecklistItem.query.filter(ChecklistItem.id.in_(checklist_item_ids)).all()
-        for checklist_item in checklist_items:
-            source_items.append((checklist_item.checklist.vehicle_id, checklist_item.id, None))
+        raise ValueError(
+            "Abertura direta por não conformidade foi desativada neste fluxo. Use a Central de Resolução para gerar pacote e enviar para a manutenção."
+        )
     elif activity_ids:
-        activities = Activity.query.filter(Activity.id.in_(activity_ids)).all()
-        for activity in activities:
-            for activity_item in activity.items:
-                source_items.append((activity_item.vehicle_id, None, activity.id))
+        raise ValueError(
+            "Abertura direta por inspeção foi desativada neste fluxo. Use a Central de Resolução para gerar pacote e enviar para a manutenção."
+        )
     elif vehicle_ids:
         for vehicle_id in vehicle_ids:
             source_items.append((vehicle_id, None, None))
     else:
-        raise ValueError("Selecione ao menos um veículo, não conformidade ou atividade.")
+        raise ValueError("Selecione ao menos um pacote de resolução ou veículo para preventiva.")
 
     selected_checklist_ids = [checklist_item_id for _, checklist_item_id, _ in source_items if checklist_item_id]
     if selected_checklist_ids:

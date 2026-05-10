@@ -25,6 +25,7 @@ class AdminRulesPage(QFrame):
         self.api_client = api_client
         self.rules = {}
         self.compatibility = {}
+        self.homologation = {}
         self.setObjectName("ContentSurface")
         style_card(self)
 
@@ -144,10 +145,31 @@ class AdminRulesPage(QFrame):
         self.readings_table.setMinimumHeight(180)
         compatibility_layout.addWidget(self.readings_table)
 
+        homologation_card = QFrame()
+        style_table_card(homologation_card)
+        homologation_layout = QVBoxLayout(homologation_card)
+        homologation_layout.setContentsMargins(14, 14, 14, 14)
+        homologation_layout.setSpacing(10)
+        homologation_title = QLabel("Homologação da virada")
+        homologation_title.setObjectName("SectionTitle")
+        homologation_hint = QLabel(
+            "Use esta matriz como semáforo final: ela mostra o que já tem evidência real e o que ainda está pronto para validação assistida."
+        )
+        homologation_hint.setObjectName("PageSubtitle")
+        homologation_hint.setWordWrap(True)
+        self.homologation_table = QTableWidget(0, 4)
+        self.homologation_table.setHorizontalHeaderLabels(["Cenário", "Status", "Evidências", "Leitura"])
+        configure_table(self.homologation_table, stretch_last=True)
+        self.homologation_table.setMinimumHeight(240)
+        homologation_layout.addWidget(homologation_title)
+        homologation_layout.addWidget(homologation_hint)
+        homologation_layout.addWidget(self.homologation_table)
+
         layout.addLayout(header)
         layout.addWidget(summary_card)
         layout.addWidget(form_card)
-        layout.addWidget(compatibility_card, 1)
+        layout.addWidget(compatibility_card)
+        layout.addWidget(homologation_card, 1)
 
     def set_loading_state(self, loading: bool):
         if loading:
@@ -159,15 +181,18 @@ class AdminRulesPage(QFrame):
         if not self.api_client.user_has_management_access():
             self.compatibility_table.setRowCount(0)
             self.readings_table.setRowCount(0)
+            self.homologation_table.setRowCount(0)
             return
         try:
             self.set_loading_state(True)
             payload = self.api_client.get_intelligent_rules() or {}
             self.rules = payload.get("rules") or {}
             self.compatibility = self.api_client.get_compatibility_status() or {}
+            self.homologation = self.api_client.get_homologation_status() or {}
             self._fill_rules()
             self._fill_summary()
             self._fill_compatibility()
+            self._fill_homologation()
         except Exception as exc:
             show_notice(self, "Falha ao carregar regras", str(exc), icon_name="warning")
         finally:
@@ -182,12 +207,11 @@ class AdminRulesPage(QFrame):
         self.reserve_divisor_spin.setValue(int(self.rules.get("reserve_low_consumption_divisor", 3)))
 
     def _fill_summary(self):
-        resumo = (self.compatibility or {}).get("resumo") or {}
         self.window_badge.setText(f"Janela {self.recurrence_window_spin.value()} dias")
         self.weight_badge.setText(f"Peso {self.recurrence_weight_spin.value()}")
         self.alert_badge.setText(f"Crítico a partir de {self.critical_threshold_spin.value()}")
         self.compat_badge.setText(
-            f"Compatibilidade {self.compatibility.get('status_geral', '-')} | Legados {int(resumo.get('programacoes_legadas', 0))}"
+            f"Compatibilidade {self.compatibility.get('status_geral', '-')} | Homologação {self.homologation.get('status_geral', '-')}"
         )
 
     def _fill_compatibility(self):
@@ -217,6 +241,27 @@ class AdminRulesPage(QFrame):
         self.readings_table.setRowCount(len(readings))
         for row_index, reading in enumerate(readings):
             self.readings_table.setItem(row_index, 0, make_table_item(reading))
+
+    def _fill_homologation(self):
+        rows = list((self.homologation or {}).get("cenarios") or [])
+        self.homologation_table.setSortingEnabled(False)
+        self.homologation_table.setUpdatesEnabled(False)
+        self.homologation_table.blockSignals(True)
+        try:
+            self.homologation_table.setRowCount(len(rows))
+            for row_index, row in enumerate(rows):
+                values = [
+                    row.get("cenario") or "-",
+                    row.get("status") or "-",
+                    row.get("quantidade") or 0,
+                    row.get("leitura") or "-",
+                ]
+                for col_index, value in enumerate(values):
+                    self.homologation_table.setItem(row_index, col_index, make_table_item(value))
+        finally:
+            self.homologation_table.blockSignals(False)
+            self.homologation_table.setUpdatesEnabled(True)
+            self.homologation_table.setSortingEnabled(True)
 
     def save_rules(self):
         try:

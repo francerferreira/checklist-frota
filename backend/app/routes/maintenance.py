@@ -24,7 +24,6 @@ from app.services.maintenance_service import (
     suggest_material_for_schedule,
     suggest_schedule_window,
     suggest_mechanic_for_payload,
-    sync_checklist_non_conformities,
     update_schedule_item,
 )
 from app.services.maintenance_pdf_export_service import export_maintenance_pdf
@@ -221,9 +220,11 @@ def sync_nc_to_maintenance_route():
     denied = _guard_management_access()
     if denied:
         return denied
-
-    schedules = sync_checklist_non_conformities()
-    return api_response(True, data={"updated": len(schedules)})
+    return api_response(
+        False,
+        error="Importação direta de NC para manutenção foi desativada. Use a Central de Resolução para criar pacote e depois enviar para a manutenção.",
+        status_code=409,
+    )
 
 
 @bp.post("/manutencao/programacoes/<int:schedule_id>/materiais")

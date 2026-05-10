@@ -42,7 +42,7 @@ from theme import (
 SOURCE_LABELS = {
     "CHECKLIST_NC": "Não conformidade",
     "PACOTE_RESOLUCAO": "Pacote de resolução",
-    "ATIVIDADE": "Atividade",
+    "ATIVIDADE": "Inspeção legada",
     "PREVENTIVA": "Preventiva",
 }
 
@@ -115,7 +115,7 @@ class MaintenanceScheduleCreateDialog(QDialog):
         title = QLabel("Criar programação de manutenção")
         title.setObjectName("DialogHeaderTitle")
         subtitle = QLabel(
-            "Fase 2: abrir cronograma por atividades abertas ou preventiva por veículos, com distribuição diária."
+            "Fluxo atual: resoluções corretivas entram por Pacotes de Resolução; preventiva continua por veículos, com distribuição diária."
         )
         subtitle.setObjectName("DialogHeaderSubtitle")
         subtitle.setWordWrap(True)
@@ -132,7 +132,6 @@ class MaintenanceScheduleCreateDialog(QDialog):
 
         self.source_combo = QComboBox()
         self.source_combo.addItem("Pacotes de resolução", "PACOTE_RESOLUCAO")
-        self.source_combo.addItem("Atividades abertas", "ATIVIDADE")
         self.source_combo.addItem("Preventiva por veículos", "PREVENTIVA")
         self.source_combo.currentIndexChanged.connect(self._render_source_rows)
 
@@ -281,7 +280,7 @@ class MaintenanceScheduleCreateDialog(QDialog):
                     payload = row if column == 0 else None
                     self.source_table.setItem(row_index, column, make_table_item(value, payload=payload))
         elif source_type == "ATIVIDADE":
-            self.source_title.setText("Atividades abertas para programação")
+            self.source_title.setText("Inspeções legadas ainda abertas")
             self.source_table.setColumnCount(5)
             self.source_table.setHorizontalHeaderLabels(["ID", "Atividade", "Módulo", "Tipo", "Abertas"])
             rows = self.activities
@@ -541,7 +540,9 @@ class MaintenancePage(QFrame):
         subtitle.setWordWrap(True)
         text_wrap.addWidget(title)
         text_wrap.addWidget(subtitle)
-        context_hint = QLabel("Fluxo sugerido: Planejamento -> Calendário -> Serviços -> Responsável e Peças -> Relatório")
+        context_hint = QLabel(
+            "Fluxo oficial: Central de Resolução -> Pacote de Resolução -> Manutenção -> OS -> Relatório"
+        )
         context_hint.setObjectName("ContextHint")
         text_wrap.addWidget(context_hint)
 
@@ -550,8 +551,7 @@ class MaintenancePage(QFrame):
         self.new_schedule_button.setMinimumHeight(34)
         self.new_schedule_button.clicked.connect(self.create_schedule)
 
-        self.sync_nc_button = QPushButton("Importar NC")
-        self.sync_nc_button.setProperty("variant", "success")
+        self.sync_nc_button = QPushButton("NC via Central")
         self.sync_nc_button.setMinimumHeight(34)
         self.sync_nc_button.clicked.connect(self.sync_non_conformities)
 
@@ -1305,24 +1305,12 @@ class MaintenancePage(QFrame):
             button.setText("Nova programação")
 
     def sync_non_conformities(self):
-        button = self.sync_nc_button
-        button.setEnabled(False)
-        button.setText("Sincronizando...")
-        try:
-            payload = self.api_client.sync_maintenance_from_non_conformities() or {}
-            self.refresh()
-            self.data_changed.emit()
-            show_notice(
-                self,
-                "Sincronização concluída",
-                f"{int(payload.get('updated') or 0)} planejamento(s) atualizado(s) a partir das NC.",
-                icon_name="dashboard",
-            )
-        except Exception as exc:
-            show_notice(self, "Falha na sincronizacao", str(exc), icon_name="warning")
-        finally:
-            button.setEnabled(True)
-            button.setText("Importar NC")
+        show_notice(
+            self,
+            "Fluxo migrado",
+            "Abertura direta por NC foi desativada. Agora o caminho correto é: Central de Resolução -> criar pacote -> enviar para Manutenção.",
+            icon_name="warning",
+        )
 
     def redistribute_selected_schedule(self):
         schedule = self._selected_schedule()
