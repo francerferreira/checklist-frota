@@ -688,59 +688,6 @@ def build_work_order_report_payload(work_order_id: int) -> dict:
         "filename": f"ordem_servico_{work_order.order_number.lower()}.pdf",
     }
 
-
-def _group_key_for_nc(item: ChecklistItem) -> str:
-    return f"CHECKLIST_NC:{item.item_nome.strip().upper()}"
-
-
-def ensure_schedule_for_checklist_item(item: ChecklistItem) -> MaintenanceSchedule:
-    schedule = MaintenanceSchedule.query.filter_by(
-        source_type="CHECKLIST_NC",
-        source_key=_group_key_for_nc(item),
-    ).first()
-
-    if not schedule:
-        schedule = MaintenanceSchedule(
-            source_type="CHECKLIST_NC",
-            source_key=_group_key_for_nc(item),
-            title=f"Não conformidade - {item.item_nome}",
-            item_name=item.item_nome,
-            status="ABERTA",
-            start_date=item.created_at.date() if item.created_at else today_manaus(),
-            daily_capacity=1,
-            created_by_user_id=item.checklist.user_id,
-            observation=item.observacao,
-        )
-        db.session.add(schedule)
-        db.session.flush()
-
-    existing_item = MaintenanceScheduleItem.query.filter_by(checklist_item_id=item.id).first()
-    if not existing_item:
-        schedule_item = MaintenanceScheduleItem(
-            schedule_id=schedule.id,
-            vehicle_id=item.checklist.vehicle_id,
-            checklist_item_id=item.id,
-            status="PENDENTE",
-            observation=item.observacao,
-        )
-        db.session.add(schedule_item)
-        db.session.flush()
-
-    _sync_schedule_work_orders(schedule)
-    recalculate_schedule(schedule)
-    return schedule
-
-
-def sync_checklist_non_conformities(items: list[ChecklistItem] | None = None) -> list[MaintenanceSchedule]:
-    query = items if items is not None else ChecklistItem.query.filter_by(status="NC").all()
-    schedules: list[MaintenanceSchedule] = []
-    for item in query:
-        schedule = ensure_schedule_for_checklist_item(item)
-        schedules.append(schedule)
-    db.session.commit()
-    return schedules
-
-
 def _refresh_schedule_materials(schedule: MaintenanceSchedule) -> None:
     total_items = max(len(schedule.items), 1)
     for link in schedule.materials:

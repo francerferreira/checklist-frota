@@ -40,7 +40,7 @@ from theme import (
 
 
 SOURCE_LABELS = {
-    "CHECKLIST_NC": "Não conformidade",
+    "CHECKLIST_NC": "Não conformidade legada",
     "PACOTE_RESOLUCAO": "Pacote de resolução",
     "ATIVIDADE": "Inspeção legada",
     "PREVENTIVA": "Preventiva",
@@ -2006,9 +2006,9 @@ class MaintenancePage(QFrame):
         if schedule_source == "PACOTE_RESOLUCAO":
             return "Pacote"
         if item.get("checklist_item_id"):
-            return "NC checklist"
+            return "NC legada"
         if item.get("activity_id"):
-            return "Atividade"
+            return "Inspeção legada"
         return SOURCE_LABELS.get(schedule_source, "-")
 
     def _item_label(self, item: dict, schedule: dict) -> str:
