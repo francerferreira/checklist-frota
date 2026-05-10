@@ -229,7 +229,7 @@ class CreateActivityFromNCDialog(QDialog):
         )
         self.mechanics = self.api_client.get_mechanics()
 
-        self.setWindowTitle("Criar atividade da não conformidade")
+        self.setWindowTitle("Criar inspeção da não conformidade")
         configure_dialog_window(self, width=980, height=760, min_width=820, min_height=640)
         style_card(self)
         layout = build_dialog_layout(self, max_content_width=1040)
@@ -244,7 +244,7 @@ class CreateActivityFromNCDialog(QDialog):
         header_layout.setContentsMargins(18, 18, 18, 18)
         header_layout.setSpacing(4)
 
-        title = QLabel(f"Criar atividade - NC #{nc_item.get('id')}")
+        title = QLabel(f"Criar inspeção - NC #{nc_item.get('id')}")
         title.setObjectName("DialogHeaderTitle")
         subtitle = QLabel(
             f"{vehicle.get('frota') or '-'} • {_nc_label(nc_item)} • Motorista {user.get('nome') or '-'}"
@@ -289,7 +289,7 @@ class CreateActivityFromNCDialog(QDialog):
                 mechanic,
             )
 
-        self.allow_duplicate_check = QCheckBox("Permitir duplicidade se já existir atividade aberta para esta NC")
+        self.allow_duplicate_check = QCheckBox("Permitir duplicidade se já existir inspeção aberta para esta NC")
         self.allow_duplicate_check.setChecked(False)
 
         self.observacao_input = QTextEdit()
@@ -318,7 +318,7 @@ class CreateActivityFromNCDialog(QDialog):
             field_layout.addWidget(widget)
             form.addWidget(field, row, column, 1, col_span)
 
-        add_field(0, 0, "Título da atividade", self.titulo_input, 2, highlight=True)
+        add_field(0, 0, "Título da inspeção", self.titulo_input, 2, highlight=True)
         add_field(1, 0, "Módulo / componente", self.item_input, highlight=True)
         add_field(1, 1, "Material do estoque", self.material_combo, highlight=True)
         add_field(2, 0, "Código da peça", self.codigo_input)
@@ -336,7 +336,7 @@ class CreateActivityFromNCDialog(QDialog):
         actions.setSpacing(12)
         actions.addStretch()
         cancel_button = QPushButton("Cancelar")
-        submit_button = QPushButton("Criar atividade")
+        submit_button = QPushButton("Criar inspeção")
         submit_button.setProperty("variant", "primary")
         cancel_button.setMinimumHeight(50)
         submit_button.setMinimumHeight(50)
@@ -367,7 +367,7 @@ class CreateActivityFromNCDialog(QDialog):
     def submit(self):
         item_nome = self.item_input.text().strip()
         if not item_nome:
-            show_notice(self, "Módulo obrigatório", "Informe o módulo/componente da atividade.", icon_name="warning")
+            show_notice(self, "Módulo obrigatório", "Informe o módulo/componente da inspeção.", icon_name="warning")
             return
 
         try:
@@ -387,7 +387,7 @@ class CreateActivityFromNCDialog(QDialog):
             self.created_activity = self.api_client.create_activity_from_non_conformity(self.nc_item["id"], payload)
             self.accept()
         except Exception as exc:
-            show_notice(self, "Falha ao criar atividade", str(exc), icon_name="warning")
+            show_notice(self, "Falha ao criar inspeção", str(exc), icon_name="warning")
 
 
 class NonConformitiesPage(QFrame):
@@ -410,10 +410,10 @@ class NonConformitiesPage(QFrame):
 
         header = QHBoxLayout()
         text_wrap = QVBoxLayout()
-        title = QLabel("Não conformidades")
+        title = QLabel("Central de Resolução")
         title.setObjectName("PageTitle")
         subtitle = QLabel(
-            "Consulta rápida, abertura e resolução de ocorrências."
+            "Organize as não conformidades abertas, acompanhe a fila de tratativa e encaminhe os registros para resolução."
         )
         subtitle.setObjectName("SectionCaption")
         subtitle.setWordWrap(True)
@@ -422,14 +422,14 @@ class NonConformitiesPage(QFrame):
 
         actions = QHBoxLayout()
         actions.setSpacing(8)
-        self.open_button = QPushButton("Abrir ocorrência")
+        self.open_button = QPushButton("Abrir selecionada")
         self.open_button.setMinimumHeight(34)
         self.open_button.clicked.connect(self.open_selected_item)
-        self.create_activity_button = QPushButton("Criar atividade")
+        self.create_activity_button = QPushButton("Criar inspeção")
         self.create_activity_button.setMinimumHeight(34)
         self.create_activity_button.setProperty("variant", "primary")
         self.create_activity_button.clicked.connect(self.create_activity_from_current_item)
-        self.resolve_button = QPushButton("Resolver")
+        self.resolve_button = QPushButton("Resolver agora")
         self.resolve_button.setMinimumHeight(34)
         self.resolve_button.setProperty("variant", "success")
         self.resolve_button.clicked.connect(self.resolve_current_item)
@@ -491,9 +491,9 @@ class NonConformitiesPage(QFrame):
         top_row = QHBoxLayout()
         top_row.setContentsMargins(0, 0, 0, 0)
         top_row.setSpacing(12)
-        table_title = QLabel("Ocorrências registradas")
+        table_title = QLabel("Registros da central")
         table_title.setObjectName("SectionTitle")
-        self.summary_badge = QLabel("Nenhuma ocorrência carregada")
+        self.summary_badge = QLabel("Nenhum registro carregado")
         self.summary_badge.setObjectName("TopBarPill")
         top_row.addWidget(table_title)
         top_row.addStretch()
@@ -527,7 +527,7 @@ class NonConformitiesPage(QFrame):
         mechanic_layout.setSpacing(8)
 
         mechanic_top = QHBoxLayout()
-        mechanic_title = QLabel("Atividades dos mecânicos")
+        mechanic_title = QLabel("Registros internos dos mecânicos")
         mechanic_title.setObjectName("SectionTitle")
         self.mechanic_badge = QLabel("0 registros")
         self.mechanic_badge.setObjectName("TopBarPill")
@@ -552,8 +552,8 @@ class NonConformitiesPage(QFrame):
         mechanic_layout.addWidget(mechanic_caption)
         mechanic_layout.addWidget(self.mechanic_table, 1)
 
-        self.tabs.addTab(occurrences_tab, "Ocorrências registradas")
-        self.tabs.addTab(mechanic_tab, "Atividades dos mecânicos")
+        self.tabs.addTab(occurrences_tab, "Registros da central")
+        self.tabs.addTab(mechanic_tab, "Registros internos dos mecânicos")
 
         outer.addLayout(header)
         outer.addWidget(self.filter_card)
@@ -609,7 +609,7 @@ class NonConformitiesPage(QFrame):
             self.table.setUpdatesEnabled(True)
             self.table.setSortingEnabled(True)
 
-        self.summary_badge.setText(f"{len(self.items)} ocorrências")
+        self.summary_badge.setText(f"{len(self.items)} registros")
         self._populate_mechanic_table()
         if self.items:
             self.table.selectRow(0)
@@ -725,10 +725,10 @@ class NonConformitiesPage(QFrame):
         if dialog.exec():
             created = dialog.created_activity or {}
             activity_id = created.get("id")
-            message = "Atividade criada com sucesso a partir da não conformidade."
+            message = "Inspeção criada com sucesso a partir da não conformidade."
             if activity_id:
-                message = f"Atividade #{activity_id} criada com sucesso a partir da não conformidade."
-            show_notice(self, "Atividade aberta", message, icon_name="activities")
+                message = f"Inspeção #{activity_id} criada com sucesso a partir da não conformidade."
+            show_notice(self, "Inspeção aberta", message, icon_name="activities")
             self.refresh()
             self.data_changed.emit()
 

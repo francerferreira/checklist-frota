@@ -52,7 +52,7 @@ class ActivityDialog(QDialog):
         self._equipment_filter_timer.setSingleShot(True)
         self._equipment_filter_timer.timeout.connect(self.apply_equipment_filters)
 
-        self.setWindowTitle("Nova atividade em massa")
+        self.setWindowTitle("Nova inspeção em massa")
         configure_dialog_window(self, width=1320, height=820, min_width=980, min_height=700)
         style_card(self)
 
@@ -77,10 +77,10 @@ class ActivityDialog(QDialog):
         title_wrap = QVBoxLayout()
         title_wrap.setContentsMargins(0, 0, 0, 0)
         title_wrap.setSpacing(4)
-        title = QLabel("Abertura de atividade em massa")
+        title = QLabel("Abertura de inspeção em massa")
         title.setObjectName("DialogHeaderTitle")
         subtitle = QLabel(
-            "Selecione os equipamentos, defina o componente e abra uma atividade auditável para execução em lote."
+            "Selecione os equipamentos, defina o item a conferir e abra uma inspeção auditável para levantamento em lote."
         )
         subtitle.setObjectName("DialogHeaderSubtitle")
         subtitle.setWordWrap(True)
@@ -150,7 +150,7 @@ class ActivityDialog(QDialog):
             field_layout.addWidget(widget)
             form_layout.addWidget(field, row, column, 1, col_span)
 
-        add_field(0, 0, "Título da atividade", self.titulo_input, highlight=True)
+        add_field(0, 0, "Título da inspeção", self.titulo_input, highlight=True)
         add_field(0, 1, "Módulo / componente", self.item_input, highlight=True)
         add_field(1, 0, "Tipo de equipamento", self.tipo_combo, highlight=True)
         add_field(1, 1, "Material do estoque", self.material_combo, highlight=True)
@@ -169,7 +169,7 @@ class ActivityDialog(QDialog):
         filter_layout.setSpacing(10)
 
         self.search_input = QLineEdit()
-        self.search_input.setPlaceholderText("Buscar por frota, placa, modelo, chassi ou atividade")
+        self.search_input.setPlaceholderText("Buscar por frota, placa, modelo, chassi ou inspeção")
         self.search_input.returnPressed.connect(self.apply_equipment_filters)
         self.search_input.textChanged.connect(self._schedule_equipment_filter)
 
@@ -204,7 +204,7 @@ class ActivityDialog(QDialog):
         table_title = QLabel("Equipamentos selecionáveis")
         table_title.setObjectName("SectionTitle")
         table_caption = QLabel(
-            "Marque todos ou apenas os equipamentos desejados. A atividade vai auditar individualmente cada unidade."
+            "Marque todos ou apenas os equipamentos desejados. A inspeção vai auditar individualmente cada unidade."
         )
         table_caption.setObjectName("SectionCaption")
         text_wrap = QVBoxLayout()
@@ -235,7 +235,7 @@ class ActivityDialog(QDialog):
         footer_layout.addStretch()
 
         cancel_button = QPushButton("Cancelar")
-        save_button = QPushButton("Abrir atividade")
+        save_button = QPushButton("Abrir inspeção")
         save_button.setProperty("variant", "primary")
         cancel_button.setMinimumHeight(50)
         save_button.setMinimumHeight(50)
@@ -363,18 +363,18 @@ class ActivityDialog(QDialog):
         item_nome = self.item_input.text().strip()
         vehicle_ids = self.selected_vehicle_ids()
         if not item_nome:
-            show_notice(self, "Módulo obrigatório", "Informe o módulo ou componente da atividade.", icon_name="warning")
+            show_notice(self, "Módulo obrigatório", "Informe o módulo ou componente da inspeção.", icon_name="warning")
             return
         if not vehicle_ids:
             show_notice(
                 self,
                 "Seleção obrigatória",
-                "Selecione ao menos um equipamento para abrir a atividade.",
+                "Selecione ao menos um equipamento para abrir a inspeção.",
                 icon_name="warning",
             )
             return
 
-        titulo = self.titulo_input.text().strip() or f"Troca em massa - {item_nome}"
+        titulo = self.titulo_input.text().strip() or f"Inspeção em massa - {item_nome}"
         self.result_payload = {
             "titulo": titulo,
             "item_nome": item_nome,
@@ -416,7 +416,7 @@ class ActivityItemUpdateDialog(QDialog):
         material_tipo = item_tipo if item_tipo in {"cavalo", "carreta"} else None
         self.materials = self.api_client.get_materials(tipo=material_tipo, ativos="true")
 
-        self.setWindowTitle("Atualizar execução da atividade")
+        self.setWindowTitle("Atualizar execução da inspeção")
         configure_dialog_window(self, width=1240, height=880, min_width=1060, min_height=760)
         style_card(self)
 
@@ -476,7 +476,7 @@ class ActivityItemUpdateDialog(QDialog):
         self.observacao_input.setMinimumHeight(220)
 
         self.material_combo = QComboBox()
-        self.material_combo.addItem("Sem material específico (usar padrão da atividade)", None)
+        self.material_combo.addItem("Sem material específico (usar padrão da inspeção)", None)
         for material in self.materials:
             label = f"{material.get('referencia') or '-'} • {material.get('descricao') or '-'} • Saldo {material.get('quantidade_estoque') or 0}"
             self.material_combo.addItem(label, material)
@@ -558,7 +558,7 @@ class ActivityItemUpdateDialog(QDialog):
             form_layout.addWidget(field, row, 0, 1, 2)
 
         add_field(0, "Status da execução", self.status_combo, highlight=True)
-        add_field(1, "Observação da atividade", self.observacao_input)
+        add_field(1, "Observação da inspeção", self.observacao_input)
         material_label = "Material específico deste equipamento"
         if not self.allow_material_edit:
             material_label += " (somente leitura)"
@@ -711,7 +711,7 @@ class ActivityItemUpdateDialog(QDialog):
                     }
                 )
             veiculo = self.item.get("veiculo", {})
-            item_nome = self.activity.get("item_nome") or "atividade"
+            item_nome = self.activity.get("item_nome") or "inspecao"
             user_login = (self.api_client.user or {}).get("login", "sistema")
             vehicle_name = veiculo.get("frota") or "equipamento"
 
@@ -747,7 +747,7 @@ class ActivityMaterialBatchDialog(QDialog):
         material_tipo = activity_tipo if activity_tipo in {"cavalo", "carreta"} else None
         self.materials = self.api_client.get_materials(tipo=material_tipo, ativos="true")
 
-        self.setWindowTitle("Editar material da atividade")
+        self.setWindowTitle("Editar material da inspeção")
         configure_dialog_window(self, width=940, height=620, min_width=780, min_height=560)
         style_card(self)
 
@@ -763,7 +763,7 @@ class ActivityMaterialBatchDialog(QDialog):
         title.setObjectName("DialogHeaderTitle")
         subtitle = QLabel(
             f"Selecionados: {selected_count} de {total_count}. "
-            "Você pode aplicar o mesmo material nos selecionados ou em toda a atividade."
+            "Você pode aplicar o mesmo material nos selecionados ou em toda a inspeção."
         )
         subtitle.setObjectName("DialogHeaderSubtitle")
         subtitle.setWordWrap(True)
@@ -802,7 +802,7 @@ class ActivityMaterialBatchDialog(QDialog):
         self.descricao_input = QLineEdit(activity.get("descricao_peca") or "")
         self.descricao_input.setPlaceholderText("Descrição da peça")
 
-        self.apply_all_check = QCheckBox("Aplicar em todos os equipamentos da atividade")
+        self.apply_all_check = QCheckBox("Aplicar em todos os equipamentos da inspeção")
         self.apply_all_check.setChecked(selected_count <= 0)
 
         def add_field(row: int, label_text: str, widget):
@@ -869,7 +869,7 @@ class ActivityDetailDialog(QDialog):
         self.updated = False
         self.can_manage_materials = user_can(self.api_client.user, "manage_activity_materials")
 
-        self.setWindowTitle("Detalhes da atividade")
+        self.setWindowTitle("Detalhes da inspeção")
         configure_dialog_window(self, width=1760, height=940, min_width=1240, min_height=760)
         style_card(self)
 
@@ -899,7 +899,7 @@ class ActivityDetailDialog(QDialog):
         title_wrap = QVBoxLayout()
         title_wrap.setContentsMargins(0, 0, 0, 0)
         title_wrap.setSpacing(4)
-        self.title_label = QLabel("Atividade em massa")
+        self.title_label = QLabel("Inspeção em massa")
         self.title_label.setObjectName("DialogHeaderTitle")
         self.subtitle_label = QLabel("")
         self.subtitle_label.setObjectName("DialogHeaderSubtitle")
@@ -995,7 +995,7 @@ class ActivityDetailDialog(QDialog):
                 "Modelo",
                 "Material",
                 "Qtd peça",
-                "Status da atividade",
+                "Status da inspeção",
                 "Executado em",
                 "Executado por",
                 "Foto origem",
@@ -1027,7 +1027,7 @@ class ActivityDetailDialog(QDialog):
         header.setSectionResizeMode(2, QHeaderView.Stretch)  # Modelo
         header.setSectionResizeMode(3, QHeaderView.Stretch)  # Material
         header.setSectionResizeMode(4, QHeaderView.ResizeToContents)  # Qtd peça
-        header.setSectionResizeMode(5, QHeaderView.ResizeToContents)  # Status da atividade
+        header.setSectionResizeMode(5, QHeaderView.ResizeToContents)  # Status da inspeção
         header.setSectionResizeMode(6, QHeaderView.ResizeToContents)  # Executado em
         header.setSectionResizeMode(7, QHeaderView.ResizeToContents)  # Executado por
         header.setSectionResizeMode(8, QHeaderView.ResizeToContents)  # Foto origem
@@ -1039,7 +1039,7 @@ class ActivityDetailDialog(QDialog):
         self.items = self.activity.get("itens", [])
         resumo = self.activity.get("resumo", {})
 
-        self.title_label.setText(self.activity.get("titulo") or "Atividade em massa")
+        self.title_label.setText(self.activity.get("titulo") or "Inspeção em massa")
         self.subtitle_label.setText(
             f"{(self.activity.get('tipo_equipamento') or '-').title()} • "
             f"{self.activity.get('item_nome') or '-'} • "
@@ -1142,18 +1142,18 @@ class ActivityDetailDialog(QDialog):
         if dialog.exec():
             try:
                 response = self.api_client.update_activity_item(self.activity_id, item["id"], dialog.result_payload)
-                message = "Registro da atividade atualizado com sucesso."
+                message = "Registro da inspeção atualizado com sucesso."
                 if isinstance(response, dict) and response.get("aviso_foto_origem_preservada"):
                     message = response.get("mensagem_foto_origem") or "Evidência de origem preservada e atualização concluída."
-                show_notice(self, "Atividade atualizada", message, icon_name="dashboard")
+                show_notice(self, "Inspeção atualizada", message, icon_name="dashboard")
                 self.updated = True
                 self.refresh()
             except Exception as exc:
-                show_notice(self, "Falha ao atualizar atividade", str(exc), icon_name="warning")
+                show_notice(self, "Falha ao atualizar inspeção", str(exc), icon_name="warning")
 
     def edit_material_for_selected(self):
         if not self.can_manage_materials:
-            show_notice(self, "Acesso restrito", "Somente admin ou gestor podem editar materiais da atividade.", icon_name="warning")
+            show_notice(self, "Acesso restrito", "Somente admin ou gestor podem editar materiais da inspeção.", icon_name="warning")
             return
         selected_items = self._selected_items()
         if not selected_items:
@@ -1180,7 +1180,7 @@ class ActivityDetailDialog(QDialog):
 
     def export_activity(self, file_type: str):
         if not self.items:
-            show_notice(self, "Sem dados", "Não há equipamentos registrados nesta atividade.", icon_name="warning")
+            show_notice(self, "Sem dados", "Não há equipamentos registrados nesta inspeção.", icon_name="warning")
             return
 
         rows = []
@@ -1209,7 +1209,7 @@ class ActivityDetailDialog(QDialog):
             ("Modelo", "modelo"),
             ("Material", "material"),
             ("Qtd peça", "quantidade_peca"),
-            ("Status da atividade", "status_execucao"),
+            ("Status da inspeção", "status_execucao"),
             ("Instalado em", "instalado_em"),
             ("Executado por", "executado_por"),
             ("Foto origem", "foto_origem"),
@@ -1218,7 +1218,7 @@ class ActivityDetailDialog(QDialog):
         ]
 
         default_path = make_default_export_path(
-            f"atividade_{(self.activity.get('item_nome') or 'massa').lower().replace(' ', '_')}",
+            f"inspecao_{(self.activity.get('item_nome') or 'massa').lower().replace(' ', '_')}",
             file_type,
         )
         filters = {"csv": "CSV (*.csv)", "xlsx": "Excel (*.xlsx)", "pdf": "PDF (*.pdf)"}
@@ -1227,7 +1227,7 @@ class ActivityDetailDialog(QDialog):
             filename = run_export_by_type(
                 self,
                 file_type=file_type,
-                dialog_title="Exportar atividade",
+                dialog_title="Exportar inspeção",
                 default_path=default_path,
                 filters=filters,
                 handlers={
@@ -1239,7 +1239,7 @@ class ActivityDetailDialog(QDialog):
         run_export_by_type(
             self,
             file_type=file_type,
-            dialog_title="Exportar atividade",
+            dialog_title="Exportar inspeção",
             default_path=default_path,
             filters=filters,
             handlers={
@@ -1250,7 +1250,7 @@ class ActivityDetailDialog(QDialog):
 
     def _start_activity_pdf_export(self, filename: str, activity: dict, activity_items: list[dict]) -> None:
         def task(progress):
-            progress(8, "Preparando PDF da atividade")
+            progress(8, "Preparando PDF da inspeção")
             item_images = {}
             total = max(1, len(activity_items))
             for index, activity_item in enumerate(activity_items, start=1):
@@ -1280,7 +1280,7 @@ class ActivityDetailDialog(QDialog):
         finalize_saved_file(self, filename)
 
     def _export_activity_xlsx(self, columns, rows, filename: str) -> None:
-        export_rows_to_xlsx(self.activity.get("titulo") or "Atividade em massa", columns, rows, filename)
+        export_rows_to_xlsx(self.activity.get("titulo") or "Inspeção em massa", columns, rows, filename)
         finalize_saved_file(self, filename)
 
     def generate_message(self):
@@ -1350,10 +1350,10 @@ class ActivitiesPage(QFrame):
 
         header = QHBoxLayout()
         text_wrap = QVBoxLayout()
-        title = QLabel("Atividades")
+        title = QLabel("Inspeções")
         title.setObjectName("PageTitle")
         subtitle = QLabel(
-            "Abra trocas em massa por módulo, selecione vários equipamentos e acompanhe a execução individual com auditoria."
+            "Abra inspeções dirigidas por item, selecione vários equipamentos e acompanhe a conferência individual com auditoria."
         )
         subtitle.setObjectName("SectionCaption")
         subtitle.setWordWrap(True)
@@ -1362,7 +1362,7 @@ class ActivitiesPage(QFrame):
 
         buttons = QHBoxLayout()
         buttons.setSpacing(8)
-        self.add_button = QPushButton("Nova atividade")
+        self.add_button = QPushButton("Nova inspeção")
         self.add_button.setProperty("variant", "primary")
         self.add_button.setMinimumHeight(34)
         self.add_button.clicked.connect(self.add_activity)
@@ -1431,7 +1431,7 @@ class ActivitiesPage(QFrame):
         table_top = QHBoxLayout()
         table_top.setContentsMargins(0, 0, 0, 0)
         table_top.setSpacing(12)
-        table_title = QLabel("Atividades em massa registradas")
+        table_title = QLabel("Inspeções em massa registradas")
         table_title.setObjectName("SectionTitle")
         table_caption = QLabel(
             "Clique duas vezes em uma linha para abrir os detalhes, ver a auditoria por equipamento e exportar o relatório."
@@ -1443,7 +1443,7 @@ class ActivitiesPage(QFrame):
         title_wrap.setSpacing(2)
         title_wrap.addWidget(table_title)
         title_wrap.addWidget(table_caption)
-        self.summary_badge = QLabel("Nenhuma atividade carregada")
+        self.summary_badge = QLabel("Nenhuma inspeção carregada")
         self.summary_badge.setObjectName("TopBarPill")
         table_top.addLayout(title_wrap, 1)
         table_top.addWidget(self.summary_badge)
@@ -1521,7 +1521,7 @@ class ActivitiesPage(QFrame):
             self.table.setUpdatesEnabled(True)
             self.table.setSortingEnabled(True)
 
-        self.summary_badge.setText(f"{len(self.items)} atividades")
+        self.summary_badge.setText(f"{len(self.items)} inspeções")
         self.open_button.setEnabled(bool(self.items))
         if self.items:
             self.table.selectRow(0)
@@ -1545,7 +1545,7 @@ class ActivitiesPage(QFrame):
 
     def set_loading_state(self, loading: bool):
         if loading:
-            self.activities_table_skeleton.show_skeleton("Carregando atividades em massa")
+            self.activities_table_skeleton.show_skeleton("Carregando inspeções em massa")
         else:
             self.activities_table_skeleton.hide_skeleton()
 
@@ -1575,14 +1575,14 @@ class ActivitiesPage(QFrame):
                 self.api_client.create_activity(dialog.result_payload)
                 show_notice(
                     self,
-                    "Atividade aberta",
-                    "Atividade em massa criada com sucesso.",
+                    "Inspeção aberta",
+                    "Inspeção em massa criada com sucesso.",
                     icon_name="dashboard",
                 )
                 self.refresh()
                 self.data_changed.emit()
             except Exception as exc:
-                show_notice(self, "Falha ao abrir atividade", str(exc), icon_name="warning")
+                show_notice(self, "Falha ao abrir inspeção", str(exc), icon_name="warning")
 
     def open_selected(self, *_args):
         self.open_activity_details()

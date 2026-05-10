@@ -297,13 +297,13 @@ class MainWindow(QMainWindow):
 
         self.page_titles = {
             "dashboard": "Dashboard",
-            "nc": "Ocorrências",
+            "nc": "Central de Resolução",
             "productivity": "Produtividade",
             "equipment": "Frota",
             "checklist_items": "Checklist",
             "materials": "Materiais",
             "washes": "Lavagens",
-            "activities": "Atividades",
+            "activities": "Inspeções",
             "maintenance": "Manutenção",
             "reports": "Relatórios",
             "checklist_history": "Histórico Checklist",
@@ -672,13 +672,13 @@ class MainWindow(QMainWindow):
     def _show_page_loading(self, page_key: str):
         context_map = {
             "dashboard": ("Atualizando dashboard", "Preparando indicadores, prioridades e visão executiva."),
-            "nc": ("Carregando ocorrências", "Buscando não conformidades, filtros e histórico visual."),
+            "nc": ("Carregando central", "Buscando não conformidades, filtros e histórico visual."),
             "productivity": ("Carregando produtividade", "Consolidando checklists, manutenções, lavagens e resoluções."),
             "equipment": ("Carregando equipamentos", "Organizando a base da frota e os detalhes técnicos."),
             "checklist_items": ("Carregando itens", "Atualizando catálogo, ordem e fotos de referência do checklist."),
             "materials": ("Carregando materiais", "Atualizando saldo, alertas de estoque e itens cadastrados."),
             "washes": ("Carregando lavagens", "Montando fila, histórico mensal e programação preventiva."),
-            "activities": ("Carregando atividades", "Montando auditorias em massa, seleção e execução."),
+            "activities": ("Carregando inspeções", "Montando conferências em massa, seleção e auditoria individual."),
             "maintenance": ("Carregando manutenção", "Montando cronograma mensal e tabela de programação."),
             "reports": ("Montando relatórios", "Consolidando dados macro, micro e exportações."),
             "checklist_history": ("Carregando histórico", "Montando matriz de checklists por frota e data."),
