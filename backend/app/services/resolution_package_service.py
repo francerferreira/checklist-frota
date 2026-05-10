@@ -4,6 +4,7 @@ from collections import Counter
 from datetime import timedelta
 
 from app.models import ChecklistItem, ResolutionPackage
+from app.services.intelligent_rules_service import get_rule_value
 from app.utils.timezone import now_manaus_naive
 
 DEFAULT_RECURRENCE_WINDOW_DAYS = 15
@@ -30,7 +31,8 @@ def calculate_item_recurrence(item_name: str | None, window_days: int = DEFAULT_
     normalized_name = (item_name or "").strip().upper()
     if not normalized_name:
         return 0
-    cutoff = now_manaus_naive() - timedelta(days=max(1, int(window_days or DEFAULT_RECURRENCE_WINDOW_DAYS)))
+    effective_window = max(1, int(window_days or get_rule_value("recurrence_window_days") or DEFAULT_RECURRENCE_WINDOW_DAYS))
+    cutoff = now_manaus_naive() - timedelta(days=effective_window)
     rows = (
         ChecklistItem.query.filter(ChecklistItem.status == "NC", ChecklistItem.created_at >= cutoff)
         .all()
@@ -56,7 +58,8 @@ def calculate_priority_score(
 
 
 def is_critical_recurrence(recurrence_hits: int, threshold: int = DEFAULT_CRITICAL_RECURRENCE_THRESHOLD) -> bool:
-    return int(recurrence_hits or 0) >= int(threshold or DEFAULT_CRITICAL_RECURRENCE_THRESHOLD)
+    effective_threshold = int(threshold or get_rule_value("critical_recurrence_threshold") or DEFAULT_CRITICAL_RECURRENCE_THRESHOLD)
+    return int(recurrence_hits or 0) >= effective_threshold
 
 
 def refresh_package_metrics(package: ResolutionPackage) -> ResolutionPackage:
@@ -64,8 +67,8 @@ def refresh_package_metrics(package: ResolutionPackage) -> ResolutionPackage:
     items = [link.checklist_item for link in links if link.checklist_item]
     item_name = package.item_name or derive_package_item_name(items)
     package.item_name = item_name
-    recurrence_hits = calculate_item_recurrence(item_name, package.recurrence_window_days or DEFAULT_RECURRENCE_WINDOW_DAYS)
+    recurrence_hits = calculate_item_recurrence(item_name, package.recurrence_window_days or get_rule_value("recurrence_window_days"))
     package.recurrence_hits = recurrence_hits
-    package.priority_score = calculate_priority_score(items, recurrence_hits, package.recurrence_weight or DEFAULT_RECURRENCE_WEIGHT)
-    package.critical_recurrence = is_critical_recurrence(recurrence_hits)
+    package.priority_score = calculate_priority_score(items, recurrence_hits, package.recurrence_weight or get_rule_value("recurrence_weight"))
+    package.critical_recurrence = is_critical_recurrence(recurrence_hits, get_rule_value("critical_recurrence_threshold"))
     return package

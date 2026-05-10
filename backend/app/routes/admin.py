@@ -3,14 +3,18 @@ from __future__ import annotations
 from datetime import datetime
 from flask import Blueprint, g, request, send_file
 
+from app.extensions import db
 from app.models import AuditLog
 from app.services.auth_service import auth_required
+from app.services.audit_service import record_event
 from app.services.backup_service import (
     cleanup_old_records,
     create_backup,
     safe_backup_path,
     storage_status,
 )
+from app.services.intelligent_rules_service import build_compatibility_status, get_intelligent_rules, update_intelligent_rules
+from app.services.auth_service import user_has_management_access
 from app.utils.responses import api_response
 
 bp = Blueprint("admin", __name__, url_prefix="/admin")
@@ -19,6 +23,12 @@ bp = Blueprint("admin", __name__, url_prefix="/admin")
 def _guard_admin_access():
     if g.current_user.tipo != "admin":
         return api_response(False, error="Somente admin pode acessar administracao.", status_code=403)
+    return None
+
+
+def _guard_management_access():
+    if not user_has_management_access(g.current_user):
+        return api_response(False, error="Somente admin ou gestor podem acessar esta configuracao.", status_code=403)
     return None
 
 
@@ -65,6 +75,46 @@ def get_storage_status():
     if denied:
         return denied
     return api_response(True, data=storage_status())
+
+
+@bp.get("/intelligent-rules")
+@auth_required
+def get_intelligent_rules_route():
+    denied = _guard_management_access()
+    if denied:
+        return denied
+    return api_response(True, data=get_intelligent_rules())
+
+
+@bp.put("/intelligent-rules")
+@auth_required
+def update_intelligent_rules_route():
+    denied = _guard_management_access()
+    if denied:
+        return denied
+
+    previous = get_intelligent_rules()
+    payload = request.get_json(silent=True) or {}
+    current = update_intelligent_rules(payload, user_id=g.current_user.id)
+    record_event(
+        user_id=g.current_user.id,
+        entity_type="SYSTEM_SETTING",
+        entity_id=0,
+        action="UPDATE_RULES",
+        old_value=str(previous.get("rules")),
+        new_value=str(current.get("rules")),
+    )
+    db.session.commit()
+    return api_response(True, data=current)
+
+
+@bp.get("/compatibility-status")
+@auth_required
+def get_compatibility_status_route():
+    denied = _guard_management_access()
+    if denied:
+        return denied
+    return api_response(True, data=build_compatibility_status())
 
 
 @bp.post("/backups/create")

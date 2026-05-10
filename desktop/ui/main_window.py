@@ -29,6 +29,7 @@ from components import LoadingOverlay, make_icon, show_notice
 from runtime_paths import asset_path
 from theme import APP_STYLE, apply_button_styles, install_button_style_enforcer
 from ui.activities_page import ActivitiesPage
+from ui.admin_rules_page import AdminRulesPage
 from ui.audit_logs_page import AuditLogsPage
 from ui.checklist_items_page import ChecklistItemsPage
 from ui.checklist_history_page import ChecklistHistoryPage
@@ -276,6 +277,7 @@ class MainWindow(QMainWindow):
         self.users_page = UsersPage(self.api_client, self.user)
         self.cloud_backup_page = CloudBackupPage(self.api_client)
         self.audit_logs_page = AuditLogsPage(self.api_client)
+        self.admin_rules_page = AdminRulesPage(self.api_client)
 
         all_pages = {
             "dashboard": self.dashboard_page,
@@ -292,6 +294,7 @@ class MainWindow(QMainWindow):
             "users": self.users_page,
             "cloud_backup": self.cloud_backup_page,
             "audit_logs": self.audit_logs_page,
+            "admin_rules": self.admin_rules_page,
         }
         self.page_map = {key: page for key, page in all_pages.items() if key in self.allowed_pages}
 
@@ -310,6 +313,7 @@ class MainWindow(QMainWindow):
             "users": "Logins",
             "cloud_backup": "Backup",
             "audit_logs": "Logs de Auditoria",
+            "admin_rules": "Configuração Administrativa",
         }
         self.dirty_pages = set(self.page_map.keys())
 
@@ -328,6 +332,8 @@ class MainWindow(QMainWindow):
             self.maintenance_page.data_changed.connect(lambda: self.handle_data_changed("maintenance"))
         if "users" in self.page_map:
             self.users_page.data_changed.connect(lambda: self.handle_data_changed("users"))
+        if "admin_rules" in self.page_map:
+            self.admin_rules_page.data_changed.connect(lambda: self.handle_data_changed("admin_rules"))
 
     def _build_menu_bar(self):
         menubar = self.menuBar()
@@ -339,7 +345,7 @@ class MainWindow(QMainWindow):
             "Movimento": ["activities", "washes", "maintenance"],
             "Relatórios": ["reports", "productivity", "checklist_history"],
             "Sistema": [],
-            "Utilitários": ["dashboard", "nc", "cloud_backup", "audit_logs"],
+            "Utilitários": ["dashboard", "nc", "cloud_backup", "audit_logs", "admin_rules"],
         }
 
         for menu_title, keys in menu_groups.items():
@@ -392,7 +398,7 @@ class MainWindow(QMainWindow):
             ("2 - Tabelas", ["checklist_items", "materials"]),
             ("3 - Movimento", ["activities", "washes", "maintenance"]),
             ("4 - Relatórios", ["reports", "productivity", "checklist_history"]),
-            ("5 - Utilitários", ["dashboard", "nc", "cloud_backup", "audit_logs"]),
+            ("5 - Utilitários", ["dashboard", "nc", "cloud_backup", "audit_logs", "admin_rules"]),
         ]
 
         for section_label, keys in sections:
@@ -637,6 +643,8 @@ class MainWindow(QMainWindow):
                 self.cloud_backup_page.refresh()
             elif page_key == "audit_logs":
                 self.audit_logs_page.refresh()
+            elif page_key == "admin_rules":
+                self.admin_rules_page.refresh()
         except Exception as exc:
             show_notice(self, "Falha ao carregar dados", str(exc), icon_name="warning")
 
@@ -685,6 +693,7 @@ class MainWindow(QMainWindow):
             "users": ("Carregando acessos", "Atualizando perfis, logins e permissões disponíveis."),
             "cloud_backup": ("Verificando nuvem", "Consultando uso de banco, fotos e status do backup."),
             "audit_logs": ("Carregando auditoria", "Montando histórico completo de acessos e alterações."),
+            "admin_rules": ("Carregando configuração", "Montando regras inteligentes e leitura de compatibilidade dos dados."),
         }
         title, subtitle = context_map.get(page_key, ("Carregando painel", "Preparando dados da tela atual."))
         self.loading_overlay.show_loading(title, subtitle)

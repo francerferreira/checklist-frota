@@ -6,6 +6,7 @@ from app.models.maintenance import MaintenanceMaterial, MaintenanceSchedule, Mai
 from app.models.material import Material, MaterialMovement
 from app.models.mechanic_non_conformity import MechanicNonConformity
 from app.models.resolution_package import ResolutionPackage, ResolutionPackageLink
+from app.models.system_setting import SystemSetting
 from app.models.user import User
 from app.models.vehicle import Vehicle
 from app.models.wash import WashBlockedDay, WashPlanConfig, WashQueueItem, WashRecord, WashScheduleDecision
@@ -27,6 +28,7 @@ __all__ = [
     "MechanicNonConformity",
     "ResolutionPackage",
     "ResolutionPackageLink",
+    "SystemSetting",
     "User",
     "Vehicle",
     "WashBlockedDay",

@@ -4,6 +4,7 @@ from flask import Blueprint, g, request
 
 from app.extensions import db
 from app.models import ChecklistItem, ResolutionPackage, ResolutionPackageLink
+from app.services.intelligent_rules_service import get_rule_value
 from app.services.auth_service import auth_required, user_has_management_access
 from app.services.resolution_package_service import (
     DEFAULT_RECURRENCE_WEIGHT,
@@ -222,8 +223,8 @@ def create_resolution_package():
         item_name=item_name,
         vehicle_id=vehicle_id,
         status="ABERTO",
-        recurrence_window_days=int(payload.get("recurrence_window_days") or DEFAULT_RECURRENCE_WINDOW_DAYS),
-        recurrence_weight=int(payload.get("recurrence_weight") or DEFAULT_RECURRENCE_WEIGHT),
+        recurrence_window_days=int(payload.get("recurrence_window_days") or get_rule_value("recurrence_window_days") or DEFAULT_RECURRENCE_WINDOW_DAYS),
+        recurrence_weight=int(payload.get("recurrence_weight") or get_rule_value("recurrence_weight") or DEFAULT_RECURRENCE_WEIGHT),
         observation=_clean(payload.get("observation")),
         created_by_user_id=g.current_user.id,
     )

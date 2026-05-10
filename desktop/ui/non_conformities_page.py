@@ -407,6 +407,7 @@ class CreateResolutionPackageDialog(QDialog):
 
         self.valid_modes = self._detect_modes()
         self.suggestions = self._load_suggestions()
+        self.rule_defaults = self._load_rule_defaults()
 
         header = QFrame()
         header.setObjectName("DialogHeader")
@@ -459,12 +460,12 @@ class CreateResolutionPackageDialog(QDialog):
         self.recurrence_days_spin = QSpinBox()
         self.recurrence_days_spin.setMinimum(1)
         self.recurrence_days_spin.setMaximum(120)
-        self.recurrence_days_spin.setValue(15)
+        self.recurrence_days_spin.setValue(int(self.rule_defaults.get("recurrence_window_days", 15)))
 
         self.recurrence_weight_spin = QSpinBox()
         self.recurrence_weight_spin.setMinimum(0)
         self.recurrence_weight_spin.setMaximum(50)
-        self.recurrence_weight_spin.setValue(5)
+        self.recurrence_weight_spin.setValue(int(self.rule_defaults.get("recurrence_weight", 5)))
 
         def add_field(row: int, column: int, label_text: str, widget, col_span: int = 1):
             field = QFrame()
@@ -547,6 +548,13 @@ class CreateResolutionPackageDialog(QDialog):
             return payload.get("suggestions") or []
         except Exception:
             return []
+
+    def _load_rule_defaults(self) -> dict:
+        try:
+            payload = self.api_client.get_intelligent_rules() or {}
+            return payload.get("rules") or {}
+        except Exception:
+            return {}
 
     def _sync_title(self):
         mode = self.grouping_mode_combo.currentData()

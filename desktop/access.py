@@ -19,6 +19,7 @@ PAGE_ACCESS_BY_ROLE = {
         "users",
         "cloud_backup",
         "audit_logs",
+        "admin_rules",
     },
     "gestor": {
         "dashboard",
@@ -32,6 +33,7 @@ PAGE_ACCESS_BY_ROLE = {
         "washes",
         "activities",
         "maintenance",
+        "admin_rules",
     },
     "mecanico": {
         "dashboard",

@@ -61,6 +61,9 @@ class APIClient:
     def user_has_admin_access(self) -> bool:
         return bool(self.user and self.user.get("tipo") == "admin")
 
+    def user_has_management_access(self) -> bool:
+        return bool(self.user and self.user.get("tipo") in {"admin", "gestor"})
+
     def clear_session(self) -> None:
         try:
             if "Authorization" in self.session.headers:
@@ -429,6 +432,15 @@ class APIClient:
 
     def get_cloud_storage_status(self):
         return self._request("GET", "/admin/storage/status")
+
+    def get_intelligent_rules(self):
+        return self._request("GET", "/admin/intelligent-rules")
+
+    def update_intelligent_rules(self, payload: dict):
+        return self._request("PUT", "/admin/intelligent-rules", json=payload)
+
+    def get_compatibility_status(self):
+        return self._request("GET", "/admin/compatibility-status")
 
     def logout(self):
         return self._request("POST", "/logout", timeout=8)

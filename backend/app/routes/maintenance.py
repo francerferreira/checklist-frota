@@ -8,8 +8,10 @@ from datetime import datetime
 
 from flask import Blueprint, g, request, send_file
 
+from app.extensions import db
 from app.models import MaintenanceSchedule, MaintenanceScheduleItem
 from app.services.auth_service import auth_required, user_has_management_access, user_has_mechanic_workspace_access
+from app.services.audit_service import record_event
 from app.services.maintenance_service import (
     build_work_order_report_payload,
     build_maintenance_overview,
@@ -105,6 +107,14 @@ def maintenance_pdf_report():
     pdf_buffer = BytesIO(tmp_path.read_bytes())
     tmp_path.unlink(missing_ok=True)
     pdf_buffer.seek(0)
+    record_event(
+        user_id=g.current_user.id,
+        entity_type="MAINTENANCE_REPORT",
+        entity_id=0,
+        action="EXPORT_PDF",
+        new_value=str({"tipo": request.args.get("tipo") or "mensal", "ano": request.args.get("ano"), "mes": request.args.get("mes")}),
+    )
+    db.session.commit()
     return send_file(
         pdf_buffer,
         mimetype="application/pdf",
@@ -136,6 +146,14 @@ def maintenance_work_order_pdf_report(work_order_id: int):
     pdf_buffer = BytesIO(tmp_path.read_bytes())
     tmp_path.unlink(missing_ok=True)
     pdf_buffer.seek(0)
+    record_event(
+        user_id=g.current_user.id,
+        entity_type="MAINTENANCE_WORK_ORDER",
+        entity_id=work_order_id,
+        action="EXPORT_PDF",
+        new_value=str({"ordem_servico": payload.get("filename")}),
+    )
+    db.session.commit()
     return send_file(
         pdf_buffer,
         mimetype="application/pdf",

@@ -8,6 +8,7 @@ from sqlalchemy import func
 
 from app.extensions import db
 from app.models import MaintenanceMaterial, Material, MaterialMovement
+from app.services.intelligent_rules_service import get_rule_value
 from app.services.auth_service import auth_required, user_has_management_access
 from app.services.material_service import register_material_movement
 from app.utils.responses import api_response
@@ -233,14 +234,17 @@ def _build_timeline_rows(
 
 
 def _build_reserve_alerts(reserve_rows: list[dict], exit_rows: list[dict]) -> list[dict]:
+    minimum_reserved = int(get_rule_value("reserve_high_quantity_minimum") or 3)
+    reserve_multiplier = max(1, int(get_rule_value("reserve_high_multiplier") or 2))
+    low_consumption_divisor = max(1, int(get_rule_value("reserve_low_consumption_divisor") or 3))
     exit_by_material = {int(row["material_id"]): int(row["total"] or 0) for row in exit_rows}
     alerts: list[dict] = []
     for row in reserve_rows:
         reserved_total = int(row.get("reservado_total") or 0)
         consumption_total = int(exit_by_material.get(int(row["material_id"]), 0))
         blocked = int(row.get("materiais_bloqueados") or 0)
-        high_reserve = reserved_total >= max(3, consumption_total + 2)
-        low_consumption = consumption_total <= max(1, reserved_total // 3)
+        high_reserve = reserved_total >= max(minimum_reserved, max(1, consumption_total) * reserve_multiplier)
+        low_consumption = consumption_total <= max(1, reserved_total // low_consumption_divisor)
         if not (high_reserve and low_consumption):
             continue
         alerts.append(
