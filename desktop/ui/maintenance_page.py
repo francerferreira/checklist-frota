@@ -359,13 +359,13 @@ class MaintenancePage(QFrame):
         title = QLabel("Programação de manutenção")
         title.setObjectName("PageTitle")
         subtitle = QLabel(
-            "Tela organizada por abas: programações, execução, governança e relatórios."
+            "Planeje a manutenção, acompanhe a agenda, organize os serviços e controle as peças do período."
         )
         subtitle.setObjectName("PageSubtitle")
         subtitle.setWordWrap(True)
         text_wrap.addWidget(title)
         text_wrap.addWidget(subtitle)
-        context_hint = QLabel("Operação diária - Programações - Execução - Governança")
+        context_hint = QLabel("Fluxo sugerido: Planejamento -> Calendário -> Serviços -> Responsável e Peças -> Relatório")
         context_hint.setObjectName("ContextHint")
         text_wrap.addWidget(context_hint)
 
@@ -374,7 +374,7 @@ class MaintenancePage(QFrame):
         self.new_schedule_button.setMinimumHeight(34)
         self.new_schedule_button.clicked.connect(self.create_schedule)
 
-        self.sync_nc_button = QPushButton("Sincronizar NC")
+        self.sync_nc_button = QPushButton("Importar NC")
         self.sync_nc_button.setProperty("variant", "success")
         self.sync_nc_button.setMinimumHeight(34)
         self.sync_nc_button.clicked.connect(self.sync_non_conformities)
@@ -391,10 +391,10 @@ class MaintenancePage(QFrame):
 
         cards_layout = QGridLayout()
         cards_layout.setSpacing(8)
-        self.schedules_card = StatCard("Programacoes", "0", "Cronogramas ativos e historicos", icon_name="activities")
-        self.items_card = StatCard("Itens no mes", "0", "Planejados no periodo selecionado", icon_name="reports")
-        self.pending_card = StatCard("Pendentes", "0", "Programados, reprogramados e aguardando", icon_name="warning")
-        self.installed_card = StatCard("Instalados", "0", "Concluidos com baixa de estoque", icon_name="ok")
+        self.schedules_card = StatCard("Programações abertas", "0", "Clique para abrir o planejamento do período", icon_name="activities")
+        self.items_card = StatCard("Serviços do mês", "0", "Clique para abrir os serviços do período selecionado", icon_name="reports")
+        self.pending_card = StatCard("Serviços pendentes", "0", "Clique para focar o que ainda precisa de ação", icon_name="warning")
+        self.installed_card = StatCard("Serviços concluídos", "0", "Clique para revisar as conclusões do período", icon_name="ok")
         cards_layout.addWidget(self.schedules_card, 0, 0)
         cards_layout.addWidget(self.items_card, 0, 1)
         cards_layout.addWidget(self.pending_card, 0, 2)
@@ -453,7 +453,7 @@ class MaintenancePage(QFrame):
         reports_layout.setHorizontalSpacing(8)
         reports_layout.setVerticalSpacing(6)
 
-        self.report_badge = QLabel("Fase 4: relatório PDF da manutenção")
+        self.report_badge = QLabel("Exporte uma visão gerencial do período selecionado")
         self.report_badge.setObjectName("TopBarPill")
 
         self.report_type_combo = QComboBox()
@@ -464,7 +464,7 @@ class MaintenancePage(QFrame):
         self.report_mechanic_combo = QComboBox()
         self.report_vehicle_combo = QComboBox()
 
-        self.export_report_button = QPushButton("PDF")
+        self.export_report_button = QPushButton("Exportar PDF")
         self.export_report_button.setProperty("variant", "primary")
         self.export_report_button.setMinimumHeight(34)
         self.export_report_button.clicked.connect(self.export_maintenance_report_pdf)
@@ -487,11 +487,11 @@ class MaintenancePage(QFrame):
         schedules_layout.setSpacing(8)
 
         schedules_title_row = QHBoxLayout()
-        schedules_title = QLabel("Programações de manutenção")
+        schedules_title = QLabel("Planejamento da manutenção")
         schedules_title.setObjectName("SectionTitle")
         self.schedules_badge = QLabel("0 registros")
         self.schedules_badge.setObjectName("TopBarPill")
-        self.open_cronograma_button = QPushButton("Abrir cronograma")
+        self.open_cronograma_button = QPushButton("Abrir calendário")
         self.open_cronograma_button.setMinimumHeight(32)
         self.open_cronograma_button.clicked.connect(lambda: self.tabs.setCurrentIndex(self.tab_cronograma_index))
         schedules_title_row.addWidget(schedules_title)
@@ -518,7 +518,11 @@ class MaintenancePage(QFrame):
         self.schedules_table.setMinimumHeight(300)
         self.schedules_table.itemSelectionChanged.connect(self._on_schedule_selection_changed)
 
+        schedules_hint = QLabel("Crie e selecione a programação base que será distribuída na agenda.")
+        schedules_hint.setObjectName("PageSubtitle")
+        schedules_hint.setWordWrap(True)
         schedules_layout.addLayout(schedules_title_row)
+        schedules_layout.addWidget(schedules_hint)
         schedules_layout.addWidget(self.schedules_table)
 
         action_card = QFrame()
@@ -548,12 +552,12 @@ class MaintenancePage(QFrame):
         self.move_date_input.setDisplayFormat("dd/MM/yyyy")
         self.move_date_input.setDate(QDate.currentDate())
 
-        self.move_button = QPushButton("Mover selecionados")
+        self.move_button = QPushButton("Reprogramar itens")
         self.move_button.setProperty("variant", "primary")
         self.move_button.setMinimumHeight(34)
         self.move_button.clicked.connect(self.move_selected_items)
 
-        self.remove_button = QPushButton("Retirar selecionados")
+        self.remove_button = QPushButton("Retirar do cronograma")
         self.remove_button.setProperty("variant", "danger")
         self.remove_button.setMinimumHeight(34)
         self.remove_button.clicked.connect(self.remove_selected_items)
@@ -568,7 +572,7 @@ class MaintenancePage(QFrame):
         self.redistribute_capacity_input.setMaximum(999)
         self.redistribute_capacity_input.setValue(1)
 
-        self.redistribute_button = QPushButton("Redistribuir cronograma")
+        self.redistribute_button = QPushButton("Recalcular agenda")
         self.redistribute_button.setProperty("variant", "primary")
         self.redistribute_button.setMinimumHeight(34)
         self.redistribute_button.clicked.connect(self.redistribute_selected_schedule)
@@ -595,11 +599,11 @@ class MaintenancePage(QFrame):
         governance_layout.setHorizontalSpacing(8)
         governance_layout.setVerticalSpacing(6)
 
-        self.governance_badge = QLabel("Governança: selecione uma programação")
+        self.governance_badge = QLabel("Responsável e peças: selecione uma programação")
         self.governance_badge.setObjectName("TopBarPill")
 
         self.mechanic_combo = QComboBox()
-        self.assign_mechanic_button = QPushButton("Aplicar mecânico")
+        self.assign_mechanic_button = QPushButton("Definir responsável")
         self.assign_mechanic_button.setProperty("variant", "primary")
         self.assign_mechanic_button.setMinimumHeight(34)
         self.assign_mechanic_button.clicked.connect(self.assign_schedule_mechanic)
@@ -618,23 +622,27 @@ class MaintenancePage(QFrame):
         self.material_status_combo.addItem("Utilizado", "UTILIZADO")
         self.material_observation_input = QLineEdit()
         self.material_observation_input.setPlaceholderText("Observação da peça para esta programação.")
-        self.link_material_button = QPushButton("Vincular/atualizar material")
+        self.link_material_button = QPushButton("Salvar peça")
         self.link_material_button.setProperty("variant", "primary")
         self.link_material_button.setMinimumHeight(34)
         self.link_material_button.clicked.connect(self.link_material_for_selected_schedule)
 
+        governance_hint = QLabel("Defina quem atende a programação e registre a peça que libera ou bloqueia a execução.")
+        governance_hint.setObjectName("PageSubtitle")
+        governance_hint.setWordWrap(True)
         governance_layout.addWidget(self.governance_badge, 0, 0, 1, 6)
-        governance_layout.addWidget(QLabel("Mecânico responsável"), 1, 0)
-        governance_layout.addWidget(self.mechanic_combo, 1, 1, 1, 2)
-        governance_layout.addWidget(self.assign_mechanic_button, 1, 3)
-        governance_layout.addWidget(QLabel("Material"), 2, 0)
-        governance_layout.addWidget(self.material_combo, 2, 1, 1, 2)
-        governance_layout.addWidget(QLabel("Qtd por veiculo"), 2, 3)
-        governance_layout.addWidget(self.material_qty_input, 2, 4)
-        governance_layout.addWidget(QLabel("Status do material"), 3, 0)
-        governance_layout.addWidget(self.material_status_combo, 3, 1, 1, 2)
-        governance_layout.addWidget(self.material_observation_input, 3, 3, 1, 2)
-        governance_layout.addWidget(self.link_material_button, 2, 5, 2, 1)
+        governance_layout.addWidget(governance_hint, 1, 0, 1, 6)
+        governance_layout.addWidget(QLabel("Mecânico responsável"), 2, 0)
+        governance_layout.addWidget(self.mechanic_combo, 2, 1, 1, 2)
+        governance_layout.addWidget(self.assign_mechanic_button, 2, 3)
+        governance_layout.addWidget(QLabel("Peça / material"), 3, 0)
+        governance_layout.addWidget(self.material_combo, 3, 1, 1, 2)
+        governance_layout.addWidget(QLabel("Quantidade por veículo"), 3, 3)
+        governance_layout.addWidget(self.material_qty_input, 3, 4)
+        governance_layout.addWidget(QLabel("Situação da peça"), 4, 0)
+        governance_layout.addWidget(self.material_status_combo, 4, 1, 1, 2)
+        governance_layout.addWidget(self.material_observation_input, 4, 3, 1, 2)
+        governance_layout.addWidget(self.link_material_button, 3, 5, 2, 1)
         governance_layout.setColumnStretch(2, 1)
         governance_layout.setColumnStretch(5, 1)
 
@@ -646,13 +654,16 @@ class MaintenancePage(QFrame):
         materials_layout.setSpacing(8)
 
         materials_top = QHBoxLayout()
-        materials_title = QLabel("Materiais da programação selecionada")
+        materials_title = QLabel("Peças da programação")
         materials_title.setObjectName("SectionTitle")
         self.materials_badge = QLabel("0 materiais")
         self.materials_badge.setObjectName("TopBarPill")
         materials_top.addWidget(materials_title)
         materials_top.addStretch()
         materials_top.addWidget(self.materials_badge)
+        materials_hint = QLabel("Acompanhe o material necessário para liberar a execução no mobile.")
+        materials_hint.setObjectName("PageSubtitle")
+        materials_hint.setWordWrap(True)
 
         self.materials_table = QTableWidget(0, 9)
         self.materials_table.setHorizontalHeaderLabels(
@@ -672,6 +683,7 @@ class MaintenancePage(QFrame):
         self.materials_table.setMinimumHeight(260)
 
         materials_layout.addLayout(materials_top)
+        materials_layout.addWidget(materials_hint)
         materials_layout.addWidget(self.materials_table)
 
         details_card = QFrame()
@@ -682,13 +694,16 @@ class MaintenancePage(QFrame):
         details_layout.setSpacing(8)
 
         detail_top = QHBoxLayout()
-        detail_title = QLabel("Tabela por programação")
+        detail_title = QLabel("Serviços da programação")
         detail_title.setObjectName("SectionTitle")
         self.items_badge = QLabel("0 itens")
         self.items_badge.setObjectName("TopBarPill")
         detail_top.addWidget(detail_title)
         detail_top.addStretch()
         detail_top.addWidget(self.items_badge)
+        details_hint = QLabel("Aqui estão os itens executáveis do contexto selecionado.")
+        details_hint.setObjectName("PageSubtitle")
+        details_hint.setWordWrap(True)
 
         self.items_table = QTableWidget(0, 11)
         self.items_table.setHorizontalHeaderLabels(
@@ -713,6 +728,7 @@ class MaintenancePage(QFrame):
         self.items_table.setMinimumHeight(360)
 
         details_layout.addLayout(detail_top)
+        details_layout.addWidget(details_hint)
         details_layout.addWidget(self.items_table)
 
         calendar_card = QFrame()
@@ -723,7 +739,7 @@ class MaintenancePage(QFrame):
         calendar_layout.setSpacing(8)
 
         calendar_title_row = QHBoxLayout()
-        calendar_title = QLabel("Cronograma mensal da manutenção")
+        calendar_title = QLabel("Calendário da manutenção")
         calendar_title.setObjectName("SectionTitle")
         self.calendar_badge = QLabel("0 dias")
         self.calendar_badge.setObjectName("TopBarPill")
@@ -750,7 +766,11 @@ class MaintenancePage(QFrame):
         self.calendar_table.itemSelectionChanged.connect(self._on_calendar_day_selection_changed)
         self.calendar_table.verticalHeader().setVisible(False)
         self.calendar_table.setMinimumHeight(520)
+        calendar_hint = QLabel("Clique em um dia para ver os serviços programados naquele período.")
+        calendar_hint.setObjectName("PageSubtitle")
+        calendar_hint.setWordWrap(True)
         calendar_layout.addLayout(calendar_title_row)
+        calendar_layout.addWidget(calendar_hint)
         calendar_layout.addWidget(self.calendar_table)
 
         self.tabs = QTabWidget()
@@ -788,14 +808,18 @@ class MaintenancePage(QFrame):
         relatorios_layout = QVBoxLayout(relatorios_tab)
         relatorios_layout.setContentsMargins(0, 0, 0, 0)
         relatorios_layout.setSpacing(10)
+        relatorios_hint = QLabel("Exporte uma visão gerencial da manutenção filtrando por período, mecânico ou veículo.")
+        relatorios_hint.setObjectName("PageSubtitle")
+        relatorios_hint.setWordWrap(True)
+        relatorios_layout.addWidget(relatorios_hint)
         relatorios_layout.addWidget(reports_card)
         relatorios_layout.addStretch(1)
 
-        self.tab_programacoes_index = self.tabs.addTab(programacoes_tab, "Programações")
-        self.tab_cronograma_index = self.tabs.addTab(cronograma_tab, "Cronograma")
-        self.tab_execucao_index = self.tabs.addTab(execucao_tab, "Execução")
-        self.tab_governanca_index = self.tabs.addTab(governanca_tab, "Governança")
-        self.tab_relatorios_index = self.tabs.addTab(relatorios_tab, "Relatórios")
+        self.tab_programacoes_index = self.tabs.addTab(programacoes_tab, "Planejamento")
+        self.tab_cronograma_index = self.tabs.addTab(cronograma_tab, "Calendário")
+        self.tab_execucao_index = self.tabs.addTab(execucao_tab, "Serviços")
+        self.tab_governanca_index = self.tabs.addTab(governanca_tab, "Responsável e Peças")
+        self.tab_relatorios_index = self.tabs.addTab(relatorios_tab, "Relatório")
 
         layout.addWidget(header_frame)
         layout.addLayout(cards_layout)
@@ -834,10 +858,10 @@ class MaintenancePage(QFrame):
         self.apply_filters()
 
     def _bind_summary_cards_to_actions(self):
-        self.schedules_card.setToolTip("Abrir aba Programacoes")
-        self.items_card.setToolTip("Abrir aba Execucao com todos os itens")
-        self.pending_card.setToolTip("Abrir aba Execucao com pendentes")
-        self.installed_card.setToolTip("Abrir aba Execucao com instalados")
+        self.schedules_card.setToolTip("Abrir aba Planejamento")
+        self.items_card.setToolTip("Abrir aba Serviços com todos os itens")
+        self.pending_card.setToolTip("Abrir aba Serviços com pendentes")
+        self.installed_card.setToolTip("Abrir aba Serviços com concluídos")
 
         self.schedules_card.mousePressEvent = lambda event: self._handle_summary_card_click("PROGRAMACOES")
         self.items_card.mousePressEvent = lambda event: self._handle_summary_card_click("ITENS")
@@ -1068,7 +1092,7 @@ class MaintenancePage(QFrame):
             show_notice(self, "Falha na sincronizacao", str(exc), icon_name="warning")
         finally:
             button.setEnabled(True)
-            button.setText("Sincronizar NC")
+            button.setText("Importar NC")
 
     def redistribute_selected_schedule(self):
         schedule = self._selected_schedule()
@@ -1093,7 +1117,7 @@ class MaintenancePage(QFrame):
             show_notice(self, "Falha na redistribuicao", str(exc), icon_name="warning")
         finally:
             button.setEnabled(True)
-            button.setText("Redistribuir cronograma")
+            button.setText("Recalcular agenda")
 
     def move_selected_items(self):
         selected_items = self._selected_item_payloads()
@@ -1186,7 +1210,7 @@ class MaintenancePage(QFrame):
             show_notice(self, "Falha ao aplicar mecânico", str(exc), icon_name="warning")
         finally:
             button.setEnabled(True)
-            button.setText("Aplicar mecânico")
+            button.setText("Definir responsável")
 
     def link_material_for_selected_schedule(self):
         schedule = self._selected_schedule()
@@ -1212,19 +1236,19 @@ class MaintenancePage(QFrame):
             self.api_client.link_maintenance_schedule_material(int(schedule.get("id")), payload)
             self.refresh()
             self.data_changed.emit()
-            show_notice(self, "Material vinculado", "Governança de peças atualizada na programação.", icon_name="dashboard")
+            show_notice(self, "Material vinculado", "Controle de peças atualizado na programação.", icon_name="dashboard")
         except Exception as exc:
             show_notice(self, "Falha ao vincular material", str(exc), icon_name="warning")
         finally:
             button.setEnabled(True)
-            button.setText("Vincular/atualizar material")
+            button.setText("Salvar peça")
 
     def render_selected_schedule_materials(self):
         schedule = self._selected_schedule()
         if not schedule:
             self.materials_table.setRowCount(0)
             self.materials_badge.setText("0 materiais")
-            self.governance_badge.setText("Governança: selecione uma programação")
+            self.governance_badge.setText("Responsável e peças: selecione uma programação")
             self._set_management_controls_enabled(False)
             return
 
@@ -1299,15 +1323,15 @@ class MaintenancePage(QFrame):
 
     def _render_summary(self):
         summary = (self.overview or {}).get("resumo") or {}
-        self.schedules_card.set_content("Programacoes", str(summary.get("programacoes", 0)), "Cronogramas ativos e historicos")
-        self.items_card.set_content("Itens no mes", str(summary.get("itens", 0)), "Planejados no periodo selecionado")
+        self.schedules_card.set_content("Programações abertas", str(summary.get("programacoes", 0)), "Clique para abrir o planejamento do período")
+        self.items_card.set_content("Serviços do mês", str(summary.get("itens", 0)), "Clique para abrir os serviços do período selecionado")
         self.pending_card.set_content(
-            "Pendentes",
+            "Serviços pendentes",
             str(summary.get("pendentes", 0)),
             f"Aguardando material: {summary.get('aguardando_material', 0)}",
         )
         self.installed_card.set_content(
-            "Instalados",
+            "Serviços concluídos",
             str(summary.get("instalados", 0)),
             f"Não executados: {summary.get('nao_executados', 0)}",
         )
