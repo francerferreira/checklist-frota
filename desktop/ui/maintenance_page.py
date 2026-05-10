@@ -491,13 +491,12 @@ class MaintenancePage(QFrame):
         schedules_title.setObjectName("SectionTitle")
         self.schedules_badge = QLabel("0 registros")
         self.schedules_badge.setObjectName("TopBarPill")
-        self.open_cronograma_button = QPushButton("Abrir calendário")
-        self.open_cronograma_button.setMinimumHeight(32)
-        self.open_cronograma_button.clicked.connect(lambda: self.tabs.setCurrentIndex(self.tab_cronograma_index))
+        self.schedule_flow_badge = QLabel("1. Selecione o planejamento | 2. Confira a agenda acima | 3. Atue nos serviços")
+        self.schedule_flow_badge.setObjectName("TopBarPill")
         schedules_title_row.addWidget(schedules_title)
         schedules_title_row.addStretch()
         schedules_title_row.addWidget(self.schedules_badge)
-        schedules_title_row.addWidget(self.open_cronograma_button)
+        schedules_title_row.addWidget(self.schedule_flow_badge)
 
         self.schedules_table = QTableWidget(0, 10)
         self.schedules_table.setHorizontalHeaderLabels(
@@ -576,19 +575,25 @@ class MaintenancePage(QFrame):
         self.redistribute_button.setProperty("variant", "primary")
         self.redistribute_button.setMinimumHeight(34)
         self.redistribute_button.clicked.connect(self.redistribute_selected_schedule)
+        self.action_help_label = QLabel(
+            "Selecione um planejamento e depois escolha os itens do serviço para liberar reprogramação e retirada."
+        )
+        self.action_help_label.setObjectName("PageSubtitle")
+        self.action_help_label.setWordWrap(True)
 
         action_layout.addWidget(self.selected_schedule_badge, 0, 0, 1, 5)
-        action_layout.addWidget(QLabel("Filtro de itens"), 1, 0)
-        action_layout.addWidget(self.item_status_filter, 1, 1)
-        action_layout.addWidget(QLabel("Nova data"), 1, 2)
-        action_layout.addWidget(self.move_date_input, 1, 3)
-        action_layout.addWidget(self.move_button, 1, 4)
-        action_layout.addWidget(self.remove_button, 2, 4)
-        action_layout.addWidget(QLabel("Início da redistribuição"), 2, 0)
-        action_layout.addWidget(self.redistribute_start_input, 2, 1)
-        action_layout.addWidget(QLabel("Cap./dia"), 2, 2)
-        action_layout.addWidget(self.redistribute_capacity_input, 2, 3)
-        action_layout.addWidget(self.redistribute_button, 3, 3, 1, 2)
+        action_layout.addWidget(self.action_help_label, 1, 0, 1, 5)
+        action_layout.addWidget(QLabel("Filtro de itens"), 2, 0)
+        action_layout.addWidget(self.item_status_filter, 2, 1)
+        action_layout.addWidget(QLabel("Nova data"), 2, 2)
+        action_layout.addWidget(self.move_date_input, 2, 3)
+        action_layout.addWidget(self.move_button, 2, 4)
+        action_layout.addWidget(self.remove_button, 3, 4)
+        action_layout.addWidget(QLabel("Início da redistribuição"), 3, 0)
+        action_layout.addWidget(self.redistribute_start_input, 3, 1)
+        action_layout.addWidget(QLabel("Cap./dia"), 3, 2)
+        action_layout.addWidget(self.redistribute_capacity_input, 3, 3)
+        action_layout.addWidget(self.redistribute_button, 4, 3, 1, 2)
         action_layout.setColumnStretch(1, 1)
         action_layout.setColumnStretch(4, 1)
 
@@ -626,23 +631,29 @@ class MaintenancePage(QFrame):
         self.link_material_button.setProperty("variant", "primary")
         self.link_material_button.setMinimumHeight(34)
         self.link_material_button.clicked.connect(self.link_material_for_selected_schedule)
+        self.management_help_label = QLabel(
+            "As definições de responsável e peça só são liberadas depois que um planejamento é selecionado."
+        )
+        self.management_help_label.setObjectName("PageSubtitle")
+        self.management_help_label.setWordWrap(True)
 
         governance_hint = QLabel("Defina quem atende a programação e registre a peça que libera ou bloqueia a execução.")
         governance_hint.setObjectName("PageSubtitle")
         governance_hint.setWordWrap(True)
         governance_layout.addWidget(self.governance_badge, 0, 0, 1, 6)
         governance_layout.addWidget(governance_hint, 1, 0, 1, 6)
-        governance_layout.addWidget(QLabel("Mecânico responsável"), 2, 0)
-        governance_layout.addWidget(self.mechanic_combo, 2, 1, 1, 2)
-        governance_layout.addWidget(self.assign_mechanic_button, 2, 3)
-        governance_layout.addWidget(QLabel("Peça / material"), 3, 0)
-        governance_layout.addWidget(self.material_combo, 3, 1, 1, 2)
-        governance_layout.addWidget(QLabel("Quantidade por veículo"), 3, 3)
-        governance_layout.addWidget(self.material_qty_input, 3, 4)
-        governance_layout.addWidget(QLabel("Situação da peça"), 4, 0)
-        governance_layout.addWidget(self.material_status_combo, 4, 1, 1, 2)
-        governance_layout.addWidget(self.material_observation_input, 4, 3, 1, 2)
-        governance_layout.addWidget(self.link_material_button, 3, 5, 2, 1)
+        governance_layout.addWidget(self.management_help_label, 2, 0, 1, 6)
+        governance_layout.addWidget(QLabel("Mecânico responsável"), 3, 0)
+        governance_layout.addWidget(self.mechanic_combo, 3, 1, 1, 2)
+        governance_layout.addWidget(self.assign_mechanic_button, 3, 3)
+        governance_layout.addWidget(QLabel("Peça / material"), 4, 0)
+        governance_layout.addWidget(self.material_combo, 4, 1, 1, 2)
+        governance_layout.addWidget(QLabel("Quantidade por veículo"), 4, 3)
+        governance_layout.addWidget(self.material_qty_input, 4, 4)
+        governance_layout.addWidget(QLabel("Situação da peça"), 5, 0)
+        governance_layout.addWidget(self.material_status_combo, 5, 1, 1, 2)
+        governance_layout.addWidget(self.material_observation_input, 5, 3, 1, 2)
+        governance_layout.addWidget(self.link_material_button, 4, 5, 2, 1)
         governance_layout.setColumnStretch(2, 1)
         governance_layout.setColumnStretch(5, 1)
 
@@ -784,12 +795,6 @@ class MaintenancePage(QFrame):
         programacoes_layout.setSpacing(10)
         programacoes_layout.addWidget(schedules_card)
 
-        cronograma_tab = QWidget()
-        cronograma_layout = QVBoxLayout(cronograma_tab)
-        cronograma_layout.setContentsMargins(0, 0, 0, 0)
-        cronograma_layout.setSpacing(10)
-        cronograma_layout.addWidget(calendar_card, 1)
-
         execucao_tab = QWidget()
         execucao_layout = QVBoxLayout(execucao_tab)
         execucao_layout.setContentsMargins(0, 0, 0, 0)
@@ -816,7 +821,6 @@ class MaintenancePage(QFrame):
         relatorios_layout.addStretch(1)
 
         self.tab_programacoes_index = self.tabs.addTab(programacoes_tab, "Planejamento")
-        self.tab_cronograma_index = self.tabs.addTab(cronograma_tab, "Calendário")
         self.tab_execucao_index = self.tabs.addTab(execucao_tab, "Serviços")
         self.tab_governanca_index = self.tabs.addTab(governanca_tab, "Responsável e Peças")
         self.tab_relatorios_index = self.tabs.addTab(relatorios_tab, "Relatório")
@@ -824,6 +828,7 @@ class MaintenancePage(QFrame):
         layout.addWidget(header_frame)
         layout.addLayout(cards_layout)
         layout.addWidget(filter_card)
+        layout.addWidget(calendar_card)
         layout.addWidget(self.tabs, 1)
 
         self._set_action_controls_enabled(False)
@@ -1529,6 +1534,11 @@ class MaintenancePage(QFrame):
     def _on_schedule_selection_changed(self):
         row = self.schedules_table.currentRow()
         if row < 0:
+            self.selected_schedule_id = None
+            self.selected_calendar_day_iso = None
+            self.render_selected_schedule_items()
+            self.render_selected_schedule_materials()
+            self._render_calendar_table()
             return
         first_cell = self.schedules_table.item(row, 0)
         payload = first_cell.data(Qt.UserRole) if first_cell else None
@@ -1672,16 +1682,52 @@ class MaintenancePage(QFrame):
         total = self.items_table.rowCount()
         selected = len(self._selected_item_payloads())
         self.items_badge.setText(f"{total} itens | {selected} selecionados")
+        self._refresh_contextual_actions()
+
+    def _refresh_contextual_actions(self):
+        schedule_selected = self._selected_schedule() is not None
+        item_selected = len(self._selected_item_payloads()) > 0
+        material_selected = isinstance(self.material_combo.currentData(), dict) if hasattr(self, "material_combo") else False
+
+        self.item_status_filter.setEnabled(schedule_selected)
+        self.redistribute_start_input.setEnabled(schedule_selected)
+        self.redistribute_capacity_input.setEnabled(schedule_selected)
+        self.redistribute_button.setEnabled(schedule_selected)
+        self.move_date_input.setEnabled(schedule_selected and item_selected)
+        self.move_button.setEnabled(schedule_selected and item_selected)
+        self.remove_button.setEnabled(schedule_selected and item_selected)
+        self.clear_calendar_filter_button.setEnabled(schedule_selected and bool(self.selected_calendar_day_iso))
+        if hasattr(self, "link_material_button"):
+            self.link_material_button.setEnabled(schedule_selected and material_selected)
+
+        if hasattr(self, "action_help_label"):
+            self.action_help_label.setVisible(not schedule_selected or not item_selected)
+            if not schedule_selected:
+                self.action_help_label.setText(
+                    "Selecione um planejamento para liberar o filtro de serviços e as ações da agenda."
+                )
+            elif not item_selected:
+                self.action_help_label.setText(
+                    "Selecione um ou mais itens da tabela para liberar reprogramação e retirada."
+                )
+            else:
+                self.action_help_label.setText(
+                    "Selecione um planejamento e depois escolha os itens do serviço para liberar reprogramação e retirada."
+                )
+
+        if hasattr(self, "management_help_label"):
+            self.management_help_label.setVisible(not schedule_selected)
 
     def _set_action_controls_enabled(self, enabled: bool):
         self.item_status_filter.setEnabled(enabled)
-        self.move_date_input.setEnabled(enabled)
-        self.move_button.setEnabled(enabled)
-        self.remove_button.setEnabled(enabled)
+        self.move_date_input.setEnabled(False)
+        self.move_button.setEnabled(False)
+        self.remove_button.setEnabled(False)
         self.redistribute_start_input.setEnabled(enabled)
         self.redistribute_capacity_input.setEnabled(enabled)
         self.redistribute_button.setEnabled(enabled)
         self.clear_calendar_filter_button.setEnabled(enabled and bool(self.selected_calendar_day_iso))
+        self._refresh_contextual_actions()
 
     def _set_management_controls_enabled(self, enabled: bool):
         self.mechanic_combo.setEnabled(enabled)
@@ -1691,6 +1737,7 @@ class MaintenancePage(QFrame):
         self.material_status_combo.setEnabled(enabled)
         self.material_observation_input.setEnabled(enabled)
         self.link_material_button.setEnabled(enabled)
+        self._refresh_contextual_actions()
 
     def _item_source_label(self, item: dict, schedule: dict) -> str:
         if item.get("checklist_item_id"):
