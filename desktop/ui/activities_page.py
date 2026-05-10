@@ -443,7 +443,7 @@ class ActivityItemUpdateDialog(QDialog):
         title_wrap.setSpacing(4)
         title = QLabel(f"{veiculo.get('frota') or '-'} - {activity.get('item_nome') or '-'}")
         title.setObjectName("DialogHeaderTitle")
-        subtitle = QLabel("Registre se a peça foi instalada, não instalada ou permanece pendente, com evidências.")
+        subtitle = QLabel("Registre se o item foi conferido como conforme, não conforme ou permanece pendente, com evidências.")
         subtitle.setObjectName("DialogHeaderSubtitle")
         subtitle.setWordWrap(True)
         title_wrap.addWidget(title)
@@ -464,15 +464,15 @@ class ActivityItemUpdateDialog(QDialog):
 
         self.status_combo = QComboBox()
         self.status_combo.addItem("Pendente", "PENDENTE")
-        self.status_combo.addItem("Instalado", "INSTALADO")
-        self.status_combo.addItem("Não instalado", "NAO_INSTALADO")
+        self.status_combo.addItem("Conforme", "INSTALADO")
+        self.status_combo.addItem("Não conforme", "NAO_INSTALADO")
         existing_status = item.get("status_execucao") or "PENDENTE"
         index = self.status_combo.findData(existing_status)
         if index >= 0:
             self.status_combo.setCurrentIndex(index)
 
         self.observacao_input = QTextEdit(item.get("observacao") or "")
-        self.observacao_input.setPlaceholderText("Descreva a execução, pendência, restrição ou apontamento de auditoria.")
+        self.observacao_input.setPlaceholderText("Descreva a conferência, pendência, restrição ou apontamento de auditoria.")
         self.observacao_input.setMinimumHeight(220)
 
         self.material_combo = QComboBox()
@@ -514,7 +514,7 @@ class ActivityItemUpdateDialog(QDialog):
         self.before_label = QLabel(item.get("foto_origem") or item.get("foto_antes") or "Sem foto de origem vinculada.")
         self.before_label.setObjectName("MutedText")
         self.before_label.setWordWrap(True)
-        self.after_label = QLabel(item.get("foto_resolucao") or item.get("foto_depois") or "Sem foto de resolução vinculada.")
+        self.after_label = QLabel(item.get("foto_resolucao") or item.get("foto_depois") or "Sem foto da conferência vinculada.")
         self.after_label.setObjectName("MutedText")
         self.after_label.setWordWrap(True)
         self.before_remote_path = item.get("foto_origem") or item.get("foto_antes") or ""
@@ -526,9 +526,9 @@ class ActivityItemUpdateDialog(QDialog):
         self.before_preview.set_preview_height(220, minimum=170)
         self.before_preview.setMinimumHeight(300)
 
-        self.after_preview = ImagePanel("Prévia da resolução")
-        self.after_preview.set_preview_title(f"Foto de resolução - {veiculo.get('frota') or '-'}")
-        self.after_preview.set_photo_role("Resolução")
+        self.after_preview = ImagePanel("Prévia da conferência")
+        self.after_preview.set_preview_title(f"Foto da conferência - {veiculo.get('frota') or '-'}")
+        self.after_preview.set_photo_role("Conferência")
         self.after_preview.set_preview_height(220, minimum=170)
         self.after_preview.setMinimumHeight(300)
 
@@ -538,7 +538,7 @@ class ActivityItemUpdateDialog(QDialog):
         if self.origin_photo_locked:
             before_button.setText("Foto de origem preservada")
             before_button.setEnabled(False)
-        after_button = QPushButton("Selecionar foto de resolução")
+        after_button = QPushButton("Selecionar foto da conferência")
         after_button.setMinimumHeight(34)
         after_button.clicked.connect(lambda: self._select_file("after"))
 
@@ -607,7 +607,7 @@ class ActivityItemUpdateDialog(QDialog):
         after_layout = QVBoxLayout(after_field)
         after_layout.setContentsMargins(12, 12, 12, 12)
         after_layout.setSpacing(8)
-        after_title = QLabel("Evidência de resolução (depois)")
+        after_title = QLabel("Evidência da conferência")
         after_title.setObjectName("SectionCaption")
         after_layout.addWidget(after_title)
         after_actions = QVBoxLayout()
@@ -692,7 +692,7 @@ class ActivityItemUpdateDialog(QDialog):
         self.before_preview.set_image_data(before_bytes, before_caption)
 
         after_bytes = self._load_preview_bytes(self.after_file, self.after_remote_path)
-        after_caption = self.after_file or self.after_remote_path or "Sem foto de resolução vinculada."
+        after_caption = self.after_file or self.after_remote_path or "Sem foto da conferência vinculada."
         self.after_preview.set_image_data(after_bytes, after_caption)
 
     def submit(self):
@@ -938,9 +938,9 @@ class ActivityDetailDialog(QDialog):
         summary_layout.setSpacing(10)
         self.total_badge = QLabel("0 equipamentos")
         self.total_badge.setObjectName("TopBarPill")
-        self.installed_badge = QLabel("0 instalados")
+        self.installed_badge = QLabel("0 conformes")
         self.installed_badge.setObjectName("TopBarPill")
-        self.not_installed_badge = QLabel("0 não instalados")
+        self.not_installed_badge = QLabel("0 não conformes")
         self.not_installed_badge.setObjectName("TopBarPill")
         self.pending_badge = QLabel("0 pendentes")
         self.pending_badge.setObjectName("TopBarPill")
@@ -963,7 +963,7 @@ class ActivityDetailDialog(QDialog):
         title = QLabel("Auditoria por equipamento")
         title.setObjectName("SectionTitle")
         caption = QLabel(
-            "Clique duas vezes em uma linha para registrar instalação, não instalação, observações e evidências."
+            "Clique duas vezes em uma linha para registrar conferência, não conformidade, observações e evidências."
         )
         caption.setObjectName("SectionCaption")
         caption.setWordWrap(True)
@@ -974,7 +974,7 @@ class ActivityDetailDialog(QDialog):
         refresh_button = QPushButton("Atualizar")
         refresh_button.setProperty("variant", "success")
         refresh_button.clicked.connect(self.refresh)
-        edit_button = QPushButton("Marcar selecionado")
+        edit_button = QPushButton("Atualizar conferência")
         edit_button.setProperty("variant", "primary")
         edit_button.clicked.connect(self.edit_selected_item)
         material_button = QPushButton("Editar material")
@@ -996,10 +996,10 @@ class ActivityDetailDialog(QDialog):
                 "Material",
                 "Qtd peça",
                 "Status da inspeção",
-                "Executado em",
-                "Executado por",
+                "Conferido em",
+                "Conferido por",
                 "Foto origem",
-                "Foto resolução",
+                "Foto conferência",
                 "Observação",
             ]
         )
@@ -1028,10 +1028,10 @@ class ActivityDetailDialog(QDialog):
         header.setSectionResizeMode(3, QHeaderView.Stretch)  # Material
         header.setSectionResizeMode(4, QHeaderView.ResizeToContents)  # Qtd peça
         header.setSectionResizeMode(5, QHeaderView.ResizeToContents)  # Status da inspeção
-        header.setSectionResizeMode(6, QHeaderView.ResizeToContents)  # Executado em
-        header.setSectionResizeMode(7, QHeaderView.ResizeToContents)  # Executado por
+        header.setSectionResizeMode(6, QHeaderView.ResizeToContents)  # Conferido em
+        header.setSectionResizeMode(7, QHeaderView.ResizeToContents)  # Conferido por
         header.setSectionResizeMode(8, QHeaderView.ResizeToContents)  # Foto origem
-        header.setSectionResizeMode(9, QHeaderView.ResizeToContents)  # Foto resolução
+        header.setSectionResizeMode(9, QHeaderView.ResizeToContents)  # Foto conferência
         header.setSectionResizeMode(10, QHeaderView.Stretch)  # Observação
 
     def refresh(self):
@@ -1047,8 +1047,8 @@ class ActivityDetailDialog(QDialog):
             f"Status {self._format_activity_status(self.activity.get('status'))}"
         )
         self.total_badge.setText(f"{resumo.get('total', 0)} equipamentos")
-        self.installed_badge.setText(f"{resumo.get('instalados', 0)} instalados")
-        self.not_installed_badge.setText(f"{resumo.get('nao_instalados', 0)} não instalados")
+        self.installed_badge.setText(f"{resumo.get('instalados', 0)} conformes")
+        self.not_installed_badge.setText(f"{resumo.get('nao_instalados', 0)} não conformes")
         self.pending_badge.setText(f"{resumo.get('pendentes', 0)} pendentes")
         self.total_badge.setToolTip(
             f"Código: {self.activity.get('codigo_peca') or '-'}\n"
@@ -1210,10 +1210,10 @@ class ActivityDetailDialog(QDialog):
             ("Material", "material"),
             ("Qtd peça", "quantidade_peca"),
             ("Status da inspeção", "status_execucao"),
-            ("Instalado em", "instalado_em"),
-            ("Executado por", "executado_por"),
+            ("Conferido em", "instalado_em"),
+            ("Conferido por", "executado_por"),
             ("Foto origem", "foto_origem"),
-            ("Foto resolução", "foto_resolucao"),
+            ("Foto conferência", "foto_resolucao"),
             ("Observação", "observacao"),
         ]
 
@@ -1307,8 +1307,8 @@ class ActivityDetailDialog(QDialog):
     def _format_item_status(value: str | None) -> str:
         return {
             "PENDENTE": "Pendente",
-            "INSTALADO": "Instalado",
-            "NAO_INSTALADO": "Não instalado",
+            "INSTALADO": "Conforme",
+            "NAO_INSTALADO": "Não conforme",
         }.get(value or "", value or "-")
 
     @staticmethod
@@ -1353,7 +1353,7 @@ class ActivitiesPage(QFrame):
         title = QLabel("Inspeções")
         title.setObjectName("PageTitle")
         subtitle = QLabel(
-            "Abra inspeções dirigidas por item, selecione vários equipamentos e acompanhe a conferência individual com auditoria."
+            "Abra inspeções dirigidas por item, selecione vários equipamentos e acompanhe a conferência individual para descobrir desvios antes da resolução."
         )
         subtitle.setObjectName("SectionCaption")
         subtitle.setWordWrap(True)
@@ -1460,7 +1460,7 @@ class ActivitiesPage(QFrame):
                 "Equipamentos",
                 "NC vinculadas",
                 "Instalados",
-                "Não instalados",
+                "Não conformes",
                 "Pendentes",
                 "Abertura",
             ]

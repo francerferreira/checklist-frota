@@ -2839,8 +2839,8 @@ function renderActivities() {
     if (!openActivities.length) {
         elements.activitiesList.innerHTML = `
             <article class="empty-state">
-                <strong>NENHUMA ATIVIDADE ABERTA.</strong>
-                <span>AS ATIVIDADES CRIADAS NO DESKTOP APARECERÃO AQUI.</span>
+                <strong>NENHUMA INSPEÇÃO ABERTA.</strong>
+                <span>AS INSPEÇÕES DE CONFERÊNCIA CRIADAS NO DESKTOP APARECERÃO AQUI.</span>
             </article>
         `;
         return;
@@ -2853,13 +2853,27 @@ function renderActivities() {
         card.className = "activity-card";
         card.innerHTML = `
             <span class="vehicle-type">${escapeHtml(activity.tipo_equipamento || "-")}</span>
-            <strong>${escapeHtml(String(activity.titulo || activity.item_nome || "ATIVIDADE").toUpperCase())}</strong>
+            <strong>${escapeHtml(String(activity.titulo || activity.item_nome || "INSPEÇÃO").toUpperCase())}</strong>
             <span>${escapeHtml(String(activity.item_nome || "-").toUpperCase())}</span>
-            <small>${resumo.pendentes || 0} PENDENTES | ${resumo.instalados || 0} INSTALADOS | ${resumo.nao_instalados || 0} NÃO INSTALADOS${activity.assigned_mechanic ? ` | DIRECIONADO: ${escapeHtml(String(activity.assigned_mechanic.nome || "").toUpperCase())}` : ""}</small>
+            <small>${resumo.pendentes || 0} PENDENTES | ${resumo.instalados || 0} CONFORMES | ${resumo.nao_instalados || 0} NÃO CONFORMES${activity.assigned_mechanic ? ` | DIRECIONADO: ${escapeHtml(String(activity.assigned_mechanic.nome || "").toUpperCase())}` : ""}</small>
         `;
         card.addEventListener("click", () => selectActivity(activity.id));
         elements.activitiesList.appendChild(card);
     });
+}
+
+function formatActivityStatusLabel(status) {
+    const normalized = String(status || "PENDENTE").toUpperCase();
+    if (normalized === "INSTALADO") {
+        return "CONFORME";
+    }
+    if (normalized === "NAO_INSTALADO") {
+        return "NÃO CONFORME";
+    }
+    if (normalized === "PENDENTE") {
+        return "PENDENTE";
+    }
+    return normalized.replaceAll("_", " ");
 }
 
 async function selectActivity(activityId) {
@@ -2876,11 +2890,11 @@ function renderActivityDetail() {
     const activity = state.selectedActivity;
     const items = activity.itens || [];
     const resumo = activity.resumo || {};
-    elements.activityTitle.textContent = String(activity.titulo || activity.item_nome || "ATIVIDADE").toUpperCase();
+    elements.activityTitle.textContent = String(activity.titulo || activity.item_nome || "INSPEÇÃO").toUpperCase();
     elements.activitySummary.innerHTML = `
         <div>
             <strong>${escapeHtml(String(activity.item_nome || "-").toUpperCase())}</strong>
-            <span>${resumo.pendentes || 0} PENDENTES | ${resumo.instalados || 0} INSTALADOS | ${resumo.nao_instalados || 0} NÃO INSTALADOS</span>
+            <span>${resumo.pendentes || 0} PENDENTES | ${resumo.instalados || 0} CONFORMES | ${resumo.nao_instalados || 0} NÃO CONFORMES</span>
         </div>
         <div class="progress-track" aria-hidden="true">
             <span style="width:${items.length ? Math.round(((items.length - (resumo.pendentes || 0)) / items.length) * 100) : 0}%"></span>
@@ -2911,31 +2925,33 @@ function makeActivityItemCard(activity, item, index) {
             <h3>${escapeHtml(String(vehicle.frota || "EQUIPAMENTO").toUpperCase())} - ${escapeHtml(String(vehicle.modelo || "").toUpperCase())}</h3>
         </div>
         <div class="activity-meta">
-            <strong>STATUS ATUAL: ${escapeHtml(String(item.status_execucao || "PENDENTE").replace("_", " "))}</strong>
+            <strong>STATUS ATUAL: ${escapeHtml(formatActivityStatusLabel(item.status_execucao || "PENDENTE"))}</strong>
             <span>PLACA ${escapeHtml(vehicle.placa || "-")}</span>
         </div>
-        <div class="status-group activity-status-group" role="group" aria-label="Status da atividade">
-            <button type="button" class="status-button ok" data-status="INSTALADO">INSTALADO</button>
+        <div class="status-group activity-status-group" role="group" aria-label="Status da inspeção">
+            <button type="button" class="status-button ok" data-status="INSTALADO">CONFORME</button>
+            <button type="button" class="status-button nc" data-status="NAO_INSTALADO">NÃO CONFORME</button>
+            <button type="button" class="status-button" data-status="PENDENTE">PENDENTE</button>
         </div>
         <label>
-            <span>OBSERVAÇÃO DA ATIVIDADE</span>
-            <textarea placeholder="DESCREVA A EXECUÇÃO, PENDÊNCIA OU RESTRIÇÃO">${escapeHtml(item.observacao || "")}</textarea>
+            <span>OBSERVAÇÃO DA INSPEÇÃO</span>
+            <textarea placeholder="DESCREVA A CONFERÊNCIA, PENDÊNCIA OU RESTRIÇÃO">${escapeHtml(item.observacao || "")}</textarea>
         </label>
         <label class="evidence-input">
             <span>EVIDÊNCIA ANTES</span>
-            <strong>FOTO ANTES DA EXECUÇÃO</strong>
+            <strong>FOTO DE ORIGEM DA CONFERÊNCIA</strong>
             <input type="file" data-photo="before" accept="image/*" capture="environment">
-            <em>${item.foto_antes ? "FOTO ANTES JÁ VINCULADA." : "TOQUE PARA FOTOGRAFAR OU ANEXAR IMAGEM."}</em>
+            <em>${item.foto_antes ? "FOTO DE ORIGEM JÁ VINCULADA." : "TOQUE PARA FOTOGRAFAR OU ANEXAR IMAGEM."}</em>
         </label>
         <img class="photo-preview before-preview" alt="PRÉVIA DA EVIDÊNCIA ANTES">
         <label class="evidence-input">
-            <span>EVIDÊNCIA DEPOIS</span>
-            <strong>FOTO DEPOIS DA EXECUÇÃO</strong>
+            <span>EVIDÊNCIA DA CONFERÊNCIA</span>
+            <strong>FOTO DA CONFERÊNCIA</strong>
             <input type="file" data-photo="after" accept="image/*" capture="environment">
-            <em>${item.foto_depois ? "FOTO DEPOIS JÁ VINCULADA." : "TOQUE PARA FOTOGRAFAR OU ANEXAR IMAGEM."}</em>
+            <em>${item.foto_depois ? "FOTO DA CONFERÊNCIA JÁ VINCULADA." : "TOQUE PARA FOTOGRAFAR OU ANEXAR IMAGEM."}</em>
         </label>
         <img class="photo-preview after-preview" alt="PRÉVIA DA EVIDÊNCIA DEPOIS">
-        <button type="button" class="primary-button activity-save-button">SALVAR EVIDÊNCIA</button>
+        <button type="button" class="primary-button activity-save-button">SALVAR CONFERÊNCIA</button>
         ${canShare ? `<button type="button" class="share-button activity-share-button">COMPARTILHAR NO WHATSAPP</button>` : ""}
     `;
 
@@ -2943,7 +2959,7 @@ function makeActivityItemCard(activity, item, index) {
     const beforeHint = beforeInput?.closest(".evidence-input")?.querySelector("em");
     const beforePreview = card.querySelector(".before-preview");
     if (beforeHint) {
-        beforeHint.textContent = beforePath ? "FOTO ANTES JÁ VINCULADA." : "TOQUE PARA FOTOGRAFAR OU ANEXAR IMAGEM.";
+        beforeHint.textContent = beforePath ? "FOTO DE ORIGEM JÁ VINCULADA." : "TOQUE PARA FOTOGRAFAR OU ANEXAR IMAGEM.";
     }
     if (beforeInput && originLocked) {
         beforeInput.disabled = true;
@@ -2957,7 +2973,7 @@ function makeActivityItemCard(activity, item, index) {
     const afterHint = afterInput?.closest(".evidence-input")?.querySelector("em");
     const afterPreview = card.querySelector(".after-preview");
     if (afterHint) {
-        afterHint.textContent = afterPath ? "FOTO DEPOIS JÁ VINCULADA." : "TOQUE PARA FOTOGRAFAR OU ANEXAR IMAGEM.";
+        afterHint.textContent = afterPath ? "FOTO DA CONFERÊNCIA JÁ VINCULADA." : "TOQUE PARA FOTOGRAFAR OU ANEXAR IMAGEM.";
     }
     if (afterPreview && afterPhoto) {
         afterPreview.src = afterPhoto;
@@ -2972,9 +2988,9 @@ function makeActivityItemCard(activity, item, index) {
             card.dataset.status = button.dataset.status;
         });
     });
-    card.dataset.status = "INSTALADO";
+    card.dataset.status = String(item.status_execucao || "PENDENTE").toUpperCase();
     statusButtons.forEach((statusButton) => {
-        if (statusButton.dataset.status === "INSTALADO") {
+        if (statusButton.dataset.status === card.dataset.status) {
             statusButton.classList.add("active");
         }
     });
@@ -3011,7 +3027,7 @@ function previewFile(input, card) {
 
 async function submitActivityItem(card, activity, item) {
     const vehicle = item.veiculo || {};
-    const status = "INSTALADO";
+    const status = card.dataset.status || String(item.status_execucao || "PENDENTE").toUpperCase();
     const currentBeforePath = item.foto_origem || item.foto_antes;
     const currentAfterPath = item.foto_resolucao || item.foto_depois;
 
@@ -3028,12 +3044,12 @@ async function submitActivityItem(card, activity, item) {
         };
 
         if (beforeFile) {
-            payload.foto_antes = await uploadEvidence(beforeFile, vehicle.frota || "EQUIPAMENTO", activity.item_nome || "ATIVIDADE", "atividade_antes", "ATIVIDADES");
+            payload.foto_antes = await uploadEvidence(beforeFile, vehicle.frota || "EQUIPAMENTO", activity.item_nome || "INSPECAO", "inspecao_origem", "INSPECOES");
         } else if (currentBeforePath) {
             payload.foto_antes = currentBeforePath;
         }
         if (afterFile) {
-            payload.foto_depois = await uploadEvidence(afterFile, vehicle.frota || "EQUIPAMENTO", activity.item_nome || "ATIVIDADE", "atividade_depois", "ATIVIDADES");
+            payload.foto_depois = await uploadEvidence(afterFile, vehicle.frota || "EQUIPAMENTO", activity.item_nome || "INSPECAO", "inspecao_conferencia", "INSPECOES");
         } else if (currentAfterPath) {
             payload.foto_depois = currentAfterPath;
         }
@@ -3044,12 +3060,12 @@ async function submitActivityItem(card, activity, item) {
             body: JSON.stringify(payload),
         });
         renderActivityDetail();
-        showToast("ATIVIDADE ATUALIZADA COM SUCESSO.");
+        showToast("INSPEÇÃO ATUALIZADA COM SUCESSO.");
     } catch (error) {
         showToast(error.message, true);
     } finally {
         saveButton.disabled = false;
-        saveButton.textContent = "SALVAR EVIDÊNCIA";
+        saveButton.textContent = "SALVAR CONFERÊNCIA";
     }
 }
 
@@ -3201,11 +3217,11 @@ async function shareText(title, message) {
 function shareActivityItem(activity, item) {
     const vehicle = item.veiculo || {};
     const photoPath = item.foto_depois || item.foto_antes || "";
-    const title = "CF - atividade";
+    const title = "CF - inspecao";
     const message = buildPhotoShareText(title, [
-        `Atividade: ${activity.item_nome || activity.titulo || "-"}`,
+        `Inspeção: ${activity.item_nome || activity.titulo || "-"}`,
         `Equipamento: ${vehicle.frota || "-"} | Placa: ${vehicle.placa || "-"}`,
-        `Status: ${String(item.status_execucao || "-").replace("_", " ")}`,
+        `Status: ${formatActivityStatusLabel(item.status_execucao || "-")}`,
         item.observacao ? `Observação: ${item.observacao}` : "",
     ], photoPath);
     shareText(title, message);

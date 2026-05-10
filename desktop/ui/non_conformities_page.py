@@ -229,7 +229,7 @@ class CreateActivityFromNCDialog(QDialog):
         )
         self.mechanics = self.api_client.get_mechanics()
 
-        self.setWindowTitle("Criar inspeção da não conformidade")
+        self.setWindowTitle("Criar inspeção de apoio")
         configure_dialog_window(self, width=980, height=760, min_width=820, min_height=640)
         style_card(self)
         layout = build_dialog_layout(self, max_content_width=1040)
@@ -244,10 +244,10 @@ class CreateActivityFromNCDialog(QDialog):
         header_layout.setContentsMargins(18, 18, 18, 18)
         header_layout.setSpacing(4)
 
-        title = QLabel(f"Criar inspeção - NC #{nc_item.get('id')}")
+        title = QLabel(f"Criar inspeção de apoio - NC #{nc_item.get('id')}")
         title.setObjectName("DialogHeaderTitle")
         subtitle = QLabel(
-            f"{vehicle.get('frota') or '-'} • {_nc_label(nc_item)} • Motorista {user.get('nome') or '-'}"
+            f"{vehicle.get('frota') or '-'} • {_nc_label(nc_item)} • Motorista {user.get('nome') or '-'} • Uso auxiliar de conferência"
         )
         subtitle.setObjectName("DialogHeaderSubtitle")
         subtitle.setWordWrap(True)
@@ -293,7 +293,7 @@ class CreateActivityFromNCDialog(QDialog):
         self.allow_duplicate_check.setChecked(False)
 
         self.observacao_input = QTextEdit()
-        self.observacao_input.setPlaceholderText("Descreva o plano da tratativa, materiais e critérios de auditoria.")
+        self.observacao_input.setPlaceholderText("Descreva o objetivo da conferência, critérios de auditoria e observações de apoio.")
         self.observacao_input.setPlainText(
             (
                 f"NC #{nc_item.get('id')} - {_nc_label(nc_item)}\n"
@@ -325,7 +325,7 @@ class CreateActivityFromNCDialog(QDialog):
         add_field(2, 1, "Descrição da peça", self.descricao_input)
         add_field(3, 0, "Mecânico direcionado", self.mechanic_combo, highlight=True)
         add_field(3, 1, "Quantidade por equipamento", self.quantidade_spin, highlight=True)
-        add_field(4, 0, "Observação da tratativa", self.observacao_input, 2)
+        add_field(4, 0, "Observação da conferência", self.observacao_input, 2)
         add_field(5, 0, "Regra de duplicidade", self.allow_duplicate_check, 2)
 
         footer = QFrame()
@@ -336,7 +336,7 @@ class CreateActivityFromNCDialog(QDialog):
         actions.setSpacing(12)
         actions.addStretch()
         cancel_button = QPushButton("Cancelar")
-        submit_button = QPushButton("Criar inspeção")
+        submit_button = QPushButton("Criar inspeção de apoio")
         submit_button.setProperty("variant", "primary")
         cancel_button.setMinimumHeight(50)
         submit_button.setMinimumHeight(50)
@@ -413,7 +413,7 @@ class NonConformitiesPage(QFrame):
         title = QLabel("Central de Resolução")
         title.setObjectName("PageTitle")
         subtitle = QLabel(
-            "Organize as não conformidades abertas, acompanhe a fila de tratativa e encaminhe os registros para resolução."
+            "Organize as não conformidades abertas, acompanhe a fila de tratativa e encaminhe os registros para resolução. A inspeção aqui é apenas apoio de conferência."
         )
         subtitle.setObjectName("SectionCaption")
         subtitle.setWordWrap(True)
@@ -425,7 +425,7 @@ class NonConformitiesPage(QFrame):
         self.open_button = QPushButton("Abrir selecionada")
         self.open_button.setMinimumHeight(34)
         self.open_button.clicked.connect(self.open_selected_item)
-        self.create_activity_button = QPushButton("Criar inspeção")
+        self.create_activity_button = QPushButton("Abrir inspeção de apoio")
         self.create_activity_button.setMinimumHeight(34)
         self.create_activity_button.setProperty("variant", "primary")
         self.create_activity_button.clicked.connect(self.create_activity_from_current_item)
@@ -725,10 +725,10 @@ class NonConformitiesPage(QFrame):
         if dialog.exec():
             created = dialog.created_activity or {}
             activity_id = created.get("id")
-            message = "Inspeção criada com sucesso a partir da não conformidade."
+            message = "Inspeção de apoio criada com sucesso a partir da não conformidade."
             if activity_id:
-                message = f"Inspeção #{activity_id} criada com sucesso a partir da não conformidade."
-            show_notice(self, "Inspeção aberta", message, icon_name="activities")
+                message = f"Inspeção de apoio #{activity_id} criada com sucesso a partir da não conformidade."
+            show_notice(self, "Inspeção de apoio aberta", message, icon_name="activities")
             self.refresh()
             self.data_changed.emit()
 
