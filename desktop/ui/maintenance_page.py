@@ -498,23 +498,23 @@ class MaintenancePage(QFrame):
         schedules_title_row.addWidget(self.schedules_badge)
         schedules_title_row.addWidget(self.schedule_flow_badge)
 
-        self.schedules_table = QTableWidget(0, 10)
+        self.schedules_table = QTableWidget(0, 9)
         self.schedules_table.setHorizontalHeaderLabels(
             [
                 "ID",
-                "Título",
+                "Planejamento",
                 "Origem",
-                "Status",
+                "Situação",
+                "Período",
                 "Itens",
                 "Pendentes",
-                "Instalados",
-                "Data inicio",
-                "Data fim",
+                "Concluídos",
                 "Cap./dia",
             ]
         )
         configure_table(self.schedules_table, stretch_last=False)
         self.schedules_table.setMinimumHeight(300)
+        self.schedules_table.setColumnHidden(0, True)
         self.schedules_table.itemSelectionChanged.connect(self._on_schedule_selection_changed)
 
         schedules_hint = QLabel("Crie e selecione a programação base que será distribuída na agenda.")
@@ -744,23 +744,22 @@ class MaintenancePage(QFrame):
         self.details_hint_label.setObjectName("PageSubtitle")
         self.details_hint_label.setWordWrap(True)
 
-        self.items_table = QTableWidget(0, 11)
+        self.items_table = QTableWidget(0, 8)
         self.items_table.setHorizontalHeaderLabels(
             [
                 "ID item",
-                "Frota",
-                "Placa",
-                "Modelo",
+                "Veículo",
                 "Origem",
-                "Status",
+                "Serviço",
                 "Data",
-                "Executado em",
+                "Situação",
                 "Material",
-                "Atividade/NC",
+                "Execução",
                 "Observação",
             ]
         )
         configure_table(self.items_table, stretch_last=True)
+        self.items_table.setColumnHidden(0, True)
         self.items_table.setSelectionBehavior(QAbstractItemView.SelectRows)
         self.items_table.setSelectionMode(QAbstractItemView.ExtendedSelection)
         self.items_table.itemSelectionChanged.connect(self._update_items_badge)
@@ -1396,11 +1395,10 @@ class MaintenancePage(QFrame):
                     schedule.get("title") or "-",
                     SOURCE_LABELS.get(str(schedule.get("source_type") or "").upper(), schedule.get("source_type") or "-"),
                     SCHEDULE_STATUS_LABELS.get(str(schedule.get("status") or "").upper(), schedule.get("status") or "-"),
+                    self._schedule_period_label(schedule),
                     resumo.get("total", 0),
                     resumo.get("pendentes", 0),
                     resumo.get("instalados", 0),
-                    self._format_date(schedule.get("start_date")),
-                    self._format_date(schedule.get("end_date")),
                     schedule.get("daily_capacity") or 1,
                 ]
                 for column, value in enumerate(values):
@@ -1414,6 +1412,7 @@ class MaintenancePage(QFrame):
             self.schedules_table.blockSignals(False)
             self.schedules_table.setUpdatesEnabled(True)
             self.schedules_table.setSortingEnabled(True)
+        self._apply_schedule_table_layout()
 
     def _render_calendar_table(self):
         rows = self._calendar_rows_for_selected_schedule()
@@ -1690,15 +1689,13 @@ class MaintenancePage(QFrame):
                 item_label = self._item_label(item, schedule)
                 values = [
                     item.get("id"),
-                    vehicle.get("frota") or "-",
-                    vehicle.get("placa") or "-",
-                    vehicle.get("modelo") or "-",
+                    self._vehicle_table_label(vehicle),
                     source_label,
-                    ITEM_STATUS_LABELS.get(str(item.get("status") or "").upper(), item.get("status") or "-"),
-                    self._format_date(item.get("scheduled_date")),
-                    self._format_datetime(item.get("executed_at")),
-                    material_text,
                     item_label,
+                    self._format_date(item.get("scheduled_date")),
+                    ITEM_STATUS_LABELS.get(str(item.get("status") or "").upper(), item.get("status") or "-"),
+                    material_text,
+                    self._execution_label(item),
                     item.get("observation") or "-",
                 ]
                 for column, value in enumerate(values):
@@ -1708,6 +1705,7 @@ class MaintenancePage(QFrame):
             self.items_table.blockSignals(False)
             self.items_table.setUpdatesEnabled(True)
             self.items_table.setSortingEnabled(True)
+        self._apply_items_table_layout()
 
         self._update_items_badge()
 
@@ -1813,6 +1811,60 @@ class MaintenancePage(QFrame):
         if activity.get("item_nome"):
             return activity.get("item_nome")
         return schedule.get("item_name") or schedule.get("title") or "-"
+
+    def _schedule_period_label(self, schedule: dict) -> str:
+        start = self._format_date(schedule.get("start_date"))
+        end = self._format_date(schedule.get("end_date"))
+        if start == "-" and end == "-":
+            return "-"
+        if end == "-" or start == end:
+            return start
+        if start == "-":
+            return end
+        return f"{start} a {end}"
+
+    @staticmethod
+    def _vehicle_table_label(vehicle: dict) -> str:
+        frota = str(vehicle.get("frota") or "-")
+        placa = str(vehicle.get("placa") or "-")
+        modelo = str(vehicle.get("modelo") or "").strip()
+        label = f"{frota} | {placa}"
+        return f"{label} | {modelo}" if modelo else label
+
+    def _execution_label(self, item: dict) -> str:
+        executed_at = self._format_datetime(item.get("executed_at"))
+        if executed_at != "-":
+            return executed_at
+        if item.get("executed_by_user_id"):
+            return "Com apontamento"
+        return "Pendente"
+
+    def _apply_schedule_table_layout(self):
+        widths = {
+            1: 260,
+            2: 110,
+            3: 120,
+            4: 150,
+            5: 70,
+            6: 90,
+            7: 95,
+            8: 80,
+        }
+        for column, width in widths.items():
+            self.schedules_table.setColumnWidth(column, width)
+
+    def _apply_items_table_layout(self):
+        widths = {
+            1: 230,
+            2: 90,
+            3: 220,
+            4: 90,
+            5: 115,
+            6: 170,
+            7: 150,
+        }
+        for column, width in widths.items():
+            self.items_table.setColumnWidth(column, width)
 
     def _material_summary_for_schedule(self, schedule: dict) -> str:
         materials = list(schedule.get("materiais") or [])
