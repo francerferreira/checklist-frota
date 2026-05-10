@@ -25,7 +25,7 @@ from PySide6.QtWidgets import (
     QVBoxLayout,
 )
 
-from components import TableSkeletonOverlay, make_icon, show_notice
+from components import StatCard, TableSkeletonOverlay, make_icon, show_notice
 from services import severity_from_occurrence
 from theme import build_dialog_layout, configure_dialog_window, configure_table, make_table_item, style_card, style_filter_bar, style_table_card
 from ui.detail_dialogs import NonConformityDetailDialog
@@ -642,6 +642,17 @@ class NonConformitiesPage(QFrame):
         header.addStretch()
         header.addLayout(actions)
 
+        summary_cards = QGridLayout()
+        summary_cards.setSpacing(8)
+        self.unpacked_card = StatCard("Sem pacote", "0", "Registros ainda soltos na triagem", icon_name="warning")
+        self.packed_card = StatCard("Em pacote", "0", "Registros já agrupados para seguir", icon_name="dashboard")
+        self.maintenance_card = StatCard("Em manutenção", "0", "Pacotes já enviados para execução", icon_name="activities")
+        self.critical_card = StatCard("Críticos", "0", "Pacotes com reincidência crítica", icon_name="reports")
+        summary_cards.addWidget(self.unpacked_card, 0, 0)
+        summary_cards.addWidget(self.packed_card, 0, 1)
+        summary_cards.addWidget(self.maintenance_card, 0, 2)
+        summary_cards.addWidget(self.critical_card, 0, 3)
+
         self.filter_card = QFrame()
         style_filter_bar(self.filter_card)
         filters = QHBoxLayout(self.filter_card)
@@ -861,6 +872,7 @@ class NonConformitiesPage(QFrame):
         self.packages_tab_index = self.tabs.addTab(packages_tab, "Pacotes de resolução")
 
         outer.addLayout(header)
+        outer.addLayout(summary_cards)
         outer.addWidget(self.filter_card)
         outer.addWidget(self.tabs, 1)
         self._set_action_state(False)
@@ -965,6 +977,7 @@ class NonConformitiesPage(QFrame):
             self.table.setSortingEnabled(True)
 
         self.summary_badge.setText(f"{len(self.items)} registros")
+        self._refresh_phase_cards()
         self._populate_item_summary_table()
         self._populate_equipment_summary_table()
         self._populate_queue_table()
@@ -1105,6 +1118,17 @@ class NonConformitiesPage(QFrame):
         for row, values in enumerate(rows):
             for column, value in enumerate(values):
                 self.queue_table.setItem(row, column, make_table_item(str(value)))
+
+    def _refresh_phase_cards(self):
+        unresolved_items = [item for item in self.items if not item.get("resolvido")]
+        unresolved_without_package = [item for item in unresolved_items if not (item.get("resolution_package") or {}).get("id")]
+        unresolved_with_package = [item for item in unresolved_items if (item.get("resolution_package") or {}).get("id")]
+        maintenance_packages = [package for package in self.packages if package.get("status") == "EM_MANUTENCAO"]
+        critical_packages = [package for package in self.packages if package.get("critical_recurrence")]
+        self.unpacked_card.set_content("Sem pacote", str(len(unresolved_without_package)), "Registros aguardando triagem oficial")
+        self.packed_card.set_content("Em pacote", str(len(unresolved_with_package)), "Registros já agrupados em pacote")
+        self.maintenance_card.set_content("Em manutenção", str(len(maintenance_packages)), "Pacotes já carimbados para execução")
+        self.critical_card.set_content("Críticos", str(len(critical_packages)), "Pacotes com repetição forte")
 
     def _populate_blockers_table(self):
         rows: list[tuple[str, str, str, str, bool]] = []

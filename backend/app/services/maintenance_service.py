@@ -5,7 +5,8 @@ from datetime import date, datetime, timedelta
 
 from app.extensions import db
 from app.utils.timezone import now_manaus_naive, today_manaus
-from app.models import Activity, ChecklistItem, Material, MaintenanceMaterial, MaintenanceSchedule, MaintenanceScheduleItem, WashQueueItem
+from app.models import Activity, ChecklistItem, Material, MaintenanceMaterial, MaintenanceSchedule, MaintenanceScheduleItem, ResolutionPackage, WashQueueItem
+from app.models.maintenance import PACKAGE_SOURCE_PREFIX
 from app.services.material_service import register_material_movement
 
 
@@ -18,6 +19,8 @@ def _clean(value) -> str | None:
 
 def _normalize_type(value: str | None) -> str:
     normalized = (_clean(value) or "CHECKLIST_NC").upper()
+    if normalized == "PACOTE_RESOLUCAO":
+        return normalized
     if normalized not in {"CHECKLIST_NC", "ATIVIDADE", "PREVENTIVA"}:
         raise ValueError("Tipo de manutenção inválido.")
     return normalized
@@ -84,6 +87,15 @@ def _month_label(year: int, month: int) -> str:
         "dezembro",
     ]
     return f"{labels[month - 1]} de {year}"
+
+
+def _schedule_source_origin_type(schedule: MaintenanceSchedule | None) -> str:
+    if not schedule:
+        return "-"
+    source_key = str(schedule.source_key or "")
+    if source_key.startswith(PACKAGE_SOURCE_PREFIX):
+        return "PACOTE_RESOLUCAO"
+    return str(schedule.source_type or "-").upper()
 
 
 def _group_key_for_nc(item: ChecklistItem) -> str:
@@ -311,12 +323,37 @@ def _ensure_preventive_wash_queue_items(schedule: MaintenanceSchedule) -> None:
 
 def create_maintenance_schedule(payload: dict, *, created_by_user_id: int) -> MaintenanceSchedule:
     source_type = _normalize_type(payload.get("source_type") or payload.get("tipo") or payload.get("origem"))
+    source_key = _clean(payload.get("source_key") or payload.get("chave_origem"))
     start_date = _parse_date(payload.get("start_date") or payload.get("data_inicio"), default=today_manaus())
     daily_capacity = _normalize_daily_capacity(payload.get("daily_capacity") or payload.get("capacidade_diaria"))
 
+    package_ids = [int(value) for value in payload.get("package_ids") or []]
+    selected_packages: list[ResolutionPackage] = []
+    if source_type == "PACOTE_RESOLUCAO":
+        if not package_ids:
+            raise ValueError("Selecione ao menos um pacote de resolução.")
+        selected_packages = (
+            ResolutionPackage.query.filter(ResolutionPackage.id.in_(package_ids))
+            .order_by(ResolutionPackage.created_at.desc())
+            .all()
+        )
+        if len(selected_packages) != len(set(package_ids)):
+            raise ValueError("Um ou mais pacotes de resolução não foram encontrados.")
+        open_package_statuses = {"ABERTO", "EM_MANUTENCAO"}
+        invalid_status = [package for package in selected_packages if package.status not in open_package_statuses]
+        if invalid_status:
+            raise ValueError("Somente pacotes abertos ou já enviados para manutenção podem ser programados.")
+        source_key = f"{PACKAGE_SOURCE_PREFIX}{','.join(str(package.id) for package in sorted(selected_packages, key=lambda row: row.id))}"
+        source_type = "CHECKLIST_NC"
+
+    if source_key:
+        existing_schedule = MaintenanceSchedule.query.filter_by(source_type=source_type, source_key=source_key).first()
+        if existing_schedule:
+            raise ValueError(f"Já existe programação aberta para esta origem: #{existing_schedule.id}.")
+
     schedule = MaintenanceSchedule(
         source_type=source_type,
-        source_key=_clean(payload.get("source_key") or payload.get("chave_origem")),
+        source_key=source_key,
         title=_clean(payload.get("title") or payload.get("titulo")) or "Programação de manutenção",
         item_name=_clean(payload.get("item_name") or payload.get("item_nome")),
         status=_normalize_status(payload.get("status"), default="ABERTA"),
@@ -335,7 +372,19 @@ def create_maintenance_schedule(payload: dict, *, created_by_user_id: int) -> Ma
     vehicle_ids = [int(value) for value in payload.get("vehicle_ids") or []]
 
     source_items: list[tuple[int, int | None, int | None]] = []
-    if checklist_item_ids:
+    if selected_packages:
+        seen_checklist_ids: set[int] = set()
+        for package in selected_packages:
+            for link in package.links:
+                checklist_item = link.checklist_item
+                if not checklist_item or checklist_item.id in seen_checklist_ids:
+                    continue
+                vehicle_id = checklist_item.checklist.vehicle_id if checklist_item.checklist else None
+                if not vehicle_id:
+                    continue
+                source_items.append((vehicle_id, checklist_item.id, None))
+                seen_checklist_ids.add(checklist_item.id)
+    elif checklist_item_ids:
         checklist_items = ChecklistItem.query.filter(ChecklistItem.id.in_(checklist_item_ids)).all()
         for checklist_item in checklist_items:
             source_items.append((checklist_item.checklist.vehicle_id, checklist_item.id, None))
@@ -349,6 +398,17 @@ def create_maintenance_schedule(payload: dict, *, created_by_user_id: int) -> Ma
             source_items.append((vehicle_id, None, None))
     else:
         raise ValueError("Selecione ao menos um veículo, não conformidade ou atividade.")
+
+    selected_checklist_ids = [checklist_item_id for _, checklist_item_id, _ in source_items if checklist_item_id]
+    if selected_checklist_ids:
+        existing_schedule_items = (
+            MaintenanceScheduleItem.query.filter(MaintenanceScheduleItem.checklist_item_id.in_(selected_checklist_ids))
+            .all()
+        )
+        if existing_schedule_items:
+            schedule_ids = sorted({row.schedule_id for row in existing_schedule_items if row.schedule_id})
+            joined_ids = ", ".join(f"#{schedule_id}" for schedule_id in schedule_ids)
+            raise ValueError(f"Já existe programação de manutenção para parte dos registros selecionados: {joined_ids}.")
 
     assigned_dates = _distribute_dates(start_date, len(source_items), daily_capacity)
     for index, (vehicle_id, checklist_item_id, activity_id) in enumerate(source_items):
@@ -366,6 +426,10 @@ def create_maintenance_schedule(payload: dict, *, created_by_user_id: int) -> Ma
 
     schedule.end_date = assigned_dates[-1] if assigned_dates else start_date
     db.session.flush()
+
+    for package in selected_packages:
+        package.status = "EM_MANUTENCAO"
+
     _ensure_preventive_wash_queue_items(schedule)
     recalculate_schedule(schedule)
     db.session.commit()
@@ -583,7 +647,7 @@ def _item_report_row(item: MaintenanceScheduleItem) -> dict:
         "data": item.scheduled_date.strftime("%d/%m/%Y") if item.scheduled_date else "-",
         "veiculo": vehicle.frota if vehicle else "-",
         "placa": vehicle.placa if vehicle else "-",
-        "tipo": schedule.source_type.replace("_", " ").title() if schedule else "-",
+        "tipo": _schedule_source_origin_type(schedule).replace("_", " ").title() if schedule else "-",
         "programacao": schedule.title if schedule else "-",
         "status": item.status.replace("_", " "),
         "mecanico": (item.assigned_mechanic.nome if item.assigned_mechanic else None)

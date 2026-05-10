@@ -41,6 +41,7 @@ from theme import (
 
 SOURCE_LABELS = {
     "CHECKLIST_NC": "Não conformidade",
+    "PACOTE_RESOLUCAO": "Pacote de resolução",
     "ATIVIDADE": "Atividade",
     "PREVENTIVA": "Preventiva",
 }
@@ -84,11 +85,16 @@ REPORT_TYPE_LABELS = {
 WEEKDAY_HEADERS = ["DOM", "SEG", "TER", "QUA", "QUI", "SEX", "SAB"]
 
 
+def _schedule_source_code(schedule: dict) -> str:
+    return str(schedule.get("source_origin_type") or schedule.get("source_type") or "").upper()
+
+
 class MaintenanceScheduleCreateDialog(QDialog):
     def __init__(self, api_client, parent=None):
         super().__init__(parent)
         self.api_client = api_client
         self.activities: list[dict] = []
+        self.packages: list[dict] = []
         self.vehicles: list[dict] = []
         self.result_payload: dict | None = None
 
@@ -122,6 +128,7 @@ class MaintenanceScheduleCreateDialog(QDialog):
         form.setVerticalSpacing(8)
 
         self.source_combo = QComboBox()
+        self.source_combo.addItem("Pacotes de resolução", "PACOTE_RESOLUCAO")
         self.source_combo.addItem("Atividades abertas", "ATIVIDADE")
         self.source_combo.addItem("Preventiva por veículos", "PREVENTIVA")
         self.source_combo.currentIndexChanged.connect(self._render_source_rows)
@@ -209,11 +216,31 @@ class MaintenanceScheduleCreateDialog(QDialog):
 
     def _load_sources(self):
         self.activities = self.api_client.get_activities(status="ABERTA") or []
+        self.packages = self.api_client.get_resolution_packages(status="ABERTO") or []
         self.vehicles = self.api_client.get_equipment(ativos=True) or []
 
     def _render_source_rows(self):
         source_type = self.source_combo.currentData()
-        if source_type == "ATIVIDADE":
+        if source_type == "PACOTE_RESOLUCAO":
+            self.source_title.setText("Pacotes prontos para entrar em manutenção")
+            self.source_table.setColumnCount(6)
+            self.source_table.setHorizontalHeaderLabels(["ID", "Pacote", "Agrupamento", "Referência", "Score", "Abertas"])
+            rows = self.packages
+            self.source_table.setRowCount(len(rows))
+            for row_index, row in enumerate(rows):
+                resumo = row.get("resumo") or {}
+                values = [
+                    row.get("id"),
+                    row.get("title") or "-",
+                    "Por item" if row.get("grouping_mode") == "POR_ITEM" else "Por equipamento",
+                    row.get("reference_label") or "-",
+                    row.get("priority_score") or 0,
+                    resumo.get("abertas", 0),
+                ]
+                for column, value in enumerate(values):
+                    payload = row if column == 0 else None
+                    self.source_table.setItem(row_index, column, make_table_item(value, payload=payload))
+        elif source_type == "ATIVIDADE":
             self.source_title.setText("Atividades abertas para programação")
             self.source_table.setColumnCount(5)
             self.source_table.setHorizontalHeaderLabels(["ID", "Atividade", "Módulo", "Tipo", "Abertas"])
@@ -303,7 +330,10 @@ class MaintenanceScheduleCreateDialog(QDialog):
             "daily_capacity": daily_capacity,
             "observation": observation,
         }
-        if source_type == "ATIVIDADE":
+        if source_type == "PACOTE_RESOLUCAO":
+            payload["package_ids"] = sorted({int(row.get("id")) for row in selected if row.get("id")})
+            payload["item_name"] = "Pacotes de resolução selecionados"
+        elif source_type == "ATIVIDADE":
             payload["activity_ids"] = sorted({int(row.get("id")) for row in selected if row.get("id")})
             payload["item_name"] = "Atividades selecionadas"
         else:
@@ -415,6 +445,7 @@ class MaintenancePage(QFrame):
         self.source_filter = QComboBox()
         self.source_filter.addItem("Todas as origens", "ALL")
         self.source_filter.addItem("Não conformidade", "CHECKLIST_NC")
+        self.source_filter.addItem("Pacote de resolução", "PACOTE_RESOLUCAO")
         self.source_filter.addItem("Atividade", "ATIVIDADE")
         self.source_filter.addItem("Preventiva", "PREVENTIVA")
 
@@ -1066,7 +1097,7 @@ class MaintenancePage(QFrame):
         status_filter = self.status_filter.currentData()
 
         if source_filter and source_filter != "ALL":
-            schedules = [row for row in schedules if str(row.get("source_type") or "").upper() == source_filter]
+            schedules = [row for row in schedules if _schedule_source_code(row) == source_filter]
         if status_filter and status_filter != "ALL":
             schedules = [row for row in schedules if str(row.get("status") or "").upper() == status_filter]
 
@@ -1393,7 +1424,7 @@ class MaintenancePage(QFrame):
                 values = [
                     schedule_id,
                     schedule.get("title") or "-",
-                    SOURCE_LABELS.get(str(schedule.get("source_type") or "").upper(), schedule.get("source_type") or "-"),
+                    SOURCE_LABELS.get(_schedule_source_code(schedule), schedule.get("source_type") or "-"),
                     SCHEDULE_STATUS_LABELS.get(str(schedule.get("status") or "").upper(), schedule.get("status") or "-"),
                     self._schedule_period_label(schedule),
                     resumo.get("total", 0),
@@ -1797,11 +1828,14 @@ class MaintenancePage(QFrame):
         self._refresh_contextual_actions()
 
     def _item_source_label(self, item: dict, schedule: dict) -> str:
+        schedule_source = _schedule_source_code(schedule)
+        if schedule_source == "PACOTE_RESOLUCAO":
+            return "Pacote"
         if item.get("checklist_item_id"):
             return "NC checklist"
         if item.get("activity_id"):
             return "Atividade"
-        return SOURCE_LABELS.get(str(schedule.get("source_type") or "").upper(), "-")
+        return SOURCE_LABELS.get(schedule_source, "-")
 
     def _item_label(self, item: dict, schedule: dict) -> str:
         checklist_item = item.get("checklist_item") or {}

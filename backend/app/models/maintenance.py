@@ -6,6 +6,9 @@ from app.extensions import db
 from app.utils.timezone import now_manaus_naive
 
 
+PACKAGE_SOURCE_PREFIX = "PACOTE_RESOLUCAO:"
+
+
 class MaintenanceSchedule(db.Model):
     __tablename__ = "maintenance_schedules"
 
@@ -58,10 +61,17 @@ class MaintenanceSchedule(db.Model):
             "reprogramados": sum(1 for item in self.items if item.status == "REPROGRAMADO"),
         }
 
+    def source_origin_type(self) -> str:
+        source_key = str(self.source_key or "")
+        if source_key.startswith(PACKAGE_SOURCE_PREFIX):
+            return "PACOTE_RESOLUCAO"
+        return self.source_type
+
     def to_dict(self, include_items: bool = False, include_materials: bool = False) -> dict:
         data = {
             "id": self.id,
             "source_type": self.source_type,
+            "source_origin_type": self.source_origin_type(),
             "source_key": self.source_key,
             "title": self.title,
             "item_name": self.item_name,
