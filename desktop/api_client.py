@@ -452,8 +452,17 @@ class APIClient:
         params = {"status": status} if status else None
         return self._request("GET", "/pacotes_resolucao", params=params)
 
+    def get_resolution_package_suggestions(self, checklist_item_ids: list[int]):
+        return self._request("POST", "/pacotes_resolucao/sugestoes", json={"checklist_item_ids": checklist_item_ids})
+
     def create_resolution_package(self, payload: dict):
         return self._request("POST", "/pacotes_resolucao", json=payload)
+
+    def add_items_to_resolution_package(self, package_id: int, checklist_item_ids: list[int], observation: str | None = None):
+        payload = {"checklist_item_ids": checklist_item_ids}
+        if observation:
+            payload["observation"] = observation
+        return self._request("POST", f"/pacotes_resolucao/{package_id}/itens", json=payload)
 
     def get_mechanic_non_conformities(self, status: str | None = None):
         params = {"status": status} if status else None

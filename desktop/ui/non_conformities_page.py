@@ -1,5 +1,7 @@
 ﻿from __future__ import annotations
 
+from collections import defaultdict
+
 from PySide6.QtCore import QTimer, Qt, Signal
 from PySide6.QtGui import QColor, QBrush
 from PySide6.QtWidgets import (
@@ -404,6 +406,7 @@ class CreateResolutionPackageDialog(QDialog):
         layout = build_dialog_layout(self, max_content_width=900)
 
         self.valid_modes = self._detect_modes()
+        self.suggestions = self._load_suggestions()
 
         header = QFrame()
         header.setObjectName("DialogHeader")
@@ -435,6 +438,20 @@ class CreateResolutionPackageDialog(QDialog):
                 self.grouping_mode_combo.addItem("Por equipamento", mode)
         self.grouping_mode_combo.currentIndexChanged.connect(self._sync_title)
 
+        self.strategy_combo = QComboBox()
+        self.strategy_combo.addItem("Criar novo pacote", {"mode": "create"})
+        for suggestion in self.suggestions:
+            self.strategy_combo.addItem(
+                f"Adicionar ao pacote #{suggestion.get('id')} - {suggestion.get('reason_label')}",
+                {"mode": "append", "package_id": suggestion.get("id")},
+            )
+        for index in range(1, self.strategy_combo.count()):
+            strategy = self.strategy_combo.itemData(index) or {}
+            suggestion = next((row for row in self.suggestions if row.get("id") == strategy.get("package_id")), None)
+            if suggestion and suggestion.get("reason") == "JA_CONTEM_REGISTRO":
+                self.strategy_combo.setCurrentIndex(index)
+                break
+
         self.title_input = QLineEdit()
         self.observation_input = QTextEdit()
         self.observation_input.setPlaceholderText("Observação opcional sobre o objetivo do pacote.")
@@ -460,11 +477,12 @@ class CreateResolutionPackageDialog(QDialog):
             field_layout.addWidget(widget)
             form.addWidget(field, row, column, 1, col_span)
 
-        add_field(0, 0, "Agrupamento sugerido", self.grouping_mode_combo)
-        add_field(0, 1, "Janela de reincidência (dias)", self.recurrence_days_spin)
-        add_field(1, 0, "Peso da reincidência", self.recurrence_weight_spin)
-        add_field(1, 1, "Título do pacote", self.title_input)
-        add_field(2, 0, "Observação", self.observation_input, 2)
+        add_field(0, 0, "Destino sugerido", self.strategy_combo)
+        add_field(0, 1, "Agrupamento sugerido", self.grouping_mode_combo)
+        add_field(1, 0, "Janela de reincidência (dias)", self.recurrence_days_spin)
+        add_field(1, 1, "Peso da reincidência", self.recurrence_weight_spin)
+        add_field(2, 0, "Título do pacote", self.title_input, 2)
+        add_field(3, 0, "Observação", self.observation_input, 2)
 
         footer = QFrame()
         footer.setObjectName("DialogFooter")
@@ -511,11 +529,24 @@ class CreateResolutionPackageDialog(QDialog):
             (item.get("veiculo") or {}).get("frota") or (item.get("veiculo") or {}).get("placa") or "-"
             for item in self.selected_items
         }
+        if self.suggestions:
+            first = self.suggestions[0]
+            return (
+                f"Duplicidade inteligente: o sistema encontrou pacote compatível. "
+                f"Sugestão principal: #{first.get('id')} - {first.get('reason_label')}."
+            )
         if len(item_names) == 1:
             return "Sugestão inteligente: todos os registros têm o mesmo item. O sistema já pode abrir um pacote por item distinto."
         if len(vehicle_labels) == 1:
             return "Sugestão inteligente: todos os registros pertencem ao mesmo equipamento. O sistema já pode abrir um pacote por equipamento."
         return "Os registros misturam itens e equipamentos. Use este pacote para organizar a primeira triagem sem perder os vínculos."
+
+    def _load_suggestions(self) -> list[dict]:
+        try:
+            payload = self.api_client.get_resolution_package_suggestions([int(item["id"]) for item in self.selected_items])
+            return payload.get("suggestions") or []
+        except Exception:
+            return []
 
     def _sync_title(self):
         mode = self.grouping_mode_combo.currentData()
@@ -532,15 +563,24 @@ class CreateResolutionPackageDialog(QDialog):
 
     def submit(self):
         try:
-            payload = {
-                "grouping_mode": self.grouping_mode_combo.currentData(),
-                "checklist_item_ids": [int(item["id"]) for item in self.selected_items],
-                "title": self.title_input.text().strip(),
-                "observation": self.observation_input.toPlainText().strip(),
-                "recurrence_window_days": int(self.recurrence_days_spin.value()),
-                "recurrence_weight": int(self.recurrence_weight_spin.value()),
-            }
-            self.created_package = self.api_client.create_resolution_package(payload)
+            strategy = self.strategy_combo.currentData() or {"mode": "create"}
+            checklist_item_ids = [int(item["id"]) for item in self.selected_items]
+            if strategy.get("mode") == "append" and strategy.get("package_id"):
+                self.created_package = self.api_client.add_items_to_resolution_package(
+                    int(strategy["package_id"]),
+                    checklist_item_ids,
+                    self.observation_input.toPlainText().strip(),
+                )
+            else:
+                payload = {
+                    "grouping_mode": self.grouping_mode_combo.currentData(),
+                    "checklist_item_ids": checklist_item_ids,
+                    "title": self.title_input.text().strip(),
+                    "observation": self.observation_input.toPlainText().strip(),
+                    "recurrence_window_days": int(self.recurrence_days_spin.value()),
+                    "recurrence_weight": int(self.recurrence_weight_spin.value()),
+                }
+                self.created_package = self.api_client.create_resolution_package(payload)
             self.accept()
         except Exception as exc:
             show_notice(self, "Falha ao criar pacote", str(exc), icon_name="warning")
@@ -681,6 +721,70 @@ class NonConformitiesPage(QFrame):
         table_layout.addWidget(table_caption)
         table_layout.addWidget(self.table, 1)
 
+        item_tab = QFrame()
+        item_tab.setObjectName("TableCard")
+        item_tab.setAttribute(Qt.WA_StyledBackground, True)
+        item_layout = QVBoxLayout(item_tab)
+        item_layout.setContentsMargins(10, 10, 10, 10)
+        item_layout.setSpacing(8)
+        item_caption = QLabel("Visão por item distinto para enxergar repetição, volume e triagem em lote.")
+        item_caption.setObjectName("SectionCaption")
+        item_caption.setWordWrap(True)
+        self.item_summary_table = QTableWidget(0, 5)
+        self.item_summary_table.setHorizontalHeaderLabels(["Item", "Equipamentos", "NCs abertas", "Em pacote", "Ação sugerida"])
+        configure_table(self.item_summary_table, stretch_last=False)
+        self.item_summary_table.setMinimumHeight(620)
+        item_layout.addWidget(item_caption)
+        item_layout.addWidget(self.item_summary_table, 1)
+
+        equipment_tab = QFrame()
+        equipment_tab.setObjectName("TableCard")
+        equipment_tab.setAttribute(Qt.WA_StyledBackground, True)
+        equipment_layout = QVBoxLayout(equipment_tab)
+        equipment_layout.setContentsMargins(10, 10, 10, 10)
+        equipment_layout.setSpacing(8)
+        equipment_caption = QLabel("Visão por equipamento para descobrir onde os problemas estão concentrados.")
+        equipment_caption.setObjectName("SectionCaption")
+        equipment_caption.setWordWrap(True)
+        self.equipment_summary_table = QTableWidget(0, 5)
+        self.equipment_summary_table.setHorizontalHeaderLabels(["Equipamento", "NCs abertas", "Itens distintos", "Em pacote", "Ação sugerida"])
+        configure_table(self.equipment_summary_table, stretch_last=False)
+        self.equipment_summary_table.setMinimumHeight(620)
+        equipment_layout.addWidget(equipment_caption)
+        equipment_layout.addWidget(self.equipment_summary_table, 1)
+
+        queue_tab = QFrame()
+        queue_tab.setObjectName("TableCard")
+        queue_tab.setAttribute(Qt.WA_StyledBackground, True)
+        queue_layout = QVBoxLayout(queue_tab)
+        queue_layout.setContentsMargins(10, 10, 10, 10)
+        queue_layout.setSpacing(8)
+        queue_caption = QLabel("Fila operacional da central para saber o que ainda está solto e o que já entrou em pacote.")
+        queue_caption.setObjectName("SectionCaption")
+        queue_caption.setWordWrap(True)
+        self.queue_table = QTableWidget(0, 4)
+        self.queue_table.setHorizontalHeaderLabels(["Fase", "Quantidade", "Pacotes", "Leitura"])
+        configure_table(self.queue_table, stretch_last=False)
+        self.queue_table.setMinimumHeight(620)
+        queue_layout.addWidget(queue_caption)
+        queue_layout.addWidget(self.queue_table, 1)
+
+        blockers_tab = QFrame()
+        blockers_tab.setObjectName("TableCard")
+        blockers_tab.setAttribute(Qt.WA_StyledBackground, True)
+        blockers_layout = QVBoxLayout(blockers_tab)
+        blockers_layout.setContentsMargins(10, 10, 10, 10)
+        blockers_layout.setSpacing(8)
+        blockers_caption = QLabel("Bloqueios e alertas da triagem antes de mandar a resolução para a manutenção.")
+        blockers_caption.setObjectName("SectionCaption")
+        blockers_caption.setWordWrap(True)
+        self.blockers_table = QTableWidget(0, 4)
+        self.blockers_table.setHorizontalHeaderLabels(["Tipo", "Referência", "Quantidade", "Leitura"])
+        configure_table(self.blockers_table, stretch_last=False)
+        self.blockers_table.setMinimumHeight(620)
+        blockers_layout.addWidget(blockers_caption)
+        blockers_layout.addWidget(self.blockers_table, 1)
+
         mechanic_tab = QFrame()
         mechanic_tab.setObjectName("TableCard")
         mechanic_tab.setAttribute(Qt.WA_StyledBackground, True)
@@ -715,6 +819,10 @@ class NonConformitiesPage(QFrame):
         mechanic_layout.addWidget(self.mechanic_table, 1)
 
         self.tabs.addTab(occurrences_tab, "Registros da central")
+        self.tabs.addTab(item_tab, "Por item")
+        self.tabs.addTab(equipment_tab, "Por equipamento")
+        self.tabs.addTab(queue_tab, "Fila")
+        self.tabs.addTab(blockers_tab, "Bloqueios")
         self.tabs.addTab(mechanic_tab, "Registros internos dos mecânicos")
 
         packages_tab = QFrame()
@@ -750,7 +858,7 @@ class NonConformitiesPage(QFrame):
         packages_layout.addWidget(packages_caption)
         packages_layout.addWidget(self.packages_table, 1)
 
-        self.tabs.addTab(packages_tab, "Pacotes de resolução")
+        self.packages_tab_index = self.tabs.addTab(packages_tab, "Pacotes de resolução")
 
         outer.addLayout(header)
         outer.addWidget(self.filter_card)
@@ -817,7 +925,7 @@ class NonConformitiesPage(QFrame):
         self.mechanic_items = self.api_client.get_mechanic_non_conformities(
             status=self.status_filter.currentData() or None,
         )
-        self.packages = self.api_client.get_resolution_packages(status="ABERTO") if self._user_has_management_access() else []
+        self.packages = self.api_client.get_resolution_packages() if self._user_has_management_access() else []
         self.table.setSortingEnabled(False)
         self.table.setUpdatesEnabled(False)
         self.table.blockSignals(True)
@@ -857,6 +965,10 @@ class NonConformitiesPage(QFrame):
             self.table.setSortingEnabled(True)
 
         self.summary_badge.setText(f"{len(self.items)} registros")
+        self._populate_item_summary_table()
+        self._populate_equipment_summary_table()
+        self._populate_queue_table()
+        self._populate_blockers_table()
         self._populate_mechanic_table()
         self._populate_packages_table()
         if self.items:
@@ -927,6 +1039,107 @@ class NonConformitiesPage(QFrame):
             self.packages_table.setUpdatesEnabled(True)
             self.packages_table.setSortingEnabled(True)
         self.packages_badge.setText(f"{len(self.packages)} pacotes")
+
+    def _populate_item_summary_table(self):
+        groups: dict[str, dict] = defaultdict(lambda: {"vehicles": set(), "open": 0, "packaged": 0, "package_ids": set()})
+        for item in self.items:
+            if item.get("resolvido"):
+                continue
+            key = str(item.get("item_principal") or item.get("item_nome") or "-").strip().upper() or "-"
+            group = groups[key]
+            vehicle = item.get("veiculo") or {}
+            group["vehicles"].add(vehicle.get("id") or vehicle.get("frota") or "-")
+            group["open"] += 1
+            package = item.get("resolution_package") or {}
+            if package.get("id"):
+                group["packaged"] += 1
+                group["package_ids"].add(package.get("id"))
+
+        rows = sorted(groups.items(), key=lambda row: (-row[1]["open"], row[0]))
+        self.item_summary_table.setRowCount(len(rows))
+        for row, (item_name, group) in enumerate(rows):
+            package_ids = sorted(group["package_ids"])
+            action = f"Adicionar ao pacote #{package_ids[0]}" if package_ids else "Criar pacote por item"
+            values = [item_name, str(len(group["vehicles"])), str(group["open"]), str(group["packaged"]), action]
+            for column, value in enumerate(values):
+                self.item_summary_table.setItem(row, column, make_table_item(value))
+
+    def _populate_equipment_summary_table(self):
+        groups: dict[str, dict] = defaultdict(lambda: {"open": 0, "items": set(), "packaged": 0, "package_ids": set()})
+        for item in self.items:
+            if item.get("resolvido"):
+                continue
+            vehicle = item.get("veiculo") or {}
+            label = vehicle.get("frota") or vehicle.get("placa") or "-"
+            group = groups[label]
+            group["open"] += 1
+            group["items"].add(_nc_label(item))
+            package = item.get("resolution_package") or {}
+            if package.get("id"):
+                group["packaged"] += 1
+                group["package_ids"].add(package.get("id"))
+
+        rows = sorted(groups.items(), key=lambda row: (-row[1]["open"], row[0]))
+        self.equipment_summary_table.setRowCount(len(rows))
+        for row, (vehicle_label, group) in enumerate(rows):
+            package_ids = sorted(group["package_ids"])
+            action = f"Adicionar ao pacote #{package_ids[0]}" if package_ids else "Criar pacote por equipamento"
+            values = [vehicle_label, str(group["open"]), str(len(group["items"])), str(group["packaged"]), action]
+            for column, value in enumerate(values):
+                self.equipment_summary_table.setItem(row, column, make_table_item(value))
+
+    def _populate_queue_table(self):
+        unresolved_items = [item for item in self.items if not item.get("resolvido")]
+        unresolved_without_package = [item for item in unresolved_items if not (item.get("resolution_package") or {}).get("id")]
+        unresolved_with_package = [item for item in unresolved_items if (item.get("resolution_package") or {}).get("id")]
+        open_packages = [package for package in self.packages if package.get("status") == "ABERTO"]
+        maintenance_packages = [package for package in self.packages if package.get("status") == "EM_MANUTENCAO"]
+        critical_packages = [package for package in self.packages if package.get("critical_recurrence")]
+        rows = [
+            ("Sem pacote", len(unresolved_without_package), 0, "Registros ainda soltos na triagem."),
+            ("Em pacote", len(unresolved_with_package), len(open_packages), "Registros já organizados em pacote aberto."),
+            ("Em manutenção", 0, len(maintenance_packages), "Pacotes já despachados para execução oficial."),
+            ("Recorrência crítica", 0, len(critical_packages), "Pacotes que já merecem atenção por repetição forte."),
+        ]
+        self.queue_table.setRowCount(len(rows))
+        for row, values in enumerate(rows):
+            for column, value in enumerate(values):
+                self.queue_table.setItem(row, column, make_table_item(str(value)))
+
+    def _populate_blockers_table(self):
+        rows: list[tuple[str, str, str, str, bool]] = []
+        unresolved_items = [item for item in self.items if not item.get("resolvido")]
+        unresolved_without_package = [item for item in unresolved_items if not (item.get("resolution_package") or {}).get("id")]
+        if unresolved_without_package:
+            rows.append(
+                (
+                    "Sem pacote",
+                    "Central de Resolução",
+                    str(len(unresolved_without_package)),
+                    "Existem não conformidades abertas esperando triagem oficial.",
+                    False,
+                )
+            )
+        for package in self.packages:
+            if package.get("critical_recurrence"):
+                resumo = package.get("resumo") or {}
+                rows.append(
+                    (
+                        "Reincidência crítica",
+                        f"Pacote #{package.get('id')} - {package.get('reference_label') or '-'}",
+                        str(resumo.get("abertas", 0)),
+                        "O mesmo problema está voltando demais e pede prioridade.",
+                        True,
+                    )
+                )
+        self.blockers_table.setRowCount(len(rows))
+        for row, values in enumerate(rows):
+            for column, value in enumerate(values[:4]):
+                cell = make_table_item(value)
+                if values[4] and column == 0:
+                    cell.setBackground(QBrush(QColor("#F4D9D6")))
+                    cell.setForeground(QBrush(QColor("#7A332B")))
+                self.blockers_table.setItem(row, column, cell)
 
     @staticmethod
     def _format(value: str | None) -> str:
@@ -1039,12 +1252,12 @@ class NonConformitiesPage(QFrame):
         dialog = CreateResolutionPackageDialog(self.api_client, selected_items, self)
         if dialog.exec():
             created = dialog.created_package or {}
-            message = f"Pacote #{created.get('id')} criado com sucesso."
+            message = f"Pacote #{created.get('id')} atualizado com sucesso."
             if created.get("critical_recurrence"):
                 message += " O sistema já marcou reincidência crítica para este item."
             show_notice(self, "Pacote criado", message, icon_name="dashboard")
             self.refresh()
-            self.tabs.setCurrentIndex(2)
+            self.tabs.setCurrentIndex(getattr(self, "packages_tab_index", self.tabs.count() - 1))
             self.data_changed.emit()
 
 
