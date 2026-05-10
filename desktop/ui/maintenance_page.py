@@ -740,9 +740,9 @@ class MaintenancePage(QFrame):
         detail_top.addWidget(detail_title)
         detail_top.addStretch()
         detail_top.addWidget(self.items_badge)
-        details_hint = QLabel("Aqui estão os itens executáveis do contexto selecionado.")
-        details_hint.setObjectName("PageSubtitle")
-        details_hint.setWordWrap(True)
+        self.details_hint_label = QLabel("Aqui estão os itens executáveis do contexto selecionado.")
+        self.details_hint_label.setObjectName("PageSubtitle")
+        self.details_hint_label.setWordWrap(True)
 
         self.items_table = QTableWidget(0, 11)
         self.items_table.setHorizontalHeaderLabels(
@@ -767,7 +767,7 @@ class MaintenancePage(QFrame):
         self.items_table.setMinimumHeight(360)
 
         details_layout.addLayout(detail_top)
-        details_layout.addWidget(details_hint)
+        details_layout.addWidget(self.details_hint_label)
         details_layout.addWidget(self.items_table)
 
         calendar_card = QFrame()
@@ -784,6 +784,8 @@ class MaintenancePage(QFrame):
         self.calendar_badge.setObjectName("TopBarPill")
         self.calendar_selected_badge = QLabel("Clique em um dia para filtrar a tabela")
         self.calendar_selected_badge.setObjectName("TopBarPill")
+        self.calendar_day_resume_badge = QLabel("Selecione um dia para acompanhar carga, pendência e bloqueios")
+        self.calendar_day_resume_badge.setObjectName("TopBarPill")
         self.clear_calendar_filter_button = QPushButton("Limpar dia")
         self.clear_calendar_filter_button.setMinimumHeight(34)
         self.clear_calendar_filter_button.clicked.connect(self._clear_calendar_day_filter)
@@ -791,6 +793,7 @@ class MaintenancePage(QFrame):
         calendar_title_row.addStretch()
         calendar_title_row.addWidget(self.calendar_badge)
         calendar_title_row.addWidget(self.calendar_selected_badge)
+        calendar_title_row.addWidget(self.calendar_day_resume_badge)
         calendar_title_row.addWidget(self.clear_calendar_filter_button)
 
         self.calendar_table = QTableWidget(6, 7)
@@ -805,7 +808,7 @@ class MaintenancePage(QFrame):
         self.calendar_table.itemSelectionChanged.connect(self._on_calendar_day_selection_changed)
         self.calendar_table.verticalHeader().setVisible(False)
         self.calendar_table.setMinimumHeight(520)
-        calendar_hint = QLabel("Clique em um dia para ver os serviços programados naquele período.")
+        calendar_hint = QLabel("Clique em um dia para trazer os serviços do dia e conferir pendências, conclusões e bloqueios.")
         calendar_hint.setObjectName("PageSubtitle")
         calendar_hint.setWordWrap(True)
         calendar_layout.addLayout(calendar_title_row)
@@ -1419,7 +1422,9 @@ class MaintenancePage(QFrame):
             for row in rows
             if row.get("date")
         }
-        self.calendar_badge.setText(f"{len(rows)} dias com agenda")
+        total_services = sum(int(row.get("total") or 0) for row in rows)
+        total_pending = sum(int(row.get("pendentes") or 0) for row in rows)
+        self.calendar_badge.setText(f"{len(rows)} dias com agenda | {total_services} serviços | {total_pending} pendentes")
 
         current_month = self.month_input.date()
         year = current_month.year()
@@ -1443,7 +1448,7 @@ class MaintenancePage(QFrame):
             self.calendar_table.clearContents()
             self.calendar_table.setRowCount(6)
             for row in range(6):
-                self.calendar_table.setRowHeight(row, 74)
+                self.calendar_table.setRowHeight(row, 82)
             for column in range(7):
                 self.calendar_table.setColumnWidth(column, 154)
 
@@ -1484,12 +1489,14 @@ class MaintenancePage(QFrame):
         pendentes = int(payload.get("pendentes") or 0)
         instalados = int(payload.get("instalados") or 0)
         aguardando = int(payload.get("aguardando_material") or 0)
+        nao_exec = int(payload.get("nao_executados") or 0)
         if total <= 0:
             return f"{prefix}\nSem agenda"
         return (
             f"{prefix}\n"
             f"Prog {total} | Pend {pendentes}\n"
-            f"Inst {instalados} | Aguar {aguardando}"
+            f"Inst {instalados} | Aguar {aguardando}\n"
+            f"Não exec {nao_exec}"
         )
 
     @staticmethod
@@ -1602,6 +1609,7 @@ class MaintenancePage(QFrame):
     def _refresh_calendar_selection_badge(self):
         if not self.selected_calendar_day_iso:
             self.calendar_selected_badge.setText("Clique em um dia para filtrar a tabela")
+            self.calendar_day_resume_badge.setText("Selecione um dia para acompanhar carga, pendência e bloqueios")
             self.clear_calendar_filter_button.setEnabled(False)
             return
         payload = self.calendar_day_index.get(self.selected_calendar_day_iso) or {}
@@ -1610,6 +1618,10 @@ class MaintenancePage(QFrame):
             f"Prog {int(payload.get('total') or 0)} | "
             f"Pend {int(payload.get('pendentes') or 0)} | "
             f"Inst {int(payload.get('instalados') or 0)}"
+        )
+        self.calendar_day_resume_badge.setText(
+            f"Aguardando material {int(payload.get('aguardando_material') or 0)} | "
+            f"Não executados {int(payload.get('nao_executados') or 0)}"
         )
         self.clear_calendar_filter_button.setEnabled(True)
 
@@ -1627,6 +1639,8 @@ class MaintenancePage(QFrame):
         if not schedule:
             self.selected_schedule_badge.setText("Nenhuma programação selecionada")
             self.items_table.setRowCount(0)
+            if hasattr(self, "details_hint_label"):
+                self.details_hint_label.setText("Selecione um planejamento e, se quiser, um dia no calendário para ver os serviços.")
             self._set_action_controls_enabled(False)
             self._update_items_badge()
             return
@@ -1635,6 +1649,13 @@ class MaintenancePage(QFrame):
         title = str(schedule.get("title") or f"Programação #{schedule.get('id')}")
         day_suffix = f" | Dia {self._format_date(self.selected_calendar_day_iso)}" if self.selected_calendar_day_iso else ""
         self.selected_schedule_badge.setText(f"#{schedule.get('id')} | {title}{day_suffix}")
+        if hasattr(self, "details_hint_label"):
+            if self.selected_calendar_day_iso:
+                self.details_hint_label.setText(
+                    f"Serviços filtrados para {self._format_date(self.selected_calendar_day_iso)} dentro do planejamento selecionado."
+                )
+            else:
+                self.details_hint_label.setText("Aqui estão os serviços do planejamento selecionado. Use o calendário para focar um dia.")
 
         start_date = str(schedule.get("start_date") or "")
         start_qdate = QDate.fromString(start_date, "yyyy-MM-dd")
@@ -1714,7 +1735,12 @@ class MaintenancePage(QFrame):
     def _update_items_badge(self):
         total = self.items_table.rowCount()
         selected = len(self._selected_item_payloads())
-        self.items_badge.setText(f"{total} itens | {selected} selecionados")
+        if self.selected_calendar_day_iso:
+            self.items_badge.setText(
+                f"{total} itens no dia | {selected} selecionados | {self._format_date(self.selected_calendar_day_iso)}"
+            )
+        else:
+            self.items_badge.setText(f"{total} itens | {selected} selecionados")
         self._refresh_contextual_actions()
 
     def _refresh_contextual_actions(self):
