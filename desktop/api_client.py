@@ -448,6 +448,13 @@ class APIClient:
             params["status"] = status
         return self._request("GET", "/nao_conformidades", params=params or None)
 
+    def get_resolution_packages(self, status: str | None = None):
+        params = {"status": status} if status else None
+        return self._request("GET", "/pacotes_resolucao", params=params)
+
+    def create_resolution_package(self, payload: dict):
+        return self._request("POST", "/pacotes_resolucao", json=payload)
+
     def get_mechanic_non_conformities(self, status: str | None = None):
         params = {"status": status} if status else None
         return self._request("GET", "/mecanico/nao_conformidades", params=params)

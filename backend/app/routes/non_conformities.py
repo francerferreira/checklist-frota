@@ -4,7 +4,7 @@ from flask import Blueprint, g, jsonify, request
 
 from app.extensions import db
 from app.utils.timezone import now_manaus_naive
-from app.models import Activity, ActivityItem, ChecklistItem, Material, User, Vehicle
+from app.models import Activity, ActivityItem, ChecklistItem, Material, ResolutionPackage, ResolutionPackageLink, User, Vehicle
 from app.services.auth_service import auth_required, user_can_resolve_non_conformity, user_has_management_access
 from app.services.material_service import register_material_movement
 from app.services.audit_service import record_status_change
@@ -52,7 +52,37 @@ def list_non_conformities():
     elif status_filter == "resolvidas":
         query = query.filter(ChecklistItem.resolvido.is_(True))
 
-    return api_response(True, data=[item.to_dict() for item in query.all()])
+    items = query.all()
+    package_lookup = {
+        link.checklist_item_id: package
+        for link, package in db.session.query(ResolutionPackageLink, ResolutionPackage)
+        .join(ResolutionPackage, ResolutionPackage.id == ResolutionPackageLink.package_id)
+        .filter(
+            ResolutionPackageLink.checklist_item_id.in_([item.id for item in items] or [-1]),
+            ResolutionPackage.status.in_(["ABERTO", "EM_MANUTENCAO"]),
+        )
+        .all()
+    }
+
+    data = []
+    for item in items:
+        row = item.to_dict()
+        package = package_lookup.get(item.id)
+        row["resolution_package"] = (
+            {
+                "id": package.id,
+                "title": package.title,
+                "grouping_mode": package.grouping_mode,
+                "status": package.status,
+                "priority_score": package.priority_score,
+                "critical_recurrence": package.critical_recurrence,
+            }
+            if package
+            else None
+        )
+        data.append(row)
+
+    return api_response(True, data=data)
 
 
 @bp.put("/nao_conformidade/<int:item_id>/resolver")

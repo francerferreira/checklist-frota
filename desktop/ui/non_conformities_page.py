@@ -3,6 +3,7 @@
 from PySide6.QtCore import QTimer, Qt, Signal
 from PySide6.QtGui import QColor, QBrush
 from PySide6.QtWidgets import (
+    QAbstractItemView,
     QCheckBox,
     QComboBox,
     QDialog,
@@ -390,6 +391,161 @@ class CreateActivityFromNCDialog(QDialog):
             show_notice(self, "Falha ao criar inspeção", str(exc), icon_name="warning")
 
 
+class CreateResolutionPackageDialog(QDialog):
+    def __init__(self, api_client, selected_items: list[dict], parent=None):
+        super().__init__(parent)
+        self.api_client = api_client
+        self.selected_items = selected_items
+        self.created_package = None
+
+        self.setWindowTitle("Criar pacote de resolução")
+        configure_dialog_window(self, width=820, height=560, min_width=720, min_height=480)
+        style_card(self)
+        layout = build_dialog_layout(self, max_content_width=900)
+
+        self.valid_modes = self._detect_modes()
+
+        header = QFrame()
+        header.setObjectName("DialogHeader")
+        header.setAttribute(Qt.WA_StyledBackground, True)
+        header_layout = QVBoxLayout(header)
+        header_layout.setContentsMargins(18, 18, 18, 18)
+        header_layout.setSpacing(4)
+        title = QLabel(f"Criar pacote com {len(self.selected_items)} não conformidade(s)")
+        title.setObjectName("DialogHeaderTitle")
+        subtitle = QLabel(self._build_hint())
+        subtitle.setObjectName("DialogHeaderSubtitle")
+        subtitle.setWordWrap(True)
+        header_layout.addWidget(title)
+        header_layout.addWidget(subtitle)
+
+        form_card = QFrame()
+        form_card.setObjectName("HeaderCard")
+        form_card.setAttribute(Qt.WA_StyledBackground, True)
+        form = QGridLayout(form_card)
+        form.setContentsMargins(18, 18, 18, 18)
+        form.setHorizontalSpacing(16)
+        form.setVerticalSpacing(14)
+
+        self.grouping_mode_combo = QComboBox()
+        for mode in self.valid_modes:
+            if mode == "POR_ITEM":
+                self.grouping_mode_combo.addItem("Por item distinto", mode)
+            elif mode == "POR_EQUIPAMENTO":
+                self.grouping_mode_combo.addItem("Por equipamento", mode)
+        self.grouping_mode_combo.currentIndexChanged.connect(self._sync_title)
+
+        self.title_input = QLineEdit()
+        self.observation_input = QTextEdit()
+        self.observation_input.setPlaceholderText("Observação opcional sobre o objetivo do pacote.")
+
+        self.recurrence_days_spin = QSpinBox()
+        self.recurrence_days_spin.setMinimum(1)
+        self.recurrence_days_spin.setMaximum(120)
+        self.recurrence_days_spin.setValue(15)
+
+        self.recurrence_weight_spin = QSpinBox()
+        self.recurrence_weight_spin.setMinimum(0)
+        self.recurrence_weight_spin.setMaximum(50)
+        self.recurrence_weight_spin.setValue(5)
+
+        def add_field(row: int, column: int, label_text: str, widget, col_span: int = 1):
+            field = QFrame()
+            field_layout = QVBoxLayout(field)
+            field_layout.setContentsMargins(0, 0, 0, 0)
+            field_layout.setSpacing(6)
+            label = QLabel(label_text)
+            label.setObjectName("SectionCaption")
+            field_layout.addWidget(label)
+            field_layout.addWidget(widget)
+            form.addWidget(field, row, column, 1, col_span)
+
+        add_field(0, 0, "Agrupamento sugerido", self.grouping_mode_combo)
+        add_field(0, 1, "Janela de reincidência (dias)", self.recurrence_days_spin)
+        add_field(1, 0, "Peso da reincidência", self.recurrence_weight_spin)
+        add_field(1, 1, "Título do pacote", self.title_input)
+        add_field(2, 0, "Observação", self.observation_input, 2)
+
+        footer = QFrame()
+        footer.setObjectName("DialogFooter")
+        footer.setAttribute(Qt.WA_StyledBackground, True)
+        actions = QHBoxLayout(footer)
+        actions.setContentsMargins(16, 14, 16, 14)
+        actions.setSpacing(12)
+        actions.addStretch()
+        cancel_button = QPushButton("Cancelar")
+        submit_button = QPushButton("Criar pacote")
+        submit_button.setProperty("variant", "primary")
+        cancel_button.setMinimumHeight(50)
+        submit_button.setMinimumHeight(50)
+        cancel_button.clicked.connect(self.reject)
+        submit_button.clicked.connect(self.submit)
+        actions.addWidget(cancel_button)
+        actions.addWidget(submit_button)
+
+        layout.addWidget(header)
+        layout.addWidget(form_card)
+        layout.addWidget(footer)
+        self._sync_title()
+
+    def _normalized_item_name(self, item: dict) -> str:
+        return str(item.get("item_principal") or item.get("item_nome") or "").strip().upper()
+
+    def _vehicle_key(self, item: dict) -> int | None:
+        vehicle = item.get("veiculo") or {}
+        return vehicle.get("id")
+
+    def _detect_modes(self) -> list[str]:
+        modes: list[str] = []
+        item_names = {self._normalized_item_name(item) for item in self.selected_items if self._normalized_item_name(item)}
+        vehicle_ids = {self._vehicle_key(item) for item in self.selected_items if self._vehicle_key(item)}
+        if len(item_names) == 1:
+            modes.append("POR_ITEM")
+        if len(vehicle_ids) == 1:
+            modes.append("POR_EQUIPAMENTO")
+        return modes
+
+    def _build_hint(self) -> str:
+        item_names = {self._normalized_item_name(item) for item in self.selected_items if self._normalized_item_name(item)}
+        vehicle_labels = {
+            (item.get("veiculo") or {}).get("frota") or (item.get("veiculo") or {}).get("placa") or "-"
+            for item in self.selected_items
+        }
+        if len(item_names) == 1:
+            return "Sugestão inteligente: todos os registros têm o mesmo item. O sistema já pode abrir um pacote por item distinto."
+        if len(vehicle_labels) == 1:
+            return "Sugestão inteligente: todos os registros pertencem ao mesmo equipamento. O sistema já pode abrir um pacote por equipamento."
+        return "Os registros misturam itens e equipamentos. Use este pacote para organizar a primeira triagem sem perder os vínculos."
+
+    def _sync_title(self):
+        mode = self.grouping_mode_combo.currentData()
+        if not mode:
+            self.title_input.clear()
+            return
+        if mode == "POR_EQUIPAMENTO":
+            vehicle = self.selected_items[0].get("veiculo") or {}
+            label = vehicle.get("frota") or vehicle.get("placa") or "-"
+            self.title_input.setText(f"Pacote por equipamento - {label}")
+        else:
+            label = self._normalized_item_name(self.selected_items[0]) or "-"
+            self.title_input.setText(f"Pacote por item - {label}")
+
+    def submit(self):
+        try:
+            payload = {
+                "grouping_mode": self.grouping_mode_combo.currentData(),
+                "checklist_item_ids": [int(item["id"]) for item in self.selected_items],
+                "title": self.title_input.text().strip(),
+                "observation": self.observation_input.toPlainText().strip(),
+                "recurrence_window_days": int(self.recurrence_days_spin.value()),
+                "recurrence_weight": int(self.recurrence_weight_spin.value()),
+            }
+            self.created_package = self.api_client.create_resolution_package(payload)
+            self.accept()
+        except Exception as exc:
+            show_notice(self, "Falha ao criar pacote", str(exc), icon_name="warning")
+
+
 class NonConformitiesPage(QFrame):
     data_changed = Signal()
 
@@ -398,6 +554,7 @@ class NonConformitiesPage(QFrame):
         self.api_client = api_client
         self.items = []
         self.mechanic_items = []
+        self.packages = []
         self.current_item = None
         self._live_filter_timer = QTimer(self)
         self._live_filter_timer.setSingleShot(True)
@@ -429,12 +586,16 @@ class NonConformitiesPage(QFrame):
         self.create_activity_button.setMinimumHeight(34)
         self.create_activity_button.setProperty("variant", "primary")
         self.create_activity_button.clicked.connect(self.create_activity_from_current_item)
+        self.create_package_button = QPushButton("Criar pacote")
+        self.create_package_button.setMinimumHeight(34)
+        self.create_package_button.clicked.connect(self.create_resolution_package_from_selection)
         self.resolve_button = QPushButton("Resolver agora")
         self.resolve_button.setMinimumHeight(34)
         self.resolve_button.setProperty("variant", "success")
         self.resolve_button.clicked.connect(self.resolve_current_item)
         actions.addWidget(self.open_button)
         actions.addWidget(self.create_activity_button)
+        actions.addWidget(self.create_package_button)
         actions.addWidget(self.resolve_button)
 
         header.addLayout(text_wrap)
@@ -505,12 +666,13 @@ class NonConformitiesPage(QFrame):
         table_caption.setObjectName("SectionCaption")
         table_caption.setWordWrap(True)
 
-        self.table = QTableWidget(0, 9)
+        self.table = QTableWidget(0, 10)
         self.table.setHorizontalHeaderLabels(
-            ["Veículo", "Item", "Status", "Prioridade", "Data", "Motorista", "Peça", "Foto antes", "Foto depois"]
+            ["Veículo", "Item", "Pacote", "Status", "Prioridade", "Data", "Motorista", "Peça", "Foto antes", "Foto depois"]
         )
         configure_table(self.table, stretch_last=False)
         self.table.setMinimumHeight(620)
+        self.table.setSelectionMode(QAbstractItemView.ExtendedSelection)
         self.table.itemSelectionChanged.connect(self._selection_changed)
         self.table.horizontalHeader().sortIndicatorChanged.connect(lambda *_: self._selection_changed())
         self.table.itemDoubleClicked.connect(self.open_item_details)
@@ -555,6 +717,41 @@ class NonConformitiesPage(QFrame):
         self.tabs.addTab(occurrences_tab, "Registros da central")
         self.tabs.addTab(mechanic_tab, "Registros internos dos mecânicos")
 
+        packages_tab = QFrame()
+        packages_tab.setObjectName("TableCard")
+        packages_tab.setAttribute(Qt.WA_StyledBackground, True)
+        packages_layout = QVBoxLayout(packages_tab)
+        packages_layout.setContentsMargins(10, 10, 10, 10)
+        packages_layout.setSpacing(8)
+
+        packages_top = QHBoxLayout()
+        packages_title = QLabel("Pacotes de resolução")
+        packages_title.setObjectName("SectionTitle")
+        self.packages_badge = QLabel("0 pacotes")
+        self.packages_badge.setObjectName("TopBarPill")
+        packages_top.addWidget(packages_title)
+        packages_top.addStretch()
+        packages_top.addWidget(self.packages_badge)
+
+        packages_caption = QLabel(
+            "Aqui nasce a caixa oficial da resolução. O pacote agrupa as não conformidades por item distinto ou por equipamento."
+        )
+        packages_caption.setObjectName("SectionCaption")
+        packages_caption.setWordWrap(True)
+
+        self.packages_table = QTableWidget(0, 8)
+        self.packages_table.setHorizontalHeaderLabels(
+            ["Título", "Agrupamento", "Referência", "Status", "Score", "Reincidência", "Crítico", "Resumo"]
+        )
+        configure_table(self.packages_table, stretch_last=False)
+        self.packages_table.setMinimumHeight(620)
+
+        packages_layout.addLayout(packages_top)
+        packages_layout.addWidget(packages_caption)
+        packages_layout.addWidget(self.packages_table, 1)
+
+        self.tabs.addTab(packages_tab, "Pacotes de resolução")
+
         outer.addLayout(header)
         outer.addWidget(self.filter_card)
         outer.addWidget(self.tabs, 1)
@@ -563,10 +760,53 @@ class NonConformitiesPage(QFrame):
     def _schedule_live_refresh(self, *_args):
         self._live_filter_timer.start(240)
 
+    def _user_has_management_access(self) -> bool:
+        user = self.api_client.user or {}
+        return user.get("tipo") in {"admin", "gestor"}
+
     def _set_action_state(self, enabled: bool):
         self.open_button.setEnabled(enabled)
         self.create_activity_button.setEnabled(enabled and not (self.current_item or {}).get("resolvido", False))
+        self.create_package_button.setEnabled(
+            self._user_has_management_access() and bool(self._package_modes_for_items(self._selected_items_for_package()))
+        )
         self.resolve_button.setEnabled(enabled and not (self.current_item or {}).get("resolvido", False))
+
+    def _selected_rows(self) -> list[int]:
+        ranges = self.table.selectedRanges()
+        if not ranges:
+            return []
+        rows: set[int] = set()
+        for selected_range in ranges:
+            for row in range(selected_range.topRow(), selected_range.bottomRow() + 1):
+                rows.add(row)
+        return sorted(rows)
+
+    def _selected_items_for_package(self) -> list[dict]:
+        selected_items = []
+        for row in self._selected_rows():
+            item = self._item_for_row(row)
+            if item and not item.get("resolvido"):
+                selected_items.append(item)
+        return selected_items
+
+    def _package_modes_for_items(self, selected_items: list[dict]) -> list[str]:
+        item_names = {
+            str(item.get("item_principal") or item.get("item_nome") or "").strip().upper()
+            for item in selected_items
+            if str(item.get("item_principal") or item.get("item_nome") or "").strip()
+        }
+        vehicle_ids = {
+            (item.get("veiculo") or {}).get("id")
+            for item in selected_items
+            if (item.get("veiculo") or {}).get("id")
+        }
+        modes: list[str] = []
+        if len(item_names) == 1:
+            modes.append("POR_ITEM")
+        if len(vehicle_ids) == 1:
+            modes.append("POR_EQUIPAMENTO")
+        return modes
 
     def refresh(self):
         self.items = self.api_client.get_non_conformities(
@@ -577,6 +817,7 @@ class NonConformitiesPage(QFrame):
         self.mechanic_items = self.api_client.get_mechanic_non_conformities(
             status=self.status_filter.currentData() or None,
         )
+        self.packages = self.api_client.get_resolution_packages(status="ABERTO") if self._user_has_management_access() else []
         self.table.setSortingEnabled(False)
         self.table.setUpdatesEnabled(False)
         self.table.blockSignals(True)
@@ -587,9 +828,12 @@ class NonConformitiesPage(QFrame):
                 created_at = item["created_at"].replace("T", " ")[:19]
                 status_label = "Resolvida" if item["resolvido"] else "Aberta"
                 severity = severity_from_occurrence(item)
+                package = item.get("resolution_package") or {}
+                package_label = f"#{package.get('id')}" if package.get("id") else "-"
                 values = [
                     item["veiculo"]["frota"],
                     _nc_label(item),
+                    package_label,
                     status_label,
                     severity["label"],
                     created_at,
@@ -600,9 +844,12 @@ class NonConformitiesPage(QFrame):
                 ]
                 for column, value in enumerate(values):
                     cell = make_table_item(value, payload=item if column == 0 else None)
-                    if column == 3:
+                    if column == 4:
                         cell.setBackground(QBrush(QColor(severity["background"])))
                         cell.setForeground(QBrush(QColor(severity["color"])))
+                    if column == 2 and package.get("critical_recurrence"):
+                        cell.setBackground(QBrush(QColor("#F4D9D6")))
+                        cell.setForeground(QBrush(QColor("#7A332B")))
                     self.table.setItem(row, column, cell)
         finally:
             self.table.blockSignals(False)
@@ -611,6 +858,7 @@ class NonConformitiesPage(QFrame):
 
         self.summary_badge.setText(f"{len(self.items)} registros")
         self._populate_mechanic_table()
+        self._populate_packages_table()
         if self.items:
             self.table.selectRow(0)
         else:
@@ -649,6 +897,36 @@ class NonConformitiesPage(QFrame):
             self.mechanic_table.setUpdatesEnabled(True)
             self.mechanic_table.setSortingEnabled(True)
         self.mechanic_badge.setText(f"{len(self.mechanic_items)} registros")
+
+    def _populate_packages_table(self):
+        self.packages_table.setSortingEnabled(False)
+        self.packages_table.setUpdatesEnabled(False)
+        self.packages_table.blockSignals(True)
+        try:
+            self.packages_table.setRowCount(len(self.packages))
+            for row, package in enumerate(self.packages):
+                resumo = package.get("resumo") or {}
+                values = [
+                    package.get("title") or "-",
+                    "Por item" if package.get("grouping_mode") == "POR_ITEM" else "Por equipamento",
+                    package.get("reference_label") or "-",
+                    package.get("status") or "-",
+                    str(package.get("priority_score") or 0),
+                    str(package.get("recurrence_hits") or 0),
+                    "Sim" if package.get("critical_recurrence") else "Não",
+                    f"{resumo.get('abertas', 0)} aberta(s) / {resumo.get('resolvidas', 0)} resolvida(s)",
+                ]
+                for column, value in enumerate(values):
+                    cell = make_table_item(value)
+                    if column == 6 and package.get("critical_recurrence"):
+                        cell.setBackground(QBrush(QColor("#F4D9D6")))
+                        cell.setForeground(QBrush(QColor("#7A332B")))
+                    self.packages_table.setItem(row, column, cell)
+        finally:
+            self.packages_table.blockSignals(False)
+            self.packages_table.setUpdatesEnabled(True)
+            self.packages_table.setSortingEnabled(True)
+        self.packages_badge.setText(f"{len(self.packages)} pacotes")
 
     @staticmethod
     def _format(value: str | None) -> str:
@@ -738,6 +1016,36 @@ class NonConformitiesPage(QFrame):
                     parent_window.switch_page("activities")
                 except Exception:
                     pass
+
+    def create_resolution_package_from_selection(self):
+        selected_items = self._selected_items_for_package()
+        if not selected_items:
+            show_notice(
+                self,
+                "Seleção insuficiente",
+                "Selecione uma ou mais não conformidades abertas para criar o pacote de resolução.",
+                icon_name="warning",
+            )
+            return
+        valid_modes = self._package_modes_for_items(selected_items)
+        if not valid_modes:
+            show_notice(
+                self,
+                "Agrupamento inválido",
+                "Os registros selecionados misturam itens e equipamentos diferentes. Para este start, o pacote só pode nascer por item distinto ou pelo mesmo equipamento.",
+                icon_name="warning",
+            )
+            return
+        dialog = CreateResolutionPackageDialog(self.api_client, selected_items, self)
+        if dialog.exec():
+            created = dialog.created_package or {}
+            message = f"Pacote #{created.get('id')} criado com sucesso."
+            if created.get("critical_recurrence"):
+                message += " O sistema já marcou reincidência crítica para este item."
+            show_notice(self, "Pacote criado", message, icon_name="dashboard")
+            self.refresh()
+            self.tabs.setCurrentIndex(2)
+            self.data_changed.emit()
 
 
 

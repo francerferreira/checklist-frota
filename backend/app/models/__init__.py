@@ -5,6 +5,7 @@ from app.models.checklist_catalog_item import ChecklistCatalogItem
 from app.models.maintenance import MaintenanceMaterial, MaintenanceSchedule, MaintenanceScheduleItem
 from app.models.material import Material, MaterialMovement
 from app.models.mechanic_non_conformity import MechanicNonConformity
+from app.models.resolution_package import ResolutionPackage, ResolutionPackageLink
 from app.models.user import User
 from app.models.vehicle import Vehicle
 from app.models.wash import WashBlockedDay, WashPlanConfig, WashQueueItem, WashRecord, WashScheduleDecision
@@ -23,6 +24,8 @@ __all__ = [
     "Material",
     "MaterialMovement",
     "MechanicNonConformity",
+    "ResolutionPackage",
+    "ResolutionPackageLink",
     "User",
     "Vehicle",
     "WashBlockedDay",

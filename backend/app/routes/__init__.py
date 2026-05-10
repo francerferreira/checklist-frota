@@ -6,6 +6,7 @@ from app.routes.maintenance import bp as maintenance_bp
 from app.routes.mechanic_non_conformities import bp as mechanic_non_conformities_bp
 from app.routes.materials import bp as materials_bp
 from app.routes.non_conformities import bp as non_conformities_bp
+from app.routes.resolution_packages import bp as resolution_packages_bp
 from app.routes.reports import bp as reports_bp
 from app.routes.upload import bp as upload_bp
 from app.routes.users import bp as users_bp
@@ -25,6 +26,7 @@ def register_blueprints(app):
         checklist_bp,
         mechanic_non_conformities_bp,
         non_conformities_bp,
+        resolution_packages_bp,
         upload_bp,
         reports_bp,
         washes_bp,
