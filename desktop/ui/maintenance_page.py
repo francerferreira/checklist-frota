@@ -59,7 +59,7 @@ ITEM_STATUS_LABELS = {
     "PENDENTE": "Pendente",
     "PROGRAMADO": "Programado",
     "AGUARDANDO_MATERIAL": "Aguardando material",
-    "INSTALADO": "Instalado",
+    "INSTALADO": "Concluído",
     "NAO_EXECUTADO": "Não executado",
     "REPROGRAMADO": "Reprogramado",
     "CANCELADO": "Cancelado",
@@ -686,6 +686,7 @@ class MaintenancePage(QFrame):
         schedules_layout.setSpacing(8)
 
         planning_screen_card = QFrame()
+        self.planning_screen_card = planning_screen_card
         style_filter_bar(planning_screen_card)
         planning_screen_layout = QVBoxLayout(planning_screen_card)
         planning_screen_layout.setContentsMargins(12, 10, 12, 10)
@@ -813,7 +814,7 @@ class MaintenancePage(QFrame):
         self.item_status_filter.addItem("Pendente", "PENDENTE")
         self.item_status_filter.addItem("Programado", "PROGRAMADO")
         self.item_status_filter.addItem("Aguardando material", "AGUARDANDO_MATERIAL")
-        self.item_status_filter.addItem("Instalado", "INSTALADO")
+        self.item_status_filter.addItem("Concluído", "INSTALADO")
         self.item_status_filter.addItem("Não executado", "NAO_EXECUTADO")
         self.item_status_filter.addItem("Reprogramado", "REPROGRAMADO")
         self.item_status_filter.addItem("Cancelado", "CANCELADO")
@@ -875,6 +876,7 @@ class MaintenancePage(QFrame):
         action_layout.setColumnStretch(4, 1)
 
         services_screen_card = QFrame()
+        self.services_screen_card = services_screen_card
         style_filter_bar(services_screen_card)
         services_screen_layout = QVBoxLayout(services_screen_card)
         services_screen_layout.setContentsMargins(12, 10, 12, 10)
@@ -1510,7 +1512,7 @@ class MaintenancePage(QFrame):
         calendar_title.setObjectName("SectionTitle")
         self.calendar_badge = QLabel("0 dias")
         self.calendar_badge.setObjectName("TopBarPill")
-        self.calendar_selected_badge = QLabel("Clique em um dia para filtrar a tabela")
+        self.calendar_selected_badge = QLabel("Clique em um dia para abrir a agenda daquele dia")
         self.calendar_selected_badge.setObjectName("TopBarPill")
         self.calendar_day_resume_badge = QLabel("Selecione um dia para acompanhar carga, pendência e bloqueios")
         self.calendar_day_resume_badge.setObjectName("TopBarPill")
@@ -1544,6 +1546,7 @@ class MaintenancePage(QFrame):
         calendar_layout.addWidget(self.calendar_table)
 
         agenda_screen_card = QFrame()
+        self.agenda_screen_card = agenda_screen_card
         style_filter_bar(agenda_screen_card)
         agenda_screen_layout = QVBoxLayout(agenda_screen_card)
         agenda_screen_layout.setContentsMargins(12, 10, 12, 10)
@@ -1763,8 +1766,15 @@ class MaintenancePage(QFrame):
         self.blockers_card.mousePressEvent = lambda event: self._handle_summary_card_click("BLOQUEIOS")
 
     def _handle_summary_card_click(self, key: str):
+        self._clear_calendar_day_scope()
         if key == "PROGRAMACOES":
             self._open_maintenance_screen("PROGRAMACOES")
+            self._refresh_planning_screen_summary()
+            return
+        if key == "ITENS":
+            self._open_maintenance_screen("SERVICOS")
+            self._set_item_status_filter("ALL")
+            self.render_selected_schedule_items()
             return
         if key == "PENDENTES":
             self._open_maintenance_screen("SERVICOS")
@@ -1789,6 +1799,14 @@ class MaintenancePage(QFrame):
             self._set_item_status_filter("ALL")
         self.render_selected_schedule_items()
 
+    def _clear_calendar_day_scope(self):
+        self.selected_calendar_day_iso = None
+        self.calendar_table.clearSelection()
+        self._refresh_calendar_selection_badge()
+        self._render_agenda_days_table()
+        self.render_selected_schedule_items()
+        self._render_os_table()
+
     def _open_maintenance_screen(self, screen_key: str):
         labels = {
             "PROGRAMACOES": "Programações",
@@ -1803,15 +1821,15 @@ class MaintenancePage(QFrame):
         self.current_screen_badge.setText(f"Tela atual: {label}")
         if screen_key == "PROGRAMACOES":
             self.tabs.setCurrentIndex(self.tab_programacoes_index)
-            self.scroll_area.ensureWidgetVisible(self.tabs, 24, 24)
+            self.scroll_area.ensureWidgetVisible(self.planning_screen_card, 24, 24)
             return
         if screen_key == "AGENDA":
             self.tabs.setCurrentIndex(self.tab_agenda_index)
-            self.scroll_area.ensureWidgetVisible(self.tabs, 24, 24)
+            self.scroll_area.ensureWidgetVisible(self.agenda_screen_card, 24, 24)
             return
         if screen_key == "SERVICOS":
             self.tabs.setCurrentIndex(self.tab_execucao_index)
-            self.scroll_area.ensureWidgetVisible(self.tabs, 24, 24)
+            self.scroll_area.ensureWidgetVisible(self.services_screen_card, 24, 24)
             return
         if screen_key == "BLOQUEIOS":
             self.tabs.setCurrentIndex(self.tab_execucao_index)
@@ -2985,7 +3003,7 @@ class MaintenancePage(QFrame):
         return (
             f"{prefix}\n"
             f"Prog {total} | Pend {pendentes}\n"
-            f"Inst {instalados} | Aguar {aguardando}\n"
+            f"Concl {instalados} | Aguar {aguardando}\n"
             f"Não exec {nao_exec}"
         )
 
@@ -3019,7 +3037,7 @@ class MaintenancePage(QFrame):
             lines.append("HOJE")
         lines.append(f"Programados: {total}")
         lines.append(f"Pendentes: {pendentes}")
-        lines.append(f"Instalados: {instalados}")
+        lines.append(f"Concluídos: {instalados}")
         lines.append(f"Aguardando material: {aguardando}")
         if nao_exec:
             lines.append(f"Não executados: {nao_exec}")
@@ -3097,6 +3115,8 @@ class MaintenancePage(QFrame):
         self._render_agenda_days_table()
         self.render_selected_schedule_items()
         self._render_os_table()
+        if self.selected_calendar_day_iso:
+            self._open_maintenance_screen("AGENDA")
 
     def _on_agenda_day_selection_changed(self):
         selected_rows = self.agenda_days_table.selectionModel().selectedRows() if self.agenda_days_table.selectionModel() else []
@@ -3151,17 +3171,12 @@ class MaintenancePage(QFrame):
         self._render_agenda_days_table()
 
     def _clear_calendar_day_filter(self):
-        self.selected_calendar_day_iso = None
-        self.calendar_table.clearSelection()
-        self._refresh_calendar_selection_badge()
-        self._render_agenda_days_table()
-        self.render_selected_schedule_items()
-        self._render_os_table()
+        self._clear_calendar_day_scope()
 
     def _refresh_calendar_selection_badge(self):
         if not self.selected_calendar_day_iso:
-            self.calendar_selected_badge.setText("Clique em um dia para filtrar a tabela")
-            self.calendar_day_resume_badge.setText("Selecione um dia para acompanhar carga, pendência e bloqueios")
+            self.calendar_selected_badge.setText("Clique em um dia para abrir a agenda daquele dia")
+            self.calendar_day_resume_badge.setText("Escolha um dia para ver carga, pendência e bloqueios da oficina")
             self.clear_calendar_filter_button.setEnabled(False)
             self._refresh_agenda_screen_summary()
             return
@@ -3170,11 +3185,12 @@ class MaintenancePage(QFrame):
             f"Dia {self._format_date(self.selected_calendar_day_iso)} | "
             f"Prog {int(payload.get('total') or 0)} | "
             f"Pend {int(payload.get('pendentes') or 0)} | "
-            f"Inst {int(payload.get('instalados') or 0)}"
+            f"Concl {int(payload.get('instalados') or 0)}"
         )
         self.calendar_day_resume_badge.setText(
             f"Aguardando material {int(payload.get('aguardando_material') or 0)} | "
-            f"Não executados {int(payload.get('nao_executados') or 0)}"
+            f"Não executados {int(payload.get('nao_executados') or 0)} | "
+            "Tela aberta: Agenda do dia"
         )
         self.clear_calendar_filter_button.setEnabled(True)
         self._refresh_agenda_screen_summary()
