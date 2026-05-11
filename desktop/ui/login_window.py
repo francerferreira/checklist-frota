@@ -202,12 +202,12 @@ class LoginWindow(QDialog):
         if self.app_icon_path.exists():
             self.setWindowIcon(QIcon(str(self.app_icon_path)))
         self.setModal(True)
-        self.resize(1040, 720)
-        self.setMinimumSize(980, 680)
+        self.resize(920, 620)
+        self.setMinimumSize(860, 580)
         self.setStyleSheet(LOGIN_STYLE)
 
         root = QVBoxLayout(self)
-        root.setContentsMargins(18, 18, 18, 18)
+        root.setContentsMargins(14, 14, 14, 14)
         root.setSpacing(0)
 
         shell = QFrame()
@@ -216,11 +216,11 @@ class LoginWindow(QDialog):
         apply_soft_shadow(shell, blur=34, y_offset=12, alpha=24)
 
         shell_layout = QHBoxLayout(shell)
-        shell_layout.setContentsMargins(22, 22, 22, 22)
-        shell_layout.setSpacing(22)
+        shell_layout.setContentsMargins(16, 16, 16, 16)
+        shell_layout.setSpacing(16)
 
-        shell_layout.addWidget(self._build_hero_panel(), 5)
-        shell_layout.addWidget(self._build_form_panel(), 6)
+        shell_layout.addWidget(self._build_hero_panel(), 4)
+        shell_layout.addWidget(self._build_form_panel(), 5)
 
         root.addWidget(shell)
         self.loading_overlay = LoadingOverlay(self)
@@ -235,15 +235,15 @@ class LoginWindow(QDialog):
         panel.setAttribute(Qt.WA_StyledBackground, True)
 
         layout = QVBoxLayout(panel)
-        layout.setContentsMargins(30, 30, 30, 30)
-        layout.setSpacing(18)
+        layout.setContentsMargins(24, 24, 24, 24)
+        layout.setSpacing(14)
 
         logo_label = QLabel()
-        logo_label.setFixedSize(170, 108)
+        logo_label.setFixedSize(148, 94)
         logo_label.setAlignment(Qt.AlignLeft | Qt.AlignTop)
         if self.logo_path.exists():
             pixmap = QPixmap(str(self.logo_path))
-            logo_label.setPixmap(pixmap.scaled(160, 104, Qt.KeepAspectRatio, Qt.SmoothTransformation))
+            logo_label.setPixmap(pixmap.scaled(140, 90, Qt.KeepAspectRatio, Qt.SmoothTransformation))
 
         eyebrow = QLabel("PLATAFORMA CORPORATIVA")
         eyebrow.setObjectName("HeroEyebrow")
@@ -258,8 +258,8 @@ class LoginWindow(QDialog):
         subtitle.setWordWrap(True)
 
         points = QVBoxLayout()
-        points.setContentsMargins(0, 10, 0, 0)
-        points.setSpacing(10)
+        points.setContentsMargins(0, 6, 0, 0)
+        points.setSpacing(8)
         for text in (
             "Gestão integrada de equipamentos, materiais e evidências",
             "Acompanhamento de não conformidades e inspeções por lote",
@@ -292,8 +292,8 @@ class LoginWindow(QDialog):
         panel.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding)
 
         layout = QVBoxLayout(panel)
-        layout.setContentsMargins(34, 34, 34, 34)
-        layout.setSpacing(18)
+        layout.setContentsMargins(28, 28, 28, 28)
+        layout.setSpacing(14)
 
         eyebrow = QLabel("ACESSO AO SISTEMA")
         eyebrow.setObjectName("FormEyebrow")
@@ -309,12 +309,12 @@ class LoginWindow(QDialog):
 
         self.login_input = QLineEdit()
         self.login_input.setPlaceholderText("Digite seu login")
-        self.login_input.setMinimumHeight(50)
+        self.login_input.setMinimumHeight(44)
 
         self.password_input = QLineEdit()
         self.password_input.setPlaceholderText("Digite sua senha")
         self.password_input.setEchoMode(QLineEdit.Password)
-        self.password_input.setMinimumHeight(50)
+        self.password_input.setMinimumHeight(44)
         self.password_input.returnPressed.connect(self.handle_login)
 
         self.show_password_check = QCheckBox("Mostrar senha")
@@ -324,20 +324,20 @@ class LoginWindow(QDialog):
 
         self.advanced_toggle = QPushButton("Conexão avançada")
         self.advanced_toggle.setProperty("variant", "ghost")
-        self.advanced_toggle.setMinimumHeight(42)
+        self.advanced_toggle.setMinimumHeight(38)
         self.advanced_toggle.clicked.connect(self.toggle_advanced)
 
         self.base_url_input = QLineEdit(DEFAULT_API_BASE_URL)
         self.base_url_input.setPlaceholderText(DEFAULT_API_BASE_URL)
-        self.base_url_input.setMinimumHeight(50)
+        self.base_url_input.setMinimumHeight(44)
 
         self.advanced_panel = QFrame()
         self.advanced_panel.setObjectName("AdvancedCard")
         self.advanced_panel.setAttribute(Qt.WA_StyledBackground, True)
         self.advanced_panel.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed)
         advanced_layout = QVBoxLayout(self.advanced_panel)
-        advanced_layout.setContentsMargins(16, 16, 16, 16)
-        advanced_layout.setSpacing(10)
+        advanced_layout.setContentsMargins(14, 14, 14, 14)
+        advanced_layout.setSpacing(8)
 
         advanced_title = QLabel("Servidor da API")
         advanced_title.setObjectName("FieldLabel")
@@ -363,8 +363,8 @@ class LoginWindow(QDialog):
         scroll_content = QWidget()
         scroll_content.setObjectName("LoginScrollContent")
         scroll_layout = QVBoxLayout(scroll_content)
-        scroll_layout.setContentsMargins(0, 0, 6, 0)
-        scroll_layout.setSpacing(16)
+        scroll_layout.setContentsMargins(0, 0, 4, 0)
+        scroll_layout.setSpacing(12)
 
         scroll_layout.addWidget(self._build_field("Login", self.login_input))
         scroll_layout.addWidget(self._build_field("Senha", self.password_input))
@@ -383,8 +383,8 @@ class LoginWindow(QDialog):
         scroll.setWidget(scroll_content)
 
         footer = QHBoxLayout()
-        footer.setContentsMargins(0, 4, 0, 0)
-        footer.setSpacing(14)
+        footer.setContentsMargins(0, 2, 0, 0)
+        footer.setSpacing(12)
 
         helper = QLabel("No uso normal, abra pelo iniciador e entre com seu usuário.")
         helper.setObjectName("MicroText")
@@ -392,8 +392,8 @@ class LoginWindow(QDialog):
 
         self.submit_button = QPushButton("Entrar no sistema")
         self.submit_button.setProperty("variant", "primary")
-        self.submit_button.setMinimumHeight(56)
-        self.submit_button.setMinimumWidth(240)
+        self.submit_button.setMinimumHeight(48)
+        self.submit_button.setMinimumWidth(220)
         self.submit_button.clicked.connect(self.handle_login)
 
         footer.addWidget(helper, 1)
