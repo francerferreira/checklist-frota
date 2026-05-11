@@ -685,6 +685,79 @@ class MaintenancePage(QFrame):
         schedules_layout.setContentsMargins(12, 10, 12, 10)
         schedules_layout.setSpacing(8)
 
+        planning_screen_card = QFrame()
+        style_filter_bar(planning_screen_card)
+        planning_screen_layout = QVBoxLayout(planning_screen_card)
+        planning_screen_layout.setContentsMargins(12, 10, 12, 10)
+        planning_screen_layout.setSpacing(8)
+
+        planning_screen_top = QHBoxLayout()
+        planning_screen_title = QLabel("Tela de programações")
+        planning_screen_title.setObjectName("SectionTitle")
+        self.planning_screen_badge = QLabel("Nenhum planejamento selecionado")
+        self.planning_screen_badge.setObjectName("TopBarPill")
+        planning_screen_top.addWidget(planning_screen_title)
+        planning_screen_top.addStretch()
+        planning_screen_top.addWidget(self.planning_screen_badge)
+
+        planning_screen_hint = QLabel(
+            "Aqui fica a mesa do planejamento. Primeiro você cria ou escolhe a programação, depois abre agenda, serviços ou responsáveis conforme a necessidade."
+        )
+        planning_screen_hint.setObjectName("PageSubtitle")
+        planning_screen_hint.setWordWrap(True)
+
+        planning_summary_layout = QGridLayout()
+        planning_summary_layout.setHorizontalSpacing(8)
+        planning_summary_layout.setVerticalSpacing(6)
+        self.planning_origin_badge = QLabel("Origem: -")
+        self.planning_origin_badge.setObjectName("TopBarPill")
+        self.planning_status_badge = QLabel("Situação: -")
+        self.planning_status_badge.setObjectName("TopBarPill")
+        self.planning_period_badge = QLabel("Período: -")
+        self.planning_period_badge.setObjectName("TopBarPill")
+        self.planning_volume_badge = QLabel("Itens: 0 | Pendentes: 0 | Concluídos: 0")
+        self.planning_volume_badge.setObjectName("TopBarPill")
+        self.planning_capacity_badge = QLabel("Capacidade diária: -")
+        self.planning_capacity_badge.setObjectName("TopBarPill")
+        self.planning_package_badge = QLabel("Pacote: sem pacote")
+        self.planning_package_badge.setObjectName("TopBarPill")
+        planning_summary_layout.addWidget(self.planning_origin_badge, 0, 0)
+        planning_summary_layout.addWidget(self.planning_status_badge, 0, 1)
+        planning_summary_layout.addWidget(self.planning_period_badge, 0, 2)
+        planning_summary_layout.addWidget(self.planning_volume_badge, 1, 0, 1, 2)
+        planning_summary_layout.addWidget(self.planning_capacity_badge, 1, 2)
+        planning_summary_layout.addWidget(self.planning_package_badge, 2, 0, 1, 3)
+
+        planning_actions = QHBoxLayout()
+        planning_actions.setSpacing(8)
+        self.planning_new_button = QPushButton("Nova programação")
+        self.planning_new_button.setProperty("variant", "primary")
+        self.planning_new_button.setMinimumHeight(34)
+        self.planning_new_button.clicked.connect(self.create_schedule)
+        self.planning_open_agenda_button = QPushButton("Abrir agenda")
+        self.planning_open_agenda_button.setMinimumHeight(34)
+        self.planning_open_agenda_button.clicked.connect(lambda: self._open_maintenance_screen("AGENDA"))
+        self.planning_open_services_button = QPushButton("Abrir serviços")
+        self.planning_open_services_button.setMinimumHeight(34)
+        self.planning_open_services_button.clicked.connect(lambda: self._open_maintenance_screen("SERVICOS"))
+        self.planning_open_governance_button = QPushButton("Abrir responsáveis e peças")
+        self.planning_open_governance_button.setMinimumHeight(34)
+        self.planning_open_governance_button.clicked.connect(lambda: self._open_maintenance_screen("RESPONSAVEIS"))
+        self.planning_back_home_button = QPushButton("Voltar para home")
+        self.planning_back_home_button.setMinimumHeight(34)
+        self.planning_back_home_button.clicked.connect(self._go_to_maintenance_home)
+        planning_actions.addWidget(self.planning_new_button)
+        planning_actions.addWidget(self.planning_open_agenda_button)
+        planning_actions.addWidget(self.planning_open_services_button)
+        planning_actions.addWidget(self.planning_open_governance_button)
+        planning_actions.addWidget(self.planning_back_home_button)
+        planning_actions.addStretch(1)
+
+        planning_screen_layout.addLayout(planning_screen_top)
+        planning_screen_layout.addWidget(planning_screen_hint)
+        planning_screen_layout.addLayout(planning_summary_layout)
+        planning_screen_layout.addLayout(planning_actions)
+
         schedules_title_row = QHBoxLayout()
         schedules_title = QLabel("Planejamento da manutenção")
         schedules_title.setObjectName("SectionTitle")
@@ -715,6 +788,7 @@ class MaintenancePage(QFrame):
         self.schedules_table.setMinimumHeight(300)
         self.schedules_table.setColumnHidden(0, True)
         self.schedules_table.itemSelectionChanged.connect(self._on_schedule_selection_changed)
+        self.schedules_table.itemDoubleClicked.connect(lambda _item: self._open_maintenance_screen("SERVICOS"))
 
         schedules_hint = QLabel("Crie e selecione a programação base que será distribuída na agenda.")
         schedules_hint.setObjectName("PageSubtitle")
@@ -1035,6 +1109,7 @@ class MaintenancePage(QFrame):
         programacoes_layout = QVBoxLayout(programacoes_tab)
         programacoes_layout.setContentsMargins(0, 0, 0, 0)
         programacoes_layout.setSpacing(10)
+        programacoes_layout.addWidget(planning_screen_card)
         programacoes_layout.addWidget(schedules_card)
 
         execucao_tab = QWidget()
@@ -1180,6 +1255,10 @@ class MaintenancePage(QFrame):
             self.tabs.setCurrentIndex(self.tab_governanca_index)
             self.scroll_area.ensureWidgetVisible(self.tabs, 24, 24)
             return
+
+    def _go_to_maintenance_home(self):
+        self.current_screen_badge.setText("Tela atual: Home da manutenção")
+        self.scroll_area.verticalScrollBar().setValue(0)
 
     def _set_item_status_filter(self, status_code: str):
         index = self.item_status_filter.findData(status_code)
@@ -1733,6 +1812,7 @@ class MaintenancePage(QFrame):
             f"OS bloqueadas: {summary.get('os_bloqueadas', 0)} | veja os travamentos do período.",
         )
         self.schedules_badge.setText(f"{len(self.filtered_schedules)} registros")
+        self._refresh_planning_screen_summary()
 
     def _render_schedules_table(self):
         rows = self.filtered_schedules
@@ -1932,6 +2012,7 @@ class MaintenancePage(QFrame):
         if row < 0:
             self.selected_schedule_id = None
             self.selected_calendar_day_iso = None
+            self._refresh_planning_screen_summary()
             self.render_selected_schedule_items()
             self.render_selected_schedule_materials()
             self._render_calendar_table()
@@ -1942,6 +2023,7 @@ class MaintenancePage(QFrame):
             return
         self.selected_schedule_id = int(payload.get("id"))
         self.selected_calendar_day_iso = None
+        self._refresh_planning_screen_summary()
         self.render_selected_schedule_items()
         self.render_selected_schedule_materials()
         self._render_calendar_table()
@@ -1989,6 +2071,36 @@ class MaintenancePage(QFrame):
             if int(row.get("id") or 0) == schedule_id:
                 return row
         return None
+
+    def _refresh_planning_screen_summary(self):
+        schedule = self._selected_schedule()
+        if not schedule:
+            self.planning_screen_badge.setText("Nenhum planejamento selecionado")
+            self.planning_origin_badge.setText("Origem: -")
+            self.planning_status_badge.setText("Situação: -")
+            self.planning_period_badge.setText("Período: -")
+            self.planning_volume_badge.setText("Itens: 0 | Pendentes: 0 | Concluídos: 0")
+            self.planning_capacity_badge.setText("Capacidade diária: -")
+            self.planning_package_badge.setText("Pacote: sem pacote")
+            return
+
+        resumo = schedule.get("resumo") or {}
+        title = str(schedule.get("title") or f"Programação #{schedule.get('id')}")
+        self.planning_screen_badge.setText(f"Selecionado: {title}")
+        self.planning_origin_badge.setText(
+            f"Origem: {SOURCE_LABELS.get(_schedule_source_code(schedule), schedule.get('source_type') or '-')}"
+        )
+        self.planning_status_badge.setText(
+            f"Situação: {SCHEDULE_STATUS_LABELS.get(str(schedule.get('status') or '').upper(), schedule.get('status') or '-')}"
+        )
+        self.planning_period_badge.setText(f"Período: {self._schedule_period_label(schedule)}")
+        self.planning_volume_badge.setText(
+            f"Itens: {int(resumo.get('total', 0) or 0)} | Pendentes: {int(resumo.get('pendentes', 0) or 0)} | Concluídos: {int(resumo.get('instalados', 0) or 0)}"
+        )
+        self.planning_capacity_badge.setText(f"Capacidade diária: {int(schedule.get('daily_capacity') or 1)}")
+        self.planning_package_badge.setText(
+            f"Pacote: {str(schedule.get('package_reference_label') or 'sem pacote')}"
+        )
 
     def render_selected_schedule_items(self):
         schedule = self._selected_schedule()
