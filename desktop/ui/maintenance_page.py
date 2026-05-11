@@ -474,6 +474,7 @@ class MaintenancePage(QFrame):
         shell.setSpacing(0)
 
         scroll = QScrollArea()
+        self.scroll_area = scroll
         scroll.setWidgetResizable(True)
         scroll.setHorizontalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
         scroll.setFrameShape(QFrame.NoFrame)
@@ -495,10 +496,10 @@ class MaintenancePage(QFrame):
         header.setSpacing(10)
         text_wrap = QVBoxLayout()
         text_wrap.setSpacing(3)
-        title = QLabel("Programação de manutenção")
+        title = QLabel("Home da manutenção")
         title.setObjectName("PageTitle")
         subtitle = QLabel(
-            "Planeje a manutenção, acompanhe a agenda, organize os serviços e controle as peças do período."
+            "Veja os indicadores da oficina, use os filtros do período, acompanhe o cronograma e abra a tela certa para trabalhar."
         )
         subtitle.setObjectName("PageSubtitle")
         subtitle.setWordWrap(True)
@@ -530,10 +531,18 @@ class MaintenancePage(QFrame):
         self.items_card = StatCard("Serviços do mês", "0", "Clique para abrir os serviços do período selecionado", icon_name="reports")
         self.pending_card = StatCard("Serviços pendentes", "0", "Clique para focar o que ainda precisa de ação", icon_name="warning")
         self.installed_card = StatCard("Serviços concluídos", "0", "Clique para revisar as conclusões do período", icon_name="ok")
+        self.overdue_os_card = StatCard("OS atrasadas", "0", "Clique para abrir a área das ordens em atraso", icon_name="warning")
+        self.waiting_parts_card = StatCard("Aguardando peça", "0", "Clique para abrir a área das peças que estão travando", icon_name="warning")
+        self.no_responsible_card = StatCard("Sem responsável", "0", "Clique para abrir a área dos serviços sem dono", icon_name="activities")
+        self.blockers_card = StatCard("Bloqueios ativos", "0", "Clique para abrir a área dos travamentos atuais", icon_name="dashboard")
         cards_layout.addWidget(self.schedules_card, 0, 0)
         cards_layout.addWidget(self.items_card, 0, 1)
         cards_layout.addWidget(self.pending_card, 0, 2)
         cards_layout.addWidget(self.installed_card, 0, 3)
+        cards_layout.addWidget(self.overdue_os_card, 1, 0)
+        cards_layout.addWidget(self.waiting_parts_card, 1, 1)
+        cards_layout.addWidget(self.no_responsible_card, 1, 2)
+        cards_layout.addWidget(self.blockers_card, 1, 3)
 
         filter_card = QFrame()
         style_filter_bar(filter_card)
@@ -581,6 +590,60 @@ class MaintenancePage(QFrame):
         filter_layout.addWidget(apply_button, 1, 3)
         filter_layout.addWidget(clear_button, 1, 4)
         filter_layout.setColumnStretch(5, 1)
+
+        screens_card = QFrame()
+        style_filter_bar(screens_card)
+        screens_layout = QVBoxLayout(screens_card)
+        screens_layout.setContentsMargins(12, 10, 12, 10)
+        screens_layout.setSpacing(8)
+
+        screens_top = QHBoxLayout()
+        screens_title = QLabel("Telas da manutenção")
+        screens_title.setObjectName("SectionTitle")
+        self.current_screen_badge = QLabel("Tela atual: Home da manutenção")
+        self.current_screen_badge.setObjectName("TopBarPill")
+        screens_top.addWidget(screens_title)
+        screens_top.addStretch()
+        screens_top.addWidget(self.current_screen_badge)
+
+        screens_hint = QLabel(
+            "Use os botões abaixo para abrir a tela certa. A ideia aqui é igual oficina organizada: um assunto por vez, sem misturar tudo no mesmo lugar."
+        )
+        screens_hint.setObjectName("PageSubtitle")
+        screens_hint.setWordWrap(True)
+
+        screens_buttons = QHBoxLayout()
+        screens_buttons.setSpacing(8)
+        self.programacoes_screen_button = QPushButton("Programações")
+        self.programacoes_screen_button.clicked.connect(lambda: self._open_maintenance_screen("PROGRAMACOES"))
+        self.agenda_screen_button = QPushButton("Agenda")
+        self.agenda_screen_button.clicked.connect(lambda: self._open_maintenance_screen("AGENDA"))
+        self.servicos_screen_button = QPushButton("Serviços")
+        self.servicos_screen_button.clicked.connect(lambda: self._open_maintenance_screen("SERVICOS"))
+        self.responsaveis_screen_button = QPushButton("Responsáveis")
+        self.responsaveis_screen_button.clicked.connect(lambda: self._open_maintenance_screen("RESPONSAVEIS"))
+        self.pecas_screen_button = QPushButton("Peças")
+        self.pecas_screen_button.clicked.connect(lambda: self._open_maintenance_screen("PECAS"))
+        self.os_screen_button = QPushButton("OS")
+        self.os_screen_button.clicked.connect(lambda: self._open_maintenance_screen("OS"))
+        self.bloqueios_screen_button = QPushButton("Bloqueios")
+        self.bloqueios_screen_button.clicked.connect(lambda: self._open_maintenance_screen("BLOQUEIOS"))
+        for button in (
+            self.programacoes_screen_button,
+            self.agenda_screen_button,
+            self.servicos_screen_button,
+            self.responsaveis_screen_button,
+            self.pecas_screen_button,
+            self.os_screen_button,
+            self.bloqueios_screen_button,
+        ):
+            button.setMinimumHeight(34)
+            screens_buttons.addWidget(button)
+        screens_buttons.addStretch(1)
+
+        screens_layout.addLayout(screens_top)
+        screens_layout.addWidget(screens_hint)
+        screens_layout.addLayout(screens_buttons)
 
         reports_card = QFrame()
         style_filter_bar(reports_card)
@@ -1008,10 +1071,12 @@ class MaintenancePage(QFrame):
         self.tab_execucao_index = self.tabs.addTab(execucao_tab, "Serviços")
         self.tab_governanca_index = self.tabs.addTab(governanca_tab, "Responsável e Peças")
         self.tab_relatorios_index = self.tabs.addTab(relatorios_tab, "Relatório")
+        self.tabs.tabBar().hide()
 
         layout.addWidget(header_frame)
         layout.addLayout(cards_layout)
         layout.addWidget(filter_card)
+        layout.addWidget(screens_card)
         layout.addWidget(calendar_card)
         layout.addWidget(self.tabs, 1)
 
@@ -1047,28 +1112,74 @@ class MaintenancePage(QFrame):
         self.apply_filters()
 
     def _bind_summary_cards_to_actions(self):
-        self.schedules_card.setToolTip("Abrir aba Planejamento")
-        self.items_card.setToolTip("Abrir aba Serviços com todos os itens")
-        self.pending_card.setToolTip("Abrir aba Serviços com pendentes")
-        self.installed_card.setToolTip("Abrir aba Serviços com concluídos")
+        self.schedules_card.setToolTip("Abrir tela de Programações")
+        self.items_card.setToolTip("Abrir tela de Serviços com todos os itens")
+        self.pending_card.setToolTip("Abrir tela de Serviços focando pendências")
+        self.installed_card.setToolTip("Abrir tela de Serviços focando conclusões")
+        self.overdue_os_card.setToolTip("Abrir área de OS em atraso")
+        self.waiting_parts_card.setToolTip("Abrir área de Peças aguardando liberação")
+        self.no_responsible_card.setToolTip("Abrir área de Responsáveis sem definição")
+        self.blockers_card.setToolTip("Abrir área de Bloqueios")
 
         self.schedules_card.mousePressEvent = lambda event: self._handle_summary_card_click("PROGRAMACOES")
         self.items_card.mousePressEvent = lambda event: self._handle_summary_card_click("ITENS")
         self.pending_card.mousePressEvent = lambda event: self._handle_summary_card_click("PENDENTES")
         self.installed_card.mousePressEvent = lambda event: self._handle_summary_card_click("INSTALADOS")
+        self.overdue_os_card.mousePressEvent = lambda event: self._handle_summary_card_click("OS_ATRASADAS")
+        self.waiting_parts_card.mousePressEvent = lambda event: self._handle_summary_card_click("AGUARDANDO_PECA")
+        self.no_responsible_card.mousePressEvent = lambda event: self._handle_summary_card_click("SEM_RESPONSAVEL")
+        self.blockers_card.mousePressEvent = lambda event: self._handle_summary_card_click("BLOQUEIOS")
 
     def _handle_summary_card_click(self, key: str):
         if key == "PROGRAMACOES":
-            self.tabs.setCurrentIndex(self.tab_programacoes_index)
+            self._open_maintenance_screen("PROGRAMACOES")
             return
-        self.tabs.setCurrentIndex(self.tab_execucao_index)
         if key == "PENDENTES":
+            self._open_maintenance_screen("SERVICOS")
             self._set_item_status_filter("PENDENTES")
         elif key == "INSTALADOS":
+            self._open_maintenance_screen("SERVICOS")
             self._set_item_status_filter("INSTALADO")
+        elif key == "OS_ATRASADAS":
+            self._open_maintenance_screen("OS")
+        elif key == "AGUARDANDO_PECA":
+            self._open_maintenance_screen("PECAS")
+        elif key == "SEM_RESPONSAVEL":
+            self._open_maintenance_screen("RESPONSAVEIS")
+        elif key == "BLOQUEIOS":
+            self._open_maintenance_screen("BLOQUEIOS")
         else:
+            self._open_maintenance_screen("SERVICOS")
             self._set_item_status_filter("ALL")
         self.render_selected_schedule_items()
+
+    def _open_maintenance_screen(self, screen_key: str):
+        labels = {
+            "PROGRAMACOES": "Programações",
+            "AGENDA": "Agenda",
+            "SERVICOS": "Serviços",
+            "RESPONSAVEIS": "Responsáveis",
+            "PECAS": "Peças",
+            "OS": "OS",
+            "BLOQUEIOS": "Bloqueios",
+        }
+        label = labels.get(screen_key, "Home da manutenção")
+        self.current_screen_badge.setText(f"Tela atual: {label}")
+        if screen_key == "PROGRAMACOES":
+            self.tabs.setCurrentIndex(self.tab_programacoes_index)
+            self.scroll_area.ensureWidgetVisible(self.tabs, 24, 24)
+            return
+        if screen_key == "AGENDA":
+            self.scroll_area.ensureWidgetVisible(self.calendar_table, 24, 24)
+            return
+        if screen_key in {"SERVICOS", "OS", "BLOQUEIOS"}:
+            self.tabs.setCurrentIndex(self.tab_execucao_index)
+            self.scroll_area.ensureWidgetVisible(self.tabs, 24, 24)
+            return
+        if screen_key in {"RESPONSAVEIS", "PECAS"}:
+            self.tabs.setCurrentIndex(self.tab_governanca_index)
+            self.scroll_area.ensureWidgetVisible(self.tabs, 24, 24)
+            return
 
     def _set_item_status_filter(self, status_code: str):
         index = self.item_status_filter.findData(status_code)
@@ -1562,6 +1673,33 @@ class MaintenancePage(QFrame):
 
     def _render_summary(self):
         summary = (self.overview or {}).get("resumo") or {}
+        today_iso = QDate.currentDate().toString("yyyy-MM-dd")
+        overdue_orders = 0
+        no_responsible = 0
+        active_blockers = 0
+        for schedule in self.filtered_schedules:
+            blockers = schedule.get("bloqueios_resumo") or {}
+            has_blocker = False
+            if blockers.get("sem_responsavel") or not schedule.get("assigned_mechanic_user_id"):
+                no_responsible += 1
+                has_blocker = True
+            if int(blockers.get("materiais_bloqueados") or 0) > 0:
+                has_blocker = True
+            if int(blockers.get("ordens_bloqueadas") or 0) > 0:
+                has_blocker = True
+            if has_blocker:
+                active_blockers += 1
+            for item in schedule.get("itens") or []:
+                work_order = item.get("work_order") or {}
+                item_status = str(item.get("status") or "").upper()
+                scheduled_date = str(item.get("scheduled_date") or "")[:10]
+                if (
+                    int(work_order.get("id") or 0)
+                    and scheduled_date
+                    and scheduled_date < today_iso
+                    and item_status not in {"INSTALADO", "CANCELADO"}
+                ):
+                    overdue_orders += 1
         self.schedules_card.set_content("Programações abertas", str(summary.get("programacoes", 0)), "Clique para abrir o planejamento do período")
         self.items_card.set_content("Serviços do mês", str(summary.get("itens", 0)), "Clique para abrir os serviços do período selecionado")
         self.pending_card.set_content(
@@ -1573,6 +1711,26 @@ class MaintenancePage(QFrame):
             "Serviços concluídos",
             str(summary.get("instalados", 0)),
             f"Não executados: {summary.get('nao_executados', 0)}",
+        )
+        self.overdue_os_card.set_content(
+            "OS atrasadas",
+            str(overdue_orders),
+            "Ordens com data passada e pendência de execução.",
+        )
+        self.waiting_parts_card.set_content(
+            "Aguardando peça",
+            str(summary.get("aguardando_material", 0)),
+            "Serviços travados esperando peça para liberar.",
+        )
+        self.no_responsible_card.set_content(
+            "Sem responsável",
+            str(no_responsible),
+            "Programações que ainda estão sem mecânico definido.",
+        )
+        self.blockers_card.set_content(
+            "Bloqueios ativos",
+            str(active_blockers),
+            f"OS bloqueadas: {summary.get('os_bloqueadas', 0)} | veja os travamentos do período.",
         )
         self.schedules_badge.setText(f"{len(self.filtered_schedules)} registros")
 
