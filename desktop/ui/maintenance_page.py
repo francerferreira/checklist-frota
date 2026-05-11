@@ -935,6 +935,111 @@ class MaintenancePage(QFrame):
         services_screen_layout.addLayout(services_summary_layout)
         services_screen_layout.addLayout(services_actions)
 
+        os_screen_card = QFrame()
+        style_filter_bar(os_screen_card)
+        self.os_screen_card = os_screen_card
+        os_screen_layout = QVBoxLayout(os_screen_card)
+        os_screen_layout.setContentsMargins(12, 10, 12, 10)
+        os_screen_layout.setSpacing(8)
+
+        os_screen_top = QHBoxLayout()
+        os_screen_title = QLabel("Tela de OS")
+        os_screen_title.setObjectName("SectionTitle")
+        self.os_screen_badge = QLabel("Nenhum planejamento selecionado")
+        self.os_screen_badge.setObjectName("TopBarPill")
+        os_screen_top.addWidget(os_screen_title)
+        os_screen_top.addStretch()
+        os_screen_top.addWidget(self.os_screen_badge)
+
+        os_screen_hint = QLabel(
+            "Aqui fica o balcão das ordens de serviço. Pense como a comanda oficial da oficina: você enxerga quais OS estão abertas, atrasadas, bloqueadas ou concluídas."
+        )
+        os_screen_hint.setObjectName("PageSubtitle")
+        os_screen_hint.setWordWrap(True)
+
+        os_summary_layout = QGridLayout()
+        os_summary_layout.setHorizontalSpacing(8)
+        os_summary_layout.setVerticalSpacing(6)
+        self.os_scope_badge = QLabel("Escopo: todos os dias")
+        self.os_scope_badge.setObjectName("TopBarPill")
+        self.os_filter_badge = QLabel("Filtro: todas as OS")
+        self.os_filter_badge.setObjectName("TopBarPill")
+        self.os_volume_badge = QLabel("OS: 0 | Selecionadas: 0")
+        self.os_volume_badge.setObjectName("TopBarPill")
+        self.os_blockers_badge = QLabel("Atrasadas: 0 | Bloqueadas: 0 | Concluídas: 0")
+        self.os_blockers_badge.setObjectName("TopBarPill")
+        os_summary_layout.addWidget(self.os_scope_badge, 0, 0)
+        os_summary_layout.addWidget(self.os_filter_badge, 0, 1)
+        os_summary_layout.addWidget(self.os_volume_badge, 1, 0)
+        os_summary_layout.addWidget(self.os_blockers_badge, 1, 1)
+
+        os_actions = QHBoxLayout()
+        os_actions.setSpacing(8)
+        self.os_filter_combo = QComboBox()
+        self.os_filter_combo.addItem("Todas as OS", "ALL")
+        self.os_filter_combo.addItem("OS abertas", "ABERTAS")
+        self.os_filter_combo.addItem("OS atrasadas", "ATRASADAS")
+        self.os_filter_combo.addItem("OS bloqueadas", "BLOQUEADAS")
+        self.os_filter_combo.addItem("OS concluídas", "CONCLUIDAS")
+        self.os_filter_combo.currentIndexChanged.connect(self._render_os_table)
+        self.os_export_button = QPushButton("Exportar OS selecionada")
+        self.os_export_button.setMinimumHeight(34)
+        self.os_export_button.clicked.connect(self.export_selected_os_from_screen)
+        self.os_open_services_button = QPushButton("Abrir serviços")
+        self.os_open_services_button.setMinimumHeight(34)
+        self.os_open_services_button.clicked.connect(lambda: self._open_maintenance_screen("SERVICOS"))
+        self.os_back_home_button = QPushButton("Voltar para home")
+        self.os_back_home_button.setMinimumHeight(34)
+        self.os_back_home_button.clicked.connect(self._go_to_maintenance_home)
+        os_actions.addWidget(QLabel("Filtro"))
+        os_actions.addWidget(self.os_filter_combo)
+        os_actions.addWidget(self.os_export_button)
+        os_actions.addWidget(self.os_open_services_button)
+        os_actions.addWidget(self.os_back_home_button)
+        os_actions.addStretch(1)
+
+        os_table_card = QFrame()
+        style_table_card(os_table_card)
+        os_table_layout = QVBoxLayout(os_table_card)
+        os_table_layout.setContentsMargins(12, 10, 12, 10)
+        os_table_layout.setSpacing(8)
+
+        os_table_hint = QLabel(
+            "Clique em uma OS para conferir a comanda. Dê duplo clique para exportar o PDF rico daquela ordem."
+        )
+        os_table_hint.setObjectName("PageSubtitle")
+        os_table_hint.setWordWrap(True)
+
+        self.os_table = QTableWidget(0, 8)
+        self.os_table.setHorizontalHeaderLabels(
+            [
+                "ID item",
+                "OS",
+                "Veículo",
+                "Serviço",
+                "Data",
+                "Situação",
+                "Execução",
+                "Material",
+            ]
+        )
+        configure_table(self.os_table, stretch_last=True)
+        self.os_table.setColumnHidden(0, True)
+        self.os_table.setSelectionBehavior(QAbstractItemView.SelectRows)
+        self.os_table.setSelectionMode(QAbstractItemView.SingleSelection)
+        self.os_table.itemSelectionChanged.connect(self._update_os_selection_badge)
+        self.os_table.itemDoubleClicked.connect(self.export_selected_os_from_screen)
+        self.os_table.setMinimumHeight(280)
+
+        os_table_layout.addWidget(os_table_hint)
+        os_table_layout.addWidget(self.os_table)
+
+        os_screen_layout.addLayout(os_screen_top)
+        os_screen_layout.addWidget(os_screen_hint)
+        os_screen_layout.addLayout(os_summary_layout)
+        os_screen_layout.addLayout(os_actions)
+        os_screen_layout.addWidget(os_table_card)
+
         responsible_screen_card = QFrame()
         style_filter_bar(responsible_screen_card)
         self.responsible_screen_card = responsible_screen_card
@@ -1454,6 +1559,7 @@ class MaintenancePage(QFrame):
         execucao_layout.setContentsMargins(0, 0, 0, 0)
         execucao_layout.setSpacing(10)
         execucao_layout.addWidget(services_screen_card)
+        execucao_layout.addWidget(os_screen_card)
         execucao_layout.addWidget(action_card)
         execucao_layout.addWidget(details_card, 1)
 
@@ -1557,6 +1663,7 @@ class MaintenancePage(QFrame):
             self._open_maintenance_screen("SERVICOS")
             self._set_item_status_filter("INSTALADO")
         elif key == "OS_ATRASADAS":
+            self._set_os_filter("ATRASADAS")
             self._open_maintenance_screen("OS")
         elif key == "AGUARDANDO_PECA":
             self._set_pieces_filter("AGUARDANDO_MATERIAL")
@@ -1591,9 +1698,13 @@ class MaintenancePage(QFrame):
             self.tabs.setCurrentIndex(self.tab_agenda_index)
             self.scroll_area.ensureWidgetVisible(self.tabs, 24, 24)
             return
-        if screen_key in {"SERVICOS", "OS", "BLOQUEIOS"}:
+        if screen_key in {"SERVICOS", "BLOQUEIOS"}:
             self.tabs.setCurrentIndex(self.tab_execucao_index)
             self.scroll_area.ensureWidgetVisible(self.tabs, 24, 24)
+            return
+        if screen_key == "OS":
+            self.tabs.setCurrentIndex(self.tab_execucao_index)
+            self.scroll_area.ensureWidgetVisible(self.os_screen_card, 24, 24)
             return
         if screen_key == "RESPONSAVEIS":
             self.tabs.setCurrentIndex(self.tab_governanca_index)
@@ -1619,6 +1730,12 @@ class MaintenancePage(QFrame):
         if index < 0:
             index = 0
         self.pieces_filter_combo.setCurrentIndex(index)
+
+    def _set_os_filter(self, filter_code: str):
+        index = self.os_filter_combo.findData(filter_code)
+        if index < 0:
+            index = 0
+        self.os_filter_combo.setCurrentIndex(index)
 
     def _open_services_for_selected_day(self):
         if not self.selected_calendar_day_iso:
@@ -1884,6 +2001,7 @@ class MaintenancePage(QFrame):
 
         self._render_summary()
         self._render_schedules_table()
+        self._render_os_table()
         self._render_responsible_table()
         self.render_selected_schedule_items()
         self.render_selected_schedule_materials()
@@ -2016,7 +2134,10 @@ class MaintenancePage(QFrame):
         if not selected_items:
             show_notice(self, "Seleção obrigatória", "Selecione um item com OS para exportar.", icon_name="warning")
             return
-        work_order = (selected_items[0].get("work_order") or {})
+        self._export_item_work_order_pdf(selected_items[0])
+
+    def _export_item_work_order_pdf(self, item: dict):
+        work_order = (item.get("work_order") or {})
         work_order_id = int(work_order.get("id") or 0)
         order_number = str(work_order.get("order_number") or "os")
         if not work_order_id:
@@ -2036,6 +2157,13 @@ class MaintenancePage(QFrame):
             return filename
 
         start_export_task_with_preset(self, "maintenance_pdf", task)
+
+    def export_selected_os_from_screen(self):
+        item = self._selected_os_payload()
+        if not item:
+            show_notice(self, "Seleção obrigatória", "Selecione uma OS da tabela para exportar.", icon_name="warning")
+            return
+        self._export_item_work_order_pdf(item)
 
     def assign_schedule_mechanic(self):
         schedule = self._selected_schedule()
@@ -2188,6 +2316,120 @@ class MaintenancePage(QFrame):
         self.material_suggestion_badge.setText("Sugestão de peça: use o botão para buscar a peça mais provável para este planejamento.")
         self._sync_material_form_with_link()
         self._refresh_pieces_screen_summary(schedule, materials)
+
+    def _visible_os_items_for_current_context(self, schedule: dict) -> list[dict]:
+        items = list(schedule.get("itens") or [])
+        if self.selected_calendar_day_iso:
+            items = [item for item in items if str(item.get("scheduled_date") or "")[:10] == self.selected_calendar_day_iso]
+        items = [item for item in items if int(((item.get("work_order") or {}).get("id") or 0)) > 0]
+        filter_code = self.os_filter_combo.currentData() if hasattr(self, "os_filter_combo") else "ALL"
+        today_iso = QDate.currentDate().toString("yyyy-MM-dd")
+
+        def is_open(row: dict) -> bool:
+            status = str(row.get("status") or "").upper()
+            return status not in {"INSTALADO", "CANCELADO"}
+
+        if filter_code == "ABERTAS":
+            items = [item for item in items if is_open(item)]
+        elif filter_code == "ATRASADAS":
+            items = [
+                item
+                for item in items
+                if is_open(item) and str(item.get("scheduled_date") or "")[:10] and str(item.get("scheduled_date") or "")[:10] < today_iso
+            ]
+        elif filter_code == "BLOQUEADAS":
+            items = [item for item in items if str(item.get("status") or "").upper() == "AGUARDANDO_MATERIAL"]
+        elif filter_code == "CONCLUIDAS":
+            items = [item for item in items if str(item.get("status") or "").upper() == "INSTALADO"]
+        return items
+
+    def _render_os_table(self):
+        schedule = self._selected_schedule()
+        if not schedule:
+            self.os_table.setRowCount(0)
+            self._refresh_os_screen_summary(None, [])
+            return
+
+        items = self._visible_os_items_for_current_context(schedule)
+        material_text = self._material_summary_for_schedule(schedule)
+        self.os_table.setSortingEnabled(False)
+        self.os_table.setUpdatesEnabled(False)
+        self.os_table.blockSignals(True)
+        try:
+            self.os_table.setRowCount(len(items))
+            for row_index, item in enumerate(items):
+                work_order = item.get("work_order") or {}
+                vehicle = item.get("vehicle") or {}
+                values = [
+                    item.get("id"),
+                    work_order.get("order_number") or "-",
+                    self._vehicle_table_label(vehicle),
+                    self._item_label(item, schedule),
+                    self._format_date(item.get("scheduled_date")),
+                    ITEM_STATUS_LABELS.get(str(item.get("status") or "").upper(), item.get("status") or "-"),
+                    self._execution_label(item),
+                    material_text,
+                ]
+                for column, value in enumerate(values):
+                    payload = item if column == 0 else None
+                    self.os_table.setItem(row_index, column, make_table_item(value, payload=payload))
+        finally:
+            self.os_table.blockSignals(False)
+            self.os_table.setUpdatesEnabled(True)
+            self.os_table.setSortingEnabled(True)
+        self._refresh_os_screen_summary(schedule, items)
+
+    def _selected_os_payload(self) -> dict | None:
+        model = self.os_table.selectionModel()
+        if not model:
+            return None
+        selected_rows = model.selectedRows()
+        if not selected_rows:
+            current_row = self.os_table.currentRow()
+            if current_row < 0:
+                return None
+            cell = self.os_table.item(current_row, 0)
+            return cell.data(Qt.UserRole) if cell else None
+        cell = self.os_table.item(selected_rows[0].row(), 0)
+        return cell.data(Qt.UserRole) if cell else None
+
+    def _update_os_selection_badge(self):
+        schedule = self._selected_schedule()
+        if schedule:
+            items = self._visible_os_items_for_current_context(schedule)
+            self._refresh_os_screen_summary(schedule, items)
+
+    def _refresh_os_screen_summary(self, schedule: dict | None, items: list[dict]):
+        if not schedule:
+            self.os_screen_badge.setText("Nenhum planejamento selecionado")
+            self.os_scope_badge.setText("Escopo: selecione um planejamento")
+            self.os_filter_badge.setText("Filtro: todas as OS")
+            self.os_volume_badge.setText("OS: 0 | Selecionadas: 0")
+            self.os_blockers_badge.setText("Atrasadas: 0 | Bloqueadas: 0 | Concluídas: 0")
+            self.os_export_button.setEnabled(False)
+            return
+
+        selected_count = 1 if self._selected_os_payload() else 0
+        today_iso = QDate.currentDate().toString("yyyy-MM-dd")
+        overdue = sum(
+            1
+            for item in items
+            if str(item.get("status") or "").upper() not in {"INSTALADO", "CANCELADO"}
+            and str(item.get("scheduled_date") or "")[:10]
+            and str(item.get("scheduled_date") or "")[:10] < today_iso
+        )
+        blocked = sum(1 for item in items if str(item.get("status") or "").upper() == "AGUARDANDO_MATERIAL")
+        completed = sum(1 for item in items if str(item.get("status") or "").upper() == "INSTALADO")
+        title = str(schedule.get("title") or f"#{schedule.get('id')}")
+        self.os_screen_badge.setText(f"Planejamento: {title}")
+        if self.selected_calendar_day_iso:
+            self.os_scope_badge.setText(f"Escopo: dia {self._format_date(self.selected_calendar_day_iso)}")
+        else:
+            self.os_scope_badge.setText("Escopo: todos os dias do planejamento")
+        self.os_filter_badge.setText(f"Filtro: {str(self.os_filter_combo.currentText() or 'Todas as OS')}")
+        self.os_volume_badge.setText(f"OS: {len(items)} | Selecionadas: {selected_count}")
+        self.os_blockers_badge.setText(f"Atrasadas: {overdue} | Bloqueadas: {blocked} | Concluídas: {completed}")
+        self.os_export_button.setEnabled(selected_count > 0)
 
     def _visible_material_links_for_current_context(self, schedule: dict) -> list[dict]:
         materials = list(schedule.get("materiais") or [])
@@ -2602,6 +2844,7 @@ class MaintenancePage(QFrame):
             self.selected_schedule_id = None
             self.selected_calendar_day_iso = None
             self._refresh_planning_screen_summary()
+            self._render_os_table()
             self._render_responsible_table()
             self.render_selected_schedule_items()
             self.render_selected_schedule_materials()
@@ -2614,6 +2857,7 @@ class MaintenancePage(QFrame):
         self.selected_schedule_id = int(payload.get("id"))
         self.selected_calendar_day_iso = None
         self._refresh_planning_screen_summary()
+        self._render_os_table()
         self._render_responsible_table()
         self.render_selected_schedule_items()
         self.render_selected_schedule_materials()
@@ -2629,6 +2873,7 @@ class MaintenancePage(QFrame):
         self._refresh_calendar_selection_badge()
         self._render_agenda_days_table()
         self.render_selected_schedule_items()
+        self._render_os_table()
 
     def _on_agenda_day_selection_changed(self):
         selected_rows = self.agenda_days_table.selectionModel().selectedRows() if self.agenda_days_table.selectionModel() else []
@@ -2642,6 +2887,7 @@ class MaintenancePage(QFrame):
         self._refresh_calendar_selection_badge()
         self._refresh_agenda_screen_summary()
         self.render_selected_schedule_items()
+        self._render_os_table()
 
     def _on_responsible_schedule_selection_changed(self):
         selected_rows = self.responsible_table.selectionModel().selectedRows() if self.responsible_table.selectionModel() else []
@@ -2657,6 +2903,7 @@ class MaintenancePage(QFrame):
             [row for row in self.filtered_schedules if int(row.get("id") or 0) == self.selected_schedule_id] or self.filtered_schedules,
             self._responsible_metrics_map(),
         )
+        self._render_os_table()
         self.render_selected_schedule_items()
         self.render_selected_schedule_materials()
         self._render_calendar_table()
@@ -2668,6 +2915,7 @@ class MaintenancePage(QFrame):
         self._refresh_calendar_selection_badge()
         self._render_agenda_days_table()
         self.render_selected_schedule_items()
+        self._render_os_table()
 
     def _refresh_calendar_selection_badge(self):
         if not self.selected_calendar_day_iso:
