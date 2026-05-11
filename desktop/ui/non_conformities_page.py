@@ -644,13 +644,13 @@ class NonConformitiesPage(QFrame):
 
         actions = QHBoxLayout()
         actions.setSpacing(8)
-        self.open_button = QPushButton("Abrir selecionada")
+        self.open_button = QPushButton("Abrir detalhes da linha")
         self.open_button.setMinimumHeight(34)
         self.open_button.clicked.connect(self.open_selected_item)
-        self.open_item_screen_button = QPushButton("Abrir tela por item")
+        self.open_item_screen_button = QPushButton("Ver todos do mesmo item")
         self.open_item_screen_button.setMinimumHeight(34)
         self.open_item_screen_button.clicked.connect(self.open_selected_item_screen)
-        self.open_equipment_screen_button = QPushButton("Abrir tela por equipamento")
+        self.open_equipment_screen_button = QPushButton("Ver todos do mesmo equipamento")
         self.open_equipment_screen_button.setMinimumHeight(34)
         self.open_equipment_screen_button.clicked.connect(self.open_selected_equipment_screen)
         self.create_activity_button = QPushButton("Abrir inspeção de apoio")
@@ -674,6 +674,15 @@ class NonConformitiesPage(QFrame):
         header.addLayout(text_wrap)
         header.addStretch()
         header.addLayout(actions)
+
+        self.selection_badge = QLabel("Nenhuma linha escolhida")
+        self.selection_badge.setObjectName("TopBarPill")
+        self.selection_help = QLabel(
+            "1. Clique em uma linha da tabela principal. 2. Use 'Abrir detalhes da linha' para ver aquela NC. "
+            "Use 'Ver todos do mesmo item' ou 'Ver todos do mesmo equipamento' para abrir uma tela agrupada."
+        )
+        self.selection_help.setObjectName("SectionCaption")
+        self.selection_help.setWordWrap(True)
 
         summary_cards = QGridLayout()
         summary_cards.setSpacing(8)
@@ -795,6 +804,8 @@ class NonConformitiesPage(QFrame):
         self.table.itemDoubleClicked.connect(self.open_item_details)
 
         table_layout.addLayout(top_row)
+        table_layout.addWidget(self.selection_badge)
+        table_layout.addWidget(self.selection_help)
         table_layout.addWidget(table_caption)
         table_layout.addWidget(self.table, 1)
 
@@ -956,14 +967,34 @@ class NonConformitiesPage(QFrame):
         return user.get("tipo") in {"admin", "gestor"}
 
     def _set_action_state(self, enabled: bool):
-        self.open_button.setEnabled(enabled)
-        self.open_item_screen_button.setEnabled(enabled)
-        self.open_equipment_screen_button.setEnabled(enabled)
-        self.create_activity_button.setEnabled(enabled and not (self.current_item or {}).get("resolvido", False))
+        selected_count = len(self._selected_rows())
+        has_single_selection = selected_count == 1 and enabled
+        self.open_button.setEnabled(has_single_selection)
+        self.open_item_screen_button.setEnabled(has_single_selection)
+        self.open_equipment_screen_button.setEnabled(has_single_selection)
+        self.create_activity_button.setEnabled(has_single_selection and not (self.current_item or {}).get("resolvido", False))
         self.create_package_button.setEnabled(
             self._user_has_management_access() and bool(self._package_modes_for_items(self._selected_items_for_package()))
         )
-        self.resolve_button.setEnabled(enabled and not (self.current_item or {}).get("resolvido", False))
+        self.resolve_button.setEnabled(has_single_selection and not (self.current_item or {}).get("resolvido", False))
+        self._refresh_selection_badge()
+
+    def _refresh_selection_badge(self):
+        selected_rows = self._selected_rows()
+        count = len(selected_rows)
+        if count <= 0:
+            self.selection_badge.setText("Nenhuma linha escolhida")
+            return
+        if count > 1:
+            self.selection_badge.setText(
+                f"{count} linhas escolhidas | Use 'Criar pacote' para trabalhar em lote"
+            )
+            return
+        item = self._item_for_row(selected_rows[0]) or {}
+        vehicle = item.get("veiculo") or {}
+        vehicle_label = vehicle.get("frota") or vehicle.get("placa") or "-"
+        item_label = _nc_label(item)
+        self.selection_badge.setText(f"Linha escolhida: {vehicle_label} - {item_label}")
 
     def _selected_rows(self) -> list[int]:
         ranges = self.table.selectedRanges()
@@ -1058,11 +1089,9 @@ class NonConformitiesPage(QFrame):
         self._populate_blockers_table()
         self._populate_mechanic_table()
         self._populate_packages_table()
-        if self.items:
-            self.table.selectRow(0)
-        else:
-            self.current_item = None
-            self._set_action_state(False)
+        self.table.clearSelection()
+        self.current_item = None
+        self._set_action_state(False)
 
     def _populate_mechanic_table(self):
         self.mechanic_table.setSortingEnabled(False)
@@ -1291,6 +1320,26 @@ class NonConformitiesPage(QFrame):
             return self._item_for_row(selected[0].topRow())
         return self.current_item
 
+    def _require_single_selected_item(self, action_label: str):
+        selected_rows = self._selected_rows()
+        if len(selected_rows) != 1:
+            if not selected_rows:
+                show_notice(
+                    self,
+                    "Escolha uma linha",
+                    f"Para {action_label.lower()}, primeiro clique em uma linha da tabela principal.",
+                    icon_name="warning",
+                )
+            else:
+                show_notice(
+                    self,
+                    "Escolha só uma linha",
+                    f"Para {action_label.lower()}, selecione apenas uma linha. Se a ideia for trabalhar em lote, use 'Criar pacote'.",
+                    icon_name="warning",
+                )
+            return None
+        return self._item_for_row(selected_rows[0])
+
     def open_item_details(self, item=None):
         row_item = self._item_for_row(item.row()) if item is not None else self._selected_item()
         if not row_item:
@@ -1300,10 +1349,15 @@ class NonConformitiesPage(QFrame):
         dialog.exec()
 
     def open_selected_item(self, *_args):
-        self.open_item_details()
+        target_item = self._require_single_selected_item("abrir os detalhes da linha")
+        if not target_item:
+            return
+        self.current_item = target_item
+        dialog = NonConformityDetailDialog(self.api_client, target_item, self)
+        dialog.exec()
 
     def resolve_current_item(self):
-        target_item = self._selected_item()
+        target_item = self._require_single_selected_item("resolver agora")
         if not target_item:
             return
         self.current_item = target_item
@@ -1319,7 +1373,7 @@ class NonConformitiesPage(QFrame):
             self.data_changed.emit()
 
     def create_activity_from_current_item(self):
-        target_item = self._selected_item()
+        target_item = self._require_single_selected_item("abrir a inspeção de apoio")
         if not target_item:
             return
         self.current_item = target_item
@@ -1442,11 +1496,19 @@ class NonConformitiesPage(QFrame):
         table.setHorizontalHeaderLabels(headers)
         configure_table(table, stretch_last=False)
         table.setMinimumHeight(560)
-        table.setRowCount(len(rows))
-        for row_index, row_values in enumerate(rows):
-            payload = row_payloads[row_index] if row_payloads and row_index < len(row_payloads) else None
-            for column, value in enumerate(row_values):
-                table.setItem(row_index, column, make_table_item(value, payload=payload if column == 0 else None))
+        table.setSortingEnabled(False)
+        table.setUpdatesEnabled(False)
+        table.blockSignals(True)
+        try:
+            table.setRowCount(len(rows))
+            for row_index, row_values in enumerate(rows):
+                payload = row_payloads[row_index] if row_payloads and row_index < len(row_payloads) else None
+                for column, value in enumerate(row_values):
+                    table.setItem(row_index, column, make_table_item(value, payload=payload if column == 0 else None))
+        finally:
+            table.blockSignals(False)
+            table.setUpdatesEnabled(True)
+            table.setSortingEnabled(True)
 
         if on_double_click:
             def _handle_double_click(cell):
@@ -1716,13 +1778,13 @@ class NonConformitiesPage(QFrame):
         )
 
     def open_selected_item_screen(self):
-        target_item = self._selected_item()
+        target_item = self._require_single_selected_item("ver todos do mesmo item")
         if not target_item:
             return
         self.open_item_occurrences_screen(str(target_item.get("item_principal") or target_item.get("item_nome") or ""))
 
     def open_selected_equipment_screen(self):
-        target_item = self._selected_item()
+        target_item = self._require_single_selected_item("ver todos do mesmo equipamento")
         if not target_item:
             return
         vehicle = target_item.get("veiculo") or {}
