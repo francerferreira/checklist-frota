@@ -646,23 +646,34 @@ class NonConformitiesPage(QFrame):
         actions.setSpacing(8)
         self.open_button = QPushButton("Abrir detalhes da linha")
         self.open_button.setMinimumHeight(34)
+        self.open_button.setIcon(make_icon("reports", "#E7EBF0", "#2C5EA8", 18))
+        self.open_button.setToolTip("Abre o detalhe completo da linha escolhida.")
         self.open_button.clicked.connect(self.open_selected_item)
         self.open_item_screen_button = QPushButton("Ver todos do mesmo item")
         self.open_item_screen_button.setMinimumHeight(34)
+        self.open_item_screen_button.setIcon(make_icon("dashboard", "#E7EBF0", "#2C5EA8", 18))
+        self.open_item_screen_button.setToolTip("Abre uma tela com todos os veículos que têm esse mesmo item.")
         self.open_item_screen_button.clicked.connect(self.open_selected_item_screen)
         self.open_equipment_screen_button = QPushButton("Ver todos do mesmo equipamento")
         self.open_equipment_screen_button.setMinimumHeight(34)
+        self.open_equipment_screen_button.setIcon(make_icon("activities", "#E7EBF0", "#2C5EA8", 18))
+        self.open_equipment_screen_button.setToolTip("Abre uma tela com todas as não conformidades desse equipamento.")
         self.open_equipment_screen_button.clicked.connect(self.open_selected_equipment_screen)
         self.create_activity_button = QPushButton("Abrir inspeção de apoio")
         self.create_activity_button.setMinimumHeight(34)
         self.create_activity_button.setProperty("variant", "primary")
+        self.create_activity_button.setIcon(make_icon("activities", "#E7EBF0", "#2C5EA8", 18))
+        self.create_activity_button.setToolTip("Cria uma inspeção auxiliar para conferir melhor a linha escolhida.")
         self.create_activity_button.clicked.connect(self.create_activity_from_current_item)
         self.create_package_button = QPushButton("Criar pacote")
         self.create_package_button.setMinimumHeight(34)
+        self.create_package_button.setIcon(make_icon("dashboard", "#E7EBF0", "#2C5EA8", 18))
         self.create_package_button.clicked.connect(self.create_resolution_package_from_selection)
         self.resolve_button = QPushButton("Resolver agora")
         self.resolve_button.setMinimumHeight(34)
         self.resolve_button.setProperty("variant", "success")
+        self.resolve_button.setIcon(make_icon("ok", "#E7EBF0", "#1E7A63", 18))
+        self.resolve_button.setToolTip("Resolve imediatamente a linha escolhida.")
         self.resolve_button.clicked.connect(self.resolve_current_item)
         actions.addWidget(self.open_button)
         actions.addWidget(self.open_item_screen_button)
@@ -674,6 +685,13 @@ class NonConformitiesPage(QFrame):
         header.addLayout(text_wrap)
         header.addStretch()
         header.addLayout(actions)
+
+        self.actions_hint = QLabel(
+            "Botões do topo: primeiro escolha a linha na tabela. Depois abra os detalhes da linha, todos do mesmo item, "
+            "todos do mesmo equipamento ou trabalhe em lote com pacote."
+        )
+        self.actions_hint.setObjectName("SectionCaption")
+        self.actions_hint.setWordWrap(True)
 
         self.selection_badge = QLabel("Nenhuma linha escolhida")
         self.selection_badge.setObjectName("TopBarPill")
@@ -735,22 +753,28 @@ class NonConformitiesPage(QFrame):
         screens_layout = QHBoxLayout(screens_card)
         screens_layout.setContentsMargins(10, 8, 10, 8)
         screens_layout.setSpacing(8)
-        screens_hint = QLabel("Abrir telas da central")
+        screens_hint = QLabel("Abrir visões agrupadas da central")
         screens_hint.setObjectName("SectionCaption")
         screens_layout.addWidget(screens_hint)
         screens_layout.addStretch()
 
-        self.open_item_summary_screen_button = QPushButton("Tela por item")
+        self.open_item_summary_screen_button = QPushButton("Resumo por item")
+        self.open_item_summary_screen_button.setToolTip("Mostra os itens que mais se repetem e quantos veículos estão ligados a cada um.")
         self.open_item_summary_screen_button.clicked.connect(self.open_item_summary_screen)
-        self.open_equipment_summary_screen_button = QPushButton("Tela por equipamento")
+        self.open_equipment_summary_screen_button = QPushButton("Resumo por equipamento")
+        self.open_equipment_summary_screen_button.setToolTip("Mostra os equipamentos com mais não conformidades abertas.")
         self.open_equipment_summary_screen_button.clicked.connect(self.open_equipment_summary_screen)
-        self.open_queue_screen_button = QPushButton("Tela da fila")
+        self.open_queue_screen_button = QPushButton("Resumo da fila")
+        self.open_queue_screen_button.setToolTip("Mostra o que está sem pacote, em pacote ou já em manutenção.")
         self.open_queue_screen_button.clicked.connect(self.open_queue_screen)
-        self.open_blockers_screen_button = QPushButton("Tela de bloqueios")
+        self.open_blockers_screen_button = QPushButton("Resumo de bloqueios")
+        self.open_blockers_screen_button.setToolTip("Mostra onde a resolução travou e o que está impedindo andamento.")
         self.open_blockers_screen_button.clicked.connect(self.open_blockers_screen)
-        self.open_mechanic_screen_button = QPushButton("Tela dos mecânicos")
+        self.open_mechanic_screen_button = QPushButton("Registros dos mecânicos")
+        self.open_mechanic_screen_button.setToolTip("Mostra registros internos abertos e resolvidos pelo módulo mecânico.")
         self.open_mechanic_screen_button.clicked.connect(self.open_mechanic_records_screen)
-        self.open_packages_screen_button = QPushButton("Tela dos pacotes")
+        self.open_packages_screen_button = QPushButton("Resumo dos pacotes")
+        self.open_packages_screen_button.setToolTip("Mostra todos os pacotes de resolução já criados.")
         self.open_packages_screen_button.clicked.connect(self.open_packages_screen)
         for button in (
             self.open_item_summary_screen_button,
@@ -952,6 +976,7 @@ class NonConformitiesPage(QFrame):
         self.packages_tab_index = self.tabs.addTab(packages_tab, "Pacotes de resolução")
 
         outer.addLayout(header)
+        outer.addWidget(self.actions_hint)
         outer.addLayout(summary_cards)
         outer.addWidget(self.filter_card)
         outer.addWidget(screens_card)
@@ -978,6 +1003,45 @@ class NonConformitiesPage(QFrame):
         )
         self.resolve_button.setEnabled(has_single_selection and not (self.current_item or {}).get("resolvido", False))
         self._refresh_selection_badge()
+        self._refresh_package_button_state()
+
+    def _refresh_package_button_state(self):
+        selected_items = self._selected_items_for_package()
+        selected_count = len(selected_items)
+        valid_modes = self._package_modes_for_items(selected_items)
+        can_manage = self._user_has_management_access()
+
+        if not can_manage:
+            self.create_package_button.setText("Criar pacote")
+            self.create_package_button.setToolTip("Somente admin ou gestor pode criar pacote.")
+            return
+
+        if selected_count <= 0:
+            self.create_package_button.setText("Criar pacote")
+            self.create_package_button.setToolTip(
+                "Selecione uma ou mais linhas compatíveis. O pacote funciona em lote por item ou por equipamento."
+            )
+            return
+
+        if not valid_modes:
+            self.create_package_button.setText(f"Criar pacote ({selected_count} linhas)")
+            self.create_package_button.setToolTip(
+                "A seleção mistura itens e equipamentos diferentes. Para criar pacote, escolha o mesmo item ou o mesmo equipamento."
+            )
+            return
+
+        if len(valid_modes) == 2:
+            self.create_package_button.setText(f"Criar pacote guiado ({selected_count})")
+            self.create_package_button.setToolTip(
+                "A seleção permite pacote por item ou por equipamento. Ao abrir, o sistema vai sugerir o melhor agrupamento."
+            )
+            return
+
+        mode_label = "por item" if valid_modes[0] == "POR_ITEM" else "por equipamento"
+        self.create_package_button.setText(f"Criar pacote {mode_label} ({selected_count})")
+        self.create_package_button.setToolTip(
+            f"A seleção está pronta para abrir um pacote {mode_label}."
+        )
 
     def _refresh_selection_badge(self):
         selected_rows = self._selected_rows()
@@ -986,9 +1050,16 @@ class NonConformitiesPage(QFrame):
             self.selection_badge.setText("Nenhuma linha escolhida")
             return
         if count > 1:
-            self.selection_badge.setText(
-                f"{count} linhas escolhidas | Use 'Criar pacote' para trabalhar em lote"
-            )
+            valid_modes = self._package_modes_for_items(self._selected_items_for_package())
+            if not valid_modes:
+                guidance = "Mistura inválida para pacote"
+            elif len(valid_modes) == 2:
+                guidance = "Lote pronto para item ou equipamento"
+            elif valid_modes[0] == "POR_ITEM":
+                guidance = "Lote pronto por item"
+            else:
+                guidance = "Lote pronto por equipamento"
+            self.selection_badge.setText(f"{count} linhas escolhidas | {guidance}")
             return
         item = self._item_for_row(selected_rows[0]) or {}
         vehicle = item.get("veiculo") or {}
@@ -1492,6 +1563,14 @@ class NonConformitiesPage(QFrame):
         badge_row.addStretch()
         badge_row.addWidget(badge)
 
+        dialog_selection_badge = QLabel("Nenhuma linha escolhida nesta tela")
+        dialog_selection_badge.setObjectName("TopBarPill")
+        dialog_selection_help = QLabel(
+            "Clique em uma linha para destacar o registro. Dê duplo clique somente quando quiser abrir o detalhe daquela linha."
+        )
+        dialog_selection_help.setObjectName("SectionCaption")
+        dialog_selection_help.setWordWrap(True)
+
         table = QTableWidget(0, len(headers))
         table.setHorizontalHeaderLabels(headers)
         configure_table(table, stretch_last=False)
@@ -1509,6 +1588,23 @@ class NonConformitiesPage(QFrame):
             table.blockSignals(False)
             table.setUpdatesEnabled(True)
             table.setSortingEnabled(True)
+
+        def _refresh_dialog_selection_badge():
+            selected_rows = table.selectionModel().selectedRows() if table.selectionModel() else []
+            if not selected_rows:
+                dialog_selection_badge.setText("Nenhuma linha escolhida nesta tela")
+                return
+            payload = self._row_payload(table, selected_rows[0].row()) or {}
+            label_parts = []
+            if payload.get("item_name"):
+                label_parts.append(str(payload.get("item_name")))
+            if payload.get("vehicle_label"):
+                label_parts.append(str(payload.get("vehicle_label")))
+            if not label_parts:
+                label_parts.append(str(table.item(selected_rows[0].row(), 0).text() if table.item(selected_rows[0].row(), 0) else "-"))
+            dialog_selection_badge.setText(f"Linha escolhida nesta tela: {' - '.join(label_parts)}")
+
+        table.itemSelectionChanged.connect(_refresh_dialog_selection_badge)
 
         if on_double_click:
             def _handle_double_click(cell):
@@ -1529,6 +1625,8 @@ class NonConformitiesPage(QFrame):
         footer_layout.addWidget(close_button)
 
         table_layout.addLayout(badge_row)
+        table_layout.addWidget(dialog_selection_badge)
+        table_layout.addWidget(dialog_selection_help)
         table_layout.addWidget(table)
         layout.addWidget(header)
         layout.addWidget(table_card, 1)
