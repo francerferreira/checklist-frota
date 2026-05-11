@@ -1100,6 +1100,108 @@ class MaintenancePage(QFrame):
         calendar_layout.addWidget(calendar_hint)
         calendar_layout.addWidget(self.calendar_table)
 
+        agenda_screen_card = QFrame()
+        style_filter_bar(agenda_screen_card)
+        agenda_screen_layout = QVBoxLayout(agenda_screen_card)
+        agenda_screen_layout.setContentsMargins(12, 10, 12, 10)
+        agenda_screen_layout.setSpacing(8)
+
+        agenda_screen_top = QHBoxLayout()
+        agenda_screen_title = QLabel("Tela da agenda")
+        agenda_screen_title.setObjectName("SectionTitle")
+        self.agenda_screen_badge = QLabel("Nenhum dia selecionado")
+        self.agenda_screen_badge.setObjectName("TopBarPill")
+        agenda_screen_top.addWidget(agenda_screen_title)
+        agenda_screen_top.addStretch()
+        agenda_screen_top.addWidget(self.agenda_screen_badge)
+
+        agenda_screen_hint = QLabel(
+            "Aqui fica a agenda operacional. Pense como a mesa que distribui o dia: você escolhe o dia, enxerga a carga e abre os serviços daquele ponto."
+        )
+        agenda_screen_hint.setObjectName("PageSubtitle")
+        agenda_screen_hint.setWordWrap(True)
+
+        agenda_summary_layout = QGridLayout()
+        agenda_summary_layout.setHorizontalSpacing(8)
+        agenda_summary_layout.setVerticalSpacing(6)
+        self.agenda_period_badge = QLabel("Período: -")
+        self.agenda_period_badge.setObjectName("TopBarPill")
+        self.agenda_day_volume_badge = QLabel("Programados: 0 | Pendentes: 0 | Concluídos: 0")
+        self.agenda_day_volume_badge.setObjectName("TopBarPill")
+        self.agenda_day_blockers_badge = QLabel("Aguardando peça: 0 | Não executados: 0")
+        self.agenda_day_blockers_badge.setObjectName("TopBarPill")
+        self.agenda_schedule_scope_badge = QLabel("Planejamento: todos os planejamentos")
+        self.agenda_schedule_scope_badge.setObjectName("TopBarPill")
+        agenda_summary_layout.addWidget(self.agenda_period_badge, 0, 0)
+        agenda_summary_layout.addWidget(self.agenda_schedule_scope_badge, 0, 1)
+        agenda_summary_layout.addWidget(self.agenda_day_volume_badge, 1, 0)
+        agenda_summary_layout.addWidget(self.agenda_day_blockers_badge, 1, 1)
+
+        agenda_actions = QHBoxLayout()
+        agenda_actions.setSpacing(8)
+        self.agenda_open_services_button = QPushButton("Abrir serviços do dia")
+        self.agenda_open_services_button.setMinimumHeight(34)
+        self.agenda_open_services_button.clicked.connect(self._open_services_for_selected_day)
+        self.agenda_clear_day_button = QPushButton("Limpar dia")
+        self.agenda_clear_day_button.setMinimumHeight(34)
+        self.agenda_clear_day_button.clicked.connect(self._clear_calendar_day_filter)
+        self.agenda_back_home_button = QPushButton("Voltar para home")
+        self.agenda_back_home_button.setMinimumHeight(34)
+        self.agenda_back_home_button.clicked.connect(self._go_to_maintenance_home)
+        agenda_actions.addWidget(self.agenda_open_services_button)
+        agenda_actions.addWidget(self.agenda_clear_day_button)
+        agenda_actions.addWidget(self.agenda_back_home_button)
+        agenda_actions.addStretch(1)
+
+        agenda_days_card = QFrame()
+        style_table_card(agenda_days_card)
+        agenda_days_layout = QVBoxLayout(agenda_days_card)
+        agenda_days_layout.setContentsMargins(12, 10, 12, 10)
+        agenda_days_layout.setSpacing(8)
+
+        agenda_days_top = QHBoxLayout()
+        agenda_days_title = QLabel("Dias programados")
+        agenda_days_title.setObjectName("SectionTitle")
+        self.agenda_days_badge = QLabel("0 dias")
+        self.agenda_days_badge.setObjectName("TopBarPill")
+        agenda_days_top.addWidget(agenda_days_title)
+        agenda_days_top.addStretch()
+        agenda_days_top.addWidget(self.agenda_days_badge)
+
+        agenda_days_hint = QLabel(
+            "Clique em um dia para focar o trabalho. Dê duplo clique para abrir direto os serviços daquele dia."
+        )
+        agenda_days_hint.setObjectName("PageSubtitle")
+        agenda_days_hint.setWordWrap(True)
+
+        self.agenda_days_table = QTableWidget(0, 6)
+        self.agenda_days_table.setHorizontalHeaderLabels(
+            [
+                "Data",
+                "Programados",
+                "Pendentes",
+                "Concluídos",
+                "Aguardando peça",
+                "Não executados",
+            ]
+        )
+        configure_table(self.agenda_days_table, stretch_last=False)
+        self.agenda_days_table.setSelectionBehavior(QAbstractItemView.SelectRows)
+        self.agenda_days_table.setSelectionMode(QAbstractItemView.SingleSelection)
+        self.agenda_days_table.itemSelectionChanged.connect(self._on_agenda_day_selection_changed)
+        self.agenda_days_table.itemDoubleClicked.connect(lambda _item: self._open_services_for_selected_day())
+        self.agenda_days_table.setMinimumHeight(360)
+
+        agenda_days_layout.addLayout(agenda_days_top)
+        agenda_days_layout.addWidget(agenda_days_hint)
+        agenda_days_layout.addWidget(self.agenda_days_table)
+
+        agenda_screen_layout.addLayout(agenda_screen_top)
+        agenda_screen_layout.addWidget(agenda_screen_hint)
+        agenda_screen_layout.addLayout(agenda_summary_layout)
+        agenda_screen_layout.addLayout(agenda_actions)
+        agenda_screen_layout.addWidget(agenda_days_card)
+
         self.tabs = QTabWidget()
         self.tabs.setDocumentMode(True)
         self.tabs.setMinimumHeight(760)
@@ -1111,6 +1213,12 @@ class MaintenancePage(QFrame):
         programacoes_layout.setSpacing(10)
         programacoes_layout.addWidget(planning_screen_card)
         programacoes_layout.addWidget(schedules_card)
+
+        agenda_tab = QWidget()
+        agenda_layout = QVBoxLayout(agenda_tab)
+        agenda_layout.setContentsMargins(0, 0, 0, 0)
+        agenda_layout.setSpacing(10)
+        agenda_layout.addWidget(agenda_screen_card)
 
         execucao_tab = QWidget()
         execucao_layout = QVBoxLayout(execucao_tab)
@@ -1143,6 +1251,7 @@ class MaintenancePage(QFrame):
         relatorios_layout.addStretch(1)
 
         self.tab_programacoes_index = self.tabs.addTab(programacoes_tab, "Planejamento")
+        self.tab_agenda_index = self.tabs.addTab(agenda_tab, "Agenda")
         self.tab_execucao_index = self.tabs.addTab(execucao_tab, "Serviços")
         self.tab_governanca_index = self.tabs.addTab(governanca_tab, "Responsável e Peças")
         self.tab_relatorios_index = self.tabs.addTab(relatorios_tab, "Relatório")
@@ -1245,7 +1354,8 @@ class MaintenancePage(QFrame):
             self.scroll_area.ensureWidgetVisible(self.tabs, 24, 24)
             return
         if screen_key == "AGENDA":
-            self.scroll_area.ensureWidgetVisible(self.calendar_table, 24, 24)
+            self.tabs.setCurrentIndex(self.tab_agenda_index)
+            self.scroll_area.ensureWidgetVisible(self.tabs, 24, 24)
             return
         if screen_key in {"SERVICOS", "OS", "BLOQUEIOS"}:
             self.tabs.setCurrentIndex(self.tab_execucao_index)
@@ -1259,6 +1369,13 @@ class MaintenancePage(QFrame):
     def _go_to_maintenance_home(self):
         self.current_screen_badge.setText("Tela atual: Home da manutenção")
         self.scroll_area.verticalScrollBar().setValue(0)
+
+    def _open_services_for_selected_day(self):
+        if not self.selected_calendar_day_iso:
+            show_notice(self, "Dia obrigatório", "Selecione um dia da agenda para abrir os serviços.", icon_name="warning")
+            return
+        self._open_maintenance_screen("SERVICOS")
+        self.render_selected_schedule_items()
 
     def _set_item_status_filter(self, status_code: str):
         index = self.item_status_filter.findData(status_code)
@@ -1421,6 +1538,7 @@ class MaintenancePage(QFrame):
         self.render_selected_schedule_items()
         self.render_selected_schedule_materials()
         self._render_calendar_table()
+        self._render_agenda_days_table()
 
     def create_schedule(self):
         try:
@@ -1917,6 +2035,95 @@ class MaintenancePage(QFrame):
             self.calendar_table.blockSignals(False)
             self.calendar_table.setUpdatesEnabled(True)
             self.calendar_table.setSortingEnabled(False)
+        self._sync_calendar_selected_day()
+        self._refresh_calendar_selection_badge()
+
+    def _render_agenda_days_table(self):
+        rows = self._calendar_rows_for_selected_schedule()
+        self.agenda_days_table.setSortingEnabled(False)
+        self.agenda_days_table.setUpdatesEnabled(False)
+        self.agenda_days_table.blockSignals(True)
+        selected_row = -1
+        try:
+            self.agenda_days_table.setRowCount(len(rows))
+            for row_index, row in enumerate(rows):
+                day_iso = str(row.get("date") or "")
+                if self.selected_calendar_day_iso and day_iso == self.selected_calendar_day_iso:
+                    selected_row = row_index
+                values = [
+                    self._format_date(day_iso),
+                    int(row.get("total") or 0),
+                    int(row.get("pendentes") or 0),
+                    int(row.get("instalados") or 0),
+                    int(row.get("aguardando_material") or 0),
+                    int(row.get("nao_executados") or 0),
+                ]
+                for column, value in enumerate(values):
+                    payload = day_iso if column == 0 else None
+                    self.agenda_days_table.setItem(row_index, column, make_table_item(value, payload=payload))
+            if selected_row >= 0:
+                self.agenda_days_table.selectRow(selected_row)
+        finally:
+            self.agenda_days_table.blockSignals(False)
+            self.agenda_days_table.setUpdatesEnabled(True)
+            self.agenda_days_table.setSortingEnabled(True)
+        self.agenda_days_badge.setText(f"{len(rows)} dias na agenda")
+        self._refresh_agenda_screen_summary()
+
+    def _sync_calendar_selected_day(self):
+        if not self.selected_calendar_day_iso:
+            self.calendar_table.clearSelection()
+            return
+        self.calendar_table.blockSignals(True)
+        try:
+            for row in range(self.calendar_table.rowCount()):
+                for column in range(self.calendar_table.columnCount()):
+                    item = self.calendar_table.item(row, column)
+                    if item and item.data(Qt.UserRole) == self.selected_calendar_day_iso:
+                        self.calendar_table.setCurrentCell(row, column)
+                        self.calendar_table.selectRow(row)
+                        return
+        finally:
+            self.calendar_table.blockSignals(False)
+
+    def _refresh_agenda_screen_summary(self):
+        rows = self._calendar_rows_for_selected_schedule()
+        schedule = self._selected_schedule()
+        if schedule:
+            self.agenda_schedule_scope_badge.setText(
+                f"Planejamento: {str(schedule.get('title') or f'#{schedule.get('id')}')}"
+            )
+        else:
+            self.agenda_schedule_scope_badge.setText("Planejamento: todos os planejamentos")
+        if not self.selected_calendar_day_iso:
+            self.agenda_screen_badge.setText("Nenhum dia selecionado")
+            self.agenda_period_badge.setText(f"Período: {len(rows)} dia(s) na agenda")
+            total_programados = sum(int(row.get("total") or 0) for row in rows)
+            total_pendentes = sum(int(row.get("pendentes") or 0) for row in rows)
+            total_concluidos = sum(int(row.get("instalados") or 0) for row in rows)
+            total_aguardando = sum(int(row.get("aguardando_material") or 0) for row in rows)
+            total_nao_exec = sum(int(row.get("nao_executados") or 0) for row in rows)
+            self.agenda_day_volume_badge.setText(
+                f"Programados: {total_programados} | Pendentes: {total_pendentes} | Concluídos: {total_concluidos}"
+            )
+            self.agenda_day_blockers_badge.setText(
+                f"Aguardando peça: {total_aguardando} | Não executados: {total_nao_exec}"
+            )
+            self.agenda_open_services_button.setEnabled(False)
+            self.agenda_clear_day_button.setEnabled(False)
+            return
+
+        payload = self.calendar_day_index.get(self.selected_calendar_day_iso) or {}
+        self.agenda_screen_badge.setText(f"Dia escolhido: {self._format_date(self.selected_calendar_day_iso)}")
+        self.agenda_period_badge.setText(f"Período: {self._format_date(self.selected_calendar_day_iso)}")
+        self.agenda_day_volume_badge.setText(
+            f"Programados: {int(payload.get('total') or 0)} | Pendentes: {int(payload.get('pendentes') or 0)} | Concluídos: {int(payload.get('instalados') or 0)}"
+        )
+        self.agenda_day_blockers_badge.setText(
+            f"Aguardando peça: {int(payload.get('aguardando_material') or 0)} | Não executados: {int(payload.get('nao_executados') or 0)}"
+        )
+        self.agenda_open_services_button.setEnabled(True)
+        self.agenda_clear_day_button.setEnabled(True)
         self._refresh_calendar_selection_badge()
 
     def _build_calendar_day_text(self, day: int, payload: dict, is_today: bool) -> str:
@@ -2036,12 +2243,27 @@ class MaintenancePage(QFrame):
             day_iso = selected_items[0].data(Qt.UserRole)
             self.selected_calendar_day_iso = day_iso if day_iso else None
         self._refresh_calendar_selection_badge()
+        self._render_agenda_days_table()
+        self.render_selected_schedule_items()
+
+    def _on_agenda_day_selection_changed(self):
+        selected_rows = self.agenda_days_table.selectionModel().selectedRows() if self.agenda_days_table.selectionModel() else []
+        if not selected_rows:
+            self.selected_calendar_day_iso = None
+        else:
+            item = self.agenda_days_table.item(selected_rows[0].row(), 0)
+            day_iso = item.data(Qt.UserRole) if item else None
+            self.selected_calendar_day_iso = day_iso if day_iso else None
+        self._sync_calendar_selected_day()
+        self._refresh_calendar_selection_badge()
+        self._refresh_agenda_screen_summary()
         self.render_selected_schedule_items()
 
     def _clear_calendar_day_filter(self):
         self.selected_calendar_day_iso = None
         self.calendar_table.clearSelection()
         self._refresh_calendar_selection_badge()
+        self._render_agenda_days_table()
         self.render_selected_schedule_items()
 
     def _refresh_calendar_selection_badge(self):
@@ -2049,6 +2271,7 @@ class MaintenancePage(QFrame):
             self.calendar_selected_badge.setText("Clique em um dia para filtrar a tabela")
             self.calendar_day_resume_badge.setText("Selecione um dia para acompanhar carga, pendência e bloqueios")
             self.clear_calendar_filter_button.setEnabled(False)
+            self._refresh_agenda_screen_summary()
             return
         payload = self.calendar_day_index.get(self.selected_calendar_day_iso) or {}
         self.calendar_selected_badge.setText(
@@ -2062,6 +2285,7 @@ class MaintenancePage(QFrame):
             f"Não executados {int(payload.get('nao_executados') or 0)}"
         )
         self.clear_calendar_filter_button.setEnabled(True)
+        self._refresh_agenda_screen_summary()
 
     def _selected_schedule(self) -> dict | None:
         schedule_id = self.selected_schedule_id
