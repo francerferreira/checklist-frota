@@ -874,6 +874,67 @@ class MaintenancePage(QFrame):
         action_layout.setColumnStretch(1, 1)
         action_layout.setColumnStretch(4, 1)
 
+        services_screen_card = QFrame()
+        style_filter_bar(services_screen_card)
+        services_screen_layout = QVBoxLayout(services_screen_card)
+        services_screen_layout.setContentsMargins(12, 10, 12, 10)
+        services_screen_layout.setSpacing(8)
+
+        services_screen_top = QHBoxLayout()
+        services_screen_title = QLabel("Tela dos serviços")
+        services_screen_title.setObjectName("SectionTitle")
+        self.services_screen_badge = QLabel("Nenhum planejamento selecionado")
+        self.services_screen_badge.setObjectName("TopBarPill")
+        services_screen_top.addWidget(services_screen_title)
+        services_screen_top.addStretch()
+        services_screen_top.addWidget(self.services_screen_badge)
+
+        services_screen_hint = QLabel(
+            "Aqui fica a execução do serviço. Pense como a bancada do mecânico: você filtra, escolhe o que vai agir e usa os botões para reprogramar, retirar ou exportar a OS."
+        )
+        services_screen_hint.setObjectName("PageSubtitle")
+        services_screen_hint.setWordWrap(True)
+
+        services_summary_layout = QGridLayout()
+        services_summary_layout.setHorizontalSpacing(8)
+        services_summary_layout.setVerticalSpacing(6)
+        self.services_scope_badge = QLabel("Escopo: -")
+        self.services_scope_badge.setObjectName("TopBarPill")
+        self.services_filter_badge = QLabel("Filtro: todos os serviços")
+        self.services_filter_badge.setObjectName("TopBarPill")
+        self.services_volume_badge = QLabel("Serviços: 0 | Selecionados: 0")
+        self.services_volume_badge.setObjectName("TopBarPill")
+        self.services_blockers_badge = QLabel("Aguardando peça: 0 | Sem execução: 0")
+        self.services_blockers_badge.setObjectName("TopBarPill")
+        self.services_context_badge = QLabel("Contexto: sem pacote")
+        self.services_context_badge.setObjectName("TopBarPill")
+        services_summary_layout.addWidget(self.services_scope_badge, 0, 0)
+        services_summary_layout.addWidget(self.services_filter_badge, 0, 1)
+        services_summary_layout.addWidget(self.services_volume_badge, 1, 0)
+        services_summary_layout.addWidget(self.services_blockers_badge, 1, 1)
+        services_summary_layout.addWidget(self.services_context_badge, 2, 0, 1, 2)
+
+        services_actions = QHBoxLayout()
+        services_actions.setSpacing(8)
+        self.services_open_agenda_button = QPushButton("Abrir agenda")
+        self.services_open_agenda_button.setMinimumHeight(34)
+        self.services_open_agenda_button.clicked.connect(lambda: self._open_maintenance_screen("AGENDA"))
+        self.services_open_governance_button = QPushButton("Abrir responsáveis e peças")
+        self.services_open_governance_button.setMinimumHeight(34)
+        self.services_open_governance_button.clicked.connect(lambda: self._open_maintenance_screen("RESPONSAVEIS"))
+        self.services_back_home_button = QPushButton("Voltar para home")
+        self.services_back_home_button.setMinimumHeight(34)
+        self.services_back_home_button.clicked.connect(self._go_to_maintenance_home)
+        services_actions.addWidget(self.services_open_agenda_button)
+        services_actions.addWidget(self.services_open_governance_button)
+        services_actions.addWidget(self.services_back_home_button)
+        services_actions.addStretch(1)
+
+        services_screen_layout.addLayout(services_screen_top)
+        services_screen_layout.addWidget(services_screen_hint)
+        services_screen_layout.addLayout(services_summary_layout)
+        services_screen_layout.addLayout(services_actions)
+
         governance_header_card = QFrame()
         style_filter_bar(governance_header_card)
         governance_header_layout = QVBoxLayout(governance_header_card)
@@ -1049,6 +1110,7 @@ class MaintenancePage(QFrame):
         self.items_table.setSelectionBehavior(QAbstractItemView.SelectRows)
         self.items_table.setSelectionMode(QAbstractItemView.ExtendedSelection)
         self.items_table.itemSelectionChanged.connect(self._update_items_badge)
+        self.items_table.itemDoubleClicked.connect(self.export_selected_work_order_pdf)
         self.items_table.setMinimumHeight(360)
 
         details_layout.addLayout(detail_top)
@@ -1224,6 +1286,7 @@ class MaintenancePage(QFrame):
         execucao_layout = QVBoxLayout(execucao_tab)
         execucao_layout.setContentsMargins(0, 0, 0, 0)
         execucao_layout.setSpacing(10)
+        execucao_layout.addWidget(services_screen_card)
         execucao_layout.addWidget(action_card)
         execucao_layout.addWidget(details_card, 1)
 
@@ -2335,6 +2398,7 @@ class MaintenancePage(QFrame):
                 self.details_hint_label.setText("Selecione um planejamento e, se quiser, um dia no calendário para ver os serviços.")
             self._set_action_controls_enabled(False)
             self._update_items_badge()
+            self._refresh_services_screen_summary(None, [])
             return
 
         self._set_action_controls_enabled(True)
@@ -2404,6 +2468,7 @@ class MaintenancePage(QFrame):
         self._apply_items_table_layout()
 
         self._update_items_badge()
+        self._refresh_services_screen_summary(schedule, items)
 
     def _selected_item_payloads(self) -> list[dict]:
         model = self.items_table.selectionModel()
@@ -2436,6 +2501,49 @@ class MaintenancePage(QFrame):
         else:
             self.items_badge.setText(f"{total} itens | {selected} selecionados")
         self._refresh_contextual_actions()
+        schedule = self._selected_schedule()
+        if schedule:
+            items = self._visible_items_for_current_context(schedule)
+            self._refresh_services_screen_summary(schedule, items)
+
+    def _visible_items_for_current_context(self, schedule: dict) -> list[dict]:
+        status_filter = self.item_status_filter.currentData()
+        items = list(schedule.get("itens") or [])
+        if status_filter == "PENDENTES":
+            pending_statuses = {"PENDENTE", "PROGRAMADO", "AGUARDANDO_MATERIAL", "REPROGRAMADO"}
+            items = [item for item in items if str(item.get("status") or "").upper() in pending_statuses]
+        elif status_filter and status_filter != "ALL":
+            items = [item for item in items if str(item.get("status") or "").upper() == status_filter]
+        if self.selected_calendar_day_iso:
+            items = [item for item in items if str(item.get("scheduled_date") or "")[:10] == self.selected_calendar_day_iso]
+        return items
+
+    def _refresh_services_screen_summary(self, schedule: dict | None, items: list[dict]):
+        if not schedule:
+            self.services_screen_badge.setText("Nenhum planejamento selecionado")
+            self.services_scope_badge.setText("Escopo: selecione um planejamento")
+            self.services_filter_badge.setText("Filtro: todos os serviços")
+            self.services_volume_badge.setText("Serviços: 0 | Selecionados: 0")
+            self.services_blockers_badge.setText("Aguardando peça: 0 | Sem execução: 0")
+            self.services_context_badge.setText("Contexto: sem pacote")
+            return
+
+        selected_count = len(self._selected_item_payloads())
+        waiting_parts = sum(1 for item in items if str(item.get("status") or "").upper() == "AGUARDANDO_MATERIAL")
+        not_executed = sum(1 for item in items if str(item.get("status") or "").upper() == "NAO_EXECUTADO")
+        schedule_title = str(schedule.get("title") or f"#{schedule.get('id')}")
+        self.services_screen_badge.setText(f"Planejamento: {schedule_title}")
+        if self.selected_calendar_day_iso:
+            self.services_scope_badge.setText(f"Escopo: dia {self._format_date(self.selected_calendar_day_iso)}")
+        else:
+            self.services_scope_badge.setText("Escopo: todos os dias do planejamento")
+        filter_label = str(self.item_status_filter.currentText() or "Itens: todos")
+        self.services_filter_badge.setText(f"Filtro: {filter_label}")
+        self.services_volume_badge.setText(f"Serviços: {len(items)} | Selecionados: {selected_count}")
+        self.services_blockers_badge.setText(
+            f"Aguardando peça: {waiting_parts} | Sem execução: {not_executed}"
+        )
+        self.services_context_badge.setText(f"Contexto: {self._execution_context_text(schedule)}")
 
     def _refresh_contextual_actions(self):
         schedule_selected = self._selected_schedule() is not None
