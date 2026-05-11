@@ -1040,6 +1040,115 @@ class MaintenancePage(QFrame):
         os_screen_layout.addLayout(os_actions)
         os_screen_layout.addWidget(os_table_card)
 
+        blockers_screen_card = QFrame()
+        style_filter_bar(blockers_screen_card)
+        self.blockers_screen_card = blockers_screen_card
+        blockers_screen_layout = QVBoxLayout(blockers_screen_card)
+        blockers_screen_layout.setContentsMargins(12, 10, 12, 10)
+        blockers_screen_layout.setSpacing(8)
+
+        blockers_screen_top = QHBoxLayout()
+        blockers_screen_title = QLabel("Tela de bloqueios")
+        blockers_screen_title.setObjectName("SectionTitle")
+        self.blockers_screen_badge = QLabel("Nenhum travamento selecionado")
+        self.blockers_screen_badge.setObjectName("TopBarPill")
+        blockers_screen_top.addWidget(blockers_screen_title)
+        blockers_screen_top.addStretch()
+        blockers_screen_top.addWidget(self.blockers_screen_badge)
+
+        blockers_screen_hint = QLabel(
+            "Aqui fica o painel dos travamentos. Pense como o quadro de pendências da oficina: tudo que impede o serviço de andar aparece reunido aqui."
+        )
+        blockers_screen_hint.setObjectName("PageSubtitle")
+        blockers_screen_hint.setWordWrap(True)
+
+        blockers_summary_layout = QGridLayout()
+        blockers_summary_layout.setHorizontalSpacing(8)
+        blockers_summary_layout.setVerticalSpacing(6)
+        self.blockers_scope_badge = QLabel("Escopo: todos os planejamentos")
+        self.blockers_scope_badge.setObjectName("TopBarPill")
+        self.blockers_filter_badge = QLabel("Filtro: todos os bloqueios")
+        self.blockers_filter_badge.setObjectName("TopBarPill")
+        self.blockers_volume_badge = QLabel("Bloqueios: 0 | Planejamentos travados: 0")
+        self.blockers_volume_badge.setObjectName("TopBarPill")
+        self.blockers_types_badge = QLabel("Sem responsável: 0 | Peça: 0 | OS bloqueada: 0")
+        self.blockers_types_badge.setObjectName("TopBarPill")
+        blockers_summary_layout.addWidget(self.blockers_scope_badge, 0, 0)
+        blockers_summary_layout.addWidget(self.blockers_filter_badge, 0, 1)
+        blockers_summary_layout.addWidget(self.blockers_volume_badge, 1, 0)
+        blockers_summary_layout.addWidget(self.blockers_types_badge, 1, 1)
+
+        blockers_actions = QHBoxLayout()
+        blockers_actions.setSpacing(8)
+        self.blockers_filter_combo = QComboBox()
+        self.blockers_filter_combo.addItem("Todos os bloqueios", "ALL")
+        self.blockers_filter_combo.addItem("Sem responsável", "SEM_RESPONSAVEL")
+        self.blockers_filter_combo.addItem("Aguardando peça", "AGUARDANDO_PECA")
+        self.blockers_filter_combo.addItem("OS bloqueadas", "OS_BLOQUEADAS")
+        self.blockers_filter_combo.addItem("Com travamento", "COM_TRAVAMENTO")
+        self.blockers_filter_combo.currentIndexChanged.connect(self._render_blockers_table)
+        self.blockers_open_services_button = QPushButton("Abrir serviços")
+        self.blockers_open_services_button.setMinimumHeight(34)
+        self.blockers_open_services_button.clicked.connect(lambda: self._open_maintenance_screen("SERVICOS"))
+        self.blockers_open_parts_button = QPushButton("Abrir peças")
+        self.blockers_open_parts_button.setMinimumHeight(34)
+        self.blockers_open_parts_button.clicked.connect(lambda: self._open_maintenance_screen("PECAS"))
+        self.blockers_open_responsible_button = QPushButton("Abrir responsáveis")
+        self.blockers_open_responsible_button.setMinimumHeight(34)
+        self.blockers_open_responsible_button.clicked.connect(lambda: self._open_maintenance_screen("RESPONSAVEIS"))
+        self.blockers_back_home_button = QPushButton("Voltar para home")
+        self.blockers_back_home_button.setMinimumHeight(34)
+        self.blockers_back_home_button.clicked.connect(self._go_to_maintenance_home)
+        blockers_actions.addWidget(QLabel("Filtro"))
+        blockers_actions.addWidget(self.blockers_filter_combo)
+        blockers_actions.addWidget(self.blockers_open_services_button)
+        blockers_actions.addWidget(self.blockers_open_parts_button)
+        blockers_actions.addWidget(self.blockers_open_responsible_button)
+        blockers_actions.addWidget(self.blockers_back_home_button)
+        blockers_actions.addStretch(1)
+
+        blockers_table_card = QFrame()
+        style_table_card(blockers_table_card)
+        blockers_table_layout = QVBoxLayout(blockers_table_card)
+        blockers_table_layout.setContentsMargins(12, 10, 12, 10)
+        blockers_table_layout.setSpacing(8)
+
+        blockers_table_hint = QLabel(
+            "Clique em um travamento para carregar o planejamento relacionado. Dê duplo clique para abrir os serviços daquele ponto."
+        )
+        blockers_table_hint.setObjectName("PageSubtitle")
+        blockers_table_hint.setWordWrap(True)
+
+        self.blockers_table = QTableWidget(0, 8)
+        self.blockers_table.setHorizontalHeaderLabels(
+            [
+                "ID",
+                "Planejamento",
+                "Tipo principal",
+                "Detalhes",
+                "Responsável",
+                "Peças travando",
+                "OS bloqueadas",
+                "Pacote",
+            ]
+        )
+        configure_table(self.blockers_table, stretch_last=True)
+        self.blockers_table.setColumnHidden(0, True)
+        self.blockers_table.setSelectionBehavior(QAbstractItemView.SelectRows)
+        self.blockers_table.setSelectionMode(QAbstractItemView.SingleSelection)
+        self.blockers_table.itemSelectionChanged.connect(self._on_blocker_selection_changed)
+        self.blockers_table.itemDoubleClicked.connect(lambda _item: self._open_maintenance_screen("SERVICOS"))
+        self.blockers_table.setMinimumHeight(280)
+
+        blockers_table_layout.addWidget(blockers_table_hint)
+        blockers_table_layout.addWidget(self.blockers_table)
+
+        blockers_screen_layout.addLayout(blockers_screen_top)
+        blockers_screen_layout.addWidget(blockers_screen_hint)
+        blockers_screen_layout.addLayout(blockers_summary_layout)
+        blockers_screen_layout.addLayout(blockers_actions)
+        blockers_screen_layout.addWidget(blockers_table_card)
+
         responsible_screen_card = QFrame()
         style_filter_bar(responsible_screen_card)
         self.responsible_screen_card = responsible_screen_card
@@ -1560,6 +1669,7 @@ class MaintenancePage(QFrame):
         execucao_layout.setSpacing(10)
         execucao_layout.addWidget(services_screen_card)
         execucao_layout.addWidget(os_screen_card)
+        execucao_layout.addWidget(blockers_screen_card)
         execucao_layout.addWidget(action_card)
         execucao_layout.addWidget(details_card, 1)
 
@@ -1672,6 +1782,7 @@ class MaintenancePage(QFrame):
             self._set_responsible_filter("SEM_RESPONSAVEL")
             self._open_maintenance_screen("RESPONSAVEIS")
         elif key == "BLOQUEIOS":
+            self._set_blockers_filter("COM_TRAVAMENTO")
             self._open_maintenance_screen("BLOQUEIOS")
         else:
             self._open_maintenance_screen("SERVICOS")
@@ -1698,9 +1809,13 @@ class MaintenancePage(QFrame):
             self.tabs.setCurrentIndex(self.tab_agenda_index)
             self.scroll_area.ensureWidgetVisible(self.tabs, 24, 24)
             return
-        if screen_key in {"SERVICOS", "BLOQUEIOS"}:
+        if screen_key == "SERVICOS":
             self.tabs.setCurrentIndex(self.tab_execucao_index)
             self.scroll_area.ensureWidgetVisible(self.tabs, 24, 24)
+            return
+        if screen_key == "BLOQUEIOS":
+            self.tabs.setCurrentIndex(self.tab_execucao_index)
+            self.scroll_area.ensureWidgetVisible(self.blockers_screen_card, 24, 24)
             return
         if screen_key == "OS":
             self.tabs.setCurrentIndex(self.tab_execucao_index)
@@ -1736,6 +1851,12 @@ class MaintenancePage(QFrame):
         if index < 0:
             index = 0
         self.os_filter_combo.setCurrentIndex(index)
+
+    def _set_blockers_filter(self, filter_code: str):
+        index = self.blockers_filter_combo.findData(filter_code)
+        if index < 0:
+            index = 0
+        self.blockers_filter_combo.setCurrentIndex(index)
 
     def _open_services_for_selected_day(self):
         if not self.selected_calendar_day_iso:
@@ -2002,6 +2123,7 @@ class MaintenancePage(QFrame):
         self._render_summary()
         self._render_schedules_table()
         self._render_os_table()
+        self._render_blockers_table()
         self._render_responsible_table()
         self.render_selected_schedule_items()
         self.render_selected_schedule_materials()
@@ -2430,6 +2552,107 @@ class MaintenancePage(QFrame):
         self.os_volume_badge.setText(f"OS: {len(items)} | Selecionadas: {selected_count}")
         self.os_blockers_badge.setText(f"Atrasadas: {overdue} | Bloqueadas: {blocked} | Concluídas: {completed}")
         self.os_export_button.setEnabled(selected_count > 0)
+
+    def _build_blocker_rows(self) -> list[dict]:
+        rows: list[dict] = []
+        for schedule in self.filtered_schedules:
+            blockers = schedule.get("bloqueios_resumo") or {}
+            mechanic_name = self._mechanic_name_by_id(schedule.get("assigned_mechanic_user_id"))
+            package_label = str(schedule.get("package_reference_label") or "sem pacote")
+            details: list[str] = []
+            if blockers.get("sem_responsavel") or not schedule.get("assigned_mechanic_user_id"):
+                details.append("sem responsável definido")
+            if int(blockers.get("materiais_bloqueados") or 0):
+                details.append(f"{int(blockers.get('materiais_bloqueados') or 0)} peça(s) travando")
+            if int(blockers.get("ordens_bloqueadas") or 0):
+                details.append(f"{int(blockers.get('ordens_bloqueadas') or 0)} OS bloqueada(s)")
+            if not details:
+                continue
+            primary_type = "Com travamento"
+            if blockers.get("sem_responsavel") or not schedule.get("assigned_mechanic_user_id"):
+                primary_type = "Sem responsável"
+            elif int(blockers.get("materiais_bloqueados") or 0):
+                primary_type = "Aguardando peça"
+            elif int(blockers.get("ordens_bloqueadas") or 0):
+                primary_type = "OS bloqueada"
+            rows.append(
+                {
+                    "schedule": schedule,
+                    "primary_type": primary_type,
+                    "details": " | ".join(details),
+                    "responsible": mechanic_name,
+                    "blocked_materials": int(blockers.get("materiais_bloqueados") or 0),
+                    "blocked_orders": int(blockers.get("ordens_bloqueadas") or 0),
+                    "package_label": package_label,
+                    "has_no_responsible": bool(blockers.get("sem_responsavel") or not schedule.get("assigned_mechanic_user_id")),
+                }
+            )
+        return rows
+
+    def _visible_blocker_rows(self) -> list[dict]:
+        rows = self._build_blocker_rows()
+        filter_code = self.blockers_filter_combo.currentData() if hasattr(self, "blockers_filter_combo") else "ALL"
+        if filter_code == "SEM_RESPONSAVEL":
+            rows = [row for row in rows if row.get("has_no_responsible")]
+        elif filter_code == "AGUARDANDO_PECA":
+            rows = [row for row in rows if int(row.get("blocked_materials") or 0) > 0]
+        elif filter_code == "OS_BLOQUEADAS":
+            rows = [row for row in rows if int(row.get("blocked_orders") or 0) > 0]
+        elif filter_code == "COM_TRAVAMENTO":
+            rows = [row for row in rows if row.get("details")]
+        return rows
+
+    def _render_blockers_table(self):
+        rows = self._visible_blocker_rows()
+        self.blockers_table.setSortingEnabled(False)
+        self.blockers_table.setUpdatesEnabled(False)
+        self.blockers_table.blockSignals(True)
+        selected_row = -1
+        try:
+            self.blockers_table.setRowCount(len(rows))
+            for row_index, row in enumerate(rows):
+                schedule = row.get("schedule") or {}
+                schedule_id = int(schedule.get("id") or 0)
+                if self.selected_schedule_id and schedule_id == self.selected_schedule_id:
+                    selected_row = row_index
+                values = [
+                    schedule_id,
+                    schedule.get("title") or "-",
+                    row.get("primary_type") or "-",
+                    row.get("details") or "-",
+                    row.get("responsible") or "-",
+                    int(row.get("blocked_materials") or 0),
+                    int(row.get("blocked_orders") or 0),
+                    row.get("package_label") or "-",
+                ]
+                for column, value in enumerate(values):
+                    payload = schedule if column == 0 else None
+                    self.blockers_table.setItem(row_index, column, make_table_item(value, payload=payload))
+            if selected_row >= 0:
+                self.blockers_table.selectRow(selected_row)
+        finally:
+            self.blockers_table.blockSignals(False)
+            self.blockers_table.setUpdatesEnabled(True)
+            self.blockers_table.setSortingEnabled(True)
+        self._refresh_blockers_screen_summary(rows)
+
+    def _refresh_blockers_screen_summary(self, rows: list[dict]):
+        total_schedules = len({int((row.get("schedule") or {}).get("id") or 0) for row in rows if (row.get("schedule") or {}).get("id")})
+        no_responsible = sum(1 for row in rows if row.get("has_no_responsible"))
+        blocked_materials = sum(1 for row in rows if int(row.get("blocked_materials") or 0) > 0)
+        blocked_orders = sum(1 for row in rows if int(row.get("blocked_orders") or 0) > 0)
+        self.blockers_filter_badge.setText(f"Filtro: {str(self.blockers_filter_combo.currentText() or 'Todos os bloqueios')}")
+        self.blockers_volume_badge.setText(f"Bloqueios: {len(rows)} | Planejamentos travados: {total_schedules}")
+        self.blockers_types_badge.setText(
+            f"Sem responsável: {no_responsible} | Peça: {blocked_materials} | OS bloqueada: {blocked_orders}"
+        )
+        selected_schedule = self._selected_schedule()
+        if selected_schedule:
+            self.blockers_screen_badge.setText(f"Planejamento: {str(selected_schedule.get('title') or f'#{selected_schedule.get('id')}')}")
+            self.blockers_scope_badge.setText("Escopo: planejamento selecionado")
+        else:
+            self.blockers_screen_badge.setText(f"{len(rows)} travamento(s) na tela")
+            self.blockers_scope_badge.setText("Escopo: todos os planejamentos filtrados")
 
     def _visible_material_links_for_current_context(self, schedule: dict) -> list[dict]:
         materials = list(schedule.get("materiais") or [])
@@ -2904,6 +3127,24 @@ class MaintenancePage(QFrame):
             self._responsible_metrics_map(),
         )
         self._render_os_table()
+        self.render_selected_schedule_items()
+        self.render_selected_schedule_materials()
+        self._render_calendar_table()
+        self._render_agenda_days_table()
+
+    def _on_blocker_selection_changed(self):
+        selected_rows = self.blockers_table.selectionModel().selectedRows() if self.blockers_table.selectionModel() else []
+        if not selected_rows:
+            return
+        item = self.blockers_table.item(selected_rows[0].row(), 0)
+        payload = item.data(Qt.UserRole) if item else None
+        if not payload:
+            return
+        self.selected_schedule_id = int(payload.get("id") or 0)
+        self._refresh_planning_screen_summary()
+        self._render_os_table()
+        self._render_blockers_table()
+        self._render_responsible_table()
         self.render_selected_schedule_items()
         self.render_selected_schedule_materials()
         self._render_calendar_table()
