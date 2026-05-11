@@ -1103,6 +1103,75 @@ class MaintenancePage(QFrame):
         responsible_layout.addWidget(self.assign_mechanic_button, 3, 2)
         responsible_layout.setColumnStretch(1, 1)
 
+        pieces_screen_card = QFrame()
+        style_filter_bar(pieces_screen_card)
+        self.pieces_screen_card = pieces_screen_card
+        pieces_screen_layout = QVBoxLayout(pieces_screen_card)
+        pieces_screen_layout.setContentsMargins(12, 10, 12, 10)
+        pieces_screen_layout.setSpacing(8)
+
+        pieces_screen_top = QHBoxLayout()
+        pieces_screen_title = QLabel("Tela de peças")
+        pieces_screen_title.setObjectName("SectionTitle")
+        self.pieces_screen_badge = QLabel("Nenhum planejamento selecionado")
+        self.pieces_screen_badge.setObjectName("TopBarPill")
+        pieces_screen_top.addWidget(pieces_screen_title)
+        pieces_screen_top.addStretch()
+        pieces_screen_top.addWidget(self.pieces_screen_badge)
+
+        pieces_screen_hint = QLabel(
+            "Aqui fica o balcão das peças. Você enxerga o que está faltando, o que já está reservado e o que já liberou a execução."
+        )
+        pieces_screen_hint.setObjectName("PageSubtitle")
+        pieces_screen_hint.setWordWrap(True)
+
+        pieces_summary_layout = QGridLayout()
+        pieces_summary_layout.setHorizontalSpacing(8)
+        pieces_summary_layout.setVerticalSpacing(6)
+        self.pieces_scope_badge = QLabel("Escopo: todos os planejamentos")
+        self.pieces_scope_badge.setObjectName("TopBarPill")
+        self.pieces_filter_badge = QLabel("Filtro: todas as peças")
+        self.pieces_filter_badge.setObjectName("TopBarPill")
+        self.pieces_volume_badge = QLabel("Peças: 0 | Reservadas: 0 | Utilizadas: 0")
+        self.pieces_volume_badge.setObjectName("TopBarPill")
+        self.pieces_blockers_badge = QLabel("Aguardando peça: 0 | Em compras: 0")
+        self.pieces_blockers_badge.setObjectName("TopBarPill")
+        pieces_summary_layout.addWidget(self.pieces_scope_badge, 0, 0)
+        pieces_summary_layout.addWidget(self.pieces_filter_badge, 0, 1)
+        pieces_summary_layout.addWidget(self.pieces_volume_badge, 1, 0)
+        pieces_summary_layout.addWidget(self.pieces_blockers_badge, 1, 1)
+
+        pieces_actions = QHBoxLayout()
+        pieces_actions.setSpacing(8)
+        self.pieces_filter_combo = QComboBox()
+        self.pieces_filter_combo.addItem("Todas as peças", "ALL")
+        self.pieces_filter_combo.addItem("Aguardando peça", "AGUARDANDO_MATERIAL")
+        self.pieces_filter_combo.addItem("Em compras", "EM_COMPRAS")
+        self.pieces_filter_combo.addItem("Disponível em estoque", "DISPONIVEL_EM_ESTOQUE")
+        self.pieces_filter_combo.addItem("Reservadas", "RESERVADO")
+        self.pieces_filter_combo.addItem("Utilizadas", "UTILIZADO")
+        self.pieces_filter_combo.currentIndexChanged.connect(self.render_selected_schedule_materials)
+        self.pieces_open_services_button = QPushButton("Abrir serviços")
+        self.pieces_open_services_button.setMinimumHeight(34)
+        self.pieces_open_services_button.clicked.connect(lambda: self._open_maintenance_screen("SERVICOS"))
+        self.pieces_open_responsible_button = QPushButton("Abrir responsáveis")
+        self.pieces_open_responsible_button.setMinimumHeight(34)
+        self.pieces_open_responsible_button.clicked.connect(lambda: self._open_maintenance_screen("RESPONSAVEIS"))
+        self.pieces_back_home_button = QPushButton("Voltar para home")
+        self.pieces_back_home_button.setMinimumHeight(34)
+        self.pieces_back_home_button.clicked.connect(self._go_to_maintenance_home)
+        pieces_actions.addWidget(QLabel("Filtro"))
+        pieces_actions.addWidget(self.pieces_filter_combo)
+        pieces_actions.addWidget(self.pieces_open_services_button)
+        pieces_actions.addWidget(self.pieces_open_responsible_button)
+        pieces_actions.addWidget(self.pieces_back_home_button)
+        pieces_actions.addStretch(1)
+
+        pieces_screen_layout.addLayout(pieces_screen_top)
+        pieces_screen_layout.addWidget(pieces_screen_hint)
+        pieces_screen_layout.addLayout(pieces_summary_layout)
+        pieces_screen_layout.addLayout(pieces_actions)
+
         material_form_card = QFrame()
         style_table_card(material_form_card)
         material_form_layout = QGridLayout(material_form_card)
@@ -1393,6 +1462,7 @@ class MaintenancePage(QFrame):
         governanca_layout.setContentsMargins(0, 0, 0, 0)
         governanca_layout.setSpacing(10)
         governanca_layout.addWidget(responsible_screen_card)
+        governanca_layout.addWidget(pieces_screen_card)
         governanca_layout.addWidget(governance_header_card)
         governance_split_layout = QHBoxLayout()
         governance_split_layout.setSpacing(10)
@@ -1489,6 +1559,7 @@ class MaintenancePage(QFrame):
         elif key == "OS_ATRASADAS":
             self._open_maintenance_screen("OS")
         elif key == "AGUARDANDO_PECA":
+            self._set_pieces_filter("AGUARDANDO_MATERIAL")
             self._open_maintenance_screen("PECAS")
         elif key == "SEM_RESPONSAVEL":
             self._set_responsible_filter("SEM_RESPONSAVEL")
@@ -1530,7 +1601,7 @@ class MaintenancePage(QFrame):
             return
         if screen_key == "PECAS":
             self.tabs.setCurrentIndex(self.tab_governanca_index)
-            self.scroll_area.ensureWidgetVisible(self.material_combo, 24, 24)
+            self.scroll_area.ensureWidgetVisible(self.pieces_screen_card, 24, 24)
             return
 
     def _go_to_maintenance_home(self):
@@ -1542,6 +1613,12 @@ class MaintenancePage(QFrame):
         if index < 0:
             index = 0
         self.responsible_filter_combo.setCurrentIndex(index)
+
+    def _set_pieces_filter(self, filter_code: str):
+        index = self.pieces_filter_combo.findData(filter_code)
+        if index < 0:
+            index = 0
+        self.pieces_filter_combo.setCurrentIndex(index)
 
     def _open_services_for_selected_day(self):
         if not self.selected_calendar_day_iso:
@@ -2067,6 +2144,7 @@ class MaintenancePage(QFrame):
                 "As definições de responsável e peça só são liberadas depois que um planejamento é selecionado."
             )
             self._set_management_controls_enabled(False)
+            self._refresh_pieces_screen_summary(None, [])
             return
 
         self._set_management_controls_enabled(True)
@@ -2079,7 +2157,7 @@ class MaintenancePage(QFrame):
         current_mechanic_index = self.mechanic_combo.findData(assigned_id)
         self.mechanic_combo.setCurrentIndex(current_mechanic_index if current_mechanic_index >= 0 else 0)
 
-        materials = list(schedule.get("materiais") or [])
+        materials = self._visible_material_links_for_current_context(schedule)
         self.materials_table.setSortingEnabled(False)
         self.materials_table.setUpdatesEnabled(False)
         self.materials_table.blockSignals(True)
@@ -2109,6 +2187,37 @@ class MaintenancePage(QFrame):
         self.materials_badge.setText(f"{len(materials)} peças | {summary}")
         self.material_suggestion_badge.setText("Sugestão de peça: use o botão para buscar a peça mais provável para este planejamento.")
         self._sync_material_form_with_link()
+        self._refresh_pieces_screen_summary(schedule, materials)
+
+    def _visible_material_links_for_current_context(self, schedule: dict) -> list[dict]:
+        materials = list(schedule.get("materiais") or [])
+        filter_code = self.pieces_filter_combo.currentData() if hasattr(self, "pieces_filter_combo") else "ALL"
+        if filter_code and filter_code != "ALL":
+            materials = [row for row in materials if str(row.get("status") or "").upper() == filter_code]
+        return materials
+
+    def _refresh_pieces_screen_summary(self, schedule: dict | None, materials: list[dict]):
+        if not schedule:
+            self.pieces_screen_badge.setText("Nenhum planejamento selecionado")
+            self.pieces_scope_badge.setText("Escopo: selecione um planejamento")
+            self.pieces_filter_badge.setText("Filtro: todas as peças")
+            self.pieces_volume_badge.setText("Peças: 0 | Reservadas: 0 | Utilizadas: 0")
+            self.pieces_blockers_badge.setText("Aguardando peça: 0 | Em compras: 0")
+            return
+
+        reserved = sum(1 for row in materials if str(row.get("status") or "").upper() == "RESERVADO")
+        used = sum(1 for row in materials if str(row.get("status") or "").upper() == "UTILIZADO")
+        waiting = sum(1 for row in materials if str(row.get("status") or "").upper() == "AGUARDANDO_MATERIAL")
+        buying = sum(1 for row in materials if str(row.get("status") or "").upper() == "EM_COMPRAS")
+        title = str(schedule.get("title") or f"#{schedule.get('id')}")
+        filter_label = str(self.pieces_filter_combo.currentText() or "Todas as peças")
+        self.pieces_screen_badge.setText(f"Planejamento: {title}")
+        self.pieces_scope_badge.setText(
+            f"Escopo: {str(schedule.get('package_reference_label') or 'sem pacote')}"
+        )
+        self.pieces_filter_badge.setText(f"Filtro: {filter_label}")
+        self.pieces_volume_badge.setText(f"Peças: {len(materials)} | Reservadas: {reserved} | Utilizadas: {used}")
+        self.pieces_blockers_badge.setText(f"Aguardando peça: {waiting} | Em compras: {buying}")
 
     def _sync_material_form_with_link(self):
         schedule = self._selected_schedule()
