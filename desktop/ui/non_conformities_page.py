@@ -467,7 +467,7 @@ class CreateResolutionPackageDialog(QDialog):
         self.recurrence_weight_spin.setMaximum(50)
         self.recurrence_weight_spin.setValue(int(self.rule_defaults.get("recurrence_weight", 5)))
 
-        def add_field(row: int, column: int, label_text: str, widget, col_span: int = 1):
+        def add_field(row: int, column: int, label_text: str, widget, col_span: int = 1, helper_text: str | None = None):
             field = QFrame()
             field_layout = QVBoxLayout(field)
             field_layout.setContentsMargins(0, 0, 0, 0)
@@ -476,12 +476,29 @@ class CreateResolutionPackageDialog(QDialog):
             label.setObjectName("SectionCaption")
             field_layout.addWidget(label)
             field_layout.addWidget(widget)
+            if helper_text:
+                helper = QLabel(helper_text)
+                helper.setObjectName("MutedText")
+                helper.setWordWrap(True)
+                field_layout.addWidget(helper)
             form.addWidget(field, row, column, 1, col_span)
 
         add_field(0, 0, "Destino sugerido", self.strategy_combo)
         add_field(0, 1, "Agrupamento sugerido", self.grouping_mode_combo)
-        add_field(1, 0, "Janela de reincidência (dias)", self.recurrence_days_spin)
-        add_field(1, 1, "Peso da reincidência", self.recurrence_weight_spin)
+        add_field(
+            1,
+            0,
+            "Período para repetir o mesmo problema (dias)",
+            self.recurrence_days_spin,
+            helper_text="Serve para dizer por quantos dias o sistema olha para trás e verifica se esse mesmo problema voltou a acontecer.",
+        )
+        add_field(
+            1,
+            1,
+            "Força da repetição na prioridade",
+            self.recurrence_weight_spin,
+            helper_text="Serve para dizer o quanto a repetição empurra esse pacote para cima na fila de atenção.",
+        )
         add_field(2, 0, "Título do pacote", self.title_input, 2)
         add_field(3, 0, "Observação", self.observation_input, 2)
 
@@ -630,6 +647,12 @@ class NonConformitiesPage(QFrame):
         self.open_button = QPushButton("Abrir selecionada")
         self.open_button.setMinimumHeight(34)
         self.open_button.clicked.connect(self.open_selected_item)
+        self.open_item_screen_button = QPushButton("Abrir tela por item")
+        self.open_item_screen_button.setMinimumHeight(34)
+        self.open_item_screen_button.clicked.connect(self.open_selected_item_screen)
+        self.open_equipment_screen_button = QPushButton("Abrir tela por equipamento")
+        self.open_equipment_screen_button.setMinimumHeight(34)
+        self.open_equipment_screen_button.clicked.connect(self.open_selected_equipment_screen)
         self.create_activity_button = QPushButton("Abrir inspeção de apoio")
         self.create_activity_button.setMinimumHeight(34)
         self.create_activity_button.setProperty("variant", "primary")
@@ -642,6 +665,8 @@ class NonConformitiesPage(QFrame):
         self.resolve_button.setProperty("variant", "success")
         self.resolve_button.clicked.connect(self.resolve_current_item)
         actions.addWidget(self.open_button)
+        actions.addWidget(self.open_item_screen_button)
+        actions.addWidget(self.open_equipment_screen_button)
         actions.addWidget(self.create_activity_button)
         actions.addWidget(self.create_package_button)
         actions.addWidget(self.resolve_button)
@@ -695,6 +720,39 @@ class NonConformitiesPage(QFrame):
         filters.addWidget(self.item_filter, 1)
         filters.addWidget(self.status_filter)
         filters.addWidget(refresh_button)
+
+        screens_card = QFrame()
+        style_filter_bar(screens_card)
+        screens_layout = QHBoxLayout(screens_card)
+        screens_layout.setContentsMargins(10, 8, 10, 8)
+        screens_layout.setSpacing(8)
+        screens_hint = QLabel("Abrir telas da central")
+        screens_hint.setObjectName("SectionCaption")
+        screens_layout.addWidget(screens_hint)
+        screens_layout.addStretch()
+
+        self.open_item_summary_screen_button = QPushButton("Tela por item")
+        self.open_item_summary_screen_button.clicked.connect(self.open_item_summary_screen)
+        self.open_equipment_summary_screen_button = QPushButton("Tela por equipamento")
+        self.open_equipment_summary_screen_button.clicked.connect(self.open_equipment_summary_screen)
+        self.open_queue_screen_button = QPushButton("Tela da fila")
+        self.open_queue_screen_button.clicked.connect(self.open_queue_screen)
+        self.open_blockers_screen_button = QPushButton("Tela de bloqueios")
+        self.open_blockers_screen_button.clicked.connect(self.open_blockers_screen)
+        self.open_mechanic_screen_button = QPushButton("Tela dos mecânicos")
+        self.open_mechanic_screen_button.clicked.connect(self.open_mechanic_records_screen)
+        self.open_packages_screen_button = QPushButton("Tela dos pacotes")
+        self.open_packages_screen_button.clicked.connect(self.open_packages_screen)
+        for button in (
+            self.open_item_summary_screen_button,
+            self.open_equipment_summary_screen_button,
+            self.open_queue_screen_button,
+            self.open_blockers_screen_button,
+            self.open_mechanic_screen_button,
+            self.open_packages_screen_button,
+        ):
+            button.setMinimumHeight(34)
+            screens_layout.addWidget(button)
 
         self.tabs = QTabWidget()
         self.tabs.setDocumentMode(True)
@@ -753,6 +811,7 @@ class NonConformitiesPage(QFrame):
         self.item_summary_table.setHorizontalHeaderLabels(["Item", "Equipamentos", "NCs abertas", "Em pacote", "Ação sugerida"])
         configure_table(self.item_summary_table, stretch_last=False)
         self.item_summary_table.setMinimumHeight(620)
+        self.item_summary_table.itemDoubleClicked.connect(self._open_item_screen_from_summary)
         item_layout.addWidget(item_caption)
         item_layout.addWidget(self.item_summary_table, 1)
 
@@ -769,6 +828,7 @@ class NonConformitiesPage(QFrame):
         self.equipment_summary_table.setHorizontalHeaderLabels(["Equipamento", "NCs abertas", "Itens distintos", "Em pacote", "Ação sugerida"])
         configure_table(self.equipment_summary_table, stretch_last=False)
         self.equipment_summary_table.setMinimumHeight(620)
+        self.equipment_summary_table.itemDoubleClicked.connect(self._open_equipment_screen_from_summary)
         equipment_layout.addWidget(equipment_caption)
         equipment_layout.addWidget(self.equipment_summary_table, 1)
 
@@ -872,6 +932,7 @@ class NonConformitiesPage(QFrame):
         )
         configure_table(self.packages_table, stretch_last=False)
         self.packages_table.setMinimumHeight(620)
+        self.packages_table.itemDoubleClicked.connect(self._open_package_screen_from_table)
 
         packages_layout.addLayout(packages_top)
         packages_layout.addWidget(packages_caption)
@@ -882,7 +943,9 @@ class NonConformitiesPage(QFrame):
         outer.addLayout(header)
         outer.addLayout(summary_cards)
         outer.addWidget(self.filter_card)
+        outer.addWidget(screens_card)
         outer.addWidget(self.tabs, 1)
+        self.tabs.hide()
         self._set_action_state(False)
 
     def _schedule_live_refresh(self, *_args):
@@ -894,6 +957,8 @@ class NonConformitiesPage(QFrame):
 
     def _set_action_state(self, enabled: bool):
         self.open_button.setEnabled(enabled)
+        self.open_item_screen_button.setEnabled(enabled)
+        self.open_equipment_screen_button.setEnabled(enabled)
         self.create_activity_button.setEnabled(enabled and not (self.current_item or {}).get("resolvido", False))
         self.create_package_button.setEnabled(
             self._user_has_management_access() and bool(self._package_modes_for_items(self._selected_items_for_package()))
@@ -1051,7 +1116,7 @@ class NonConformitiesPage(QFrame):
                     f"{resumo.get('abertas', 0)} aberta(s) / {resumo.get('resolvidas', 0)} resolvida(s)",
                 ]
                 for column, value in enumerate(values):
-                    cell = make_table_item(value)
+                    cell = make_table_item(value, payload=package if column == 0 else None)
                     if column == 6 and package.get("critical_recurrence"):
                         cell.setBackground(QBrush(QColor("#F4D9D6")))
                         cell.setForeground(QBrush(QColor("#7A332B")))
@@ -1084,7 +1149,8 @@ class NonConformitiesPage(QFrame):
             action = f"Adicionar ao pacote #{package_ids[0]}" if package_ids else "Criar pacote por item"
             values = [item_name, str(len(group["vehicles"])), str(group["open"]), str(group["packaged"]), action]
             for column, value in enumerate(values):
-                self.item_summary_table.setItem(row, column, make_table_item(value))
+                payload = {"item_name": item_name}
+                self.item_summary_table.setItem(row, column, make_table_item(value, payload=payload if column == 0 else None))
 
     def _populate_equipment_summary_table(self):
         groups: dict[str, dict] = defaultdict(lambda: {"open": 0, "items": set(), "packaged": 0, "package_ids": set()})
@@ -1108,7 +1174,8 @@ class NonConformitiesPage(QFrame):
             action = f"Adicionar ao pacote #{package_ids[0]}" if package_ids else "Criar pacote por equipamento"
             values = [vehicle_label, str(group["open"]), str(len(group["items"])), str(group["packaged"]), action]
             for column, value in enumerate(values):
-                self.equipment_summary_table.setItem(row, column, make_table_item(value))
+                payload = {"vehicle_label": vehicle_label}
+                self.equipment_summary_table.setItem(row, column, make_table_item(value, payload=payload if column == 0 else None))
 
     def _populate_queue_table(self):
         unresolved_items = [item for item in self.items if not item.get("resolvido")]
@@ -1301,8 +1368,377 @@ class NonConformitiesPage(QFrame):
                 message += " O sistema já marcou reincidência crítica para este item."
             show_notice(self, "Pacote criado", message, icon_name="dashboard")
             self.refresh()
-            self.tabs.setCurrentIndex(getattr(self, "packages_tab_index", self.tabs.count() - 1))
+            self.open_packages_screen()
             self.data_changed.emit()
+
+    def _row_payload(self, table: QTableWidget, row: int):
+        if row < 0:
+            return None
+        item = table.item(row, 0)
+        return item.data(Qt.UserRole) if item else None
+
+    def _build_occurrence_rows_for_item(self, item_name: str) -> list[dict]:
+        normalized = str(item_name or "").strip().upper()
+        return [
+            item
+            for item in self.items
+            if str(item.get("item_principal") or item.get("item_nome") or "").strip().upper() == normalized
+        ]
+
+    def _build_occurrence_rows_for_vehicle(self, vehicle_label: str) -> list[dict]:
+        normalized = str(vehicle_label or "").strip().upper()
+        return [
+            item
+            for item in self.items
+            if ((item.get("veiculo") or {}).get("frota") or (item.get("veiculo") or {}).get("placa") or "").strip().upper() == normalized
+        ]
+
+    def _open_table_screen(
+        self,
+        *,
+        title: str,
+        subtitle: str,
+        headers: list[str],
+        rows: list[list[str]],
+        row_payloads: list[dict] | None = None,
+        on_double_click=None,
+        width: int = 1240,
+        height: int = 760,
+    ):
+        dialog = QDialog(self)
+        dialog.setWindowTitle(title)
+        configure_dialog_window(dialog, width=width, height=height, min_width=860, min_height=560)
+        style_card(dialog)
+        layout = build_dialog_layout(dialog, max_content_width=1280)
+
+        header = QFrame()
+        header.setObjectName("DialogHeader")
+        header.setAttribute(Qt.WA_StyledBackground, True)
+        header_layout = QVBoxLayout(header)
+        header_layout.setContentsMargins(18, 18, 18, 18)
+        header_layout.setSpacing(4)
+        title_label = QLabel(title)
+        title_label.setObjectName("DialogHeaderTitle")
+        subtitle_label = QLabel(subtitle)
+        subtitle_label.setObjectName("DialogHeaderSubtitle")
+        subtitle_label.setWordWrap(True)
+        header_layout.addWidget(title_label)
+        header_layout.addWidget(subtitle_label)
+
+        table_card = QFrame()
+        table_card.setObjectName("TableCard")
+        table_card.setAttribute(Qt.WA_StyledBackground, True)
+        table_layout = QVBoxLayout(table_card)
+        table_layout.setContentsMargins(12, 12, 12, 12)
+        table_layout.setSpacing(8)
+
+        badge = QLabel(f"{len(rows)} registro(s)")
+        badge.setObjectName("TopBarPill")
+        badge_row = QHBoxLayout()
+        badge_row.addStretch()
+        badge_row.addWidget(badge)
+
+        table = QTableWidget(0, len(headers))
+        table.setHorizontalHeaderLabels(headers)
+        configure_table(table, stretch_last=False)
+        table.setMinimumHeight(560)
+        table.setRowCount(len(rows))
+        for row_index, row_values in enumerate(rows):
+            payload = row_payloads[row_index] if row_payloads and row_index < len(row_payloads) else None
+            for column, value in enumerate(row_values):
+                table.setItem(row_index, column, make_table_item(value, payload=payload if column == 0 else None))
+
+        if on_double_click:
+            def _handle_double_click(cell):
+                payload = self._row_payload(table, cell.row())
+                if payload:
+                    on_double_click(payload)
+
+            table.itemDoubleClicked.connect(_handle_double_click)
+
+        footer = QFrame()
+        footer.setObjectName("DialogFooter")
+        footer.setAttribute(Qt.WA_StyledBackground, True)
+        footer_layout = QHBoxLayout(footer)
+        footer_layout.setContentsMargins(16, 14, 16, 14)
+        footer_layout.addStretch()
+        close_button = QPushButton("Fechar")
+        close_button.clicked.connect(dialog.accept)
+        footer_layout.addWidget(close_button)
+
+        table_layout.addLayout(badge_row)
+        table_layout.addWidget(table)
+        layout.addWidget(header)
+        layout.addWidget(table_card, 1)
+        layout.addWidget(footer)
+        dialog.exec()
+
+    def open_item_summary_screen(self):
+        groups: dict[str, dict] = defaultdict(lambda: {"vehicles": set(), "open": 0, "packaged": 0, "package_ids": set()})
+        for item in self.items:
+            if item.get("resolvido"):
+                continue
+            key = str(item.get("item_principal") or item.get("item_nome") or "-").strip().upper() or "-"
+            group = groups[key]
+            vehicle = item.get("veiculo") or {}
+            group["vehicles"].add(vehicle.get("id") or vehicle.get("frota") or "-")
+            group["open"] += 1
+            package = item.get("resolution_package") or {}
+            if package.get("id"):
+                group["packaged"] += 1
+                group["package_ids"].add(package.get("id"))
+
+        rows = []
+        payloads = []
+        for item_name, group in sorted(groups.items(), key=lambda row: (-row[1]["open"], row[0])):
+            package_ids = sorted(group["package_ids"])
+            action = f"Adicionar ao pacote #{package_ids[0]}" if package_ids else "Criar pacote por item"
+            rows.append([item_name, str(len(group["vehicles"])), str(group["open"]), str(group["packaged"]), action])
+            payloads.append({"item_name": item_name})
+        self._open_table_screen(
+            title="Tela por item",
+            subtitle="Clique duas vezes em um item para abrir a tela com todos os veículos e registros ligados a essa não conformidade.",
+            headers=["Item", "Equipamentos", "NCs abertas", "Em pacote", "Ação sugerida"],
+            rows=rows,
+            row_payloads=payloads,
+            on_double_click=lambda payload: self.open_item_occurrences_screen(payload.get("item_name")),
+        )
+
+    def open_equipment_summary_screen(self):
+        groups: dict[str, dict] = defaultdict(lambda: {"open": 0, "items": set(), "packaged": 0, "package_ids": set()})
+        for item in self.items:
+            if item.get("resolvido"):
+                continue
+            vehicle = item.get("veiculo") or {}
+            label = vehicle.get("frota") or vehicle.get("placa") or "-"
+            group = groups[label]
+            group["open"] += 1
+            group["items"].add(_nc_label(item))
+            package = item.get("resolution_package") or {}
+            if package.get("id"):
+                group["packaged"] += 1
+                group["package_ids"].add(package.get("id"))
+
+        rows = []
+        payloads = []
+        for vehicle_label, group in sorted(groups.items(), key=lambda row: (-row[1]["open"], row[0])):
+            package_ids = sorted(group["package_ids"])
+            action = f"Adicionar ao pacote #{package_ids[0]}" if package_ids else "Criar pacote por equipamento"
+            rows.append([vehicle_label, str(group["open"]), str(len(group["items"])), str(group["packaged"]), action])
+            payloads.append({"vehicle_label": vehicle_label})
+        self._open_table_screen(
+            title="Tela por equipamento",
+            subtitle="Clique duas vezes em um equipamento para abrir a tela com todas as não conformidades daquele veículo.",
+            headers=["Equipamento", "NCs abertas", "Itens distintos", "Em pacote", "Ação sugerida"],
+            rows=rows,
+            row_payloads=payloads,
+            on_double_click=lambda payload: self.open_equipment_occurrences_screen(payload.get("vehicle_label")),
+        )
+
+    def open_queue_screen(self):
+        unresolved_items = [item for item in self.items if not item.get("resolvido")]
+        unresolved_without_package = [item for item in unresolved_items if not (item.get("resolution_package") or {}).get("id")]
+        unresolved_with_package = [item for item in unresolved_items if (item.get("resolution_package") or {}).get("id")]
+        open_packages = [package for package in self.packages if package.get("status") == "ABERTO"]
+        maintenance_packages = [package for package in self.packages if package.get("status") == "EM_MANUTENCAO"]
+        critical_packages = [package for package in self.packages if package.get("critical_recurrence")]
+        rows = [
+            ["Sem pacote", str(len(unresolved_without_package)), "0", "Ainda aguardando decisão da central."],
+            ["Em pacote", str(len(unresolved_with_package)), str(len(open_packages)), "Já agrupados para seguir."],
+            ["Em manutenção", "0", str(len(maintenance_packages)), "Já enviados para execução oficial."],
+            ["Problema repetindo muito", "0", str(len(critical_packages)), "Pacotes em que o mesmo problema voltou demais."],
+        ]
+        self._open_table_screen(
+            title="Tela da fila da central",
+            subtitle="Leitura simples para saber o que está solto, agrupado ou já enviado para execução.",
+            headers=["Fase", "Quantidade", "Pacotes", "Leitura"],
+            rows=rows,
+        )
+
+    def open_blockers_screen(self):
+        rows = []
+        unresolved_items = [item for item in self.items if not item.get("resolvido")]
+        unresolved_without_package = [item for item in unresolved_items if not (item.get("resolution_package") or {}).get("id")]
+        if unresolved_without_package:
+            rows.append(["Sem pacote", "Central de Resolução", str(len(unresolved_without_package)), "Existem registros abertos esperando triagem oficial."])
+        for package in self.packages:
+            if package.get("critical_recurrence"):
+                resumo = package.get("resumo") or {}
+                rows.append([
+                    "Problema repetindo muito",
+                    f"Pacote #{package.get('id')} - {package.get('reference_label') or '-'}",
+                    str(resumo.get("abertas", 0)),
+                    "Esse mesmo problema está voltando demais e merece atenção.",
+                ])
+        for blocker in list((self.maintenance_overview or {}).get("bloqueios") or []):
+            rows.append([
+                str(blocker.get("type") or "Bloqueio de manutenção"),
+                str(blocker.get("reference") or "Manutenção"),
+                str(blocker.get("quantity") or 0),
+                str(blocker.get("reading") or "Existe um bloqueio operacional na manutenção."),
+            ])
+        self._open_table_screen(
+            title="Tela de bloqueios",
+            subtitle="Mostra onde a resolução travou: sem pacote, problema repetindo muito ou bloqueio na execução.",
+            headers=["Tipo", "Referência", "Quantidade", "Leitura"],
+            rows=rows,
+        )
+
+    def open_mechanic_records_screen(self):
+        rows = []
+        payloads = []
+        for item in self.mechanic_items:
+            rows.append([
+                item.get("veiculo_referencia") or "-",
+                item.get("item_nome") or "-",
+                "Resolvida" if item.get("resolvido") else "Aberta",
+                (item.get("created_by") or {}).get("nome") or "-",
+                (item.get("resolved_by") or {}).get("nome") or "-",
+                self._format(item.get("created_at")),
+                self._format(item.get("data_resolucao")),
+                item.get("codigo_peca") or "-",
+            ])
+            payloads.append(item)
+        self._open_table_screen(
+            title="Tela dos registros internos dos mecânicos",
+            subtitle="Mostra o que foi aberto e resolvido diretamente pelo mecânico, separado do checklist.",
+            headers=["Referência", "Item", "Status", "Aberta por", "Resolvida por", "Abertura", "Resolução", "Peça"],
+            rows=rows,
+            row_payloads=payloads,
+        )
+
+    def open_packages_screen(self):
+        rows = []
+        payloads = []
+        for package in self.packages:
+            resumo = package.get("resumo") or {}
+            rows.append([
+                package.get("title") or "-",
+                "Por item" if package.get("grouping_mode") == "POR_ITEM" else "Por equipamento",
+                package.get("reference_label") or "-",
+                package.get("status") or "-",
+                str(package.get("priority_score") or 0),
+                str(package.get("recurrence_hits") or 0),
+                "Sim" if package.get("critical_recurrence") else "Não",
+                f"{resumo.get('abertas', 0)} aberta(s) / {resumo.get('resolvidas', 0)} resolvida(s)",
+            ])
+            payloads.append(package)
+        self._open_table_screen(
+            title="Tela dos pacotes de resolução",
+            subtitle="Clique duas vezes em um pacote para abrir a lista dos registros que estão dentro dele.",
+            headers=["Título", "Agrupamento", "Referência", "Status", "Score", "Repetições", "Crítico", "Resumo"],
+            rows=rows,
+            row_payloads=payloads,
+            on_double_click=lambda payload: self.open_package_occurrences_screen(payload),
+        )
+
+    def open_item_occurrences_screen(self, item_name: str | None):
+        if not item_name:
+            return
+        rows = []
+        payloads = []
+        for item in self._build_occurrence_rows_for_item(item_name):
+            package = item.get("resolution_package") or {}
+            rows.append([
+                (item.get("veiculo") or {}).get("frota") or "-",
+                _nc_label(item),
+                "Resolvida" if item.get("resolvido") else "Aberta",
+                self._format(item.get("created_at")),
+                (item.get("usuario") or {}).get("nome") or "-",
+                f"#{package.get('id')}" if package.get("id") else "-",
+                "Sim" if item.get("foto_antes") else "Não",
+                "Sim" if item.get("foto_depois") else "Não",
+            ])
+            payloads.append(item)
+        self._open_table_screen(
+            title=f"Tela do item - {item_name}",
+            subtitle="Aqui aparecem todos os veículos e todos os registros ligados a esse item de não conformidade.",
+            headers=["Veículo", "Item", "Status", "Abertura", "Motorista", "Pacote", "Foto antes", "Foto depois"],
+            rows=rows,
+            row_payloads=payloads,
+            on_double_click=lambda payload: NonConformityDetailDialog(self.api_client, payload, self).exec(),
+        )
+
+    def open_equipment_occurrences_screen(self, vehicle_label: str | None):
+        if not vehicle_label:
+            return
+        rows = []
+        payloads = []
+        for item in self._build_occurrence_rows_for_vehicle(vehicle_label):
+            package = item.get("resolution_package") or {}
+            rows.append([
+                (item.get("veiculo") or {}).get("frota") or "-",
+                _nc_label(item),
+                "Resolvida" if item.get("resolvido") else "Aberta",
+                self._format(item.get("created_at")),
+                (item.get("usuario") or {}).get("nome") or "-",
+                f"#{package.get('id')}" if package.get("id") else "-",
+                "Sim" if item.get("foto_antes") else "Não",
+                "Sim" if item.get("foto_depois") else "Não",
+            ])
+            payloads.append(item)
+        self._open_table_screen(
+            title=f"Tela do equipamento - {vehicle_label}",
+            subtitle="Aqui aparecem todas as não conformidades abertas ou resolvidas desse equipamento.",
+            headers=["Veículo", "Item", "Status", "Abertura", "Motorista", "Pacote", "Foto antes", "Foto depois"],
+            rows=rows,
+            row_payloads=payloads,
+            on_double_click=lambda payload: NonConformityDetailDialog(self.api_client, payload, self).exec(),
+        )
+
+    def open_package_occurrences_screen(self, package: dict | None):
+        if not package:
+            return
+        package_id = package.get("id")
+        rows = []
+        payloads = []
+        for item in self.items:
+            linked_package = item.get("resolution_package") or {}
+            if linked_package.get("id") != package_id:
+                continue
+            rows.append([
+                (item.get("veiculo") or {}).get("frota") or "-",
+                _nc_label(item),
+                "Resolvida" if item.get("resolvido") else "Aberta",
+                self._format(item.get("created_at")),
+                (item.get("usuario") or {}).get("nome") or "-",
+                "Sim" if item.get("foto_antes") else "Não",
+                "Sim" if item.get("foto_depois") else "Não",
+            ])
+            payloads.append(item)
+        self._open_table_screen(
+            title=f"Tela do pacote #{package_id}",
+            subtitle="Aqui aparecem os registros que já estão dentro deste pacote de resolução.",
+            headers=["Veículo", "Item", "Status", "Abertura", "Motorista", "Foto antes", "Foto depois"],
+            rows=rows,
+            row_payloads=payloads,
+            on_double_click=lambda payload: NonConformityDetailDialog(self.api_client, payload, self).exec(),
+        )
+
+    def open_selected_item_screen(self):
+        target_item = self._selected_item()
+        if not target_item:
+            return
+        self.open_item_occurrences_screen(str(target_item.get("item_principal") or target_item.get("item_nome") or ""))
+
+    def open_selected_equipment_screen(self):
+        target_item = self._selected_item()
+        if not target_item:
+            return
+        vehicle = target_item.get("veiculo") or {}
+        self.open_equipment_occurrences_screen(vehicle.get("frota") or vehicle.get("placa") or "")
+
+    def _open_item_screen_from_summary(self, table_item):
+        payload = self._row_payload(self.item_summary_table, table_item.row()) or {}
+        self.open_item_occurrences_screen(payload.get("item_name"))
+
+    def _open_equipment_screen_from_summary(self, table_item):
+        payload = self._row_payload(self.equipment_summary_table, table_item.row()) or {}
+        self.open_equipment_occurrences_screen(payload.get("vehicle_label"))
+
+    def _open_package_screen_from_table(self, table_item):
+        payload = self._row_payload(self.packages_table, table_item.row()) or {}
+        self.open_package_occurrences_screen(payload)
 
 
 
