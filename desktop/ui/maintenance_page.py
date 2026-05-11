@@ -935,6 +935,104 @@ class MaintenancePage(QFrame):
         services_screen_layout.addLayout(services_summary_layout)
         services_screen_layout.addLayout(services_actions)
 
+        responsible_screen_card = QFrame()
+        style_filter_bar(responsible_screen_card)
+        self.responsible_screen_card = responsible_screen_card
+        responsible_screen_layout = QVBoxLayout(responsible_screen_card)
+        responsible_screen_layout.setContentsMargins(12, 10, 12, 10)
+        responsible_screen_layout.setSpacing(8)
+
+        responsible_screen_top = QHBoxLayout()
+        responsible_screen_title = QLabel("Tela de responsáveis")
+        responsible_screen_title.setObjectName("SectionTitle")
+        self.responsible_screen_badge = QLabel("Nenhum planejamento selecionado")
+        self.responsible_screen_badge.setObjectName("TopBarPill")
+        responsible_screen_top.addWidget(responsible_screen_title)
+        responsible_screen_top.addStretch()
+        responsible_screen_top.addWidget(self.responsible_screen_badge)
+
+        responsible_screen_hint = QLabel(
+            "Aqui fica a distribuição dos donos do serviço. Pense como a prancheta do encarregado: quem já recebeu tarefa, quem ainda está sem dono e quem está mais carregado."
+        )
+        responsible_screen_hint.setObjectName("PageSubtitle")
+        responsible_screen_hint.setWordWrap(True)
+
+        responsible_summary_layout = QGridLayout()
+        responsible_summary_layout.setHorizontalSpacing(8)
+        responsible_summary_layout.setVerticalSpacing(6)
+        self.responsible_scope_badge = QLabel("Escopo: todos os planejamentos")
+        self.responsible_scope_badge.setObjectName("TopBarPill")
+        self.responsible_filter_badge = QLabel("Filtro: todos")
+        self.responsible_filter_badge.setObjectName("TopBarPill")
+        self.responsible_load_badge = QLabel("Sem responsável: 0 | Com responsável: 0")
+        self.responsible_load_badge.setObjectName("TopBarPill")
+        self.responsible_queue_badge = QLabel("OS abertas: 0 | OS atrasadas: 0")
+        self.responsible_queue_badge.setObjectName("TopBarPill")
+        responsible_summary_layout.addWidget(self.responsible_scope_badge, 0, 0)
+        responsible_summary_layout.addWidget(self.responsible_filter_badge, 0, 1)
+        responsible_summary_layout.addWidget(self.responsible_load_badge, 1, 0)
+        responsible_summary_layout.addWidget(self.responsible_queue_badge, 1, 1)
+
+        responsible_actions = QHBoxLayout()
+        responsible_actions.setSpacing(8)
+        self.responsible_filter_combo = QComboBox()
+        self.responsible_filter_combo.addItem("Todos os planejamentos", "ALL")
+        self.responsible_filter_combo.addItem("Sem responsável", "SEM_RESPONSAVEL")
+        self.responsible_filter_combo.addItem("Com responsável", "COM_RESPONSAVEL")
+        self.responsible_filter_combo.currentIndexChanged.connect(self._render_responsible_table)
+        self.responsible_open_parts_button = QPushButton("Abrir peças")
+        self.responsible_open_parts_button.setMinimumHeight(34)
+        self.responsible_open_parts_button.clicked.connect(lambda: self._open_maintenance_screen("PECAS"))
+        self.responsible_back_home_button = QPushButton("Voltar para home")
+        self.responsible_back_home_button.setMinimumHeight(34)
+        self.responsible_back_home_button.clicked.connect(self._go_to_maintenance_home)
+        responsible_actions.addWidget(QLabel("Filtro"))
+        responsible_actions.addWidget(self.responsible_filter_combo)
+        responsible_actions.addWidget(self.responsible_open_parts_button)
+        responsible_actions.addWidget(self.responsible_back_home_button)
+        responsible_actions.addStretch(1)
+
+        responsible_table_card = QFrame()
+        style_table_card(responsible_table_card)
+        responsible_table_layout = QVBoxLayout(responsible_table_card)
+        responsible_table_layout.setContentsMargins(12, 10, 12, 10)
+        responsible_table_layout.setSpacing(8)
+
+        responsible_table_hint = QLabel(
+            "Clique em um planejamento para carregar o responsável abaixo. Dê duplo clique para abrir os serviços daquele planejamento."
+        )
+        responsible_table_hint.setObjectName("PageSubtitle")
+        responsible_table_hint.setWordWrap(True)
+
+        self.responsible_table = QTableWidget(0, 7)
+        self.responsible_table.setHorizontalHeaderLabels(
+            [
+                "ID",
+                "Planejamento",
+                "Responsável atual",
+                "Situação",
+                "OS abertas",
+                "OS atrasadas",
+                "Carga",
+            ]
+        )
+        configure_table(self.responsible_table, stretch_last=False)
+        self.responsible_table.setColumnHidden(0, True)
+        self.responsible_table.setSelectionBehavior(QAbstractItemView.SelectRows)
+        self.responsible_table.setSelectionMode(QAbstractItemView.SingleSelection)
+        self.responsible_table.itemSelectionChanged.connect(self._on_responsible_schedule_selection_changed)
+        self.responsible_table.itemDoubleClicked.connect(lambda _item: self._open_maintenance_screen("SERVICOS"))
+        self.responsible_table.setMinimumHeight(260)
+
+        responsible_table_layout.addWidget(responsible_table_hint)
+        responsible_table_layout.addWidget(self.responsible_table)
+
+        responsible_screen_layout.addLayout(responsible_screen_top)
+        responsible_screen_layout.addWidget(responsible_screen_hint)
+        responsible_screen_layout.addLayout(responsible_summary_layout)
+        responsible_screen_layout.addLayout(responsible_actions)
+        responsible_screen_layout.addWidget(responsible_table_card)
+
         governance_header_card = QFrame()
         style_filter_bar(governance_header_card)
         governance_header_layout = QVBoxLayout(governance_header_card)
@@ -1294,6 +1392,7 @@ class MaintenancePage(QFrame):
         governanca_layout = QVBoxLayout(governanca_tab)
         governanca_layout.setContentsMargins(0, 0, 0, 0)
         governanca_layout.setSpacing(10)
+        governanca_layout.addWidget(responsible_screen_card)
         governanca_layout.addWidget(governance_header_card)
         governance_split_layout = QHBoxLayout()
         governance_split_layout.setSpacing(10)
@@ -1392,6 +1491,7 @@ class MaintenancePage(QFrame):
         elif key == "AGUARDANDO_PECA":
             self._open_maintenance_screen("PECAS")
         elif key == "SEM_RESPONSAVEL":
+            self._set_responsible_filter("SEM_RESPONSAVEL")
             self._open_maintenance_screen("RESPONSAVEIS")
         elif key == "BLOQUEIOS":
             self._open_maintenance_screen("BLOQUEIOS")
@@ -1424,14 +1524,24 @@ class MaintenancePage(QFrame):
             self.tabs.setCurrentIndex(self.tab_execucao_index)
             self.scroll_area.ensureWidgetVisible(self.tabs, 24, 24)
             return
-        if screen_key in {"RESPONSAVEIS", "PECAS"}:
+        if screen_key == "RESPONSAVEIS":
             self.tabs.setCurrentIndex(self.tab_governanca_index)
-            self.scroll_area.ensureWidgetVisible(self.tabs, 24, 24)
+            self.scroll_area.ensureWidgetVisible(self.responsible_screen_card, 24, 24)
+            return
+        if screen_key == "PECAS":
+            self.tabs.setCurrentIndex(self.tab_governanca_index)
+            self.scroll_area.ensureWidgetVisible(self.material_combo, 24, 24)
             return
 
     def _go_to_maintenance_home(self):
         self.current_screen_badge.setText("Tela atual: Home da manutenção")
         self.scroll_area.verticalScrollBar().setValue(0)
+
+    def _set_responsible_filter(self, filter_code: str):
+        index = self.responsible_filter_combo.findData(filter_code)
+        if index < 0:
+            index = 0
+        self.responsible_filter_combo.setCurrentIndex(index)
 
     def _open_services_for_selected_day(self):
         if not self.selected_calendar_day_iso:
@@ -1532,6 +1642,105 @@ class MaintenancePage(QFrame):
             self.report_mechanic_combo.blockSignals(False)
             self.report_vehicle_combo.blockSignals(False)
 
+    def _mechanic_name_by_id(self, mechanic_id) -> str:
+        if not mechanic_id:
+            return "Sem responsável"
+        for mechanic in self.mechanics:
+            if int(mechanic.get("id") or 0) == int(mechanic_id):
+                return mechanic.get("nome") or mechanic.get("login") or f"Mecânico {mechanic_id}"
+        return f"Mecânico {mechanic_id}"
+
+    def _responsible_metrics_map(self) -> dict[int, dict]:
+        metrics: dict[int, dict] = defaultdict(
+            lambda: {
+                "open_orders": 0,
+                "overdue_orders": 0,
+                "schedules": 0,
+            }
+        )
+        today_iso = QDate.currentDate().toString("yyyy-MM-dd")
+        for schedule in (self.overview or {}).get("programacoes") or []:
+            mechanic_id = int(schedule.get("assigned_mechanic_user_id") or 0)
+            if not mechanic_id:
+                continue
+            row = metrics[mechanic_id]
+            row["schedules"] += 1
+            for item in schedule.get("itens") or []:
+                status = str(item.get("status") or "").upper()
+                if status not in {"INSTALADO", "CANCELADO"}:
+                    row["open_orders"] += 1
+                scheduled_date = str(item.get("scheduled_date") or "")[:10]
+                work_order = item.get("work_order") or {}
+                if (
+                    int(work_order.get("id") or 0)
+                    and scheduled_date
+                    and scheduled_date < today_iso
+                    and status not in {"INSTALADO", "CANCELADO"}
+                ):
+                    row["overdue_orders"] += 1
+        return metrics
+
+    def _render_responsible_table(self):
+        schedules = list(self.filtered_schedules)
+        filter_code = self.responsible_filter_combo.currentData() if hasattr(self, "responsible_filter_combo") else "ALL"
+        if filter_code == "SEM_RESPONSAVEL":
+            schedules = [row for row in schedules if not row.get("assigned_mechanic_user_id")]
+        elif filter_code == "COM_RESPONSAVEL":
+            schedules = [row for row in schedules if row.get("assigned_mechanic_user_id")]
+
+        metrics_map = self._responsible_metrics_map()
+        self.responsible_table.setSortingEnabled(False)
+        self.responsible_table.setUpdatesEnabled(False)
+        self.responsible_table.blockSignals(True)
+        selected_row = -1
+        try:
+            self.responsible_table.setRowCount(len(schedules))
+            for row_index, schedule in enumerate(schedules):
+                schedule_id = int(schedule.get("id") or 0)
+                if self.selected_schedule_id and schedule_id == self.selected_schedule_id:
+                    selected_row = row_index
+                mechanic_id = int(schedule.get("assigned_mechanic_user_id") or 0)
+                metrics = metrics_map.get(mechanic_id) or {"open_orders": 0, "overdue_orders": 0, "schedules": 0}
+                has_responsible = mechanic_id > 0
+                values = [
+                    schedule_id,
+                    schedule.get("title") or "-",
+                    self._mechanic_name_by_id(mechanic_id),
+                    "Com responsável" if has_responsible else "Sem responsável",
+                    int(metrics.get("open_orders") or 0),
+                    int(metrics.get("overdue_orders") or 0),
+                    int(metrics.get("schedules") or 0),
+                ]
+                for column, value in enumerate(values):
+                    payload = schedule if column == 0 else None
+                    self.responsible_table.setItem(row_index, column, make_table_item(value, payload=payload))
+            if selected_row >= 0:
+                self.responsible_table.selectRow(selected_row)
+        finally:
+            self.responsible_table.blockSignals(False)
+            self.responsible_table.setUpdatesEnabled(True)
+            self.responsible_table.setSortingEnabled(True)
+        self._refresh_responsible_screen_summary(schedules, metrics_map)
+
+    def _refresh_responsible_screen_summary(self, schedules: list[dict], metrics_map: dict[int, dict]):
+        total_without = sum(1 for row in self.filtered_schedules if not row.get("assigned_mechanic_user_id"))
+        total_with = sum(1 for row in self.filtered_schedules if row.get("assigned_mechanic_user_id"))
+        total_open = sum(int(values.get("open_orders") or 0) for values in metrics_map.values())
+        total_overdue = sum(int(values.get("overdue_orders") or 0) for values in metrics_map.values())
+        filter_label = str(self.responsible_filter_combo.currentText() or "Todos os planejamentos")
+        self.responsible_filter_badge.setText(f"Filtro: {filter_label}")
+        self.responsible_load_badge.setText(f"Sem responsável: {total_without} | Com responsável: {total_with}")
+        self.responsible_queue_badge.setText(f"OS abertas: {total_open} | OS atrasadas: {total_overdue}")
+
+        selected_schedule = self._selected_schedule()
+        if selected_schedule:
+            title = str(selected_schedule.get("title") or f"#{selected_schedule.get('id')}")
+            self.responsible_screen_badge.setText(f"Planejamento: {title}")
+            self.responsible_scope_badge.setText("Escopo: planejamento selecionado")
+        else:
+            self.responsible_screen_badge.setText(f"{len(schedules)} planejamento(s) na tela")
+            self.responsible_scope_badge.setText("Escopo: todos os planejamentos filtrados")
+
     def _update_report_filter_visibility(self):
         report_type = str(self.report_type_combo.currentData() or "mensal")
         needs_mechanic = report_type == "mecanico"
@@ -1598,6 +1807,7 @@ class MaintenancePage(QFrame):
 
         self._render_summary()
         self._render_schedules_table()
+        self._render_responsible_table()
         self.render_selected_schedule_items()
         self.render_selected_schedule_materials()
         self._render_calendar_table()
@@ -2283,6 +2493,7 @@ class MaintenancePage(QFrame):
             self.selected_schedule_id = None
             self.selected_calendar_day_iso = None
             self._refresh_planning_screen_summary()
+            self._render_responsible_table()
             self.render_selected_schedule_items()
             self.render_selected_schedule_materials()
             self._render_calendar_table()
@@ -2294,6 +2505,7 @@ class MaintenancePage(QFrame):
         self.selected_schedule_id = int(payload.get("id"))
         self.selected_calendar_day_iso = None
         self._refresh_planning_screen_summary()
+        self._render_responsible_table()
         self.render_selected_schedule_items()
         self.render_selected_schedule_materials()
         self._render_calendar_table()
@@ -2321,6 +2533,25 @@ class MaintenancePage(QFrame):
         self._refresh_calendar_selection_badge()
         self._refresh_agenda_screen_summary()
         self.render_selected_schedule_items()
+
+    def _on_responsible_schedule_selection_changed(self):
+        selected_rows = self.responsible_table.selectionModel().selectedRows() if self.responsible_table.selectionModel() else []
+        if not selected_rows:
+            return
+        item = self.responsible_table.item(selected_rows[0].row(), 0)
+        payload = item.data(Qt.UserRole) if item else None
+        if not payload:
+            return
+        self.selected_schedule_id = int(payload.get("id") or 0)
+        self._refresh_planning_screen_summary()
+        self._refresh_responsible_screen_summary(
+            [row for row in self.filtered_schedules if int(row.get("id") or 0) == self.selected_schedule_id] or self.filtered_schedules,
+            self._responsible_metrics_map(),
+        )
+        self.render_selected_schedule_items()
+        self.render_selected_schedule_materials()
+        self._render_calendar_table()
+        self._render_agenda_days_table()
 
     def _clear_calendar_day_filter(self):
         self.selected_calendar_day_iso = None
