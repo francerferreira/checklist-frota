@@ -1,5 +1,5 @@
 window.CHECKLIST_CONFIG = window.CHECKLIST_CONFIG || {
-    // Para uso local pelo projeto, o web mobile fala com o backend local.
-    API_BASE_URL: "http://127.0.0.1:5000",
+    // URL publica do backend no Render.
+    API_BASE_URL: "https://checklist-frota-qngw.onrender.com",
     ENABLE_CHECKLIST_PWA: false,
 };
