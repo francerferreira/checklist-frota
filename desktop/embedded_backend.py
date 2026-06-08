@@ -28,6 +28,7 @@ def _is_local_address(base_url: str) -> tuple[bool, str, int]:
 
 def _run_backend(host: str, port: int) -> None:
     os.environ["CHECKLIST_EMBEDDED_BACKEND"] = "1"
+    os.environ["CHECKLIST_FORCE_LOCAL_DB"] = "1"
     from app import create_app
 
     app = create_app()

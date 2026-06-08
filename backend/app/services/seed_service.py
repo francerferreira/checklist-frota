@@ -30,6 +30,11 @@ def seed_reference_data() -> None:
         mecanico.set_password("123456")
         db.session.add(mecanico)
 
+    if not User.query.filter_by(login="francer").first():
+        francer = User(nome="Francer Ferreira", login="francer", tipo="admin")
+        francer.set_password("Francer@2026!")
+        db.session.add(francer)
+
     db.session.commit()
     seed_checklist_catalog_items()
 

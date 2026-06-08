@@ -31,7 +31,9 @@ def _normalize_database_url(url: str | None) -> str:
 
 class Config:
     SECRET_KEY = os.getenv("SECRET_KEY", "checklist-frota-dev-secret")
-    SQLALCHEMY_DATABASE_URI = _normalize_database_url(os.getenv("DATABASE_URL"))
+    SQLALCHEMY_DATABASE_URI = _normalize_database_url(
+        None if os.getenv("CHECKLIST_FORCE_LOCAL_DB") == "1" else os.getenv("DATABASE_URL")
+    )
     SQLALCHEMY_TRACK_MODIFICATIONS = False
     JSON_SORT_KEYS = False
     MAX_CONTENT_LENGTH = 15 * 1024 * 1024

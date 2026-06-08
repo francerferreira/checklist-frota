@@ -4,7 +4,7 @@ chcp 65001 >nul
 
 pushd "%~dp0"
 set "ROOT=%CD%"
-if not defined CHECKLIST_API_URL set "CHECKLIST_API_URL=https://checklist-frota-qngw.onrender.com"
+if not defined CHECKLIST_API_URL set "CHECKLIST_API_URL=http://127.0.0.1:5000"
 
 echo API padrao do desktop: %CHECKLIST_API_URL%
 echo.
@@ -48,7 +48,7 @@ if not errorlevel 1 (
     powershell -NoProfile -Command "try { Invoke-WebRequest -Uri 'http://127.0.0.1:5000/' -UseBasicParsing -TimeoutSec 2 | Out-Null; exit 0 } catch { exit 1 }"
     if errorlevel 1 (
         echo Backend parado. Iniciando em nova janela...
-        start "Checklist Backend" cmd /k "cd /d ""%ROOT%\backend"" && python run.py"
+        start "Checklist Backend" cmd /k "set ""CHECKLIST_FORCE_LOCAL_DB=1"" && set ""DATABASE_URL="" && cd /d ""%ROOT%\backend"" && python run.py"
         timeout /t 5 >nul
     ) else (
         echo Backend ja esta online em http://127.0.0.1:5000
@@ -60,12 +60,12 @@ if not errorlevel 1 (
 
 echo.
 echo [3/3] Abrindo aplicativo desktop...
-start "Checklist Desktop" cmd /c "set ""CHECKLIST_API_URL=%CHECKLIST_API_URL%"" && cd /d ""%ROOT%\desktop"" && python main.py"
+start "Checklist Desktop" cmd /c "set ""CHECKLIST_API_URL=%CHECKLIST_API_URL%"" && if /I ""%CHECKLIST_API_URL%""==""http://127.0.0.1:5000"" set ""CHECKLIST_FORCE_LOCAL_DB=1"" & if /I ""%CHECKLIST_API_URL%""==""http://127.0.0.1:5000"" set ""DATABASE_URL="" & cd /d ""%ROOT%\desktop"" & python main.py"
 
 echo.
 echo Sistema iniciado.
-echo Login padrao: admin
-echo Senha padrao: 123456
+echo Login padrao local: admin
+echo Senha padrao local: 123456
 echo API em uso: %CHECKLIST_API_URL%
 echo.
 pause
