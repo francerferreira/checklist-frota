@@ -469,15 +469,28 @@ function setActiveScreen(key) {
     elements.mobileShell?.scrollTo({ top: 0, behavior: "auto" });
 }
 
+async function fetchWithTimeout(url, options = {}, timeoutMs = 20000) {
+    const controller = new AbortController();
+    const timeoutId = window.setTimeout(() => controller.abort(), timeoutMs);
+    try {
+        return await fetch(url, {
+            ...options,
+            signal: controller.signal,
+        });
+    } finally {
+        window.clearTimeout(timeoutId);
+    }
+}
+
 async function apiFetch(path, options = {}) {
     try {
-        const response = await fetch(`${state.apiBaseUrl}${path}`, {
+        const response = await fetchWithTimeout(`${state.apiBaseUrl}${path}`, {
             ...options,
             headers: {
                 ...(options.headers || {}),
                 Authorization: state.token ? `Bearer ${state.token}` : "",
             },
-        });
+        }, 20000);
 
         const body = await response.json().catch(() => ({}));
         if (!response.ok || (Object.prototype.hasOwnProperty.call(body, "success") && body.success === false)) {
@@ -488,6 +501,9 @@ async function apiFetch(path, options = {}) {
 
         return Object.prototype.hasOwnProperty.call(body, "data") ? body.data : body;
     } catch (error) {
+        if (error.name === "AbortError") {
+            throw new Error("A API demorou demais para responder. Tente novamente em instantes.");
+        }
         if (error.name === "TypeError" && (error.message.includes("fetch") || error.message.includes("NetworkError"))) {
             throw new Error("SERVIDOR INDISPONÍVEL OU SEM CONEXÃO.");
         }
@@ -533,11 +549,19 @@ function optionsLikeHeaders(customHeaders = {}) {
 }
 
 async function login(credentials) {
-    const response = await fetch(`${state.apiBaseUrl}/login`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(credentials),
-    });
+    let response;
+    try {
+        response = await fetchWithTimeout(`${state.apiBaseUrl}/login`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(credentials),
+        }, 20000);
+    } catch (error) {
+        if (error.name === "AbortError") {
+            throw new Error("O login demorou demais para responder. Tente novamente em instantes.");
+        }
+        throw error;
+    }
 
     const body = await response.json().catch(() => ({}));
     if (!response.ok || (Object.prototype.hasOwnProperty.call(body, "success") && body.success === false)) {
