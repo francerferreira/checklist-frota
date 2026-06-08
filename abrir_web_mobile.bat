@@ -7,7 +7,7 @@ set "ROOT=%CD%"
 set "WEB_PORT=5500"
 set "WEB_URL=http://127.0.0.1:%WEB_PORT%"
 set "WEB_OPEN_URL=%WEB_URL%/?v=20260420-02"
-if not defined CHECKLIST_API_URL set "CHECKLIST_API_URL=https://checklist-frota-qngw.onrender.com"
+if not defined CHECKLIST_API_URL set "CHECKLIST_API_URL=http://127.0.0.1:5000"
 echo API padrao do Web Mobile: %CHECKLIST_API_URL%
 echo.
 
@@ -52,7 +52,7 @@ if not errorlevel 1 (
     if errorlevel 1 (
         echo Backend nao respondeu em http://127.0.0.1:5000.
         echo Iniciando backend em nova janela...
-        start "Checklist Backend" powershell -NoExit -Command "Set-Location -LiteralPath '%ROOT%\backend'; python -u run.py"
+        start "Checklist Backend" powershell -NoExit -Command "$env:CHECKLIST_FORCE_LOCAL_DB='1'; $env:DATABASE_URL=''; Set-Location -LiteralPath '%ROOT%\backend'; python -u run.py"
         timeout /t 15 >nul
     ) else (
         echo Backend online em http://127.0.0.1:5000.
