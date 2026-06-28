@@ -1,0 +1,143 @@
+{\rtf1\ansi\deff0
+\fs24
+\b GUIA DE CONTINUIDADE DO SISTEMA EM OUTRO PC\b0\par
+\par
+Arquivo de referencia criado em 2026-06-28.\par
+\par
+Este documento resume o que precisa ser levado para outro computador para continuar o projeto sem depender da memoria da conversa.\par
+\par
+\b 1. O que este sistema e\b0\par
+Projeto hibrido com tres frentes:\par
+- backend Flask\par
+- desktop PySide6\par
+- web mobile em HTML, CSS e JavaScript puro\par
+\par
+Analogia simples:\par
+- backend = motor\par
+- banco = memoria\par
+- API = ponte de comunicacao\par
+- desktop = painel completo\par
+- web mobile = prancheta de campo\par
+\par
+\b 2. Pastas principais\b0\par
+- backend/\par
+- desktop/\par
+- web_app/\par
+- tests/\par
+- tools/\par
+- dist/\par
+\par
+\b 3. Pontos de entrada\b0\par
+- backend local: backend/run.py\par
+- WSGI: wsgi.py\par
+- desktop: desktop/main.py\par
+- web mobile: web_app/index.html\par
+\par
+\b 4. Variaveis principais\b0\par
+- SECRET_KEY\par
+- DATABASE_URL\par
+- API_BASE_URL\par
+- INVENTORY_FILE\par
+- WASH_CONTROL_FILE\par
+- SUPABASE_URL\par
+- SUPABASE_SERVICE_ROLE_KEY\par
+- SUPABASE_STORAGE_BUCKET\par
+- STORAGE_BACKEND\par
+\par
+\b 5. Banco e persistencia\b0\par
+- sem DATABASE_URL, usa SQLite local\par
+- com DATABASE_URL, usa PostgreSQL\par
+- uploads podem ser locais ou no Supabase\par
+\par
+\b 6. Usuarios seed\b0\par
+- admin / 123456\par
+- gestor / 123456\par
+- motorista / 123456\par
+- mecanico / 123456\par
+- francer / 123456\par
+\par
+\b 7. Modulos principais\b0\par
+- Frota\par
+- Logins\par
+- Checklist\par
+- Historico Checklist\par
+- Central de Resolucao\par
+- Inspecoes\par
+- Materiais\par
+- Manutencao\par
+- Lavagens\par
+- Relatorios\par
+- Dashboard\par
+- Backup\par
+- Logs de Auditoria\par
+- Configuracao Administrativa\par
+\par
+\b 8. API principal\b0\par
+Grupos encontrados:\par
+- /login e /logout\par
+- /veiculos\par
+- /usuarios\par
+- /checklist e /checklist-itens\par
+- /nao_conformidades\par
+- /mecanico/nao_conformidades\par
+- /atividades\par
+- /materiais\par
+- /manutencao\par
+- /lavagens\par
+- /relatorios\par
+- /upload\par
+- /admin\par
+\par
+\b 9. Como subir em outro PC\b0\par
+Comandos base:\par
+python -m venv .venv\par
+.venv\Scripts\Activate.ps1\par
+pip install -r requirements.txt\par
+Copy-Item .env.example .env\par
+\par
+Backend:\par
+cd backend\par
+python run.py\par
+\par
+Desktop:\par
+python desktop/main.py\par
+\par
+Web mobile:\par
+cd web_app\par
+python -m http.server 5500\par
+\par
+\b 10. URL padrao encontrada\b0\par
+https://checklist-frota-qngw.onrender.com\par
+\par
+\b 11. Arquivos que precisam ser lidos primeiro\b0\par
+1. README.md\par
+2. GUIA_CONTINUIDADE_OUTRO_PC.md\par
+3. backend/app/__init__.py\par
+4. backend/app/config.py\par
+5. desktop/main.py\par
+6. desktop/ui/main_window.py\par
+7. desktop/api_client.py\par
+8. web_app/static/js/config.js\par
+9. web_app/static/js/app.js\par
+10. render.yaml\par
+\par
+\b 12. Transferencia segura para outro PC\b0\par
+Checklist:\par
+1. levar o codigo\par
+2. criar a venv\par
+3. instalar dependencias\par
+4. configurar .env\par
+5. decidir nuvem ou local\par
+6. validar /health\par
+7. validar login no desktop\par
+8. validar login no web mobile\par
+\par
+\b 13. Observacao importante\b0\par
+Sem a configuracao correta, levar o projeto para outro PC e como levar o carro sem a chave e sem o documento. O codigo vai estar la, mas o sistema nao vai conversar com o banco e com o storage do jeito certo.\par
+\par
+\b 14. Documento completo\b0\par
+O detalhamento tecnico completo ficou em:\par
+- GUIA_CONTINUIDADE_OUTRO_PC.md\par
+\par
+Este arquivo RTF foi criado para abrir direto no Microsoft Word, se necessario.\par
+}
