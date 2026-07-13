@@ -3,7 +3,7 @@ from flask import Blueprint, g, request
 from app.extensions import db
 from app.models import User
 from app.services.audit_service import record_event, record_login_event, record_logout_event
-from app.services.auth_service import auth_required, generate_token
+from app.services.auth_service import auth_required, generate_token, revoke_token
 from app.utils.responses import api_response
 
 bp = Blueprint("auth", __name__)
@@ -44,6 +44,7 @@ def login():
 @bp.post("/logout")
 @auth_required
 def logout():
+    revoke_token(g.auth_token, user_id=g.current_user.id)
     record_logout_event(g.current_user)
     db.session.commit()
     return api_response(True, data={"message": "Sessao encerrada."})

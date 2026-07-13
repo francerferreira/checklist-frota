@@ -6,7 +6,7 @@ from flask import Blueprint, g, request, send_file
 from app.extensions import db
 from app.models import AuditLog
 from app.services.auth_service import auth_required
-from app.services.audit_service import record_event
+from app.services.audit_service import audit_runtime_status, record_event
 from app.services.backup_service import (
     cleanup_old_records,
     create_backup,
@@ -80,6 +80,15 @@ def get_storage_status():
     if denied:
         return denied
     return api_response(True, data=storage_status())
+
+
+@bp.get("/audit-health")
+@auth_required
+def get_audit_health():
+    denied = _guard_admin_access()
+    if denied:
+        return denied
+    return api_response(True, data=audit_runtime_status())
 
 
 @bp.get("/intelligent-rules")

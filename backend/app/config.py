@@ -29,6 +29,10 @@ def _normalize_database_url(url: str | None) -> str:
     return url
 
 
+def _csv_env(name: str) -> tuple[str, ...]:
+    return tuple(item.strip() for item in (os.getenv(name) or "").split(",") if item.strip())
+
+
 class Config:
     SECRET_KEY = os.getenv("SECRET_KEY", "checklist-frota-dev-secret")
     SQLALCHEMY_DATABASE_URI = _normalize_database_url(
@@ -38,6 +42,8 @@ class Config:
     JSON_SORT_KEYS = False
     MAX_CONTENT_LENGTH = 15 * 1024 * 1024
     TOKEN_MAX_AGE_SECONDS = int(os.getenv("TOKEN_MAX_AGE_SECONDS", "28800"))
+    CORS_STRICT_MODE = os.getenv("CORS_STRICT_MODE", "false").strip().lower() in {"1", "true", "yes"}
+    CORS_ALLOWED_ORIGINS = _csv_env("CORS_ALLOWED_ORIGINS")
     AUTOMATION_JOB_TOKEN = os.getenv("AUTOMATION_JOB_TOKEN")
     UPLOAD_FOLDER = DATA_ROOT / "uploads"
     BACKUP_FOLDER = Path(os.getenv("BACKUP_FOLDER", DATA_ROOT / "backups"))

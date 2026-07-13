@@ -21,6 +21,18 @@ _SENSITIVE_FIELDS = {"senha_hash", "password", "password_hash", "token"}
 _IGNORED_UPDATE_FIELDS = {"updated_at"}
 _MAX_AUDIT_VALUE_LEN = 5000
 LOGGER = logging.getLogger(__name__)
+_AUDIT_FAILURE_COUNT = 0
+_AUDIT_LAST_FAILURE_AT = None
+_AUDIT_LAST_FAILURE_MESSAGE = None
+
+
+def audit_runtime_status() -> dict:
+    return {
+        "healthy": _AUDIT_FAILURE_COUNT == 0,
+        "failure_count": _AUDIT_FAILURE_COUNT,
+        "last_failure_at": _AUDIT_LAST_FAILURE_AT.isoformat() if _AUDIT_LAST_FAILURE_AT else None,
+        "last_failure_message": _AUDIT_LAST_FAILURE_MESSAGE,
+    }
 
 
 def _to_entity_type(instance: Any) -> str:
@@ -204,14 +216,18 @@ def _after_flush_postexec(session: Session, flush_context):  # noqa: ANN001
 
 
 def _after_commit(session: Session) -> None:
+    global _AUDIT_FAILURE_COUNT, _AUDIT_LAST_FAILURE_AT, _AUDIT_LAST_FAILURE_MESSAGE
     pending = session.info.pop("_audit_pending_rows", None) or []
     if not pending:
         return
     try:
         with db.engine.begin() as conn:
             conn.execute(AuditLog.__table__.insert(), pending)
-    except Exception:
+    except Exception as exc:
         # Auditoria é melhor esforço, mas a falha precisa ficar visível no log.
+        _AUDIT_FAILURE_COUNT += 1
+        _AUDIT_LAST_FAILURE_AT = now_manaus_naive()
+        _AUDIT_LAST_FAILURE_MESSAGE = str(exc)
         LOGGER.exception("Falha ao persistir logs de auditoria apos commit.")
 
 

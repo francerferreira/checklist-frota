@@ -56,6 +56,8 @@ SECRET_KEY=gere-uma-chave-forte
 DATABASE_URL=postgresql+psycopg://...
 TOKEN_MAX_AGE_SECONDS=28800
 AUTOMATION_JOB_TOKEN=chave-exclusiva-do-agendamento
+CORS_STRICT_MODE=false
+CORS_ALLOWED_ORIGINS=https://seu-web.onrender.com
 STORAGE_BACKEND=supabase
 SUPABASE_URL=https://seu-projeto.supabase.co
 SUPABASE_SERVICE_ROLE_KEY=sua-service-role-key
@@ -81,6 +83,20 @@ X-Automation-Token: valor de AUTOMATION_JOB_TOKEN
 
 Use um agendador externo ou um Cron Job do Render para chamar a rota uma vez por dia. O cron do Render possui custo proprio; por isso ele nao e criado automaticamente pelo `render.yaml`.
 Em um servico Render ja existente, cadastre `AUTOMATION_JOB_TOKEN` manualmente em **Environment**, porque variaveis com `sync: false` nao recebem valor em atualizacoes do Blueprint.
+
+## 2.2 Seguranca e governanca
+
+Depois de confirmar a URL publica do web/mobile, cadastre-a em `CORS_ALLOWED_ORIGINS` e altere `CORS_STRICT_MODE` para `true`. Isso impede que sites nao autorizados chamem a API pelo navegador.
+
+Antes de cada deploy com migration, gere backup e execute:
+
+```powershell
+$env:PYTHONPATH="$PWD\backend"
+py -m flask --app wsgi:app db upgrade --directory migrations
+py tools/compare_database_schema.py
+```
+
+Use `GET /health` para monitorar banco e auditoria. O endpoint administrativo `GET /admin/audit-health` oferece o detalhe para administradores autenticados.
 
 ## 3. Render Frontend/PWA
 

@@ -12,6 +12,7 @@ from app.models.operational_availability import EquipmentOperationalState, Equip
 from app.models.pcm import PreventivePlan
 from app.models.technical_inspection import InspectionExecution, InspectionExecutionItem, InspectionTemplate, InspectionTemplateItem
 from app.models.resolution_package import ResolutionPackage, ResolutionPackageLink
+from app.models.revoked_token import RevokedToken
 from app.models.supply_library import MaterialFamilyApplication, TechnicalDocument, Warehouse, WarehouseReservation, WarehouseStock
 from app.models.system_setting import SystemSetting
 from app.models.user import User
@@ -51,6 +52,7 @@ __all__ = [
     "PreventivePlan",
     "ResolutionPackage",
     "ResolutionPackageLink",
+    "RevokedToken",
     "SystemSetting",
     "TechnicalDocument",
     "User",

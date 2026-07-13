@@ -272,6 +272,8 @@ Observacao:
 - Sirva o backend com `waitress` ou outro servidor WSGI
 - Coloque `backend/uploads` em storage persistente ou volume dedicado
 - Proteja o acesso a arquivos e ajuste CORS para o dominio real
+- Cadastre `CORS_ALLOWED_ORIGINS` e ative `CORS_STRICT_MODE=true` somente depois de homologar o web/mobile
+- Monitore `GET /health`; ele valida banco e informa falhas de persistencia da auditoria
 
 ## Migrations
 

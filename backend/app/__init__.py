@@ -4,11 +4,12 @@ import sys
 from pathlib import Path
 
 from flask import Flask
+from sqlalchemy import text
 from dotenv import load_dotenv
 
 from app.extensions import cors, db, migrate
 from app.routes import register_blueprints
-from app.services.audit_service import install_audit_hooks
+from app.services.audit_service import audit_runtime_status, install_audit_hooks
 from app.services.runtime_schema_service import ensure_runtime_schema
 from app.services.seed_service import seed_reference_data
 
@@ -32,11 +33,19 @@ def create_app() -> Flask:
 
     db.init_app(app)
     migrate.init_app(app, db)
-    cors.init_app(app, resources={r"/*": {"origins": "*"}})
+    allowed_origins = app.config["CORS_ALLOWED_ORIGINS"]
+    cors_origins = allowed_origins or ("*" if not app.config["CORS_STRICT_MODE"] else ())
+    cors.init_app(app, resources={r"/*": {"origins": cors_origins}})
 
     @app.get("/health")
     def health():
-        return {"status": "ok"}, 200
+        try:
+            db.session.execute(text("SELECT 1"))
+        except Exception:
+            db.session.rollback()
+            return {"status": "unavailable", "database": "unavailable", "audit": audit_runtime_status()}, 503
+        audit = audit_runtime_status()
+        return {"status": "ok" if audit["healthy"] else "degraded", "database": "ok", "audit": audit}, 200
 
     register_blueprints(app)
 
