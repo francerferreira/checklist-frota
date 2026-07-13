@@ -311,6 +311,23 @@ class APIClient:
     def update_maintenance_item(self, item_id: int, payload: dict):
         return self._request("PUT", f"/manutencao/itens/{item_id}", json=payload)
 
+    def get_pcm_agenda(self, year: int | None = None, month: int | None = None):
+        params = {key: value for key, value in {"ano": year, "mes": month}.items() if value}
+        return self._request("GET", "/pcm/agenda", params=params or None)
+
+    def get_pcm_backlog(self):
+        return self._request("GET", "/pcm/backlog")
+
+    def get_preventive_plans(self):
+        return self._request("GET", "/pcm/planos-preventivos")
+
+    def create_preventive_plan(self, payload: dict):
+        return self._request("POST", "/pcm/planos-preventivos", json=payload)
+
+    def generate_due_preventives(self, plan_id: int | None = None):
+        payload = {"plan_id": plan_id} if plan_id else {}
+        return self._request("POST", "/pcm/gerar-preventivas", json=payload)
+
     def download_maintenance_pdf(
         self,
         output_path: str,

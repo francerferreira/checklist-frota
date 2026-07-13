@@ -92,6 +92,12 @@ class WebMobileShellContractTests(unittest.TestCase):
         self.assertIn("/inspecoes-tecnicas/modelos", app_js)
         self.assertIn("/inspecoes-tecnicas/execucoes", app_js)
 
+    def test_preventive_services_remain_available_in_mobile_maintenance_flow(self):
+        app_js = (PROJECT_ROOT / "web_app" / "static" / "js" / "app.js").read_text(encoding="utf-8")
+        self.assertIn("openMaintenanceMenu", app_js)
+        self.assertIn("/manutencao/visao", app_js)
+        self.assertIn("renderMaintenance", app_js)
+
     def test_checklist_history_has_auto_filters_and_sortable_headers(self):
         app_js = (PROJECT_ROOT / "web_app" / "static" / "js" / "app.js").read_text(encoding="utf-8")
         self.assertIn("updateChecklistHistoryEquipmentSearch", app_js)

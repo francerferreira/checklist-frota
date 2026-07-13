@@ -19,6 +19,7 @@ PAGE_ACCESS_BY_ROLE = {
         "maintenance",
         "availability",
         "emergencies",
+        "pcm",
         "users",
         "cloud_backup",
         "audit_logs",
@@ -39,6 +40,7 @@ PAGE_ACCESS_BY_ROLE = {
         "maintenance",
         "availability",
         "emergencies",
+        "pcm",
         "admin_rules",
     },
     "mecanico": {

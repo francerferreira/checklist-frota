@@ -1182,6 +1182,9 @@ def update_schedule_item(item_id: int, payload: dict, *, user) -> MaintenanceSch
     db.session.flush()
     _sync_work_order_for_item(item)
     recalculate_schedule(item.schedule)
+    if item.status == "INSTALADO":
+        from app.services.pcm_service import advance_preventive_plan_after_completion
+        advance_preventive_plan_after_completion(item)
     db.session.commit()
     return item
 

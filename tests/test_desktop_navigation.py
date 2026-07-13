@@ -36,6 +36,7 @@ class FakeAPIClient:
             "activities": 0,
             "availability": 0,
             "inspection_templates": 0,
+            "pcm": 0,
             "reports_macro": 0,
             "reports_micro": 0,
             "reports_item": 0,
@@ -91,6 +92,13 @@ class FakeAPIClient:
 
     def get_inspection_templates(self, **kwargs):
         self.calls["inspection_templates"] += 1
+        return []
+
+    def get_pcm_agenda(self, **kwargs):
+        self.calls["pcm"] += 1
+        return {"preventive_plans": [], "summary": {"vencendo_ou_vencidos": 0}}
+
+    def get_pcm_backlog(self):
         return []
 
     def get_technical_inspection_executions(self, vehicle_id=None):
@@ -210,6 +218,11 @@ class DesktopNavigationTests(unittest.TestCase):
         self.app.processEvents()
         self.assertEqual(self.api_client.calls["inspection_templates"], 1)
 
+        self.window.switch_page("pcm")
+        QTest.qWait(30)
+        self.app.processEvents()
+        self.assertEqual(self.api_client.calls["pcm"], 1)
+
         self.window.switch_page("users")
         QTest.qWait(30)
         self.app.processEvents()
@@ -268,6 +281,7 @@ class DesktopNavigationTests(unittest.TestCase):
             self.assertIn("maintenance", gestor_window.page_map)
             self.assertIn("availability", gestor_window.page_map)
             self.assertIn("inspection_templates", gestor_window.page_map)
+            self.assertIn("pcm", gestor_window.page_map)
 
             self.assertEqual(set(motorista_window.page_map.keys()), {"dashboard"})
         finally:

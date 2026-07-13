@@ -100,7 +100,8 @@ class AvailabilityRoutesTests(unittest.TestCase):
         self.assertEqual(history[1]["ended_at"], second_at.isoformat())
 
     def test_availability_uses_only_periods_with_status_events(self):
-        now = now_manaus_naive().replace(microsecond=0)
+        # Meio-dia do dia anterior evita virar a data e não depende do horário atual de Manaus.
+        now = (now_manaus_naive() - timedelta(days=1)).replace(hour=12, minute=0, second=0, microsecond=0)
         with self.app.app_context():
             db.session.add_all([
                 EquipmentStatusEvent(

@@ -10,6 +10,7 @@ from app.routes.technical_inspections import bp as technical_inspections_bp
 from app.routes.mechanic_non_conformities import bp as mechanic_non_conformities_bp
 from app.routes.materials import bp as materials_bp
 from app.routes.non_conformities import bp as non_conformities_bp
+from app.routes.pcm import bp as pcm_bp
 from app.routes.resolution_packages import bp as resolution_packages_bp
 from app.routes.reports import bp as reports_bp
 from app.routes.upload import bp as upload_bp
@@ -34,6 +35,7 @@ def register_blueprints(app):
         checklist_bp,
         mechanic_non_conformities_bp,
         non_conformities_bp,
+        pcm_bp,
         resolution_packages_bp,
         upload_bp,
         reports_bp,
