@@ -217,6 +217,7 @@ const state = {
     nonConformityMechanic: [],
     selectedNonConformityItem: "",
     maintenanceOverview: null,
+    availabilityOverview: null,
     ncChecklistStatus: "abertas",
     ncMechanicStatus: "abertas",
     washYear: INITIAL_MANAUS_DATE.year,
@@ -256,6 +257,7 @@ const screens = {
     checklistHistory: document.getElementById("checklist-history-screen"),
     nonConformities: document.getElementById("non-conformities-screen"),
     maintenance: document.getElementById("maintenance-screen"),
+    availability: document.getElementById("availability-screen"),
     success: document.getElementById("success-screen"),
 };
 
@@ -305,6 +307,7 @@ const elements = {
     openWashesMenu: document.getElementById("open-washes-menu"),
     openNonConformitiesMenu: document.getElementById("open-non-conformities-menu"),
     openMaintenanceMenu: document.getElementById("open-maintenance-menu"),
+    openAvailabilityMenu: document.getElementById("open-availability-menu"),
     vehiclesBackButton: document.getElementById("vehicles-back-button"),
     activitiesBackButton: document.getElementById("activities-back-button"),
     activityCounter: document.getElementById("activity-counter"),
@@ -354,6 +357,10 @@ const elements = {
     maintenanceCalendar: document.getElementById("maintenance-calendar"),
     maintenanceDayPanel: document.getElementById("maintenance-day-panel"),
     maintenanceList: document.getElementById("maintenance-list"),
+    availabilityBackButton: document.getElementById("availability-back-button"),
+    availabilityCounter: document.getElementById("availability-counter"),
+    availabilitySummary: document.getElementById("availability-summary"),
+    availabilityList: document.getElementById("availability-list"),
     ncChecklistFilterOpen: document.getElementById("nc-checklist-filter-open"),
     ncChecklistFilterClosed: document.getElementById("nc-checklist-filter-closed"),
     ncMechanicFilterOpen: document.getElementById("nc-mechanic-filter-open"),
@@ -1067,6 +1074,166 @@ async function openMaintenanceMenu() {
             message: error.message || "Verifique a conexão e tente novamente.",
             tone: "error",
         });
+        showToast(error.message, true);
+    }
+}
+
+const OPERATIONAL_STATUS_LABELS = {
+    SEM_APONTAMENTO: "SEM APONTAMENTO",
+    DISPONIVEL: "DISPONÍVEL",
+    INDISPONIVEL: "INDISPONÍVEL",
+    RESTRICAO: "COM RESTRIÇÃO",
+    MANUTENCAO: "EM MANUTENÇÃO",
+};
+
+async function openAvailabilityMenu() {
+    setActiveScreen("availability");
+    elements.availabilityCounter.textContent = "CARREGANDO...";
+    renderStateCard(elements.availabilityList, {
+        title: "CARREGANDO EQUIPAMENTOS",
+        message: "Buscando a situação operacional e as últimas leituras.",
+        tone: "loading",
+    });
+    try {
+        state.availabilityOverview = await apiFetch("/disponibilidade/visao");
+        renderAvailability();
+    } catch (error) {
+        elements.availabilityCounter.textContent = "FALHA";
+        renderStateCard(elements.availabilityList, {
+            title: "NÃO FOI POSSÍVEL CARREGAR A DISPONIBILIDADE",
+            message: error.message || "Verifique a conexão e tente novamente.",
+            tone: "error",
+        });
+        showToast(error.message, true);
+    }
+}
+
+function renderAvailability() {
+    const overview = state.availabilityOverview || { summary: {}, rows: [] };
+    const summary = overview.summary || {};
+    const counts = summary.status_counts || {};
+    const rows = overview.rows || [];
+    elements.availabilityCounter.textContent = `${rows.length} EQUIPAMENTO${rows.length === 1 ? "" : "S"}`;
+    const average = summary.average_availability_percentage;
+    elements.availabilitySummary.innerHTML = `
+        <article><span>DISPONÍVEIS</span><strong>${Number(counts.DISPONIVEL || 0)}</strong></article>
+        <article><span>INDISPONÍVEIS</span><strong>${Number(counts.INDISPONIVEL || 0)}</strong></article>
+        <article><span>RESTRIÇÃO</span><strong>${Number(counts.RESTRICAO || 0)}</strong></article>
+        <article><span>MANUTENÇÃO</span><strong>${Number(counts.MANUTENCAO || 0)}</strong></article>
+        <article><span>SEM APONTAMENTO</span><strong>${Number(counts.SEM_APONTAMENTO || 0)}</strong></article>
+        <article><span>DISPONIBILIDADE MEDIDA</span><strong>${average == null ? "-" : `${Number(average).toFixed(2)}%`}</strong></article>
+    `;
+    elements.availabilityList.innerHTML = "";
+    if (!rows.length) {
+        renderStateCard(elements.availabilityList, {
+            title: "NENHUM EQUIPAMENTO UNIFICADO",
+            message: "Cadastre a família do equipamento no desktop antes do apontamento.",
+        });
+        return;
+    }
+    rows.forEach((row) => elements.availabilityList.appendChild(makeAvailabilityCard(row)));
+}
+
+function makeAvailabilityCard(row) {
+    const vehicle = row.vehicle || {};
+    const operationalState = vehicle.operational_state || {};
+    const status = operationalState.operational_status || "SEM_APONTAMENTO";
+    const card = document.createElement("article");
+    card.className = `availability-card status-${status.toLowerCase()}`;
+    card.innerHTML = `
+        <header>
+            <div>
+                <span>${escapeHtml(row.location?.full_name || "SEM LOCAL DEFINIDO")}</span>
+                <strong>${escapeHtml(vehicle.frota || vehicle.placa || "EQUIPAMENTO")}</strong>
+                <em>${escapeHtml(row.family?.name || vehicle.tipo || "SEM FAMÍLIA")}</em>
+            </div>
+            <b>${escapeHtml(OPERATIONAL_STATUS_LABELS[status] || status)}</b>
+        </header>
+        <div class="availability-reading">
+            <span>ÚLTIMO HORÍMETRO</span>
+            <strong>${operationalState.latest_hourmeter == null ? "SEM LEITURA" : `${Number(operationalState.latest_hourmeter).toFixed(2)} h`}</strong>
+            <small>${operationalState.latest_hourmeter_at ? formatManausDateTime(operationalState.latest_hourmeter_at) : ""}</small>
+        </div>
+        <div class="availability-form-grid">
+            <label><span>NOVA SITUAÇÃO</span>
+                <select class="availability-status">
+                    <option value="DISPONIVEL">DISPONÍVEL</option>
+                    <option value="INDISPONIVEL">INDISPONÍVEL</option>
+                    <option value="RESTRICAO">COM RESTRIÇÃO</option>
+                    <option value="MANUTENCAO">EM MANUTENÇÃO</option>
+                </select>
+            </label>
+            <label><span>MOTIVO / CONDIÇÃO</span><input class="availability-reason" maxlength="255" placeholder="Obrigatório fora da condição disponível"></label>
+            <label><span>EVIDÊNCIA DO STATUS</span><input class="availability-status-photo" type="file" accept="image/*" capture="environment"></label>
+            <button class="primary-button availability-status-save" type="button">SALVAR SITUAÇÃO</button>
+        </div>
+        <div class="availability-form-grid hourmeter-form">
+            <label><span>NOVA LEITURA</span><input class="availability-hourmeter" type="number" min="0" step="0.01" inputmode="decimal" placeholder="Ex.: 1250,50"></label>
+            <label><span>OBSERVAÇÃO</span><input class="availability-hourmeter-notes" maxlength="255" placeholder="Opcional"></label>
+            <label><span>FOTO DO PAINEL</span><input class="availability-hourmeter-photo" type="file" accept="image/*" capture="environment"></label>
+            <button class="primary-button availability-hourmeter-save" type="button">REGISTRAR HORÍMETRO</button>
+        </div>
+    `;
+    card.querySelector(".availability-status").value = status === "SEM_APONTAMENTO" ? "DISPONIVEL" : status;
+    card.querySelector(".availability-status-save").addEventListener("click", () => submitOperationalStatus(card, vehicle));
+    card.querySelector(".availability-hourmeter-save").addEventListener("click", () => submitHourmeter(card, vehicle));
+    return card;
+}
+
+async function submitOperationalStatus(card, vehicle) {
+    const button = card.querySelector(".availability-status-save");
+    const status = card.querySelector(".availability-status").value;
+    const reason = card.querySelector(".availability-reason").value.trim();
+    const file = card.querySelector(".availability-status-photo").files?.[0];
+    if (status !== "DISPONIVEL" && !reason) {
+        showToast("INFORME O MOTIVO DESTA SITUAÇÃO.", true);
+        return;
+    }
+    button.disabled = true;
+    button.textContent = "SALVANDO...";
+    try {
+        const evidencePath = file
+            ? await uploadEvidence(file, vehicle.frota || "EQUIPAMENTO", "STATUS OPERACIONAL", "status_operacional", "DISPONIBILIDADE")
+            : null;
+        await apiFetch(`/equipamentos/${vehicle.id}/status-operacional`, {
+            method: "PUT",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ status, reason, evidence_path: evidencePath }),
+        });
+        showToast("SITUAÇÃO OPERACIONAL ATUALIZADA.");
+        await openAvailabilityMenu();
+    } catch (error) {
+        button.disabled = false;
+        button.textContent = "SALVAR SITUAÇÃO";
+        showToast(error.message, true);
+    }
+}
+
+async function submitHourmeter(card, vehicle) {
+    const button = card.querySelector(".availability-hourmeter-save");
+    const reading = card.querySelector(".availability-hourmeter").value;
+    const notes = card.querySelector(".availability-hourmeter-notes").value.trim();
+    const file = card.querySelector(".availability-hourmeter-photo").files?.[0];
+    if (reading === "" || Number(reading) < 0) {
+        showToast("INFORME UMA LEITURA DE HORÍMETRO VÁLIDA.", true);
+        return;
+    }
+    button.disabled = true;
+    button.textContent = "REGISTRANDO...";
+    try {
+        const evidencePath = file
+            ? await uploadEvidence(file, vehicle.frota || "EQUIPAMENTO", "HORÍMETRO", "horimetro", "DISPONIBILIDADE")
+            : null;
+        await apiFetch(`/equipamentos/${vehicle.id}/horimetros`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ reading: Number(reading), notes, evidence_path: evidencePath }),
+        });
+        showToast("HORÍMETRO REGISTRADO.");
+        await openAvailabilityMenu();
+    } catch (error) {
+        button.disabled = false;
+        button.textContent = "REGISTRAR HORÍMETRO";
         showToast(error.message, true);
     }
 }
@@ -4747,6 +4914,7 @@ on(elements.openActivitiesMenu, "click", openActivitiesMenu);
 on(elements.openWashesMenu, "click", openWashesMenu);
 on(elements.openNonConformitiesMenu, "click", openNonConformitiesMenu);
 on(elements.openMaintenanceMenu, "click", openMaintenanceMenu);
+on(elements.openAvailabilityMenu, "click", openAvailabilityMenu);
 on(elements.washPrevMonth, "click", () => changeWashMonth(-1));
 on(elements.washNextMonth, "click", () => changeWashMonth(1));
 on(elements.washExportPdfButton, "click", exportWashMonthPdf);
@@ -4789,6 +4957,10 @@ on(elements.checklistHistoryTypeFilter, "change", scheduleChecklistHistoryFilter
 on(elements.checklistHistoryStartDate, "change", scheduleChecklistHistoryFilters);
 on(elements.checklistHistoryEndDate, "change", scheduleChecklistHistoryFilters);
 on(elements.maintenanceBackButton, "click", () => {
+    renderHome();
+    setActiveScreen("home");
+});
+on(elements.availabilityBackButton, "click", () => {
     renderHome();
     setActiveScreen("home");
 });

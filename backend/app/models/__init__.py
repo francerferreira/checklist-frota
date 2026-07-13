@@ -6,6 +6,7 @@ from app.models.equipment_structure import EquipmentFamily, EquipmentLink, Equip
 from app.models.maintenance import MaintenanceMaterial, MaintenanceSchedule, MaintenanceScheduleItem, MaintenanceWorkOrder
 from app.models.material import Material, MaterialMovement
 from app.models.mechanic_non_conformity import MechanicNonConformity
+from app.models.operational_availability import EquipmentOperationalState, EquipmentStatusEvent, HourmeterReading
 from app.models.resolution_package import ResolutionPackage, ResolutionPackageLink
 from app.models.system_setting import SystemSetting
 from app.models.user import User
@@ -23,6 +24,9 @@ __all__ = [
     "EquipmentFamily",
     "EquipmentLink",
     "EquipmentProfile",
+    "EquipmentOperationalState",
+    "EquipmentStatusEvent",
+    "HourmeterReading",
     "MaintenanceMaterial",
     "MaintenanceSchedule",
     "MaintenanceScheduleItem",

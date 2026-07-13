@@ -29,6 +29,7 @@ from components import LoadingOverlay, make_icon, show_notice
 from runtime_paths import asset_path
 from theme import APP_STYLE, apply_button_styles, install_button_style_enforcer
 from ui.activities_page import ActivitiesPage
+from ui.availability_page import AvailabilityPage
 from ui.admin_rules_page import AdminRulesPage
 from ui.audit_logs_page import AuditLogsPage
 from ui.checklist_items_page import ChecklistItemsPage
@@ -272,6 +273,7 @@ class MainWindow(QMainWindow):
         self.materials_page = MaterialsPage(self.api_client)
         self.washes_page = WashesPage(self.api_client)
         self.activities_page = ActivitiesPage(self.api_client)
+        self.availability_page = AvailabilityPage(self.api_client)
         self.maintenance_page = MaintenancePage(self.api_client)
         self.reports_page = ReportsPage(self.api_client)
         self.users_page = UsersPage(self.api_client, self.user)
@@ -290,6 +292,7 @@ class MainWindow(QMainWindow):
             "materials": self.materials_page,
             "washes": self.washes_page,
             "activities": self.activities_page,
+            "availability": self.availability_page,
             "maintenance": self.maintenance_page,
             "users": self.users_page,
             "cloud_backup": self.cloud_backup_page,
@@ -307,6 +310,7 @@ class MainWindow(QMainWindow):
             "materials": "Materiais",
             "washes": "Lavagens",
             "activities": "Inspeções",
+            "availability": "Disponibilidade",
             "maintenance": "Manutenção",
             "reports": "Relatórios",
             "checklist_history": "Histórico Checklist",
@@ -342,7 +346,7 @@ class MainWindow(QMainWindow):
         menu_groups = {
             "Cadastro": ["equipment", "users"],
             "Tabelas": ["checklist_items", "materials"],
-            "Movimento": ["activities", "washes", "maintenance"],
+            "Movimento": ["availability", "activities", "washes", "maintenance"],
             "Relatórios": ["reports", "productivity", "checklist_history"],
             "Sistema": [],
             "Utilitários": ["dashboard", "nc", "cloud_backup", "audit_logs", "admin_rules"],
@@ -396,7 +400,7 @@ class MainWindow(QMainWindow):
         sections = [
             ("1 - Cadastro", ["equipment", "users"]),
             ("2 - Tabelas", ["checklist_items", "materials"]),
-            ("3 - Movimento", ["activities", "washes", "maintenance"]),
+            ("3 - Movimento", ["availability", "activities", "washes", "maintenance"]),
             ("4 - Relatórios", ["reports", "productivity", "checklist_history"]),
             ("5 - Utilitários", ["dashboard", "nc", "cloud_backup", "audit_logs", "admin_rules"]),
         ]
@@ -631,6 +635,8 @@ class MainWindow(QMainWindow):
                 self.washes_page.refresh()
             elif page_key == "activities":
                 self.activities_page.refresh()
+            elif page_key == "availability":
+                self.availability_page.refresh()
             elif page_key == "maintenance":
                 self.maintenance_page.refresh()
             elif page_key == "reports":

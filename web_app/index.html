@@ -14,7 +14,7 @@
     <title>CHECKLIST DE FROTA</title>
     <link rel="icon" type="image/png" sizes="192x192" href="./static/icons/icon-192.png?v=20260421-02">
     <link rel="apple-touch-icon" href="./static/icons/icon-192.png?v=20260421-02">
-    <link rel="stylesheet" href="./static/css/styles.css?v=20260503-01">
+    <link rel="stylesheet" href="./static/css/styles.css?v=20260712-02">
 </head>
 <body>
     <div class="mobile-shell">
@@ -103,6 +103,11 @@
                         <span>06</span>
                         <strong>MANUTENÇÃO</strong>
                         <em>Serviços direcionados, preventivas e instalação programada.</em>
+                    </button>
+                    <button id="open-availability-menu" class="menu-card" type="button">
+                        <span>07</span>
+                        <strong>DISPONIBILIDADE E HORÍMETRO</strong>
+                        <em>Apontar situação operacional, motivo, evidência e leitura do equipamento.</em>
                     </button>
                 </div>
             </section>
@@ -365,6 +370,22 @@
                 <div id="maintenance-list" class="activity-list"></div>
             </section>
 
+            <section id="availability-screen" class="screen hidden">
+                <div class="screen-heading compact">
+                    <button id="availability-back-button" class="icon-button" type="button">MENU</button>
+                    <div>
+                        <h2>DISPONIBILIDADE E HORÍMETRO</h2>
+                    </div>
+                </div>
+
+                <div class="list-toolbar">
+                    <strong id="availability-counter">0 EQUIPAMENTOS</strong>
+                    <span>APONTE SOMENTE A SITUAÇÃO REAL OBSERVADA EM CAMPO.</span>
+                </div>
+                <div id="availability-summary" class="availability-summary"></div>
+                <div id="availability-list" class="availability-list"></div>
+            </section>
+
             <section id="checklist-screen" class="screen hidden">
                 <div class="screen-heading compact">
                     <button id="back-button" class="icon-button" type="button">VOLTAR</button>
@@ -444,7 +465,7 @@
 
     <div id="toast" class="toast hidden"></div>
     <script src="./static/js/config.js?v=20260428-01"></script>
-    <script src="./static/js/app.js?v=20260503-01"></script>
+    <script src="./static/js/app.js?v=20260712-02"></script>
 </body>
 </html>
 

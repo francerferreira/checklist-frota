@@ -51,9 +51,29 @@ class Vehicle(db.Model):
         back_populates="child",
         lazy="selectin",
     )
+    operational_state = db.relationship(
+        "EquipmentOperationalState",
+        back_populates="vehicle",
+        uselist=False,
+        cascade="all, delete-orphan",
+        lazy="joined",
+    )
+    status_events = db.relationship(
+        "EquipmentStatusEvent",
+        back_populates="vehicle",
+        cascade="all, delete-orphan",
+        lazy="dynamic",
+    )
+    hourmeter_readings = db.relationship(
+        "HourmeterReading",
+        back_populates="vehicle",
+        cascade="all, delete-orphan",
+        lazy="dynamic",
+    )
 
     def to_dict(self) -> dict:
         profile = self.equipment_profile
+        operational_state = self.operational_state
         active_link = next(
             (link for link in self.equipment_links_as_child if link.active),
             None,
@@ -91,6 +111,18 @@ class Vehicle(db.Model):
                     profile and profile.family and profile.family.checklist_enabled
                 ),
                 "active_link": active_link.to_dict() if active_link else None,
+                "operational_state": (
+                    operational_state.to_dict()
+                    if operational_state
+                    else {
+                        "operational_status": "SEM_APONTAMENTO",
+                        "status_updated_at": None,
+                        "status_reason": None,
+                        "status_evidence_path": None,
+                        "latest_hourmeter": None,
+                        "latest_hourmeter_at": None,
+                    }
+                ),
             }
         )
         return data

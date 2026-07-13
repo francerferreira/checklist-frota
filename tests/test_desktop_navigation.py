@@ -34,6 +34,7 @@ class FakeAPIClient:
             "equipment": 0,
             "materials": 0,
             "activities": 0,
+            "availability": 0,
             "reports_macro": 0,
             "reports_micro": 0,
             "reports_item": 0,
@@ -71,6 +72,18 @@ class FakeAPIClient:
     def get_activities(self, tipo=None, status=None, item_name=None, mechanic_id=None):
         self.calls["activities"] += 1
         return []
+
+    def get_availability_overview(self, **kwargs):
+        self.calls["availability"] += 1
+        return {
+            "summary": {
+                "total": 1,
+                "status_counts": {"SEM_APONTAMENTO": 1},
+                "average_availability_percentage": None,
+                "measured_equipment": 0,
+            },
+            "rows": [],
+        }
 
     def get_materials(self, tipo=None, search=None, ativos="true", baixo_estoque=None):
         self.calls["materials"] += 1
@@ -176,6 +189,11 @@ class DesktopNavigationTests(unittest.TestCase):
         self.app.processEvents()
         self.assertEqual(self.api_client.calls["materials"], 1)
 
+        self.window.switch_page("availability")
+        QTest.qWait(30)
+        self.app.processEvents()
+        self.assertEqual(self.api_client.calls["availability"], 1)
+
         self.window.switch_page("users")
         QTest.qWait(30)
         self.app.processEvents()
@@ -232,6 +250,7 @@ class DesktopNavigationTests(unittest.TestCase):
             self.assertNotIn("cloud_backup", gestor_window.page_map)
             self.assertNotIn("audit_logs", gestor_window.page_map)
             self.assertIn("maintenance", gestor_window.page_map)
+            self.assertIn("availability", gestor_window.page_map)
 
             self.assertEqual(set(motorista_window.page_map.keys()), {"dashboard"})
         finally:

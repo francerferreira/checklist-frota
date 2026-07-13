@@ -31,7 +31,10 @@ os.environ["WASH_CONTROL_FILE"] = str(Path(tempfile.gettempdir()) / "checklist_f
 
 from app import create_app
 from app.extensions import db
-from app.models import Checklist, ChecklistItem, User, Vehicle
+from app.models import (
+    Checklist, ChecklistItem, EquipmentFamily, EquipmentOperationalState,
+    EquipmentProfile, EquipmentStatusEvent, HourmeterReading, User, Vehicle,
+)
 from app.utils.timezone import now_manaus_naive
 from playwright.sync_api import expect, sync_playwright
 
@@ -87,6 +90,10 @@ class WebMobilePlaywrightTests(unittest.TestCase):
         with cls.app.app_context():
             ChecklistItem.query.delete()
             Checklist.query.delete()
+            HourmeterReading.query.delete()
+            EquipmentStatusEvent.query.delete()
+            EquipmentOperationalState.query.delete()
+            EquipmentProfile.query.delete()
             Vehicle.query.delete()
             db.session.commit()
 
@@ -110,6 +117,9 @@ class WebMobilePlaywrightTests(unittest.TestCase):
             )
             db.session.add(vehicle)
             db.session.flush()
+            family = EquipmentFamily.query.filter_by(code="carreta").one()
+            db.session.add(EquipmentProfile(vehicle_id=vehicle.id, family_id=family.id))
+            db.session.add(EquipmentOperationalState(vehicle_id=vehicle.id))
 
             for created_at in (
                 now_manaus_naive() - timedelta(hours=2),
@@ -256,6 +266,21 @@ class WebMobilePlaywrightTests(unittest.TestCase):
         self._wait_for_screen("maintenance-screen")
         expect(self.page.locator("#maintenance-counter")).not_to_have_text("FALHA")
         expect(self.page.locator("#maintenance-calendar")).to_be_visible()
+
+        self.page.locator("#maintenance-back-button").tap()
+        self._wait_for_screen("home-screen")
+
+        self.page.locator("#open-availability-menu").tap()
+        self._wait_for_screen("availability-screen")
+        expect(self.page.locator("#availability-counter")).to_contain_text("1 EQUIPAMENTO")
+        card = self.page.locator(".availability-card")
+        expect(card).to_contain_text(self.vehicle_frota)
+        card.locator(".availability-status").select_option("DISPONIVEL")
+        card.locator(".availability-status-save").tap()
+        expect(self.page.locator(".availability-card header b")).to_have_text("DISPONÍVEL")
+        self.page.locator(".availability-hourmeter").fill("1250.50")
+        self.page.locator(".availability-hourmeter-save").tap()
+        expect(self.page.locator(".availability-reading strong")).to_contain_text("1250.50 h")
 
     def test_session_requires_login_after_30_minutes_without_activity(self):
         self._login()

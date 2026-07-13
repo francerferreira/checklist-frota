@@ -97,6 +97,36 @@ class APIClient:
     def get_equipment_structure(self):
         return self._request("GET", "/equipamentos/estrutura")
 
+    def get_availability_overview(
+        self,
+        date_from: str | None = None,
+        date_to: str | None = None,
+        family_id: int | None = None,
+        location_id: int | None = None,
+    ):
+        params = {}
+        if date_from:
+            params["data_inicial"] = date_from
+        if date_to:
+            params["data_final"] = date_to
+        if family_id:
+            params["familia_id"] = family_id
+        if location_id:
+            params["local_id"] = location_id
+        return self._request("GET", "/disponibilidade/visao", params=params or None)
+
+    def set_equipment_operational_status(self, vehicle_id: int, payload: dict):
+        return self._request("PUT", f"/equipamentos/{vehicle_id}/status-operacional", json=payload)
+
+    def get_equipment_status_history(self, vehicle_id: int):
+        return self._request("GET", f"/equipamentos/{vehicle_id}/status-historico")
+
+    def record_equipment_hourmeter(self, vehicle_id: int, payload: dict):
+        return self._request("POST", f"/equipamentos/{vehicle_id}/horimetros", json=payload)
+
+    def get_equipment_hourmeters(self, vehicle_id: int):
+        return self._request("GET", f"/equipamentos/{vehicle_id}/horimetros")
+
     def create_equipment_family(self, payload: dict):
         return self._request("POST", "/equipamentos/familias", json=payload)
 
