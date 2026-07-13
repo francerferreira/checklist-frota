@@ -37,6 +37,7 @@ from ui.checklist_history_page import ChecklistHistoryPage
 from ui.cloud_backup_page import CloudBackupPage
 from ui.dashboard_page import DashboardPage
 from ui.equipment_page import EquipmentPage
+from ui.emergencies_page import EmergenciesPage
 from ui.inspection_templates_page import InspectionTemplatesPage
 from ui.materials_page import MaterialsPage
 from ui.maintenance_page import MaintenancePage
@@ -276,6 +277,7 @@ class MainWindow(QMainWindow):
         self.washes_page = WashesPage(self.api_client)
         self.activities_page = ActivitiesPage(self.api_client)
         self.availability_page = AvailabilityPage(self.api_client)
+        self.emergencies_page = EmergenciesPage(self.api_client)
         self.maintenance_page = MaintenancePage(self.api_client)
         self.reports_page = ReportsPage(self.api_client)
         self.users_page = UsersPage(self.api_client, self.user)
@@ -296,6 +298,7 @@ class MainWindow(QMainWindow):
             "washes": self.washes_page,
             "activities": self.activities_page,
             "availability": self.availability_page,
+            "emergencies": self.emergencies_page,
             "maintenance": self.maintenance_page,
             "users": self.users_page,
             "cloud_backup": self.cloud_backup_page,
@@ -315,6 +318,7 @@ class MainWindow(QMainWindow):
             "washes": "Lavagens",
             "activities": "Inspeções",
             "availability": "Disponibilidade",
+            "emergencies": "Emergenciais e OS",
             "maintenance": "Manutenção",
             "reports": "Relatórios",
             "checklist_history": "Histórico Checklist",
@@ -338,6 +342,8 @@ class MainWindow(QMainWindow):
             self.activities_page.data_changed.connect(lambda: self.handle_data_changed("activities"))
         if "maintenance" in self.page_map:
             self.maintenance_page.data_changed.connect(lambda: self.handle_data_changed("maintenance"))
+        if "emergencies" in self.page_map:
+            self.emergencies_page.data_changed.connect(lambda: self.handle_data_changed("emergencies"))
         if "users" in self.page_map:
             self.users_page.data_changed.connect(lambda: self.handle_data_changed("users"))
         if "admin_rules" in self.page_map:
@@ -350,7 +356,7 @@ class MainWindow(QMainWindow):
         menu_groups = {
             "Cadastro": ["equipment", "users"],
             "Tabelas": ["checklist_items", "inspection_templates", "materials"],
-            "Movimento": ["availability", "activities", "washes", "maintenance"],
+            "Movimento": ["availability", "emergencies", "activities", "washes", "maintenance"],
             "Relatórios": ["reports", "productivity", "checklist_history"],
             "Sistema": [],
             "Utilitários": ["dashboard", "nc", "cloud_backup", "audit_logs", "admin_rules"],
@@ -404,7 +410,7 @@ class MainWindow(QMainWindow):
         sections = [
             ("1 - Cadastro", ["equipment", "users"]),
             ("2 - Tabelas", ["checklist_items", "inspection_templates", "materials"]),
-            ("3 - Movimento", ["availability", "activities", "washes", "maintenance"]),
+            ("3 - Movimento", ["availability", "emergencies", "activities", "washes", "maintenance"]),
             ("4 - Relatórios", ["reports", "productivity", "checklist_history"]),
             ("5 - Utilitários", ["dashboard", "nc", "cloud_backup", "audit_logs", "admin_rules"]),
         ]
@@ -643,6 +649,8 @@ class MainWindow(QMainWindow):
                 self.activities_page.refresh()
             elif page_key == "availability":
                 self.availability_page.refresh()
+            elif page_key == "emergencies":
+                self.emergencies_page.refresh()
             elif page_key == "maintenance":
                 self.maintenance_page.refresh()
             elif page_key == "reports":
@@ -700,6 +708,7 @@ class MainWindow(QMainWindow):
             "washes": ("Carregando lavagens", "Montando fila, histórico mensal e programação preventiva."),
             "activities": ("Carregando inspeções", "Montando conferências em massa, seleção e auditoria individual."),
             "maintenance": ("Carregando manutenção", "Montando cronograma mensal e tabela de programação."),
+            "emergencies": ("Carregando emergenciais", "Buscando ocorrências, criticidade e ordens de serviço."),
             "reports": ("Montando relatórios", "Consolidando dados macro, micro e exportações."),
             "checklist_history": ("Carregando histórico", "Montando matriz de checklists por frota e data."),
             "users": ("Carregando acessos", "Atualizando perfis, logins e permissões disponíveis."),

@@ -2608,6 +2608,60 @@ textarea {
     }
 }
 
+.emergency-menu-card {
+    border-color: rgba(190, 35, 35, 0.35);
+    background: linear-gradient(145deg, #fff8f5, #ffffff 70%);
+}
+
+.emergency-create-form,
+.emergency-action {
+    display: grid;
+    gap: 12px;
+}
+
+.emergency-create-form label,
+.emergency-action {
+    display: grid;
+    gap: 6px;
+}
+
+.emergency-stop-check {
+    grid-template-columns: auto 1fr;
+    align-items: center;
+}
+
+.emergency-card {
+    border-left: 6px solid #ca8a04;
+}
+
+.emergency-card.severity-critica { border-left-color: #b91c1c; }
+.emergency-card.severity-alta { border-left-color: #ea580c; }
+.emergency-card.severity-media { border-left-color: #ca8a04; }
+.emergency-card.severity-baixa { border-left-color: #2563eb; }
+
+.emergency-meta {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin: 10px 0;
+}
+
+.emergency-meta span,
+.emergency-waiting,
+.emergency-released {
+    padding: 7px 10px;
+    border-radius: 10px;
+    background: #eef3f8;
+    color: #334155;
+    font-size: 0.72rem;
+    font-weight: 900;
+}
+
+.emergency-released {
+    background: #dcfce7;
+    color: #166534;
+}
+
 .availability-summary {
     display: grid;
     grid-template-columns: repeat(2, minmax(0, 1fr));

@@ -3,6 +3,7 @@ from app.models.audit_log import AuditLog
 from app.models.checklist import Checklist, ChecklistItem
 from app.models.checklist_catalog_item import ChecklistCatalogItem
 from app.models.equipment_structure import EquipmentFamily, EquipmentLink, EquipmentProfile, OperationalLocation
+from app.models.emergency import EmergencyEvent, WorkOrderExecution
 from app.models.maintenance import MaintenanceMaterial, MaintenanceSchedule, MaintenanceScheduleItem, MaintenanceWorkOrder
 from app.models.material import Material, MaterialMovement
 from app.models.mechanic_non_conformity import MechanicNonConformity
@@ -27,6 +28,7 @@ __all__ = [
     "EquipmentProfile",
     "EquipmentOperationalState",
     "EquipmentStatusEvent",
+    "EmergencyEvent",
     "HourmeterReading",
     "InspectionExecution",
     "InspectionExecutionItem",
@@ -36,6 +38,7 @@ __all__ = [
     "MaintenanceSchedule",
     "MaintenanceScheduleItem",
     "MaintenanceWorkOrder",
+    "WorkOrderExecution",
     "Material",
     "MaterialMovement",
     "MechanicNonConformity",

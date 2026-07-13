@@ -221,6 +221,7 @@ const state = {
     maintenanceOverview: null,
     availabilityOverview: null,
     technicalInspectionTemplates: [],
+    emergencies: [],
     ncChecklistStatus: "abertas",
     ncMechanicStatus: "abertas",
     washYear: INITIAL_MANAUS_DATE.year,
@@ -262,6 +263,7 @@ const screens = {
     maintenance: document.getElementById("maintenance-screen"),
     availability: document.getElementById("availability-screen"),
     technicalInspections: document.getElementById("technical-inspections-screen"),
+    emergencies: document.getElementById("emergencies-screen"),
     success: document.getElementById("success-screen"),
 };
 
@@ -313,6 +315,7 @@ const elements = {
     openMaintenanceMenu: document.getElementById("open-maintenance-menu"),
     openAvailabilityMenu: document.getElementById("open-availability-menu"),
     openTechnicalInspectionsMenu: document.getElementById("open-technical-inspections-menu"),
+    openEmergenciesMenu: document.getElementById("open-emergencies-menu"),
     vehiclesBackButton: document.getElementById("vehicles-back-button"),
     activitiesBackButton: document.getElementById("activities-back-button"),
     activityCounter: document.getElementById("activity-counter"),
@@ -373,6 +376,18 @@ const elements = {
     technicalInspectionForm: document.getElementById("technical-inspection-form"),
     technicalInspectionGeneralNotes: document.getElementById("technical-inspection-general-notes"),
     technicalInspectionSubmit: document.getElementById("technical-inspection-submit"),
+    emergenciesBackButton: document.getElementById("emergencies-back-button"),
+    emergencyCreateForm: document.getElementById("emergency-create-form"),
+    emergencyVehicle: document.getElementById("emergency-vehicle"),
+    emergencySeverity: document.getElementById("emergency-severity"),
+    emergencyStopped: document.getElementById("emergency-stopped"),
+    emergencyTitle: document.getElementById("emergency-title"),
+    emergencyDescription: document.getElementById("emergency-description"),
+    emergencyLocation: document.getElementById("emergency-location"),
+    emergencyEvidence: document.getElementById("emergency-evidence"),
+    emergencySubmit: document.getElementById("emergency-submit"),
+    emergenciesCounter: document.getElementById("emergencies-counter"),
+    emergenciesList: document.getElementById("emergencies-list"),
     ncChecklistFilterOpen: document.getElementById("nc-checklist-filter-open"),
     ncChecklistFilterClosed: document.getElementById("nc-checklist-filter-closed"),
     ncMechanicFilterOpen: document.getElementById("nc-mechanic-filter-open"),
@@ -1250,6 +1265,112 @@ async function submitHourmeter(card, vehicle) {
         button.textContent = "REGISTRAR HORÍMETRO";
         showToast(error.message, true);
     }
+}
+
+async function openEmergenciesMenu() {
+    setActiveScreen("emergencies");
+    elements.emergencyVehicle.innerHTML = state.vehicles.filter((vehicle) => vehicle.ativo !== false)
+        .map((vehicle) => `<option value="${vehicle.id}">${escapeHtml(vehicle.frota || vehicle.placa || vehicle.modelo)}</option>`).join("");
+    try {
+        state.emergencies = await apiFetch("/emergenciais");
+        renderEmergencies();
+    } catch (error) {
+        renderStateCard(elements.emergenciesList, { title: "FALHA AO CARREGAR", message: error.message, tone: "error" });
+    }
+}
+
+function renderEmergencies() {
+    const rows = state.emergencies || [];
+    elements.emergenciesCounter.textContent = `${rows.length} OCORRÊNCIA${rows.length === 1 ? "" : "S"}`;
+    elements.emergenciesList.innerHTML = "";
+    if (!rows.length) {
+        return renderStateCard(elements.emergenciesList, { title: "SEM EMERGENCIAIS", message: "Nenhuma ocorrência aberta ou atribuída a você." });
+    }
+    rows.forEach((row) => elements.emergenciesList.appendChild(makeEmergencyCard(row)));
+}
+
+function makeEmergencyCard(emergency) {
+    const vehicle = emergency.vehicle || {};
+    const order = emergency.work_order || {};
+    const execution = emergency.execution || {};
+    const card = document.createElement("article");
+    card.className = `emergency-card severity-${String(emergency.severity || "baixa").toLowerCase()}`;
+    let action = `<div class="emergency-waiting">AGUARDANDO TRIAGEM E GERAÇÃO DA OS NO DESKTOP.</div>`;
+    if (order.id && !execution.repair_started_at) {
+        action = `<div class="emergency-action"><textarea class="emergency-diagnosis" placeholder="DIAGNÓSTICO OBRIGATÓRIO"></textarea><input class="emergency-before-photo" type="file" accept="image/*" capture="environment"><button class="primary-button emergency-start" type="button">INICIAR REPARO</button></div>`;
+    } else if (order.id && !execution.repair_completed_at) {
+        action = `<div class="emergency-action"><textarea class="emergency-service" placeholder="SERVIÇO EXECUTADO"></textarea><input class="emergency-after-photo" type="file" accept="image/*" capture="environment"><button class="primary-button emergency-complete" type="button">CONCLUIR REPARO</button></div>`;
+    } else if (order.id && execution.test_result !== "APROVADO") {
+        action = `<div class="emergency-action"><select class="emergency-test-result"><option value="APROVADO">TESTE APROVADO</option><option value="REPROVADO">TESTE REPROVADO</option></select><textarea class="emergency-test-notes" placeholder="OBSERVAÇÃO DO TESTE"></textarea><input class="emergency-test-photo" type="file" accept="image/*" capture="environment"><button class="primary-button emergency-test" type="button">REGISTRAR TESTE</button></div>`;
+    } else if (order.id && execution.release_status !== "LIBERADO") {
+        action = `<button class="primary-button emergency-release" type="button">LIBERAR EQUIPAMENTO</button>`;
+    } else if (execution.release_status === "LIBERADO") {
+        action = `<div class="emergency-released">EQUIPAMENTO LIBERADO APÓS TESTE APROVADO.</div>`;
+    }
+    card.innerHTML = `<header><div><span>${escapeHtml(emergency.event_number || "EMERGENCIAL")}</span><strong>${escapeHtml(vehicle.frota || vehicle.placa || "EQUIPAMENTO")}</strong><em>${escapeHtml(emergency.title || "")}</em></div><b>${escapeHtml(emergency.severity || "-")}</b></header><div class="emergency-meta"><span>${escapeHtml(emergency.status || "-")}</span><span>${emergency.equipment_stopped ? "EQUIPAMENTO PARADO" : "SEM PARADA"}</span><span>${escapeHtml(order.order_number || "SEM OS")}</span></div><p>${escapeHtml(emergency.description || "")}</p>${action}`;
+    card.querySelector(".emergency-start")?.addEventListener("click", () => startEmergencyWorkOrder(card, emergency));
+    card.querySelector(".emergency-complete")?.addEventListener("click", () => completeEmergencyRepair(card, emergency));
+    card.querySelector(".emergency-test")?.addEventListener("click", () => testEmergencyWorkOrder(card, emergency));
+    card.querySelector(".emergency-release")?.addEventListener("click", () => releaseEmergencyWorkOrder(emergency));
+    return card;
+}
+
+async function submitEmergency(event) {
+    event.preventDefault();
+    elements.emergencySubmit.disabled = true;
+    try {
+        const vehicleId = Number(elements.emergencyVehicle.value);
+        const vehicle = state.vehicles.find((row) => Number(row.id) === vehicleId) || {};
+        const file = elements.emergencyEvidence.files?.[0];
+        const evidencePath = file ? await uploadEvidence(file, vehicle.frota || "EQUIPAMENTO", elements.emergencyTitle.value, "emergencial", "EMERGENCIAIS") : null;
+        await apiFetch("/emergenciais", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ vehicle_id: vehicleId, severity: elements.emergencySeverity.value, equipment_stopped: elements.emergencyStopped.checked, title: elements.emergencyTitle.value.trim(), description: elements.emergencyDescription.value.trim(), location: elements.emergencyLocation.value.trim(), evidence_path: evidencePath }) });
+        elements.emergencyCreateForm.reset();
+        showToast("EMERGÊNCIA REGISTRADA E ENVIADA PARA TRIAGEM.");
+        await openEmergenciesMenu();
+    } catch (error) { showToast(error.message, true); }
+    finally { elements.emergencySubmit.disabled = false; }
+}
+
+async function startEmergencyWorkOrder(card, emergency) {
+    const diagnosis = card.querySelector(".emergency-diagnosis").value.trim();
+    if (!diagnosis) return showToast("INFORME O DIAGNÓSTICO.", true);
+    try {
+        const file = card.querySelector(".emergency-before-photo").files?.[0];
+        const path = file ? await uploadEvidence(file, emergency.vehicle?.frota || "EQUIPAMENTO", emergency.title, "os_antes", "EMERGENCIAIS") : null;
+        await apiFetch(`/ordens-servico/${emergency.work_order_id}/iniciar`, { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ diagnosis, before_evidence_path: path }) });
+        await openEmergenciesMenu();
+    } catch (error) { showToast(error.message, true); }
+}
+
+async function completeEmergencyRepair(card, emergency) {
+    const service = card.querySelector(".emergency-service").value.trim();
+    const file = card.querySelector(".emergency-after-photo").files?.[0];
+    if (!service || !file) return showToast("INFORME O SERVIÇO E A FOTO POSTERIOR.", true);
+    try {
+        const path = await uploadEvidence(file, emergency.vehicle?.frota || "EQUIPAMENTO", emergency.title, "os_depois", "EMERGENCIAIS");
+        await apiFetch(`/ordens-servico/${emergency.work_order_id}/concluir-reparo`, { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ service_performed: service, after_evidence_path: path }) });
+        await openEmergenciesMenu();
+    } catch (error) { showToast(error.message, true); }
+}
+
+async function testEmergencyWorkOrder(card, emergency) {
+    const result = card.querySelector(".emergency-test-result").value;
+    const notes = card.querySelector(".emergency-test-notes").value.trim();
+    if (result === "REPROVADO" && !notes) return showToast("INFORME O MOTIVO DA REPROVAÇÃO.", true);
+    try {
+        const file = card.querySelector(".emergency-test-photo").files?.[0];
+        const path = file ? await uploadEvidence(file, emergency.vehicle?.frota || "EQUIPAMENTO", emergency.title, "os_teste", "EMERGENCIAIS") : null;
+        await apiFetch(`/ordens-servico/${emergency.work_order_id}/teste`, { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ test_result: result, test_notes: notes, test_evidence_path: path }) });
+        await openEmergenciesMenu();
+    } catch (error) { showToast(error.message, true); }
+}
+
+async function releaseEmergencyWorkOrder(emergency) {
+    try {
+        await apiFetch(`/ordens-servico/${emergency.work_order_id}/liberar`, { method: "PUT", headers: { "Content-Type": "application/json" }, body: "{}" });
+        showToast("EQUIPAMENTO LIBERADO E DISPONIBILIDADE RESTAURADA.");
+        await openEmergenciesMenu();
+    } catch (error) { showToast(error.message, true); }
 }
 
 async function openTechnicalInspectionsMenu() {
@@ -5113,6 +5234,8 @@ on(elements.openNonConformitiesMenu, "click", openNonConformitiesMenu);
 on(elements.openMaintenanceMenu, "click", openMaintenanceMenu);
 on(elements.openAvailabilityMenu, "click", openAvailabilityMenu);
 on(elements.openTechnicalInspectionsMenu, "click", openTechnicalInspectionsMenu);
+on(elements.openEmergenciesMenu, "click", openEmergenciesMenu);
+on(elements.emergencyCreateForm, "submit", submitEmergency);
 on(elements.washPrevMonth, "click", () => changeWashMonth(-1));
 on(elements.washNextMonth, "click", () => changeWashMonth(1));
 on(elements.washExportPdfButton, "click", exportWashMonthPdf);
@@ -5159,6 +5282,10 @@ on(elements.maintenanceBackButton, "click", () => {
     setActiveScreen("home");
 });
 on(elements.availabilityBackButton, "click", () => {
+    renderHome();
+    setActiveScreen("home");
+});
+on(elements.emergenciesBackButton, "click", () => {
     renderHome();
     setActiveScreen("home");
 });

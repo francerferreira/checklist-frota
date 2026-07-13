@@ -127,6 +127,16 @@ class APIClient:
     def get_equipment_hourmeters(self, vehicle_id: int):
         return self._request("GET", f"/equipamentos/{vehicle_id}/horimetros")
 
+    def get_emergencies(self, status: str | None = None):
+        params = {"status": status} if status else None
+        return self._request("GET", "/emergenciais", params=params)
+
+    def triage_emergency(self, emergency_id: int, payload: dict):
+        return self._request("PUT", f"/emergenciais/{emergency_id}/triagem", json=payload)
+
+    def convert_emergency_to_work_order(self, emergency_id: int, payload: dict):
+        return self._request("POST", f"/emergenciais/{emergency_id}/converter-os", json=payload)
+
     def get_inspection_templates(self, *, include_all: bool = False, vehicle_id: int | None = None):
         params = {}
         if include_all:

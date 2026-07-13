@@ -344,6 +344,11 @@ def _sync_work_order_for_item(item: MaintenanceScheduleItem) -> MaintenanceWorkO
     return work_order
 
 
+def sync_work_order_for_item(item: MaintenanceScheduleItem) -> MaintenanceWorkOrder:
+    """Public integration point used by operational modules that create maintenance items."""
+    return _sync_work_order_for_item(item)
+
+
 def _sync_schedule_work_orders(schedule: MaintenanceSchedule) -> None:
     for item in schedule.items:
         _sync_work_order_for_item(item)

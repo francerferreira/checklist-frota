@@ -18,6 +18,7 @@ PAGE_ACCESS_BY_ROLE = {
         "activities",
         "maintenance",
         "availability",
+        "emergencies",
         "users",
         "cloud_backup",
         "audit_logs",
@@ -37,6 +38,7 @@ PAGE_ACCESS_BY_ROLE = {
         "activities",
         "maintenance",
         "availability",
+        "emergencies",
         "admin_rules",
     },
     "mecanico": {
@@ -46,6 +48,7 @@ PAGE_ACCESS_BY_ROLE = {
         "activities",
         "maintenance",
         "availability",
+        "emergencies",
     },
     "motorista": {
         "dashboard",

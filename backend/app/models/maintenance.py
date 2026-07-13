@@ -7,6 +7,7 @@ from app.utils.timezone import now_manaus_naive
 
 
 PACKAGE_SOURCE_PREFIX = "PACOTE_RESOLUCAO:"
+EMERGENCY_SOURCE_PREFIX = "EMERGENCIA:"
 
 
 def _package_ids_from_source_key(source_key: str | None) -> list[int]:
@@ -134,6 +135,8 @@ class MaintenanceSchedule(db.Model):
         source_key = str(self.source_key or "")
         if source_key.startswith(PACKAGE_SOURCE_PREFIX):
             return "PACOTE_RESOLUCAO"
+        if source_key.startswith(EMERGENCY_SOURCE_PREFIX):
+            return "EMERGENCIAL"
         return self.source_type
 
     def to_dict(self, include_items: bool = False, include_materials: bool = False, include_work_orders: bool = False) -> dict:
@@ -316,6 +319,7 @@ class MaintenanceWorkOrder(db.Model):
     assigned_mechanic = db.relationship("User", foreign_keys=[assigned_mechanic_user_id], lazy="joined")
     opened_by = db.relationship("User", foreign_keys=[opened_by_user_id], lazy="joined")
     resolution_package = db.relationship("ResolutionPackage", lazy="joined")
+    execution = db.relationship("WorkOrderExecution", back_populates="work_order", uselist=False, lazy="select", cascade="all, delete-orphan")
 
     __table_args__ = (
         db.CheckConstraint(
