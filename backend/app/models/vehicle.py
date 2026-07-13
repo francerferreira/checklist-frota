@@ -32,9 +32,33 @@ class Vehicle(db.Model):
         lazy="dynamic",
         cascade="all, delete-orphan",
     )
+    equipment_profile = db.relationship(
+        "EquipmentProfile",
+        back_populates="vehicle",
+        uselist=False,
+        cascade="all, delete-orphan",
+        lazy="joined",
+    )
+    equipment_links_as_parent = db.relationship(
+        "EquipmentLink",
+        foreign_keys="EquipmentLink.parent_vehicle_id",
+        back_populates="parent",
+        lazy="selectin",
+    )
+    equipment_links_as_child = db.relationship(
+        "EquipmentLink",
+        foreign_keys="EquipmentLink.child_vehicle_id",
+        back_populates="child",
+        lazy="selectin",
+    )
 
     def to_dict(self) -> dict:
-        return {
+        profile = self.equipment_profile
+        active_link = next(
+            (link for link in self.equipment_links_as_child if link.active),
+            None,
+        )
+        data = {
             "id": self.id,
             "placa": self.placa,
             "modelo": self.modelo,
@@ -51,3 +75,22 @@ class Vehicle(db.Model):
             "ativo": self.ativo,
             "retirado_em": self.retirado_em.isoformat() if self.retirado_em else None,
         }
+        data.update(
+            {
+                "family_id": profile.family_id if profile else None,
+                "family": profile.family.to_dict() if profile and profile.family else None,
+                "operational_location_id": profile.operational_location_id if profile else None,
+                "operational_location": (
+                    profile.location.to_dict() if profile and profile.location else None
+                ),
+                "serial_number": profile.serial_number if profile else None,
+                "manufacturer": profile.manufacturer if profile else None,
+                "capacity": profile.capacity if profile else None,
+                "criticality": profile.criticality if profile else "MEDIA",
+                "checklist_available": bool(
+                    profile and profile.family and profile.family.checklist_enabled
+                ),
+                "active_link": active_link.to_dict() if active_link else None,
+            }
+        )
+        return data

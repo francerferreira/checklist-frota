@@ -25,6 +25,8 @@ requirements.txt
 
 - Login simples por usuario (`motorista` ou `gestor`)
 - Cadastro e listagem de veiculos
+- Cadastro unificado de Frota, RTG, LBS, Spreader e equipamentos de apoio
+- Familias, locais operacionais, criticidade, numero de serie e vinculo LBS-Spreader
 - Checklist validado por tipo:
   - `cavalo`: 65 itens
   - `carreta`: 19 itens
@@ -192,6 +194,17 @@ Na tela de login do web app, informe a URL do backend.
 - `DELETE /veiculos/<id>`
 - `POST /veiculos/importar-inventario`
 
+### Estrutura de equipamentos
+
+- `GET /equipamentos/estrutura`
+- `POST /equipamentos/familias`
+- `PUT /equipamentos/familias/<id>`
+- `POST /equipamentos/locais`
+- `PUT /equipamentos/locais/<id>`
+- `GET /equipamentos/vinculos`
+- `POST /equipamentos/vinculos`
+- `PUT /equipamentos/vinculos/<id>/encerrar`
+
 ### Usuarios
 
 - `GET /usuarios`
@@ -259,6 +272,17 @@ Observacao:
 - Sirva o backend com `waitress` ou outro servidor WSGI
 - Coloque `backend/uploads` em storage persistente ou volume dedicado
 - Proteja o acesso a arquivos e ajuste CORS para o dominio real
+
+## Migrations
+
+O schema atual possui uma baseline Alembic e a migration aditiva da Fase 1.
+
+```powershell
+$env:PYTHONPATH="$PWD\backend"
+py -m flask --app wsgi:app db upgrade --directory migrations
+```
+
+Antes de aplicar em producao, execute `tools/compare_database_schema.py` com a `DATABASE_URL` produtiva em modo controlado e gere backup do banco e das evidencias.
 
 Exemplo com Waitress:
 

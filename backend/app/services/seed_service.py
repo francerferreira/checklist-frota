@@ -5,6 +5,7 @@ from flask import current_app
 from app.extensions import db
 from app.models import User, Vehicle, WashQueueItem
 from app.services.checklist_catalog import seed_checklist_catalog_items
+from app.services.equipment_structure_service import seed_equipment_structure
 from app.services.inventory_import_service import discover_inventory_file, import_inventory_data
 from app.services.wash_service import discover_wash_file, ensure_auxiliary_vehicles, sync_wash_queue
 
@@ -36,6 +37,7 @@ def seed_reference_data() -> None:
         db.session.add(francer)
 
     db.session.commit()
+    seed_equipment_structure()
     seed_checklist_catalog_items()
 
     if Vehicle.query.count() == 0:

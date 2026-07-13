@@ -7,9 +7,10 @@ from sqlalchemy.exc import IntegrityError
 
 from app.extensions import db
 from app.utils.timezone import now_manaus_naive
-from app.models import Vehicle
+from app.models import EquipmentProfile, Vehicle
 from app.services.auth_service import auth_required, user_has_management_access
 from app.services.audit_service import record_status_change
+from app.services.equipment_structure_service import apply_equipment_profile, sync_active_equipment_link
 from app.services.inventory_import_service import discover_inventory_file, import_inventory_data
 from app.services.report_service import build_vehicle_history
 from app.utils.responses import api_response
@@ -89,6 +90,8 @@ def _integrity_error_message(exc: IntegrityError) -> str:
         return "Placa ja cadastrada."
     if "audit_logs" in raw:
         return "Falha ao registrar auditoria. Operacao cancelada."
+    if "serial_number" in raw:
+        return "Numero de serie ja cadastrado em outro equipamento."
     return f"Falha de integridade ao salvar: {getattr(exc, 'orig', exc)}"
 
 
@@ -96,10 +99,18 @@ def _integrity_error_message(exc: IntegrityError) -> str:
 @auth_required
 def list_vehicles():
     tipo = request.args.get("tipo")
+    family_id = request.args.get("family_id")
+    location_id = request.args.get("operational_location_id")
     ativos = request.args.get("ativos")
     query = Vehicle.query.order_by(Vehicle.frota.asc())
     if tipo:
         query = query.filter_by(tipo=tipo.lower())
+    if family_id or location_id:
+        query = query.join(EquipmentProfile)
+    if family_id:
+        query = query.filter(EquipmentProfile.family_id == int(family_id))
+    if location_id:
+        query = query.filter(EquipmentProfile.operational_location_id == int(location_id))
     if ativos == "true":
         query = query.filter_by(ativo=True)
     elif ativos == "false":
@@ -129,10 +140,16 @@ def create_vehicle():
     if conflict:
         return api_response(False, error=conflict, status_code=409)
 
-    vehicle = _vehicle_from_payload(Vehicle(), payload)
+    vehicle = _vehicle_from_payload(Vehicle(placa="S/PLACA", modelo=""), payload)
     db.session.add(vehicle)
     try:
+        db.session.flush()
+        apply_equipment_profile(vehicle, payload)
+        sync_active_equipment_link(vehicle, payload, user_id=g.current_user.id)
         db.session.commit()
+    except ValueError as exc:
+        db.session.rollback()
+        return api_response(False, error=str(exc), status_code=400)
     except IntegrityError as exc:
         db.session.rollback()
         return api_response(False, error=_integrity_error_message(exc), status_code=409)
@@ -159,7 +176,13 @@ def update_vehicle(vehicle_id: int):
         record_status_change(g.current_user.id, "VEHICLE", vehicle.id, old_status, vehicle.status)
 
     try:
+        apply_equipment_profile(vehicle, payload)
+        db.session.flush()
+        sync_active_equipment_link(vehicle, payload, user_id=g.current_user.id)
         db.session.commit()
+    except ValueError as exc:
+        db.session.rollback()
+        return api_response(False, error=str(exc), status_code=400)
     except IntegrityError as exc:
         db.session.rollback()
         return api_response(False, error=_integrity_error_message(exc), status_code=409)

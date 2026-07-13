@@ -24,6 +24,89 @@ from theme import build_dialog_layout, configure_dialog_window, configure_table,
 from ui.detail_dialogs import VehicleDetailDialog
 
 
+class OperationalLocationDialog(QDialog):
+    def __init__(self, api_client, parent=None):
+        super().__init__(parent)
+        self.api_client = api_client
+        self.setWindowTitle("Novo local operacional")
+        configure_dialog_window(self, width=620, height=430, min_width=560, min_height=390)
+        style_card(self)
+
+        layout = build_dialog_layout(self, max_content_width=680)
+        title = QLabel("Estrutura operacional")
+        title.setObjectName("DialogHeaderTitle")
+        subtitle = QLabel("Cadastre áreas, píeres, berços e pátios para organizar os equipamentos.")
+        subtitle.setObjectName("DialogHeaderSubtitle")
+        subtitle.setWordWrap(True)
+        layout.addWidget(title)
+        layout.addWidget(subtitle)
+
+        self.code_input = QLineEdit()
+        self.code_input.setPlaceholderText("Ex.: ALFA-PATIO-01")
+        self.name_input = QLineEdit()
+        self.name_input.setPlaceholderText("Ex.: Pátio 01 Alfandegado")
+        self.type_combo = QComboBox()
+        for label, value in (
+            ("Terminal", "TERMINAL"),
+            ("Área", "AREA"),
+            ("Píer", "PIER"),
+            ("Berço", "BERCO"),
+            ("Pátio", "PATIO"),
+            ("Outro", "OUTRO"),
+        ):
+            self.type_combo.addItem(label, value)
+        self.parent_combo = QComboBox()
+        self.parent_combo.addItem("Sem local superior", None)
+        try:
+            locations = (self.api_client.get_equipment_structure() or {}).get("locations") or []
+        except Exception:
+            locations = []
+        for location in locations:
+            self.parent_combo.addItem(
+                location.get("full_name") or location.get("name") or "-",
+                location.get("id"),
+            )
+
+        form = QGridLayout()
+        form.setHorizontalSpacing(12)
+        form.setVerticalSpacing(10)
+        form.addWidget(QLabel("Código"), 0, 0)
+        form.addWidget(self.code_input, 1, 0)
+        form.addWidget(QLabel("Nome"), 0, 1)
+        form.addWidget(self.name_input, 1, 1)
+        form.addWidget(QLabel("Tipo"), 2, 0)
+        form.addWidget(self.type_combo, 3, 0)
+        form.addWidget(QLabel("Local superior"), 2, 1)
+        form.addWidget(self.parent_combo, 3, 1)
+        layout.addLayout(form)
+
+        actions = QHBoxLayout()
+        actions.addStretch()
+        cancel_button = QPushButton("Cancelar")
+        save_button = QPushButton("Salvar local")
+        save_button.setProperty("variant", "primary")
+        cancel_button.clicked.connect(self.reject)
+        save_button.clicked.connect(self.submit)
+        actions.addWidget(cancel_button)
+        actions.addWidget(save_button)
+        layout.addLayout(actions)
+
+    def submit(self):
+        try:
+            self.api_client.create_operational_location(
+                {
+                    "code": self.code_input.text().strip(),
+                    "name": self.name_input.text().strip(),
+                    "location_type": self.type_combo.currentData(),
+                    "parent_id": self.parent_combo.currentData(),
+                }
+            )
+            self.accept()
+        except Exception as exc:
+            from components import show_notice
+            show_notice(self, "Falha ao salvar local", str(exc), icon_name="warning")
+
+
 class EquipmentDialog(QDialog):
     def __init__(self, api_client, equipment: dict | None = None, parent=None):
         super().__init__(parent)
@@ -32,7 +115,7 @@ class EquipmentDialog(QDialog):
         self.selected_file = ""
         self.result_payload = None
         self.setWindowTitle("Cadastro de Equipamento")
-        configure_dialog_window(self, width=980, height=760, min_width=760, min_height=620)
+        configure_dialog_window(self, width=1040, height=860, min_width=820, min_height=700)
         style_card(self)
 
         layout = build_dialog_layout(self, max_content_width=1080)
@@ -61,7 +144,9 @@ class EquipmentDialog(QDialog):
         title_wrap.setSpacing(4)
         header_title = QLabel("Cadastro de equipamento")
         header_title.setObjectName("DialogHeaderTitle")
-        header_subtitle = QLabel("Preencha os dados principais da frota em um formulário mais rápido e organizado.")
+        header_subtitle = QLabel(
+            "Cadastre Frota, RTG, LBS, Spreader e apoio na mesma base, preservando a identificação atual."
+        )
         header_subtitle.setObjectName("DialogHeaderSubtitle")
         header_subtitle.setWordWrap(True)
         title_wrap.addWidget(header_title)
@@ -71,6 +156,17 @@ class EquipmentDialog(QDialog):
         header_layout.addLayout(header_row)
 
         self.frota_input = QLineEdit((equipment or {}).get("frota", ""))
+        try:
+            structure = self.api_client.get_equipment_structure() or {}
+        except Exception:
+            structure = {}
+        families = structure.get("families") or []
+        locations = structure.get("locations") or []
+
+        self.family_combo = QComboBox()
+        for family in families:
+            self.family_combo.addItem(family.get("name") or family.get("code") or "-", family)
+
         self.tipo_combo = QComboBox()
         self.tipo_combo.addItems(
             [
@@ -84,10 +180,23 @@ class EquipmentDialog(QDialog):
                 "onibus",
                 "van",
                 "auxiliar",
+                "rtg",
+                "lbs",
+                "spreader",
             ]
         )
         if equipment:
             self.tipo_combo.setCurrentText(equipment.get("tipo", "cavalo"))
+
+        selected_family_id = (equipment or {}).get("family_id")
+        selected_family_code = (equipment or {}).get("tipo")
+        for index in range(self.family_combo.count()):
+            family = self.family_combo.itemData(index) or {}
+            if family.get("id") == selected_family_id or family.get("code") == selected_family_code:
+                self.family_combo.setCurrentIndex(index)
+                break
+        self.family_combo.currentIndexChanged.connect(self._sync_type_from_family)
+        self._sync_type_from_family()
 
         self.placa_input = QLineEdit((equipment or {}).get("placa", ""))
         self.ano_input = QLineEdit((equipment or {}).get("ano", "") or "")
@@ -95,6 +204,13 @@ class EquipmentDialog(QDialog):
         self.chassi_input = QLineEdit((equipment or {}).get("chassi", "") or "")
         self.configuracao_input = QLineEdit((equipment or {}).get("configuracao", "") or "")
         self.atividade_input = QLineEdit((equipment or {}).get("atividade", "") or "")
+        self.serial_number_input = QLineEdit((equipment or {}).get("serial_number", "") or "")
+        self.manufacturer_input = QLineEdit((equipment or {}).get("manufacturer", "") or "")
+        self.capacity_input = QLineEdit((equipment or {}).get("capacity", "") or "")
+
+        self.criticality_combo = QComboBox()
+        self.criticality_combo.addItems(["BAIXA", "MEDIA", "ALTA", "CRITICA"])
+        self.criticality_combo.setCurrentText((equipment or {}).get("criticality") or "MEDIA")
 
         self.status_combo = QComboBox()
         self.status_combo.addItems(["ON", "OFF", "RETIRADO"])
@@ -102,6 +218,40 @@ class EquipmentDialog(QDialog):
             self.status_combo.setCurrentText(equipment["status"])
 
         self.local_input = QLineEdit((equipment or {}).get("local", "") or "")
+        self.location_combo = QComboBox()
+        self.location_combo.addItem("Sem local estruturado", None)
+        for location in locations:
+            self.location_combo.addItem(location.get("full_name") or location.get("name") or "-", location.get("id"))
+        selected_location_id = (equipment or {}).get("operational_location_id")
+        if selected_location_id:
+            index = self.location_combo.findData(selected_location_id)
+            if index >= 0:
+                self.location_combo.setCurrentIndex(index)
+
+        self.parent_equipment_combo = QComboBox()
+        self.parent_equipment_combo.addItem("Sem vínculo com LBS", None)
+        try:
+            lbs_rows = self.api_client.get_equipment("lbs", True)
+        except Exception:
+            lbs_rows = []
+        for lbs in lbs_rows:
+            if int(lbs.get("id") or 0) == int((equipment or {}).get("id") or 0):
+                continue
+            self.parent_equipment_combo.addItem(
+                f"{lbs.get('frota') or '-'} - {lbs.get('modelo') or '-'}",
+                lbs.get("id"),
+            )
+        active_link = (equipment or {}).get("active_link") or {}
+        parent_id = active_link.get("parent_vehicle_id")
+        if parent_id:
+            index = self.parent_equipment_combo.findData(parent_id)
+            if index >= 0:
+                self.parent_equipment_combo.setCurrentIndex(index)
+
+        self.link_type_combo = QComboBox()
+        self.link_type_combo.addItems(["ACOPLADO", "TITULAR", "RESERVA", "OUTRO"])
+        if active_link.get("link_type"):
+            self.link_type_combo.setCurrentText(active_link["link_type"])
         self.descricao_input = QTextEdit((equipment or {}).get("descricao", "") or "")
         self.ativo_checkbox = QCheckBox("Equipamento ativo")
         self.ativo_checkbox.setChecked((equipment or {}).get("ativo", True))
@@ -137,17 +287,25 @@ class EquipmentDialog(QDialog):
             field_layout.addWidget(widget)
             form_layout.addWidget(field, row, column, 1, col_span)
 
-        add_field(0, 0, "Frota", self.frota_input, highlight=True)
-        add_field(0, 1, "Tipo", self.tipo_combo, highlight=True)
-        add_field(1, 0, "Placa", self.placa_input)
-        add_field(1, 1, "Ano", self.ano_input)
-        add_field(2, 0, "Modelo", self.modelo_input)
-        add_field(2, 1, "Chassi", self.chassi_input)
-        add_field(3, 0, "Configuração", self.configuracao_input)
-        add_field(3, 1, "Atividade", self.atividade_input)
-        add_field(4, 0, "Status", self.status_combo, highlight=True)
-        add_field(4, 1, "Local", self.local_input)
-        add_field(5, 0, "Descrição", self.descricao_input, 2)
+        add_field(0, 0, "Identificação / Frota", self.frota_input, highlight=True)
+        add_field(0, 1, "Família", self.family_combo, highlight=True)
+        add_field(1, 0, "Tipo técnico", self.tipo_combo)
+        add_field(1, 1, "Placa", self.placa_input)
+        add_field(2, 0, "Ano", self.ano_input)
+        add_field(2, 1, "Modelo", self.modelo_input)
+        add_field(3, 0, "Número de série", self.serial_number_input, highlight=True)
+        add_field(3, 1, "Fabricante", self.manufacturer_input)
+        add_field(4, 0, "Capacidade", self.capacity_input)
+        add_field(4, 1, "Criticidade", self.criticality_combo, highlight=True)
+        add_field(5, 0, "Chassi", self.chassi_input)
+        add_field(5, 1, "Configuração", self.configuracao_input)
+        add_field(6, 0, "Atividade", self.atividade_input)
+        add_field(6, 1, "Status cadastral", self.status_combo, highlight=True)
+        add_field(7, 0, "Local operacional", self.location_combo, highlight=True)
+        add_field(7, 1, "Local legado / observação", self.local_input)
+        add_field(8, 0, "LBS vinculada (para Spreader)", self.parent_equipment_combo)
+        add_field(8, 1, "Tipo do vínculo", self.link_type_combo)
+        add_field(9, 0, "Descrição", self.descricao_input, 2)
 
         media_field = QFrame()
         media_field.setObjectName("DialogInfoBlock")
@@ -165,7 +323,7 @@ class EquipmentDialog(QDialog):
         media_actions.addWidget(self.file_label, 1)
         media_layout.addLayout(media_actions)
         media_layout.addWidget(self.ativo_checkbox, 0, Qt.AlignLeft)
-        form_layout.addWidget(media_field, 6, 0, 1, 2)
+        form_layout.addWidget(media_field, 10, 0, 1, 2)
 
         footer = QFrame()
         footer.setObjectName("DialogFooter")
@@ -191,6 +349,12 @@ class EquipmentDialog(QDialog):
         layout.addWidget(form_card)
         layout.addWidget(footer)
 
+    def _sync_type_from_family(self):
+        family = self.family_combo.currentData() or {}
+        family_code = family.get("code")
+        if family_code:
+            self.tipo_combo.setCurrentText(family_code)
+
     def select_file(self):
         filename, _ = QFileDialog.getOpenFileName(
             self,
@@ -204,17 +368,27 @@ class EquipmentDialog(QDialog):
 
     def submit(self):
         try:
+            family = self.family_combo.currentData() or {}
             payload = {
                 "frota": self.frota_input.text().strip(),
-                "tipo": self.tipo_combo.currentText(),
+                "tipo": family.get("code") or self.tipo_combo.currentText(),
+                "family_id": family.get("id"),
+                "family_code": family.get("code") or self.tipo_combo.currentText(),
                 "placa": self.placa_input.text().strip(),
                 "ano": self.ano_input.text().strip(),
                 "modelo": self.modelo_input.text().strip(),
                 "chassi": self.chassi_input.text().strip(),
                 "configuracao": self.configuracao_input.text().strip(),
                 "atividade": self.atividade_input.text().strip(),
+                "serial_number": self.serial_number_input.text().strip(),
+                "manufacturer": self.manufacturer_input.text().strip(),
+                "capacity": self.capacity_input.text().strip(),
+                "criticality": self.criticality_combo.currentText(),
                 "status": self.status_combo.currentText(),
                 "local": self.local_input.text().strip(),
+                "operational_location_id": self.location_combo.currentData(),
+                "parent_equipment_id": self.parent_equipment_combo.currentData(),
+                "link_type": self.link_type_combo.currentText(),
                 "descricao": self.descricao_input.toPlainText().strip(),
                 "ativo": self.ativo_checkbox.isChecked(),
             }
@@ -274,6 +448,10 @@ class EquipmentPage(QFrame):
         self.add_button.setMinimumHeight(34)
         self.add_button.clicked.connect(self.add_equipment)
 
+        self.structure_button = QPushButton("Novo local")
+        self.structure_button.setMinimumHeight(34)
+        self.structure_button.clicked.connect(self.add_operational_location)
+
         self.edit_button = QPushButton("Editar")
         self.edit_button.setMinimumHeight(34)
         self.edit_button.clicked.connect(self.edit_selected)
@@ -287,6 +465,7 @@ class EquipmentPage(QFrame):
         self.retire_button.setMinimumHeight(34)
         self.retire_button.clicked.connect(self.retire_selected)
 
+        buttons.addWidget(self.structure_button)
         buttons.addWidget(self.add_button)
         buttons.addWidget(self.edit_button)
         buttons.addWidget(self.open_button)
@@ -320,6 +499,9 @@ class EquipmentPage(QFrame):
         self.type_filter.addItem("Onibus", "onibus")
         self.type_filter.addItem("Vans", "van")
         self.type_filter.addItem("Auxiliares legados", "auxiliar")
+        self.type_filter.addItem("RTGs", "rtg")
+        self.type_filter.addItem("LBSs", "lbs")
+        self.type_filter.addItem("Spreaders", "spreader")
         self.type_filter.setMinimumHeight(34)
         self.type_filter.currentIndexChanged.connect(self.refresh)
 
@@ -362,7 +544,7 @@ class EquipmentPage(QFrame):
 
         self.table = QTableWidget(0, 9)
         self.table.setHorizontalHeaderLabels(
-            ["Frota", "Tipo", "Placa", "Ano", "Modelo", "Status", "Chassi", "Local", "Foto"]
+            ["Identificação", "Família", "Tipo", "Série", "Modelo", "Status", "Criticidade", "Local", "Foto"]
         )
         configure_table(self.table, stretch_last=False)
         self.table.setMinimumHeight(540)
@@ -397,7 +579,17 @@ class EquipmentPage(QFrame):
         for item in rows:
             haystack = " ".join(
                 str(item.get(field) or "")
-                for field in ("frota", "placa", "modelo", "chassi", "descricao", "atividade", "local")
+                for field in (
+                    "frota",
+                    "placa",
+                    "modelo",
+                    "chassi",
+                    "descricao",
+                    "atividade",
+                    "local",
+                    "serial_number",
+                    "manufacturer",
+                )
             ).lower()
             if term in haystack:
                 filtered.append(item)
@@ -415,13 +607,15 @@ class EquipmentPage(QFrame):
             for row, item in enumerate(self.items):
                 first_cell = make_table_item(item["frota"], payload=item)
                 self.table.setItem(row, 0, first_cell)
-                self.table.setItem(row, 1, make_table_item(item["tipo"].title()))
-                self.table.setItem(row, 2, make_table_item(item["placa"] or ""))
-                self.table.setItem(row, 3, make_table_item(item["ano"] or ""))
+                family = item.get("family") or {}
+                location = item.get("operational_location") or {}
+                self.table.setItem(row, 1, make_table_item(family.get("name") or item["tipo"].title()))
+                self.table.setItem(row, 2, make_table_item(item["tipo"].upper()))
+                self.table.setItem(row, 3, make_table_item(item.get("serial_number") or ""))
                 self.table.setItem(row, 4, make_table_item(item["modelo"]))
                 self.table.setItem(row, 5, make_table_item(item.get("status") or ""))
-                self.table.setItem(row, 6, make_table_item(item.get("chassi") or ""))
-                self.table.setItem(row, 7, make_table_item(item.get("local") or ""))
+                self.table.setItem(row, 6, make_table_item(item.get("criticality") or "MEDIA"))
+                self.table.setItem(row, 7, make_table_item(location.get("full_name") or item.get("local") or ""))
                 self.table.setItem(row, 8, make_table_item("Sim" if item.get("foto_path") else "Não"))
         finally:
             self.table.blockSignals(False)
@@ -497,6 +691,17 @@ class EquipmentPage(QFrame):
             except Exception as exc:
                 from components import show_notice
                 show_notice(self, "Falha ao salvar", str(exc), icon_name="warning")
+
+    def add_operational_location(self):
+        dialog = OperationalLocationDialog(self.api_client, self)
+        if dialog.exec():
+            from components import show_notice
+            show_notice(
+                self,
+                "Local salvo",
+                "O local operacional já está disponível nos cadastros de equipamento.",
+                icon_name="dashboard",
+            )
 
     def edit_selected(self):
         target_item = self._selected_item()

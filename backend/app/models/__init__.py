@@ -2,6 +2,7 @@ from app.models.activity import Activity, ActivityItem, ActivityNonConformityLin
 from app.models.audit_log import AuditLog
 from app.models.checklist import Checklist, ChecklistItem
 from app.models.checklist_catalog_item import ChecklistCatalogItem
+from app.models.equipment_structure import EquipmentFamily, EquipmentLink, EquipmentProfile, OperationalLocation
 from app.models.maintenance import MaintenanceMaterial, MaintenanceSchedule, MaintenanceScheduleItem, MaintenanceWorkOrder
 from app.models.material import Material, MaterialMovement
 from app.models.mechanic_non_conformity import MechanicNonConformity
@@ -19,6 +20,9 @@ __all__ = [
     "Checklist",
     "ChecklistCatalogItem",
     "ChecklistItem",
+    "EquipmentFamily",
+    "EquipmentLink",
+    "EquipmentProfile",
     "MaintenanceMaterial",
     "MaintenanceSchedule",
     "MaintenanceScheduleItem",
@@ -26,6 +30,7 @@ __all__ = [
     "Material",
     "MaterialMovement",
     "MechanicNonConformity",
+    "OperationalLocation",
     "ResolutionPackage",
     "ResolutionPackageLink",
     "SystemSetting",

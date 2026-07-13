@@ -103,6 +103,9 @@ def import_inventory_data(path: Path) -> dict:
             updated += 1
 
     db.session.commit()
+    from app.services.equipment_structure_service import seed_equipment_structure
+
+    seed_equipment_structure()
     workbook.close()
     return {
         "arquivo": str(path),

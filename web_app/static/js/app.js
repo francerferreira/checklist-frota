@@ -2925,7 +2925,11 @@ function isOfflineError(error) {
 function renderVehicles() {
     const query = normalizeText(elements.vehicleSearch.value);
     const filteredVehicles = state.vehicles.filter((vehicle) => {
-        const searchable = normalizeText(`${vehicle.frota} ${vehicle.placa} ${vehicle.modelo} ${vehicle.tipo}`);
+        const familyName = vehicle.family?.name || "";
+        const locationName = vehicle.operational_location?.full_name || vehicle.local || "";
+        const searchable = normalizeText(
+            `${vehicle.frota} ${vehicle.placa} ${vehicle.modelo} ${vehicle.tipo} ${familyName} ${vehicle.serial_number || ""} ${vehicle.manufacturer || ""} ${locationName}`
+        );
         return !query || searchable.includes(query);
     });
 
@@ -2959,14 +2963,18 @@ function renderVehicles() {
     }
 
     filteredVehicles.forEach((vehicle) => {
+        const familyName = vehicle.family?.name || vehicle.tipo || "-";
+        const locationName = vehicle.operational_location?.full_name || vehicle.local || "SEM LOCAL";
+        const parentEquipment = vehicle.active_link?.parent_equipment;
         const card = document.createElement("button");
         card.type = "button";
         card.className = "vehicle-card";
         card.innerHTML = `
-            <span class="vehicle-type">${escapeHtml(String(vehicle.tipo || "-").toUpperCase())}</span>
+            <span class="vehicle-type">${escapeHtml(String(familyName).toUpperCase())}</span>
             <strong>${escapeHtml(vehicle.frota || "-")}</strong>
             <span>${escapeHtml(String(vehicle.modelo || "MODELO NÃO INFORMADO").toUpperCase())}</span>
-            <small>PLACA ${escapeHtml(vehicle.placa || "-")} | ${escapeHtml(String(vehicle.local || "SEM LOCAL").toUpperCase())}</small>
+            <small>SÉRIE ${escapeHtml(vehicle.serial_number || "-")} | ${escapeHtml(String(locationName).toUpperCase())}</small>
+            <small>CRITICIDADE ${escapeHtml(vehicle.criticality || "MEDIA")}${parentEquipment ? ` | ${escapeHtml(vehicle.active_link.link_type || "VÍNCULO")} ${escapeHtml(parentEquipment.frota || "-")}` : ""}</small>
         `;
         card.addEventListener("click", () => selectVehicle(vehicle));
         elements.vehiclesList.appendChild(card);
@@ -3765,6 +3773,10 @@ async function selectVehicle(vehicle, options = {}) {
     state.currentChecklistDraftUpdatedAt = "";
     state.currentChecklistDraftRestored = false;
     const items = state.catalog[vehicle.tipo] || [];
+    if (!items.length) {
+        showToast(`CHECKLIST DE ${String(vehicle.family?.name || vehicle.tipo || "EQUIPAMENTO").toUpperCase()} SERÁ CONFIGURADO NA FASE 3.`);
+        return;
+    }
     const modules = buildModules(items);
 
     elements.checklistTitle.textContent = `${vehicle.frota} - ${vehicle.modelo}`;

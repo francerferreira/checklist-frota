@@ -1,0 +1,152 @@
+from __future__ import annotations
+
+import os
+import sys
+import tempfile
+import unittest
+from pathlib import Path
+
+
+PROJECT_ROOT = Path(__file__).resolve().parents[1]
+BACKEND_ROOT = PROJECT_ROOT / "backend"
+if str(BACKEND_ROOT) not in sys.path:
+    sys.path.insert(0, str(BACKEND_ROOT))
+
+TEST_DB_PATH = Path(tempfile.gettempdir()) / "checklist_frota_equipment_structure_test.db"
+os.environ["DATABASE_URL"] = f"sqlite:///{TEST_DB_PATH}"
+os.environ["INVENTORY_FILE"] = ""
+os.environ["WASH_CONTROL_FILE"] = ""
+
+from app import create_app
+from app.extensions import db
+from app.models import EquipmentFamily, EquipmentLink, EquipmentProfile, OperationalLocation, User, Vehicle
+from app.services.auth_service import generate_token
+
+
+class EquipmentStructureRoutesTests(unittest.TestCase):
+    @classmethod
+    def setUpClass(cls):
+        if TEST_DB_PATH.exists():
+            TEST_DB_PATH.unlink()
+        cls.app = create_app()
+        cls.client = cls.app.test_client()
+        with cls.app.app_context():
+            admin = User.query.filter_by(login="admin").first()
+            assert admin is not None
+            cls.headers = {"Authorization": f"Bearer {generate_token(admin)}"}
+
+    @classmethod
+    def tearDownClass(cls):
+        with cls.app.app_context():
+            db.session.remove()
+            db.engine.dispose()
+        if TEST_DB_PATH.exists():
+            TEST_DB_PATH.unlink()
+
+    def setUp(self):
+        with self.app.app_context():
+            EquipmentLink.query.delete()
+            EquipmentProfile.query.delete()
+            Vehicle.query.delete()
+            OperationalLocation.query.delete()
+            db.session.commit()
+
+    def _family(self, code: str) -> dict:
+        response = self.client.get("/equipamentos/estrutura", headers=self.headers)
+        self.assertEqual(response.status_code, 200, response.get_json())
+        families = response.get_json()["data"]["families"]
+        return next(family for family in families if family["code"] == code)
+
+    def _create_vehicle(self, *, frota: str, family: dict, model: str, **extra) -> dict:
+        payload = {
+            "frota": frota,
+            "tipo": family["code"],
+            "family_id": family["id"],
+            "placa": "",
+            "modelo": model,
+            "status": "ON",
+            "ativo": True,
+            **extra,
+        }
+        response = self.client.post("/veiculos", json=payload, headers=self.headers)
+        self.assertEqual(response.status_code, 201, response.get_json())
+        return response.get_json()["data"]
+
+    def test_default_port_families_are_available_without_enabling_checklist(self):
+        for code in ("rtg", "lbs", "spreader"):
+            family = self._family(code)
+            self.assertFalse(family["checklist_enabled"])
+
+    def test_lbs_spreader_profile_location_and_active_link_flow(self):
+        location_response = self.client.post(
+            "/equipamentos/locais",
+            json={
+                "code": "ALFA-BERCO-04",
+                "name": "Berco 04 Alfandegado",
+                "location_type": "BERCO",
+            },
+            headers=self.headers,
+        )
+        self.assertEqual(location_response.status_code, 201, location_response.get_json())
+        location = location_response.get_json()["data"]
+
+        lbs_family = self._family("lbs")
+        spreader_family = self._family("spreader")
+        lbs = self._create_vehicle(
+            frota="LBS 13",
+            family=lbs_family,
+            model="LBS 600",
+            serial_number="141582",
+            manufacturer="Liebherr",
+            criticality="CRITICA",
+            operational_location_id=location["id"],
+        )
+        spreader = self._create_vehicle(
+            frota="SPREADER 03",
+            family=spreader_family,
+            model="EH5U",
+            serial_number="34610",
+            capacity="41 TON",
+            criticality="ALTA",
+            parent_equipment_id=lbs["id"],
+            link_type="TITULAR",
+        )
+
+        self.assertEqual(lbs["family"]["code"], "lbs")
+        self.assertEqual(lbs["operational_location"]["id"], location["id"])
+        self.assertEqual(lbs["criticality"], "CRITICA")
+        self.assertFalse(lbs["checklist_available"])
+        self.assertEqual(spreader["active_link"]["parent_vehicle_id"], lbs["id"])
+        self.assertEqual(spreader["active_link"]["link_type"], "TITULAR")
+
+        response = self.client.get("/veiculos?tipo=spreader&ativos=true", headers=self.headers)
+        self.assertEqual(response.status_code, 200, response.get_json())
+        rows = response.get_json()["data"]
+        self.assertEqual(len(rows), 1)
+        self.assertEqual(rows[0]["serial_number"], "34610")
+        self.assertEqual(rows[0]["active_link"]["parent_equipment"]["frota"], "LBS 13")
+
+    def test_link_rejects_non_lbs_parent(self):
+        rtg = self._create_vehicle(
+            frota="RTG 01",
+            family=self._family("rtg"),
+            model="RTG",
+        )
+        response = self.client.post(
+            "/veiculos",
+            json={
+                "frota": "SPREADER 01",
+                "tipo": "spreader",
+                "family_id": self._family("spreader")["id"],
+                "modelo": "EH5U",
+                "parent_equipment_id": rtg["id"],
+                "link_type": "RESERVA",
+            },
+            headers=self.headers,
+        )
+        self.assertEqual(response.status_code, 400, response.get_json())
+        self.assertIn("Spreader", response.get_json()["error"])
+
+
+if __name__ == "__main__":
+    unittest.main()

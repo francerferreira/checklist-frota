@@ -243,18 +243,28 @@ class VehicleDetailDialog(QDialog):
 
         info_title = QLabel("Dados do equipamento")
         info_title.setObjectName("SectionTitle")
+        family = vehicle.get("family") or {}
+        operational_location = vehicle.get("operational_location") or {}
+        active_link = vehicle.get("active_link") or {}
+        parent_equipment = active_link.get("parent_equipment") or {}
         info_text = QLabel(
             "\n".join(
                 [
                     f"Frota: {vehicle.get('frota') or '-'}",
+                    f"Família: {family.get('name') or vehicle.get('tipo') or '-'}",
                     f"Tipo: {(vehicle.get('tipo') or '-').title()}",
                     f"Placa: {vehicle.get('placa') or '-'}",
                     f"Modelo: {vehicle.get('modelo') or '-'}",
                     f"Ano: {vehicle.get('ano') or '-'}",
                     f"Chassi: {vehicle.get('chassi') or '-'}",
+                    f"Número de série: {vehicle.get('serial_number') or '-'}",
+                    f"Fabricante: {vehicle.get('manufacturer') or '-'}",
+                    f"Capacidade: {vehicle.get('capacity') or '-'}",
+                    f"Criticidade: {vehicle.get('criticality') or 'MEDIA'}",
                     f"Configuração: {vehicle.get('configuracao') or '-'}",
                     f"Atividade: {vehicle.get('atividade') or '-'}",
-                    f"Local: {vehicle.get('local') or '-'}",
+                    f"Local: {operational_location.get('full_name') or vehicle.get('local') or '-'}",
+                    f"Vínculo ativo: {parent_equipment.get('frota') or '-'} ({active_link.get('link_type') or '-'})",
                     f"Descrição: {vehicle.get('descricao') or '-'}",
                 ]
             )

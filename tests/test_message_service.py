@@ -97,7 +97,7 @@ class MessageServiceTests(unittest.TestCase):
                 ],
             }
         )
-        self.assertIn("atividade em massa", package.title.lower())
+        self.assertIn("inspeção em massa", package.title.lower())
         self.assertIn("CV802", package.email_body)
         self.assertIn("**RELATÓRIO EXECUTIVO", package.whatsapp_text)
 

@@ -94,6 +94,37 @@ class APIClient:
     def get_vehicle_history(self, vehicle_id: int):
         return self._request("GET", f"/veiculos/{vehicle_id}/historico")
 
+    def get_equipment_structure(self):
+        return self._request("GET", "/equipamentos/estrutura")
+
+    def create_equipment_family(self, payload: dict):
+        return self._request("POST", "/equipamentos/familias", json=payload)
+
+    def update_equipment_family(self, family_id: int, payload: dict):
+        return self._request("PUT", f"/equipamentos/familias/{family_id}", json=payload)
+
+    def create_operational_location(self, payload: dict):
+        return self._request("POST", "/equipamentos/locais", json=payload)
+
+    def update_operational_location(self, location_id: int, payload: dict):
+        return self._request("PUT", f"/equipamentos/locais/{location_id}", json=payload)
+
+    def get_equipment_links(self, *, active: bool | None = None, parent_id: int | None = None, child_id: int | None = None):
+        params = {}
+        if active is not None:
+            params["active"] = str(active).lower()
+        if parent_id:
+            params["parent_equipment_id"] = parent_id
+        if child_id:
+            params["child_equipment_id"] = child_id
+        return self._request("GET", "/equipamentos/vinculos", params=params or None)
+
+    def create_equipment_link(self, payload: dict):
+        return self._request("POST", "/equipamentos/vinculos", json=payload)
+
+    def close_equipment_link(self, link_id: int):
+        return self._request("PUT", f"/equipamentos/vinculos/{link_id}/encerrar", json={})
+
     def create_vehicle(self, payload: dict):
         return self._request("POST", "/veiculos", json=payload)
 

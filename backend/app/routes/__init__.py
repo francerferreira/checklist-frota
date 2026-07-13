@@ -2,6 +2,7 @@ from app.routes.admin import bp as admin_bp
 from app.routes.activities import bp as activities_bp
 from app.routes.auth import bp as auth_bp
 from app.routes.checklist import bp as checklist_bp
+from app.routes.equipment_structure import bp as equipment_structure_bp
 from app.routes.maintenance import bp as maintenance_bp
 from app.routes.mechanic_non_conformities import bp as mechanic_non_conformities_bp
 from app.routes.materials import bp as materials_bp
@@ -19,6 +20,7 @@ def register_blueprints(app):
         admin_bp,
         auth_bp,
         vehicles_bp,
+        equipment_structure_bp,
         users_bp,
         activities_bp,
         maintenance_bp,
