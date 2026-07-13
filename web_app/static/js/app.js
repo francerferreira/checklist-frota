@@ -10,13 +10,16 @@
 ];
 
 const OFFLINE_DB_NAME = "checklist-live-offline";
-const OFFLINE_DB_VERSION = 3;
+const OFFLINE_DB_VERSION = 4;
 const CHECKLIST_QUEUE_STORE = "checklistQueue";
 const CHECKLIST_DRAFT_STORE = "checklistDrafts";
 const INSPECTION_QUEUE_STORE = "technicalInspectionQueue";
+const MOBILE_OPERATION_QUEUE_STORE = "mobileOperationQueue";
 const OFFLINE_VEHICLES_KEY = "offlineVehicles";
 const OFFLINE_CATALOG_KEY = "offlineCatalog";
 const OFFLINE_INSPECTION_TEMPLATES_KEY = "offlineInspectionTemplates";
+const OFFLINE_AVAILABILITY_KEY = "offlineAvailabilityOverview";
+const OFFLINE_EMERGENCIES_KEY = "offlineEmergencies";
 const ACTIVE_CHECKLIST_DRAFT_KEY = "activeChecklistDraftVehicleId";
 const SESSION_STARTED_AT_KEY = "sessionStartedAt";
 const SESSION_LAST_ACTIVITY_AT_KEY = "sessionLastActivityAt";
@@ -235,6 +238,7 @@ const state = {
     maintenanceStatusFilter: "ABERTAS",
     selectedActivity: null,
     selectedVehicle: null,
+    focusedAvailabilityVehicleId: null,
     currentModule: "TODOS",
     currentChecklistDraftUpdatedAt: "",
     currentChecklistDraftRestored: false,
@@ -278,6 +282,11 @@ const elements = {
     vehiclesList: document.getElementById("vehicles-list"),
     vehicleSearch: document.getElementById("vehicle-search"),
     vehicleCounter: document.getElementById("vehicle-counter"),
+    assetAccessCode: document.getElementById("asset-access-code"),
+    openAssetCodeButton: document.getElementById("open-asset-code-button"),
+    scanAssetQrButton: document.getElementById("scan-asset-qr-button"),
+    scanAssetNfcButton: document.getElementById("scan-asset-nfc-button"),
+    assetQrPreview: document.getElementById("asset-qr-preview"),
     userSummary: document.getElementById("user-summary"),
     checklistForm: document.getElementById("checklist-form"),
     checklistTitle: document.getElementById("checklist-title"),
@@ -638,10 +647,20 @@ async function enterAuthenticatedApp() {
         setLoginStatus("Carregando dados do sistema...");
         await loadVehiclesAndCatalog();
         scheduleSessionInactivityCheck();
+        const requestedAssetCode = new URLSearchParams(window.location.search).get("ativo");
+        if (requestedAssetCode) {
+            await openMobileAssetByCode(requestedAssetCode);
+            setLoginStatus("");
+            syncPendingChecklists({ silent: true });
+            syncPendingTechnicalInspections();
+            syncPendingMobileOperations();
+            return;
+        }
         if (await restoreActiveChecklistDraft()) {
             setLoginStatus("");
             syncPendingChecklists({ silent: true });
             syncPendingTechnicalInspections();
+            syncPendingMobileOperations();
             return;
         }
         renderHome();
@@ -649,6 +668,7 @@ async function enterAuthenticatedApp() {
         setLoginStatus("");
         syncPendingChecklists({ silent: true });
         syncPendingTechnicalInspections();
+        syncPendingMobileOperations();
     } catch (error) {
         if (error.status === 401 || error.status === 403) {
             state.token = "";
@@ -1121,7 +1141,8 @@ const OPERATIONAL_STATUS_LABELS = {
     MANUTENCAO: "EM MANUTENÇÃO",
 };
 
-async function openAvailabilityMenu() {
+async function openAvailabilityMenu(options = {}) {
+    state.focusedAvailabilityVehicleId = Number(options.vehicleId || state.selectedVehicle?.id || 0) || null;
     setActiveScreen("availability");
     elements.availabilityCounter.textContent = "CARREGANDO...";
     renderStateCard(elements.availabilityList, {
@@ -1131,8 +1152,16 @@ async function openAvailabilityMenu() {
     });
     try {
         state.availabilityOverview = await apiFetch("/disponibilidade/visao");
+        localStorage.setItem(OFFLINE_AVAILABILITY_KEY, JSON.stringify(state.availabilityOverview));
         renderAvailability();
     } catch (error) {
+        const cachedOverview = readJsonStorage(OFFLINE_AVAILABILITY_KEY, null);
+        if (cachedOverview) {
+            state.availabilityOverview = cachedOverview;
+            renderAvailability();
+            showToast("DISPONIBILIDADE OFFLINE CARREGADA. O APONTAMENTO SERÁ SINCRONIZADO.");
+            return;
+        }
         elements.availabilityCounter.textContent = "FALHA";
         renderStateCard(elements.availabilityList, {
             title: "NÃO FOI POSSÍVEL CARREGAR A DISPONIBILIDADE",
@@ -1167,6 +1196,10 @@ function renderAvailability() {
         return;
     }
     rows.forEach((row) => elements.availabilityList.appendChild(makeAvailabilityCard(row)));
+    if (state.focusedAvailabilityVehicleId) {
+        const focusedCard = elements.availabilityList.querySelector(`[data-vehicle-id="${state.focusedAvailabilityVehicleId}"]`);
+        focusedCard?.scrollIntoView({ behavior: "smooth", block: "start" });
+    }
 }
 
 function makeAvailabilityCard(row) {
@@ -1174,6 +1207,7 @@ function makeAvailabilityCard(row) {
     const operationalState = vehicle.operational_state || {};
     const status = operationalState.operational_status || "SEM_APONTAMENTO";
     const card = document.createElement("article");
+    card.dataset.vehicleId = String(vehicle.id || "");
     card.className = `availability-card status-${status.toLowerCase()}`;
     card.innerHTML = `
         <header>
@@ -1256,16 +1290,18 @@ async function submitHourmeter(card, vehicle) {
     button.disabled = true;
     button.textContent = "REGISTRANDO...";
     try {
-        const evidencePath = file
-            ? await uploadEvidence(file, vehicle.frota || "EQUIPAMENTO", "HORÍMETRO", "horimetro", "DISPONIBILIDADE")
-            : null;
-        await apiFetch(`/equipamentos/${vehicle.id}/horimetros`, {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ reading: Number(reading), notes, evidence_path: evidencePath }),
-        });
-        showToast("HORÍMETRO REGISTRADO.");
-        await openAvailabilityMenu();
+        const result = await submitMobileOperation("HORIMETRO", {
+            vehicle_id: vehicle.id, reading: Number(reading), notes, recorded_at: new Date().toISOString(),
+        }, file ? {
+            file, field: "evidence_path", vehicleLabel: vehicle.frota || "EQUIPAMENTO",
+            itemLabel: "HORÍMETRO", kind: "horimetro", folder: "DISPONIBILIDADE",
+        } : null);
+        if (result.queued) {
+            showToast("HORÍMETRO SALVO NO APARELHO PARA SINCRONIZAR.");
+        } else {
+            showToast("HORÍMETRO REGISTRADO.");
+            await openAvailabilityMenu({ vehicleId: vehicle.id });
+        }
     } catch (error) {
         button.disabled = false;
         button.textContent = "REGISTRAR HORÍMETRO";
@@ -1277,10 +1313,21 @@ async function openEmergenciesMenu() {
     setActiveScreen("emergencies");
     elements.emergencyVehicle.innerHTML = state.vehicles.filter((vehicle) => vehicle.ativo !== false)
         .map((vehicle) => `<option value="${vehicle.id}">${escapeHtml(vehicle.frota || vehicle.placa || vehicle.modelo)}</option>`).join("");
+    if (state.selectedVehicle?.id) {
+        elements.emergencyVehicle.value = String(state.selectedVehicle.id);
+    }
     try {
         state.emergencies = await apiFetch("/emergenciais");
+        localStorage.setItem(OFFLINE_EMERGENCIES_KEY, JSON.stringify(state.emergencies));
         renderEmergencies();
     } catch (error) {
+        const cachedEmergencies = readJsonStorage(OFFLINE_EMERGENCIES_KEY, null);
+        if (cachedEmergencies) {
+            state.emergencies = cachedEmergencies;
+            renderEmergencies();
+            showToast("EMERGENCIAIS OFFLINE CARREGADOS. AS ETAPAS SERÃO SINCRONIZADAS.");
+            return;
+        }
         renderStateCard(elements.emergenciesList, { title: "FALHA AO CARREGAR", message: error.message, tone: "error" });
     }
 }
@@ -1328,11 +1375,22 @@ async function submitEmergency(event) {
         const vehicleId = Number(elements.emergencyVehicle.value);
         const vehicle = state.vehicles.find((row) => Number(row.id) === vehicleId) || {};
         const file = elements.emergencyEvidence.files?.[0];
-        const evidencePath = file ? await uploadEvidence(file, vehicle.frota || "EQUIPAMENTO", elements.emergencyTitle.value, "emergencial", "EMERGENCIAIS") : null;
-        await apiFetch("/emergenciais", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ vehicle_id: vehicleId, severity: elements.emergencySeverity.value, equipment_stopped: elements.emergencyStopped.checked, title: elements.emergencyTitle.value.trim(), description: elements.emergencyDescription.value.trim(), location: elements.emergencyLocation.value.trim(), evidence_path: evidencePath }) });
+        const result = await submitMobileOperation("EMERGENCIA", {
+            vehicle_id: vehicleId, severity: elements.emergencySeverity.value,
+            equipment_stopped: elements.emergencyStopped.checked, title: elements.emergencyTitle.value.trim(),
+            description: elements.emergencyDescription.value.trim(), location: elements.emergencyLocation.value.trim(),
+            opened_at: new Date().toISOString(),
+        }, file ? {
+            file, field: "evidence_path", vehicleLabel: vehicle.frota || "EQUIPAMENTO",
+            itemLabel: elements.emergencyTitle.value, kind: "emergencial", folder: "EMERGENCIAIS",
+        } : null);
         elements.emergencyCreateForm.reset();
-        showToast("EMERGÊNCIA REGISTRADA E ENVIADA PARA TRIAGEM.");
-        await openEmergenciesMenu();
+        if (result.queued) {
+            showToast("EMERGÊNCIA SALVA NO APARELHO PARA SINCRONIZAR.");
+        } else {
+            showToast("EMERGÊNCIA REGISTRADA E ENVIADA PARA TRIAGEM.");
+            await openEmergenciesMenu();
+        }
     } catch (error) { showToast(error.message, true); }
     finally { elements.emergencySubmit.disabled = false; }
 }
@@ -1342,9 +1400,14 @@ async function startEmergencyWorkOrder(card, emergency) {
     if (!diagnosis) return showToast("INFORME O DIAGNÓSTICO.", true);
     try {
         const file = card.querySelector(".emergency-before-photo").files?.[0];
-        const path = file ? await uploadEvidence(file, emergency.vehicle?.frota || "EQUIPAMENTO", emergency.title, "os_antes", "EMERGENCIAIS") : null;
-        await apiFetch(`/ordens-servico/${emergency.work_order_id}/iniciar`, { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ diagnosis, before_evidence_path: path }) });
-        await openEmergenciesMenu();
+        const result = await submitMobileOperation("OS_INICIAR", {
+            work_order_id: emergency.work_order_id, diagnosis,
+        }, file ? {
+            file, field: "before_evidence_path", vehicleLabel: emergency.vehicle?.frota || "EQUIPAMENTO",
+            itemLabel: emergency.title, kind: "os_antes", folder: "EMERGENCIAIS",
+        } : null);
+        if (result.queued) showToast("INÍCIO DA OS SALVO NO APARELHO PARA SINCRONIZAR.");
+        else await openEmergenciesMenu();
     } catch (error) { showToast(error.message, true); }
 }
 
@@ -1353,9 +1416,14 @@ async function completeEmergencyRepair(card, emergency) {
     const file = card.querySelector(".emergency-after-photo").files?.[0];
     if (!service || !file) return showToast("INFORME O SERVIÇO E A FOTO POSTERIOR.", true);
     try {
-        const path = await uploadEvidence(file, emergency.vehicle?.frota || "EQUIPAMENTO", emergency.title, "os_depois", "EMERGENCIAIS");
-        await apiFetch(`/ordens-servico/${emergency.work_order_id}/concluir-reparo`, { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ service_performed: service, after_evidence_path: path }) });
-        await openEmergenciesMenu();
+        const result = await submitMobileOperation("OS_CONCLUIR", {
+            work_order_id: emergency.work_order_id, service_performed: service,
+        }, {
+            file, field: "after_evidence_path", vehicleLabel: emergency.vehicle?.frota || "EQUIPAMENTO",
+            itemLabel: emergency.title, kind: "os_depois", folder: "EMERGENCIAIS",
+        });
+        if (result.queued) showToast("CONCLUSÃO DA OS SALVA NO APARELHO PARA SINCRONIZAR.");
+        else await openEmergenciesMenu();
     } catch (error) { showToast(error.message, true); }
 }
 
@@ -1365,17 +1433,25 @@ async function testEmergencyWorkOrder(card, emergency) {
     if (result === "REPROVADO" && !notes) return showToast("INFORME O MOTIVO DA REPROVAÇÃO.", true);
     try {
         const file = card.querySelector(".emergency-test-photo").files?.[0];
-        const path = file ? await uploadEvidence(file, emergency.vehicle?.frota || "EQUIPAMENTO", emergency.title, "os_teste", "EMERGENCIAIS") : null;
-        await apiFetch(`/ordens-servico/${emergency.work_order_id}/teste`, { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ test_result: result, test_notes: notes, test_evidence_path: path }) });
-        await openEmergenciesMenu();
+        const synced = await submitMobileOperation("OS_TESTAR", {
+            work_order_id: emergency.work_order_id, test_result: result, test_notes: notes,
+        }, file ? {
+            file, field: "test_evidence_path", vehicleLabel: emergency.vehicle?.frota || "EQUIPAMENTO",
+            itemLabel: emergency.title, kind: "os_teste", folder: "EMERGENCIAIS",
+        } : null);
+        if (synced.queued) showToast("TESTE DA OS SALVO NO APARELHO PARA SINCRONIZAR.");
+        else await openEmergenciesMenu();
     } catch (error) { showToast(error.message, true); }
 }
 
 async function releaseEmergencyWorkOrder(emergency) {
     try {
-        await apiFetch(`/ordens-servico/${emergency.work_order_id}/liberar`, { method: "PUT", headers: { "Content-Type": "application/json" }, body: "{}" });
-        showToast("EQUIPAMENTO LIBERADO E DISPONIBILIDADE RESTAURADA.");
-        await openEmergenciesMenu();
+        const result = await submitMobileOperation("OS_LIBERAR", { work_order_id: emergency.work_order_id });
+        if (result.queued) showToast("LIBERAÇÃO DA OS SALVA NO APARELHO PARA SINCRONIZAR.");
+        else {
+            showToast("EQUIPAMENTO LIBERADO E DISPONIBILIDADE RESTAURADA.");
+            await openEmergenciesMenu();
+        }
     } catch (error) { showToast(error.message, true); }
 }
 
@@ -3145,6 +3221,11 @@ function openOfflineDb() {
                 const store = db.createObjectStore(INSPECTION_QUEUE_STORE, { keyPath: "id" });
                 store.createIndex("queuedAt", "queuedAt", { unique: false });
             }
+            if (!db.objectStoreNames.contains(MOBILE_OPERATION_QUEUE_STORE)) {
+                const store = db.createObjectStore(MOBILE_OPERATION_QUEUE_STORE, { keyPath: "id" });
+                store.createIndex("status", "status", { unique: false });
+                store.createIndex("queuedAt", "queuedAt", { unique: false });
+            }
         };
         request.onsuccess = () => resolve(request.result);
         request.onerror = () => reject(request.error);
@@ -3205,6 +3286,90 @@ async function updateChecklistQueueItem(item) {
 
 async function deleteChecklistQueueItem(id) {
     await withChecklistQueueStore("readwrite", (store) => store.delete(id));
+}
+
+async function getMobileOperationQueue() {
+    return withOfflineStore(MOBILE_OPERATION_QUEUE_STORE, "readonly", (store) => {
+        const request = store.getAll();
+        return new Promise((resolve, reject) => {
+            request.onsuccess = () => resolve(request.result || []);
+            request.onerror = () => reject(request.error);
+        });
+    });
+}
+
+async function updateMobileOperationQueueItem(item) {
+    await withOfflineStore(MOBILE_OPERATION_QUEUE_STORE, "readwrite", (store) => store.put(item));
+}
+
+async function deleteMobileOperationQueueItem(id) {
+    await withOfflineStore(MOBILE_OPERATION_QUEUE_STORE, "readwrite", (store) => store.delete(id));
+}
+
+async function submitMobileOperation(operationType, payload, evidence = null) {
+    const draft = {
+        id: createQueueId(), type: "OPERACAO_MOBILE", operationType, payload, evidence,
+        status: "PENDENTE", attempts: 0, lastError: "", queuedAt: new Date().toISOString(),
+        occurredAt: new Date().toISOString(),
+        userLogin: state.user?.login || "",
+    };
+    if (!navigator.onLine) {
+        await updateMobileOperationQueueItem(draft);
+        await refreshSyncQueuePanel();
+        return { queued: true };
+    }
+    try {
+        const response = await sendMobileOperationDraft(draft);
+        return { queued: false, response };
+    } catch (error) {
+        if (!isOfflineError(error)) throw error;
+        draft.lastError = error.message || "SEM CONEXÃO";
+        await updateMobileOperationQueueItem(draft);
+        await refreshSyncQueuePanel();
+        return { queued: true };
+    }
+}
+
+async function sendMobileOperationDraft(draft) {
+    const payload = { ...(draft.payload || {}) };
+    if (draft.evidence?.file) {
+        payload[draft.evidence.field] = await uploadEvidence(
+            draft.evidence.file, draft.evidence.vehicleLabel, draft.evidence.itemLabel,
+            draft.evidence.kind, draft.evidence.folder,
+        );
+    }
+    return apiFetch("/operacao-mobile/sincronizar", {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+            operation_id: draft.id, operation_type: draft.operationType, payload,
+            occurred_at: draft.occurredAt || draft.queuedAt,
+        }),
+    });
+}
+
+async function syncPendingMobileOperations({ silent = true } = {}) {
+    if (!state.token || !navigator.onLine) return;
+    const queue = await getMobileOperationQueue();
+    const pending = queue.filter((item) => item.status === "PENDENTE" || item.status === "ERRO");
+    let synced = 0;
+    for (const item of pending) {
+        const current = { ...item, status: "ENVIANDO", attempts: (item.attempts || 0) + 1, lastError: "" };
+        await updateMobileOperationQueueItem(current);
+        try {
+            await sendMobileOperationDraft(current);
+            await deleteMobileOperationQueueItem(current.id);
+            synced += 1;
+        } catch (error) {
+            const conflict = error.status === 409;
+            await updateMobileOperationQueueItem({
+                ...current, status: conflict ? "CONFLITO" : "ERRO",
+                lastError: error.message || "FALHA AO SINCRONIZAR.",
+            });
+            if (isOfflineError(error)) break;
+        }
+    }
+    await refreshSyncQueuePanel();
+    if (synced && !silent) showToast(`${synced} OPERAÇÃO(ÕES) MOBILE SINCRONIZADA(S).`);
 }
 
 function createQueueId() {
@@ -3385,18 +3550,19 @@ async function refreshSyncQueuePanel() {
     }
 
     try {
-        const queue = await getChecklistQueue();
-        const visibleItems = queue
+        const [checklists, mobileOperations] = await Promise.all([getChecklistQueue(), getMobileOperationQueue()]);
+        const visibleItems = [...checklists, ...mobileOperations]
             .filter((item) => item.status !== "SINCRONIZADO")
             .sort((a, b) => String(a.queuedAt || "").localeCompare(String(b.queuedAt || "")));
 
         elements.syncPanel.classList.toggle("hidden", visibleItems.length === 0);
-        elements.syncCounter.textContent = `${visibleItems.length} CHECKLIST${visibleItems.length === 1 ? "" : "S"} PENDENTE${visibleItems.length === 1 ? "" : "S"}`;
+        const conflicts = visibleItems.filter((item) => item.status === "CONFLITO").length;
+        elements.syncCounter.textContent = `${visibleItems.length} OPERAÇÃO(ÕES) PENDENTE(S)${conflicts ? ` | ${conflicts} CONFLITO(S)` : ""}`;
         elements.syncList.innerHTML = visibleItems.slice(0, 4).map((item) => `
-            <article class="sync-row ${item.status === "ERRO" ? "error" : ""}">
+            <article class="sync-row ${item.status === "ERRO" || item.status === "CONFLITO" ? "error" : ""}">
                 <div>
-                    <strong>${escapeHtml(item.vehicle?.frota || "EQUIPAMENTO")}</strong>
-                    <span>${formatDateTime(item.queuedAt)} | ${item.itens?.length || 0} ITENS</span>
+                    <strong>${escapeHtml(item.vehicle?.frota || item.evidence?.vehicleLabel || item.operationType || "EQUIPAMENTO")}</strong>
+                    <span>${formatDateTime(item.queuedAt)} | ${escapeHtml(item.operationType || item.type || "CHECKLIST")}${item.lastError ? ` | ${escapeHtml(item.lastError)}` : ""}</span>
                 </div>
                 <em>${escapeHtml(item.status || "PENDENTE")}</em>
             </article>
@@ -3517,10 +3683,116 @@ function renderVehicles() {
             <span>${escapeHtml(String(vehicle.modelo || "MODELO NÃO INFORMADO").toUpperCase())}</span>
             <small>SÉRIE ${escapeHtml(vehicle.serial_number || "-")} | ${escapeHtml(String(locationName).toUpperCase())}</small>
             <small>CRITICIDADE ${escapeHtml(vehicle.criticality || "MEDIA")}${parentEquipment ? ` | ${escapeHtml(vehicle.active_link.link_type || "VÍNCULO")} ${escapeHtml(parentEquipment.frota || "-")}` : ""}</small>
+            <small>ETIQUETA MOBILE ${escapeHtml(vehicle.mobile_access_code || `CF-ATIVO-${String(vehicle.id || "").padStart(6, "0")}`)}</small>
         `;
         card.addEventListener("click", () => selectVehicle(vehicle));
         elements.vehiclesList.appendChild(card);
     });
+}
+
+async function openMobileAssetByCode(rawCode) {
+    const accessCode = normalizeMobileAssetCode(rawCode);
+    if (!accessCode) {
+        throw new Error("INFORME OU LEIA O CÓDIGO DA ETIQUETA.");
+    }
+    const cachedVehicle = state.vehicles.find((item) => (
+        String(item.mobile_access_code || `CF-ATIVO-${String(item.id || "").padStart(6, "0")}`).toUpperCase() === accessCode
+    ));
+    const data = navigator.onLine
+        ? await apiFetch(`/operacao-mobile/ativos/${encodeURIComponent(accessCode)}`)
+        : cachedVehicle ? { access_code: accessCode, vehicle: cachedVehicle } : null;
+    if (!data) throw new Error("ATIVO NÃO ESTÁ NO CACHE DESTE APARELHO. CONECTE PARA CARREGÁ-LO.");
+    const vehicle = data.vehicle;
+    const index = state.vehicles.findIndex((item) => Number(item.id) === Number(vehicle.id));
+    if (index >= 0) state.vehicles[index] = vehicle;
+    else state.vehicles.push(vehicle);
+    if (elements.assetAccessCode) elements.assetAccessCode.value = data.access_code || accessCode;
+    const openedChecklist = await selectVehicle(vehicle);
+    if (!openedChecklist) await openAvailabilityMenu({ vehicleId: vehicle.id });
+}
+
+function normalizeMobileAssetCode(rawCode) {
+    const raw = String(rawCode || "").trim();
+    if (!raw) return "";
+    try {
+        const fromUrl = new URL(raw, window.location.href).searchParams.get("ativo");
+        return String(fromUrl || raw).trim().toUpperCase();
+    } catch {
+        return raw.toUpperCase();
+    }
+}
+
+async function openMobileAssetFromInput() {
+    try {
+        await openMobileAssetByCode(elements.assetAccessCode?.value);
+    } catch (error) {
+        showToast(error.message || "NÃO FOI POSSÍVEL ABRIR O ATIVO.", true);
+    }
+}
+
+async function scanMobileAssetQr() {
+    if (!("BarcodeDetector" in window) || !navigator.mediaDevices?.getUserMedia) {
+        showToast("LEITURA POR CÂMERA NÃO É COMPATÍVEL NESTE NAVEGADOR. DIGITE O CÓDIGO DA ETIQUETA.", true);
+        return;
+    }
+    let stream;
+    try {
+        const detector = new BarcodeDetector({ formats: ["qr_code"] });
+        stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: "environment" }, audio: false });
+        elements.assetQrPreview.srcObject = stream;
+        elements.assetQrPreview.classList.remove("hidden");
+        await elements.assetQrPreview.play();
+        const deadline = Date.now() + 25000;
+        while (Date.now() < deadline) {
+            const codes = await detector.detect(elements.assetQrPreview);
+            if (codes.length) {
+                const code = String(codes[0].rawValue || "").trim();
+                if (elements.assetAccessCode) elements.assetAccessCode.value = code;
+                await openMobileAssetByCode(code);
+                return;
+            }
+            await new Promise((resolve) => window.setTimeout(resolve, 250));
+        }
+        showToast("NENHUM QR FOI IDENTIFICADO. APROXIME A CÂMERA DA ETIQUETA.", true);
+    } catch (error) {
+        showToast(error.message || "NÃO FOI POSSÍVEL ACESSAR A CÂMERA.", true);
+    } finally {
+        stream?.getTracks().forEach((track) => track.stop());
+        if (elements.assetQrPreview) {
+            elements.assetQrPreview.pause();
+            elements.assetQrPreview.srcObject = null;
+            elements.assetQrPreview.classList.add("hidden");
+        }
+    }
+}
+
+async function scanMobileAssetNfc() {
+    if (!("NDEFReader" in window)) {
+        showToast("NFC NÃO É COMPATÍVEL NESTE NAVEGADOR. USE QR OU DIGITE O CÓDIGO.", true);
+        return;
+    }
+    try {
+        const reader = new NDEFReader();
+        await reader.scan();
+        showToast("APROXIME A ETIQUETA NFC DO APARELHO.");
+        reader.addEventListener("reading", async (event) => {
+            const record = event.message.records.find((item) => item.recordType === "text" || item.recordType === "url");
+            if (!record) {
+                showToast("A ETIQUETA NFC NÃO POSSUI O CÓDIGO DO ATIVO.", true);
+                return;
+            }
+            const value = new TextDecoder(record.encoding || "utf-8").decode(record.data);
+            const code = normalizeMobileAssetCode(value);
+            if (elements.assetAccessCode) elements.assetAccessCode.value = code;
+            try {
+                await openMobileAssetByCode(code);
+            } catch (error) {
+                showToast(error.message || "NÃO FOI POSSÍVEL ABRIR O ATIVO.", true);
+            }
+        }, { once: true });
+    } catch (error) {
+        showToast(error.message || "NÃO FOI POSSÍVEL LER A ETIQUETA NFC.", true);
+    }
 }
 
 function renderActivities() {
@@ -4317,7 +4589,7 @@ async function selectVehicle(vehicle, options = {}) {
     const items = state.catalog[vehicle.tipo] || [];
     if (!items.length) {
         showToast(`CHECKLIST DE ${String(vehicle.family?.name || vehicle.tipo || "EQUIPAMENTO").toUpperCase()} SERÁ CONFIGURADO NA FASE 3.`);
-        return;
+        return false;
     }
     const modules = buildModules(items);
 
@@ -4336,6 +4608,7 @@ async function selectVehicle(vehicle, options = {}) {
         localStorage.setItem(ACTIVE_CHECKLIST_DRAFT_KEY, String(vehicle.id));
         scheduleChecklistDraftSave();
     }
+    return true;
 }
 
 function buildModules(items) {
@@ -5299,7 +5572,19 @@ on(elements.washNextMonth, "click", () => changeWashMonth(1));
 on(elements.washExportPdfButton, "click", exportWashMonthPdf);
 on(elements.maintenancePrevMonth, "click", () => changeMaintenanceMonth(-1));
 on(elements.maintenanceNextMonth, "click", () => changeMaintenanceMonth(1));
-on(elements.syncNowButton, "click", () => syncPendingChecklists({ silent: false }));
+on(elements.syncNowButton, "click", async () => {
+    await syncPendingChecklists({ silent: false });
+    await syncPendingMobileOperations({ silent: false });
+});
+on(elements.openAssetCodeButton, "click", openMobileAssetFromInput);
+on(elements.assetAccessCode, "keydown", (event) => {
+    if (event.key === "Enter") {
+        event.preventDefault();
+        openMobileAssetFromInput();
+    }
+});
+on(elements.scanAssetQrButton, "click", scanMobileAssetQr);
+on(elements.scanAssetNfcButton, "click", scanMobileAssetNfc);
 on(elements.cloudBackupButton, "click", createCloudBackup);
 on(elements.homeChangePasswordButton, "click", requestPasswordReset);
 on(elements.homeLogoutButton, "click", logout);
@@ -5455,6 +5740,7 @@ window.addEventListener("online", () => {
     updateConnectionStatus();
     syncPendingChecklists({ silent: true });
     syncPendingTechnicalInspections();
+    syncPendingMobileOperations();
 });
 window.addEventListener("offline", updateConnectionStatus);
 ["pointerdown", "keydown", "input", "scroll", "touchstart"].forEach((eventName) => {

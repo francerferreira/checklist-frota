@@ -8,6 +8,7 @@ from app.models.emergency import EmergencyEvent, WorkOrderExecution
 from app.models.maintenance import MaintenanceMaterial, MaintenanceSchedule, MaintenanceScheduleItem, MaintenanceWorkOrder
 from app.models.material import Material, MaterialMovement
 from app.models.mechanic_non_conformity import MechanicNonConformity
+from app.models.mobile_operation import MobileSyncOperation
 from app.models.operational_availability import EquipmentOperationalState, EquipmentStatusEvent, HourmeterReading
 from app.models.pcm import PreventivePlan
 from app.models.technical_inspection import InspectionExecution, InspectionExecutionItem, InspectionTemplate, InspectionTemplateItem
@@ -48,6 +49,7 @@ __all__ = [
     "MaterialFamilyApplication",
     "MaterialMovement",
     "MechanicNonConformity",
+    "MobileSyncOperation",
     "OperationalLocation",
     "PreventivePlan",
     "ResolutionPackage",

@@ -16,8 +16,8 @@ class WebMobileShellContractTests(unittest.TestCase):
         cls.legacy_readme = LEGACY_README_PATH.read_text(encoding="utf-8")
 
     def test_index_uses_canonical_frontend_bundle(self):
-        self.assertIn('./static/js/app.js?v=20260713-01', self.index_html)
-        self.assertIn('./static/css/styles.css?v=20260713-01', self.index_html)
+        self.assertIn('./static/js/app.js?v=20260713-02', self.index_html)
+        self.assertIn('./static/css/styles.css?v=20260713-02', self.index_html)
         self.assertNotIn("app-20260419-", self.index_html)
 
     def test_frontend_uses_manaus_timezone_for_dates(self):
@@ -83,7 +83,8 @@ class WebMobileShellContractTests(unittest.TestCase):
         self.assertIn("submitHourmeter", app_js)
         self.assertIn("/disponibilidade/visao", app_js)
         self.assertIn("/status-operacional", app_js)
-        self.assertIn("/horimetros", app_js)
+        self.assertIn('submitMobileOperation("HORIMETRO"', app_js)
+        self.assertIn("/operacao-mobile/sincronizar", app_js)
         self.assertIn('capture="environment"', app_js)
 
     def test_versioned_technical_inspection_and_offline_queue_are_connected(self):
@@ -94,6 +95,16 @@ class WebMobileShellContractTests(unittest.TestCase):
         self.assertIn('const INSPECTION_QUEUE_STORE = "technicalInspectionQueue"', app_js)
         self.assertIn("/inspecoes-tecnicas/modelos", app_js)
         self.assertIn("/inspecoes-tecnicas/execucoes", app_js)
+
+    def test_mobile_asset_access_and_operation_queue_are_connected(self):
+        app_js = (PROJECT_ROOT / "web_app" / "static" / "js" / "app.js").read_text(encoding="utf-8")
+        self.assertIn('const MOBILE_OPERATION_QUEUE_STORE = "mobileOperationQueue"', app_js)
+        self.assertIn("openMobileAssetByCode", app_js)
+        self.assertIn("scanMobileAssetQr", app_js)
+        self.assertIn("scanMobileAssetNfc", app_js)
+        self.assertIn("syncPendingMobileOperations", app_js)
+        self.assertIn("/operacao-mobile/sincronizar", app_js)
+        self.assertIn('id="asset-access-code"', self.index_html)
 
     def test_preventive_services_remain_available_in_mobile_maintenance_flow(self):
         app_js = (PROJECT_ROOT / "web_app" / "static" / "js" / "app.js").read_text(encoding="utf-8")

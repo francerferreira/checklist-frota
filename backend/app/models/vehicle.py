@@ -97,6 +97,7 @@ class Vehicle(db.Model):
         }
         data.update(
             {
+                "mobile_access_code": f"CF-ATIVO-{self.id:06d}",
                 "family_id": profile.family_id if profile else None,
                 "family": profile.family.to_dict() if profile and profile.family else None,
                 "operational_location_id": profile.operational_location_id if profile else None,

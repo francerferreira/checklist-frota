@@ -1419,6 +1419,64 @@ textarea {
     -webkit-overflow-scrolling: touch;
 }
 
+.asset-access-panel {
+    display: grid;
+    gap: 12px;
+    margin: 14px 0;
+    padding: 16px;
+    border: 1px solid rgba(7, 86, 181, 0.22);
+    border-radius: var(--radius-md);
+    background: linear-gradient(135deg, #f4f9ff, #ffffff);
+    box-shadow: var(--shadow-soft);
+}
+
+.asset-access-panel > div:first-child {
+    display: grid;
+    gap: 2px;
+}
+
+.asset-access-panel span,
+.asset-access-panel em {
+    color: var(--muted-strong);
+    font-size: 0.76rem;
+    font-style: normal;
+    font-weight: 750;
+    letter-spacing: 0.03em;
+}
+
+.asset-access-panel strong {
+    color: var(--blue);
+    font-size: 1rem;
+}
+
+.asset-access-actions {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto auto;
+    gap: 8px;
+}
+
+.asset-access-actions .icon-button {
+    min-height: 46px;
+}
+
+.asset-qr-preview {
+    width: 100%;
+    max-height: 280px;
+    border-radius: 14px;
+    background: #08111f;
+    object-fit: cover;
+}
+
+@media (max-width: 520px) {
+    .asset-access-actions {
+        grid-template-columns: 1fr 1fr;
+    }
+
+    .asset-access-actions .primary-button {
+        grid-column: 1 / -1;
+    }
+}
+
 .vehicle-card,
 .activity-card {
     display: grid;
