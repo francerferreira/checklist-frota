@@ -2742,6 +2742,81 @@ textarea {
     .availability-form-grid .primary-button { align-self: end; }
 }
 
+.technical-inspection-selector {
+    display: grid;
+    gap: 12px;
+    margin-bottom: 14px;
+}
+
+.technical-inspection-selector label > span,
+.technical-inspection-notes > span {
+    display: block;
+    margin-bottom: 6px;
+    color: #5b6b7e;
+    font-size: 0.7rem;
+    font-weight: 900;
+}
+
+.technical-inspection-selector select,
+.technical-inspection-item input,
+.technical-inspection-item select,
+.technical-inspection-item textarea,
+.technical-inspection-notes textarea {
+    width: 100%;
+    min-height: 48px;
+    padding: 10px 12px;
+    border: 1px solid #c8d6e5;
+    border-radius: 13px;
+    background: #f9fcff;
+    color: #173958;
+}
+
+.technical-inspection-form {
+    display: grid;
+    gap: 13px;
+}
+
+.technical-inspection-item {
+    display: grid;
+    gap: 10px;
+    padding: 16px;
+    border: 1px solid rgba(24, 66, 113, 0.16);
+    border-left: 5px solid #0d78a8;
+    border-radius: 18px;
+    background: linear-gradient(145deg, #ffffff, #f5f9fc);
+    box-shadow: 0 10px 24px rgba(11, 46, 84, 0.08);
+}
+
+.technical-inspection-item header span {
+    display: block;
+    color: #0d7891;
+    font-size: 0.67rem;
+    font-weight: 950;
+}
+
+.technical-inspection-item header strong {
+    display: block;
+    margin-top: 3px;
+    color: #12385d;
+    font-size: 1.05rem;
+}
+
+.technical-inspection-notes {
+    display: block;
+    margin: 14px 0;
+}
+
+#technical-inspection-submit {
+    width: 100%;
+    min-height: 54px;
+}
+
+@media (min-width: 760px) {
+    .technical-inspection-selector { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    .technical-inspection-selector .progress-card { grid-column: 1 / -1; }
+    .technical-inspection-form { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+
 @media (min-width: 760px) {
     body {
         background:

@@ -34,6 +34,7 @@ from app.extensions import db
 from app.models import (
     Checklist, ChecklistItem, EquipmentFamily, EquipmentOperationalState,
     EquipmentProfile, EquipmentStatusEvent, HourmeterReading, User, Vehicle,
+    InspectionExecution, InspectionExecutionItem, InspectionTemplate, InspectionTemplateItem,
 )
 from app.utils.timezone import now_manaus_naive
 from playwright.sync_api import expect, sync_playwright
@@ -93,6 +94,10 @@ class WebMobilePlaywrightTests(unittest.TestCase):
             HourmeterReading.query.delete()
             EquipmentStatusEvent.query.delete()
             EquipmentOperationalState.query.delete()
+            InspectionExecutionItem.query.delete()
+            InspectionExecution.query.delete()
+            InspectionTemplateItem.query.delete()
+            InspectionTemplate.query.delete()
             EquipmentProfile.query.delete()
             Vehicle.query.delete()
             db.session.commit()
@@ -120,6 +125,16 @@ class WebMobilePlaywrightTests(unittest.TestCase):
             family = EquipmentFamily.query.filter_by(code="carreta").one()
             db.session.add(EquipmentProfile(vehicle_id=vehicle.id, family_id=family.id))
             db.session.add(EquipmentOperationalState(vehicle_id=vehicle.id))
+            template = InspectionTemplate(
+                family_id=family.id, code="E2E-DIARIA", name="Inspeção diária E2E",
+                version=1, status="PUBLICADO", created_by_user_id=admin.id,
+                published_at=now_manaus_naive(),
+            )
+            template.items = [InspectionTemplateItem(
+                category="Segurança", label="Freio de serviço", position=1,
+                response_type="STATUS", required=True, evidence_on_nc=True,
+            )]
+            db.session.add(template)
 
             for created_at in (
                 now_manaus_naive() - timedelta(hours=2),
@@ -281,6 +296,43 @@ class WebMobilePlaywrightTests(unittest.TestCase):
         self.page.locator(".availability-hourmeter").fill("1250.50")
         self.page.locator(".availability-hourmeter-save").tap()
         expect(self.page.locator(".availability-reading strong")).to_contain_text("1250.50 h")
+
+        self.page.locator("#availability-back-button").tap()
+        self._wait_for_screen("home-screen")
+        self.page.locator("#open-technical-inspections-menu").tap()
+        self._wait_for_screen("technical-inspections-screen")
+        expect(self.page.locator(".technical-inspection-item")).to_have_count(1)
+        self.page.locator(".technical-response").select_option("OK")
+        self.page.locator("#technical-inspection-submit").tap()
+        self._wait_for_screen("home-screen")
+
+    def test_technical_inspection_queues_offline_and_syncs_when_online(self):
+        self._login()
+        self.page.locator("#open-technical-inspections-menu").tap()
+        self._wait_for_screen("technical-inspections-screen")
+        expect(self.page.locator(".technical-inspection-item")).to_have_count(1)
+        self.context.set_offline(True)
+        self.page.locator(".technical-response").select_option("OK")
+        self.page.locator("#technical-inspection-submit").tap()
+        self._wait_for_screen("home-screen")
+        queued = self.page.evaluate("""async () => {
+            const db = await openOfflineDb();
+            return await new Promise((resolve, reject) => {
+                const request = db.transaction(INSPECTION_QUEUE_STORE, 'readonly').objectStore(INSPECTION_QUEUE_STORE).count();
+                request.onsuccess = () => resolve(request.result);
+                request.onerror = () => reject(request.error);
+            });
+        }""")
+        self.assertEqual(queued, 1)
+        self.context.set_offline(False)
+        self.page.wait_for_function("""async () => {
+            const db = await openOfflineDb();
+            return await new Promise((resolve) => {
+                const request = db.transaction(INSPECTION_QUEUE_STORE, 'readonly').objectStore(INSPECTION_QUEUE_STORE).count();
+                request.onsuccess = () => resolve(request.result === 0);
+                request.onerror = () => resolve(false);
+            });
+        }""", timeout=15000)
 
     def test_session_requires_login_after_30_minutes_without_activity(self):
         self._login()

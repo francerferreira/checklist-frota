@@ -127,6 +127,30 @@ class APIClient:
     def get_equipment_hourmeters(self, vehicle_id: int):
         return self._request("GET", f"/equipamentos/{vehicle_id}/horimetros")
 
+    def get_inspection_templates(self, *, include_all: bool = False, vehicle_id: int | None = None):
+        params = {}
+        if include_all:
+            params["incluir_todos"] = "true"
+        if vehicle_id:
+            params["vehicle_id"] = vehicle_id
+        return self._request("GET", "/inspecoes-tecnicas/modelos", params=params or None)
+
+    def create_inspection_template(self, payload: dict):
+        return self._request("POST", "/inspecoes-tecnicas/modelos", json=payload)
+
+    def update_inspection_template(self, template_id: int, payload: dict):
+        return self._request("PUT", f"/inspecoes-tecnicas/modelos/{template_id}", json=payload)
+
+    def publish_inspection_template(self, template_id: int):
+        return self._request("POST", f"/inspecoes-tecnicas/modelos/{template_id}/publicar", json={})
+
+    def create_inspection_template_version(self, template_id: int):
+        return self._request("POST", f"/inspecoes-tecnicas/modelos/{template_id}/nova-versao", json={})
+
+    def get_technical_inspection_executions(self, vehicle_id: int | None = None):
+        params = {"vehicle_id": vehicle_id} if vehicle_id else None
+        return self._request("GET", "/inspecoes-tecnicas/execucoes", params=params)
+
     def create_equipment_family(self, payload: dict):
         return self._request("POST", "/equipamentos/familias", json=payload)
 

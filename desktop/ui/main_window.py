@@ -37,6 +37,7 @@ from ui.checklist_history_page import ChecklistHistoryPage
 from ui.cloud_backup_page import CloudBackupPage
 from ui.dashboard_page import DashboardPage
 from ui.equipment_page import EquipmentPage
+from ui.inspection_templates_page import InspectionTemplatesPage
 from ui.materials_page import MaterialsPage
 from ui.maintenance_page import MaintenancePage
 from ui.non_conformities_page import NonConformitiesPage
@@ -269,6 +270,7 @@ class MainWindow(QMainWindow):
         self.productivity_page = ProductivityPage(self.api_client)
         self.equipment_page = EquipmentPage(self.api_client)
         self.checklist_items_page = ChecklistItemsPage(self.api_client)
+        self.inspection_templates_page = InspectionTemplatesPage(self.api_client)
         self.checklist_history_page = ChecklistHistoryPage(self.api_client)
         self.materials_page = MaterialsPage(self.api_client)
         self.washes_page = WashesPage(self.api_client)
@@ -289,6 +291,7 @@ class MainWindow(QMainWindow):
             "reports": self.reports_page,
             "equipment": self.equipment_page,
             "checklist_items": self.checklist_items_page,
+            "inspection_templates": self.inspection_templates_page,
             "materials": self.materials_page,
             "washes": self.washes_page,
             "activities": self.activities_page,
@@ -307,6 +310,7 @@ class MainWindow(QMainWindow):
             "productivity": "Produtividade",
             "equipment": "Frota",
             "checklist_items": "Checklist",
+            "inspection_templates": "Templates Técnicos",
             "materials": "Materiais",
             "washes": "Lavagens",
             "activities": "Inspeções",
@@ -345,7 +349,7 @@ class MainWindow(QMainWindow):
 
         menu_groups = {
             "Cadastro": ["equipment", "users"],
-            "Tabelas": ["checklist_items", "materials"],
+            "Tabelas": ["checklist_items", "inspection_templates", "materials"],
             "Movimento": ["availability", "activities", "washes", "maintenance"],
             "Relatórios": ["reports", "productivity", "checklist_history"],
             "Sistema": [],
@@ -399,7 +403,7 @@ class MainWindow(QMainWindow):
         root = self._make_tree_item(self.nav_tree, "Módulo Checklist de Frota", icon_name="dashboard")
         sections = [
             ("1 - Cadastro", ["equipment", "users"]),
-            ("2 - Tabelas", ["checklist_items", "materials"]),
+            ("2 - Tabelas", ["checklist_items", "inspection_templates", "materials"]),
             ("3 - Movimento", ["availability", "activities", "washes", "maintenance"]),
             ("4 - Relatórios", ["reports", "productivity", "checklist_history"]),
             ("5 - Utilitários", ["dashboard", "nc", "cloud_backup", "audit_logs", "admin_rules"]),
@@ -629,6 +633,8 @@ class MainWindow(QMainWindow):
                 self.equipment_page.refresh()
             elif page_key == "checklist_items":
                 self.checklist_items_page.refresh()
+            elif page_key == "inspection_templates":
+                self.inspection_templates_page.refresh()
             elif page_key == "materials":
                 self.materials_page.refresh()
             elif page_key == "washes":

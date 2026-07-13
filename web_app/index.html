@@ -14,7 +14,7 @@
     <title>CHECKLIST DE FROTA</title>
     <link rel="icon" type="image/png" sizes="192x192" href="./static/icons/icon-192.png?v=20260421-02">
     <link rel="apple-touch-icon" href="./static/icons/icon-192.png?v=20260421-02">
-    <link rel="stylesheet" href="./static/css/styles.css?v=20260712-02">
+    <link rel="stylesheet" href="./static/css/styles.css?v=20260712-03">
 </head>
 <body>
     <div class="mobile-shell">
@@ -108,6 +108,11 @@
                         <span>07</span>
                         <strong>DISPONIBILIDADE E HORÍMETRO</strong>
                         <em>Apontar situação operacional, motivo, evidência e leitura do equipamento.</em>
+                    </button>
+                    <button id="open-technical-inspections-menu" class="menu-card" type="button">
+                        <span>08</span>
+                        <strong>INSPEÇÃO TÉCNICA</strong>
+                        <em>Executar modelos publicados por família, com medições e evidências.</em>
                     </button>
                 </div>
             </section>
@@ -386,6 +391,24 @@
                 <div id="availability-list" class="availability-list"></div>
             </section>
 
+            <section id="technical-inspections-screen" class="screen hidden">
+                <div class="screen-heading compact">
+                    <button id="technical-inspections-back-button" class="icon-button" type="button">MENU</button>
+                    <div><h2>INSPEÇÃO TÉCNICA</h2></div>
+                </div>
+                <section class="module-section technical-inspection-selector">
+                    <label><span>EQUIPAMENTO</span><select id="technical-inspection-vehicle"></select></label>
+                    <label><span>MODELO PUBLICADO</span><select id="technical-inspection-template"></select></label>
+                    <div id="technical-inspection-template-info" class="progress-card"></div>
+                </section>
+                <form id="technical-inspection-form" class="technical-inspection-form"></form>
+                <label class="technical-inspection-notes">
+                    <span>OBSERVAÇÃO GERAL</span>
+                    <textarea id="technical-inspection-general-notes" placeholder="Observação opcional da execução"></textarea>
+                </label>
+                <button id="technical-inspection-submit" class="primary-button" type="button">CONCLUIR INSPEÇÃO</button>
+            </section>
+
             <section id="checklist-screen" class="screen hidden">
                 <div class="screen-heading compact">
                     <button id="back-button" class="icon-button" type="button">VOLTAR</button>
@@ -465,7 +488,7 @@
 
     <div id="toast" class="toast hidden"></div>
     <script src="./static/js/config.js?v=20260428-01"></script>
-    <script src="./static/js/app.js?v=20260712-02"></script>
+    <script src="./static/js/app.js?v=20260712-03"></script>
 </body>
 </html>
 

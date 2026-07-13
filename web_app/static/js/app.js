@@ -10,11 +10,13 @@
 ];
 
 const OFFLINE_DB_NAME = "checklist-live-offline";
-const OFFLINE_DB_VERSION = 2;
+const OFFLINE_DB_VERSION = 3;
 const CHECKLIST_QUEUE_STORE = "checklistQueue";
 const CHECKLIST_DRAFT_STORE = "checklistDrafts";
+const INSPECTION_QUEUE_STORE = "technicalInspectionQueue";
 const OFFLINE_VEHICLES_KEY = "offlineVehicles";
 const OFFLINE_CATALOG_KEY = "offlineCatalog";
+const OFFLINE_INSPECTION_TEMPLATES_KEY = "offlineInspectionTemplates";
 const ACTIVE_CHECKLIST_DRAFT_KEY = "activeChecklistDraftVehicleId";
 const SESSION_STARTED_AT_KEY = "sessionStartedAt";
 const SESSION_LAST_ACTIVITY_AT_KEY = "sessionLastActivityAt";
@@ -218,6 +220,7 @@ const state = {
     selectedNonConformityItem: "",
     maintenanceOverview: null,
     availabilityOverview: null,
+    technicalInspectionTemplates: [],
     ncChecklistStatus: "abertas",
     ncMechanicStatus: "abertas",
     washYear: INITIAL_MANAUS_DATE.year,
@@ -258,6 +261,7 @@ const screens = {
     nonConformities: document.getElementById("non-conformities-screen"),
     maintenance: document.getElementById("maintenance-screen"),
     availability: document.getElementById("availability-screen"),
+    technicalInspections: document.getElementById("technical-inspections-screen"),
     success: document.getElementById("success-screen"),
 };
 
@@ -308,6 +312,7 @@ const elements = {
     openNonConformitiesMenu: document.getElementById("open-non-conformities-menu"),
     openMaintenanceMenu: document.getElementById("open-maintenance-menu"),
     openAvailabilityMenu: document.getElementById("open-availability-menu"),
+    openTechnicalInspectionsMenu: document.getElementById("open-technical-inspections-menu"),
     vehiclesBackButton: document.getElementById("vehicles-back-button"),
     activitiesBackButton: document.getElementById("activities-back-button"),
     activityCounter: document.getElementById("activity-counter"),
@@ -361,6 +366,13 @@ const elements = {
     availabilityCounter: document.getElementById("availability-counter"),
     availabilitySummary: document.getElementById("availability-summary"),
     availabilityList: document.getElementById("availability-list"),
+    technicalInspectionsBackButton: document.getElementById("technical-inspections-back-button"),
+    technicalInspectionVehicle: document.getElementById("technical-inspection-vehicle"),
+    technicalInspectionTemplate: document.getElementById("technical-inspection-template"),
+    technicalInspectionTemplateInfo: document.getElementById("technical-inspection-template-info"),
+    technicalInspectionForm: document.getElementById("technical-inspection-form"),
+    technicalInspectionGeneralNotes: document.getElementById("technical-inspection-general-notes"),
+    technicalInspectionSubmit: document.getElementById("technical-inspection-submit"),
     ncChecklistFilterOpen: document.getElementById("nc-checklist-filter-open"),
     ncChecklistFilterClosed: document.getElementById("nc-checklist-filter-closed"),
     ncMechanicFilterOpen: document.getElementById("nc-mechanic-filter-open"),
@@ -608,12 +620,14 @@ async function enterAuthenticatedApp() {
         if (await restoreActiveChecklistDraft()) {
             setLoginStatus("");
             syncPendingChecklists({ silent: true });
+            syncPendingTechnicalInspections();
             return;
         }
         renderHome();
         setActiveScreen("home");
         setLoginStatus("");
         syncPendingChecklists({ silent: true });
+        syncPendingTechnicalInspections();
     } catch (error) {
         if (error.status === 401 || error.status === 403) {
             state.token = "";
@@ -1235,6 +1249,185 @@ async function submitHourmeter(card, vehicle) {
         button.disabled = false;
         button.textContent = "REGISTRAR HORÍMETRO";
         showToast(error.message, true);
+    }
+}
+
+async function openTechnicalInspectionsMenu() {
+    setActiveScreen("technicalInspections");
+    elements.technicalInspectionForm.innerHTML = "";
+    elements.technicalInspectionTemplateInfo.innerHTML = "CARREGANDO MODELOS TÉCNICOS...";
+    try {
+        const templates = await apiFetch("/inspecoes-tecnicas/modelos");
+        state.technicalInspectionTemplates = templates || [];
+        localStorage.setItem(OFFLINE_INSPECTION_TEMPLATES_KEY, JSON.stringify(state.technicalInspectionTemplates));
+    } catch (error) {
+        const cached = readJsonStorage(OFFLINE_INSPECTION_TEMPLATES_KEY, []);
+        if (!cached.length) {
+            renderStateCard(elements.technicalInspectionForm, {
+                title: "MODELOS INDISPONÍVEIS", message: error.message, tone: "error",
+            });
+            return;
+        }
+        state.technicalInspectionTemplates = cached;
+        showToast("USANDO MODELOS SALVOS NO APARELHO.");
+    }
+    renderTechnicalInspectionSelectors();
+}
+
+function renderTechnicalInspectionSelectors() {
+    const familyIds = new Set(state.technicalInspectionTemplates.map((item) => Number(item.family_id)));
+    const vehicles = state.vehicles.filter((vehicle) => vehicle.ativo !== false && familyIds.has(Number(vehicle.family_id)));
+    elements.technicalInspectionVehicle.innerHTML = vehicles.map((vehicle) =>
+        `<option value="${vehicle.id}">${escapeHtml(vehicle.frota || vehicle.placa || vehicle.modelo)}</option>`
+    ).join("");
+    if (!vehicles.length) {
+        elements.technicalInspectionTemplate.innerHTML = "";
+        renderStateCard(elements.technicalInspectionForm, {
+            title: "SEM EQUIPAMENTOS COM MODELO PUBLICADO",
+            message: "Publique um template para a família no desktop.",
+        });
+        return;
+    }
+    renderTechnicalInspectionTemplateOptions();
+}
+
+function renderTechnicalInspectionTemplateOptions() {
+    const vehicleId = Number(elements.technicalInspectionVehicle.value);
+    const vehicle = state.vehicles.find((item) => Number(item.id) === vehicleId);
+    const templates = state.technicalInspectionTemplates.filter(
+        (template) => Number(template.family_id) === Number(vehicle?.family_id)
+    );
+    elements.technicalInspectionTemplate.innerHTML = templates.map((template) =>
+        `<option value="${template.id}">${escapeHtml(template.name)} | V${template.version}</option>`
+    ).join("");
+    renderTechnicalInspectionForm();
+}
+
+function renderTechnicalInspectionForm() {
+    const templateId = Number(elements.technicalInspectionTemplate.value);
+    const template = state.technicalInspectionTemplates.find((item) => Number(item.id) === templateId);
+    elements.technicalInspectionForm.innerHTML = "";
+    if (!template) {
+        return;
+    }
+    elements.technicalInspectionTemplateInfo.innerHTML = `
+        <div><strong>${escapeHtml(template.name)} | V${template.version}</strong>
+        <span>${escapeHtml(template.instructions || "Siga os itens na ordem publicada.")}</span></div>
+    `;
+    (template.items || []).filter((item) => item.active !== false).forEach((item) => {
+        const card = document.createElement("article");
+        card.className = "technical-inspection-item";
+        card.dataset.itemId = item.id;
+        card.dataset.responseType = item.response_type;
+        let control = "";
+        if (item.response_type === "STATUS") {
+            control = `<select class="technical-response"><option value="">SELECIONE</option><option value="OK">OK</option><option value="NC">NÃO CONFORME</option><option value="NA">NÃO SE APLICA</option></select>`;
+        } else if (item.response_type === "NUMERO") {
+            control = `<input class="technical-number" type="number" step="0.01" inputmode="decimal" placeholder="VALOR ${escapeHtml(item.unit || "")}">`;
+        } else {
+            control = `<input class="technical-text" type="text" placeholder="INFORME A RESPOSTA">`;
+        }
+        card.innerHTML = `
+            <header><span>${escapeHtml(item.category || "INSPEÇÃO")}</span><strong>${escapeHtml(item.label)}</strong></header>
+            ${control}
+            <textarea class="technical-observation" placeholder="OBSERVAÇÃO ${item.response_type === "STATUS" ? "(OBRIGATÓRIA EM NC)" : "OPCIONAL"}"></textarea>
+            ${item.response_type === "STATUS" ? `<label class="evidence-input"><span>EVIDÊNCIA DE NC</span><input class="technical-evidence" type="file" accept="image/*" capture="environment"><em>${item.evidence_on_nc ? "OBRIGATÓRIA EM NÃO CONFORMIDADE" : "OPCIONAL"}</em></label>` : ""}
+        `;
+        elements.technicalInspectionForm.appendChild(card);
+    });
+}
+
+async function collectTechnicalInspectionDraft() {
+    const vehicleId = Number(elements.technicalInspectionVehicle.value);
+    const templateId = Number(elements.technicalInspectionTemplate.value);
+    const template = state.technicalInspectionTemplates.find((item) => Number(item.id) === templateId);
+    const vehicle = state.vehicles.find((item) => Number(item.id) === vehicleId);
+    const templateItems = new Map((template?.items || []).map((item) => [Number(item.id), item]));
+    const items = [];
+    for (const card of elements.technicalInspectionForm.querySelectorAll(".technical-inspection-item")) {
+        const templateItemId = Number(card.dataset.itemId);
+        const definition = templateItems.get(templateItemId) || {};
+        const responseType = card.dataset.responseType;
+        const status = card.querySelector(".technical-response")?.value || null;
+        const valueText = card.querySelector(".technical-text")?.value.trim() || null;
+        const numberRaw = card.querySelector(".technical-number")?.value;
+        const observation = card.querySelector(".technical-observation")?.value.trim() || null;
+        const evidenceFile = card.querySelector(".technical-evidence")?.files?.[0] || null;
+        if (definition.required && responseType === "STATUS" && !status) throw new Error(`RESPONDA: ${definition.label}.`);
+        if (definition.required && responseType === "TEXTO" && !valueText) throw new Error(`RESPONDA: ${definition.label}.`);
+        if (definition.required && responseType === "NUMERO" && numberRaw === "") throw new Error(`INFORME O VALOR: ${definition.label}.`);
+        if (status === "NC" && !observation) throw new Error(`INFORME A OBSERVAÇÃO: ${definition.label}.`);
+        if (status === "NC" && definition.evidence_on_nc && !evidenceFile) throw new Error(`ANEXE A EVIDÊNCIA: ${definition.label}.`);
+        items.push({
+            template_item_id: templateItemId, item_label: definition.label,
+            status, value_text: valueText,
+            value_number: numberRaw === "" || numberRaw == null ? null : Number(numberRaw),
+            observation, evidence_file: evidenceFile,
+        });
+    }
+    return {
+        id: createQueueId(), template_id: templateId, vehicle_id: vehicleId,
+        vehicle: { frota: vehicle?.frota || vehicle?.placa || "EQUIPAMENTO" },
+        template: { name: template?.name || "INSPEÇÃO TÉCNICA" },
+        general_notes: elements.technicalInspectionGeneralNotes.value.trim(), items,
+        queuedAt: new Date().toISOString(), status: "PENDENTE",
+    };
+}
+
+async function sendTechnicalInspectionDraft(draft) {
+    const items = [];
+    for (const item of draft.items) {
+        let evidencePath = item.evidence_path || null;
+        if (item.evidence_file) {
+            evidencePath = await uploadEvidence(
+                item.evidence_file, draft.vehicle.frota, item.item_label,
+                "inspecao_tecnica_nc", "INSPECOES_TECNICAS"
+            );
+        }
+        const { evidence_file, item_label, ...payload } = item;
+        items.push({ ...payload, evidence_path: evidencePath });
+    }
+    return apiFetch("/inspecoes-tecnicas/execucoes", {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+            template_id: draft.template_id, vehicle_id: draft.vehicle_id,
+            general_notes: draft.general_notes, items,
+        }),
+    });
+}
+
+async function submitTechnicalInspection() {
+    elements.technicalInspectionSubmit.disabled = true;
+    try {
+        const draft = await collectTechnicalInspectionDraft();
+        if (!navigator.onLine) {
+            await withOfflineStore(INSPECTION_QUEUE_STORE, "readwrite", (store) => store.put(draft));
+            showToast("INSPEÇÃO SALVA NO APARELHO PARA SINCRONIZAR.");
+            setActiveScreen("home");
+            return;
+        }
+        await sendTechnicalInspectionDraft(draft);
+        showToast("INSPEÇÃO TÉCNICA CONCLUÍDA.");
+        setActiveScreen("home");
+    } catch (error) {
+        showToast(error.message, true);
+    } finally {
+        elements.technicalInspectionSubmit.disabled = false;
+    }
+}
+
+async function syncPendingTechnicalInspections() {
+    if (!state.token || !navigator.onLine) return;
+    const queue = await withOfflineStore(INSPECTION_QUEUE_STORE, "readonly", (store) => new Promise((resolve, reject) => {
+        const request = store.getAll(); request.onsuccess = () => resolve(request.result || []); request.onerror = () => reject(request.error);
+    }));
+    for (const draft of queue) {
+        try {
+            await sendTechnicalInspectionDraft(draft);
+            await withOfflineStore(INSPECTION_QUEUE_STORE, "readwrite", (store) => store.delete(draft.id));
+        } catch (error) {
+            if (isOfflineError(error)) break;
+        }
     }
 }
 
@@ -2769,6 +2962,10 @@ function openOfflineDb() {
             if (!db.objectStoreNames.contains(CHECKLIST_DRAFT_STORE)) {
                 const store = db.createObjectStore(CHECKLIST_DRAFT_STORE, { keyPath: "vehicleId" });
                 store.createIndex("updatedAt", "updatedAt", { unique: false });
+            }
+            if (!db.objectStoreNames.contains(INSPECTION_QUEUE_STORE)) {
+                const store = db.createObjectStore(INSPECTION_QUEUE_STORE, { keyPath: "id" });
+                store.createIndex("queuedAt", "queuedAt", { unique: false });
             }
         };
         request.onsuccess = () => resolve(request.result);
@@ -4915,6 +5112,7 @@ on(elements.openWashesMenu, "click", openWashesMenu);
 on(elements.openNonConformitiesMenu, "click", openNonConformitiesMenu);
 on(elements.openMaintenanceMenu, "click", openMaintenanceMenu);
 on(elements.openAvailabilityMenu, "click", openAvailabilityMenu);
+on(elements.openTechnicalInspectionsMenu, "click", openTechnicalInspectionsMenu);
 on(elements.washPrevMonth, "click", () => changeWashMonth(-1));
 on(elements.washNextMonth, "click", () => changeWashMonth(1));
 on(elements.washExportPdfButton, "click", exportWashMonthPdf);
@@ -4964,6 +5162,13 @@ on(elements.availabilityBackButton, "click", () => {
     renderHome();
     setActiveScreen("home");
 });
+on(elements.technicalInspectionsBackButton, "click", () => {
+    renderHome();
+    setActiveScreen("home");
+});
+on(elements.technicalInspectionVehicle, "change", renderTechnicalInspectionTemplateOptions);
+on(elements.technicalInspectionTemplate, "change", renderTechnicalInspectionForm);
+on(elements.technicalInspectionSubmit, "click", submitTechnicalInspection);
 on(elements.nonConformitiesBackButton, "click", () => {
     if (state.selectedNonConformityItem) {
         state.selectedNonConformityItem = "";
@@ -5059,6 +5264,7 @@ document.addEventListener("keydown", (event) => {
 window.addEventListener("online", () => {
     updateConnectionStatus();
     syncPendingChecklists({ silent: true });
+    syncPendingTechnicalInspections();
 });
 window.addEventListener("offline", updateConnectionStatus);
 ["pointerdown", "keydown", "input", "scroll", "touchstart"].forEach((eventName) => {
