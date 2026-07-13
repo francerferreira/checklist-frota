@@ -12,8 +12,8 @@ from PySide6.QtWidgets import (
     QVBoxLayout,
 )
 
-from components import StatCard, TableSkeletonOverlay
-from services import overall_executive_status, severity_from_counts
+from components import MessageComposerDialog, StatCard, TableSkeletonOverlay
+from services import build_automation_alert_message_package, overall_executive_status, severity_from_counts
 from theme import configure_table, make_table_item, style_card, style_table_card
 
 
@@ -226,10 +226,13 @@ class DashboardPage(QFrame):
         self.automation_badge.setObjectName("BadgeSoft")
         self.run_automation_button = QPushButton("Avaliar regras")
         self.run_automation_button.clicked.connect(self.evaluate_automations)
+        self.share_automation_button = QPushButton("Compartilhar alertas")
+        self.share_automation_button.clicked.connect(self.share_automation_alerts)
         automation_header.addWidget(automation_title)
         automation_header.addStretch()
         automation_header.addWidget(self.automation_badge)
         automation_header.addWidget(self.run_automation_button)
+        automation_header.addWidget(self.share_automation_button)
         automation_hint = QLabel("Leitura auditável de emergenciais críticos, preventivas vencidas e estoque abaixo do mínimo.")
         automation_hint.setObjectName("SectionCaption")
         automation_hint.setWordWrap(True)
@@ -263,6 +266,7 @@ class DashboardPage(QFrame):
         availability = intelligence.get("disponibilidade") or {}
         backlog = intelligence.get("backlog") or {}
         automations = intelligence.get("automacoes") or {}
+        self.automation_alerts = automations.get("alertas") or []
         self.total_nc_card.set_content(
             "Total de não conformidades",
             str(dashboard["total_nc"]),
@@ -313,7 +317,8 @@ class DashboardPage(QFrame):
         )
         self.automation_badge.setText(f"{automations.get('alertas_ativos', 0)} ativos | {automations.get('alertas_criticos', 0)} críticos")
         self.run_automation_button.setVisible(bool(getattr(self.api_client, "user_has_management_access", lambda: False)()))
-        self._fill_automation_alerts(automations.get("alertas") or [])
+        self.share_automation_button.setVisible(bool(getattr(self.api_client, "user_has_management_access", lambda: False)()))
+        self._fill_automation_alerts(self.automation_alerts)
 
         critical_items = dashboard.get("itens_criticos", [])
         executive = overall_executive_status(
@@ -386,5 +391,13 @@ class DashboardPage(QFrame):
     def evaluate_automations(self):
         self.api_client.evaluate_automation_rules()
         self.refresh()
+
+    def share_automation_alerts(self):
+        user = getattr(self.api_client, "user", {}) or {}
+        package = build_automation_alert_message_package(
+            getattr(self, "automation_alerts", []),
+            generated_by=str(user.get("nome") or user.get("login") or ""),
+        )
+        MessageComposerDialog(package, self).exec()
 
 

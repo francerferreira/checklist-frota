@@ -38,6 +38,7 @@ class Config:
     JSON_SORT_KEYS = False
     MAX_CONTENT_LENGTH = 15 * 1024 * 1024
     TOKEN_MAX_AGE_SECONDS = int(os.getenv("TOKEN_MAX_AGE_SECONDS", "28800"))
+    AUTOMATION_JOB_TOKEN = os.getenv("AUTOMATION_JOB_TOKEN")
     UPLOAD_FOLDER = DATA_ROOT / "uploads"
     BACKUP_FOLDER = Path(os.getenv("BACKUP_FOLDER", DATA_ROOT / "backups"))
     INVENTORY_FILE = os.getenv("INVENTORY_FILE")

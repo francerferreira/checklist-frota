@@ -12,6 +12,7 @@ from .export_service import (
 )
 from .message_service import (
     MessagePackage,
+    build_automation_alert_message_package,
     build_activity_message_package,
     build_item_message_package,
     build_macro_message_package,
@@ -32,6 +33,7 @@ __all__ = [
     "export_item_audit_pdf",
     "export_checklist_detail_pdf",
     "MessagePackage",
+    "build_automation_alert_message_package",
     "build_macro_message_package",
     "build_micro_message_package",
     "build_item_message_package",

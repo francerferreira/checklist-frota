@@ -16,6 +16,7 @@ DB_PATH = Path(tempfile.gettempdir()) / "checklist_frota_intelligence_test.db"
 os.environ["DATABASE_URL"] = f"sqlite:///{DB_PATH}"
 os.environ["INVENTORY_FILE"] = ""
 os.environ["WASH_CONTROL_FILE"] = ""
+os.environ["AUTOMATION_JOB_TOKEN"] = "fase8-job-test"
 
 from app import create_app
 from app.extensions import db
@@ -136,6 +137,23 @@ class MaintenanceIntelligenceRoutesTests(unittest.TestCase):
         self.assertEqual(acknowledged.get_json()["data"]["status"], "RECONHECIDO")
         with self.app.app_context():
             self.assertGreaterEqual(AuditLog.query.filter_by(entity_type="AUTOMATION_EXECUTION").count(), 4)
+
+    def test_scheduled_automation_requires_dedicated_token(self):
+        missing = self.client.post("/inteligencia/automacoes/executar-agendada")
+        self.assertEqual(missing.status_code, 401, missing.get_json())
+        invalid = self.client.post(
+            "/inteligencia/automacoes/executar-agendada",
+            headers={"X-Automation-Token": "invalido"},
+        )
+        self.assertEqual(invalid.status_code, 401, invalid.get_json())
+        executed = self.client.post(
+            "/inteligencia/automacoes/executar-agendada",
+            headers={"X-Automation-Token": "fase8-job-test"},
+        )
+        self.assertEqual(executed.status_code, 200, executed.get_json())
+        self.assertEqual(executed.get_json()["data"]["origem"], "AGENDADA")
+        with self.app.app_context():
+            self.assertGreaterEqual(AuditLog.query.filter_by(action="SCHEDULED_EVALUATION").count(), 1)
 
 
 if __name__ == "__main__":

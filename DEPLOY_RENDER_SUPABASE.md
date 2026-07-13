@@ -55,6 +55,7 @@ Variaveis obrigatorias:
 SECRET_KEY=gere-uma-chave-forte
 DATABASE_URL=postgresql+psycopg://...
 TOKEN_MAX_AGE_SECONDS=28800
+AUTOMATION_JOB_TOKEN=chave-exclusiva-do-agendamento
 STORAGE_BACKEND=supabase
 SUPABASE_URL=https://seu-projeto.supabase.co
 SUPABASE_SERVICE_ROLE_KEY=sua-service-role-key
@@ -68,6 +69,18 @@ Depois do deploy, copie a URL publica do backend, por exemplo:
 ```text
 https://checklist-api.onrender.com
 ```
+
+## 2.1 Avaliacao agendada de automacoes
+
+O sistema possui uma rota protegida para o agendador avaliar emergenciais criticos, preventivas vencidas e estoque baixo:
+
+```text
+POST /inteligencia/automacoes/executar-agendada
+X-Automation-Token: valor de AUTOMATION_JOB_TOKEN
+```
+
+Use um agendador externo ou um Cron Job do Render para chamar a rota uma vez por dia. O cron do Render possui custo proprio; por isso ele nao e criado automaticamente pelo `render.yaml`.
+Em um servico Render ja existente, cadastre `AUTOMATION_JOB_TOKEN` manualmente em **Environment**, porque variaveis com `sync: false` nao recebem valor em atualizacoes do Blueprint.
 
 ## 3. Render Frontend/PWA
 

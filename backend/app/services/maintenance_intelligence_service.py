@@ -118,7 +118,7 @@ def _automation_candidates() -> list[dict]:
     return candidates
 
 
-def evaluate_automation_rules(*, user_id: int) -> dict:
+def evaluate_automation_rules(*, user_id: int | None, source: str = "MANUAL") -> dict:
     now, candidates, active_keys, created = now_manaus_naive(), _automation_candidates(), set(), 0
     for candidate in candidates:
         dedup_key = f"{candidate['rule_code']}:{candidate['entity_type']}:{candidate['entity_id']}"
@@ -148,8 +148,15 @@ def evaluate_automation_rules(*, user_id: int) -> dict:
     for row in stale_rows:
         row.status, row.evaluated_at = "ENCERRADO", now
         record_event(user_id=user_id, entity_type="AUTOMATION_EXECUTION", entity_id=row.id, action="ALERT_CLOSED", old_value=row.message, new_value="Condicao nao identificada na nova avaliacao.")
+    record_event(
+        user_id=user_id,
+        entity_type="AUTOMATION_EXECUTION",
+        entity_id=0,
+        action="SCHEDULED_EVALUATION" if source == "AGENDADA" else "MANUAL_EVALUATION",
+        new_value=f"Origem: {source}. Alertas avaliados: {len(candidates)}. Novos: {created}. Encerrados: {len(stale_rows)}.",
+    )
     db.session.commit()
-    return {"avaliados": len(candidates), "novos_alertas": created, "encerrados": len(stale_rows), "alertas": list_automation_alerts(active_only=True)}
+    return {"origem": source, "avaliados": len(candidates), "novos_alertas": created, "encerrados": len(stale_rows), "alertas": list_automation_alerts(active_only=True)}
 
 
 def acknowledge_automation_alert(alert_id: int, *, user_id: int) -> AutomationExecution:

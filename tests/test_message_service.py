@@ -10,6 +10,7 @@ if str(DESKTOP_ROOT) not in sys.path:
     sys.path.insert(0, str(DESKTOP_ROOT))
 
 from services.message_service import (
+    build_automation_alert_message_package,
     build_activity_message_package,
     build_item_message_package,
     build_macro_message_package,
@@ -19,6 +20,18 @@ from services.message_service import (
 
 
 class MessageServiceTests(unittest.TestCase):
+    def test_automation_alert_message_prioritizes_critical_alerts(self):
+        package = build_automation_alert_message_package(
+            [
+                {"severity": "CRITICA", "status": "ATIVO", "message": "Emergencial EMG-1 permanece aberta."},
+                {"severity": "MEDIA", "status": "RECONHECIDO", "message": "Preventiva PP-1 vencida."},
+            ],
+            generated_by="Gestao",
+        )
+        self.assertIn("ALERTAS OPERACIONAIS", package.whatsapp_text)
+        self.assertIn("CRITICA", package.whatsapp_text)
+        self.assertIn("Alertas operacionais", package.email_subject)
+
     def test_macro_message_contains_subject_and_whatsapp_formatting(self):
         package = build_macro_message_package(
             [

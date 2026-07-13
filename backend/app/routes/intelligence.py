@@ -1,4 +1,6 @@
-from flask import Blueprint, g
+import hmac
+
+from flask import Blueprint, current_app, g, request
 
 from app.extensions import db
 from app.services.auth_service import auth_required, user_has_management_access
@@ -27,6 +29,17 @@ def automation_list():
 def automation_evaluate():
     denied = _guard_management()
     return denied or api_response(True, data=evaluate_automation_rules(user_id=g.current_user.id))
+
+
+@bp.post("/automacoes/executar-agendada")
+def automation_scheduled_evaluate():
+    expected_token = str(current_app.config.get("AUTOMATION_JOB_TOKEN") or "").strip()
+    received_token = str(request.headers.get("X-Automation-Token") or "").strip()
+    if not expected_token:
+        return api_response(False, error="Agendamento de automacao nao configurado.", status_code=503)
+    if not hmac.compare_digest(received_token, expected_token):
+        return api_response(False, error="Nao autorizado.", status_code=401)
+    return api_response(True, data=evaluate_automation_rules(user_id=None, source="AGENDADA"))
 
 
 @bp.put("/automacoes/<int:alert_id>/reconhecer")

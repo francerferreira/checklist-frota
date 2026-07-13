@@ -16,6 +16,43 @@ class MessagePackage:
     summary_items: list[tuple[str, str]]
 
 
+def build_automation_alert_message_package(alerts: list[dict], generated_by: str = "") -> MessagePackage:
+    critical = sum(1 for alert in alerts if str(alert.get("severity") or "").upper() == "CRITICA")
+    high = sum(1 for alert in alerts if str(alert.get("severity") or "").upper() == "ALTA")
+    active = [alert for alert in alerts if str(alert.get("status") or "").upper() in {"ATIVO", "RECONHECIDO"}]
+    summary_items = [
+        ("Alertas ativos", str(len(active))),
+        ("Críticos", str(critical)),
+        ("Altos", str(high)),
+    ]
+    whatsapp_lines = ["**ALERTAS OPERACIONAIS - MANUTENÇÃO PORTUÁRIA**"]
+    email_lines = ["ALERTAS OPERACIONAIS - MANUTENÇÃO PORTUÁRIA"]
+    if generated_by:
+        whatsapp_lines.append(f"_Emitido por: {generated_by}_")
+        email_lines.append(f"Emitido por: {generated_by}")
+    whatsapp_lines.extend(["", "**Resumo**", f"- Alertas ativos: {len(active)}", f"- Críticos: {critical}", f"- Altos: {high}", "", "**Pendências prioritárias**"])
+    email_lines.extend(["", "Resumo:", f"- Alertas ativos: {len(active)}", f"- Críticos: {critical}", f"- Altos: {high}", "", "Pendências prioritárias:"])
+    if active:
+        for index, alert in enumerate(active[:10], start=1):
+            severity = str(alert.get("severity") or "-").upper()
+            message = str(alert.get("message") or "Sem descrição.")
+            whatsapp_lines.append(f"{index}. *{severity}* - {message}")
+            email_lines.append(f"{index}. {severity} - {message}")
+    else:
+        whatsapp_lines.append("Nenhum alerta operacional ativo.")
+        email_lines.append("Nenhum alerta operacional ativo.")
+    conclusion = "Priorize os críticos antes da próxima operação." if critical else "Acompanhe os alertas e mantenha a tratativa registrada no sistema."
+    whatsapp_lines.extend(["", "**Orientação**", f"_{conclusion}_"])
+    email_lines.extend(["", "Orientação:", conclusion])
+    return MessagePackage(
+        title="Mensagem operacional - Alertas de manutenção",
+        email_subject=f"Alertas operacionais de manutenção | {len(active)} ativo(s)",
+        whatsapp_text="\n".join(whatsapp_lines),
+        email_body="\n".join(email_lines),
+        summary_items=summary_items,
+    )
+
+
 def build_macro_message_package(rows: list[dict], period_label: str, generated_by: str = "") -> MessagePackage:
     total_nc = sum(_as_int(row.get("total_nc")) for row in rows)
     open_total = sum(_as_int(row.get("abertas")) for row in rows)
