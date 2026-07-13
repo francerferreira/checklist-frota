@@ -1,9 +1,10 @@
 from datetime import datetime, time
-from flask import Blueprint, request
+from flask import Blueprint, g, request
 from sqlalchemy import func, or_
 from app.extensions import db
 from app.models import ChecklistItem, Vehicle, Checklist
-from app.services.auth_service import auth_required
+from app.services.auth_service import auth_required, user_has_management_access
+from app.services.maintenance_intelligence_service import build_maintenance_intelligence_overview
 from app.services.report_service import build_dashboard_summary, build_productivity_report
 from app.utils.responses import api_response
 from app.utils.filters import apply_item_search
@@ -35,6 +36,14 @@ def get_dashboard_report():
 def get_productivity_dashboard():
     """Relatório consolidado de produtividade por usuário."""
     return api_response(True, data=build_productivity_report())
+
+
+@bp.get("/manutencao-executivo")
+@auth_required
+def get_maintenance_executive_report():
+    if not user_has_management_access(g.current_user):
+        return api_response(False, error="Somente admin ou gestor podem consultar este relatorio.", status_code=403)
+    return api_response(True, data=build_maintenance_intelligence_overview())
 
 @bp.get("/macro")
 @auth_required

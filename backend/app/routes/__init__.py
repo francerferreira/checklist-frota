@@ -7,6 +7,7 @@ from app.routes.equipment_structure import bp as equipment_structure_bp
 from app.routes.emergencies import bp as emergencies_bp
 from app.routes.maintenance import bp as maintenance_bp
 from app.routes.technical_inspections import bp as technical_inspections_bp
+from app.routes.intelligence import bp as intelligence_bp
 from app.routes.mechanic_non_conformities import bp as mechanic_non_conformities_bp
 from app.routes.materials import bp as materials_bp
 from app.routes.non_conformities import bp as non_conformities_bp
@@ -32,6 +33,7 @@ def register_blueprints(app):
         activities_bp,
         maintenance_bp,
         technical_inspections_bp,
+        intelligence_bp,
         materials_bp,
         checklist_bp,
         mechanic_non_conformities_bp,

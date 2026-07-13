@@ -194,6 +194,8 @@ def build_vehicle_history(vehicle_id: int) -> dict:
 
 
 def build_dashboard_summary() -> dict:
+    from app.services.maintenance_intelligence_service import build_maintenance_intelligence_overview
+
     non_conformity_rows = ChecklistItem.query.with_entities(ChecklistItem.id, ChecklistItem.created_at).filter_by(status="NC").all()
     non_conformity_created_at = {row_id: created_at for row_id, created_at in non_conformity_rows}
     total_nc = len(non_conformity_rows)
@@ -245,6 +247,7 @@ def build_dashboard_summary() -> dict:
         "tempo_medio_nc_para_atividade_minutos": _average_minutes(nc_to_activity_minutes),
         "tempo_medio_atividade_para_resolucao_minutos": _average_minutes(activity_to_resolution_minutes),
         "itens_criticos": critical_items,
+        "manutencao_portuaria": build_maintenance_intelligence_overview(),
     }
 
 

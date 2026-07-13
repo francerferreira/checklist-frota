@@ -1,4 +1,5 @@
 from app.models.activity import Activity, ActivityItem, ActivityNonConformityLink
+from app.models.automation_execution import AutomationExecution
 from app.models.audit_log import AuditLog
 from app.models.checklist import Checklist, ChecklistItem
 from app.models.checklist_catalog_item import ChecklistCatalogItem
@@ -21,6 +22,7 @@ __all__ = [
     "Activity",
     "ActivityItem",
     "ActivityNonConformityLink",
+    "AutomationExecution",
     "AuditLog",
     "Checklist",
     "ChecklistCatalogItem",

@@ -536,6 +536,18 @@ class APIClient:
     def get_dashboard(self):
         return self._request("GET", "/relatorios/dashboard")
 
+    def get_maintenance_executive_report(self):
+        return self._request("GET", "/relatorios/manutencao-executivo")
+
+    def get_automation_alerts(self):
+        return self._request("GET", "/inteligencia/automacoes")
+
+    def evaluate_automation_rules(self):
+        return self._request("POST", "/inteligencia/automacoes/avaliar")
+
+    def acknowledge_automation_alert(self, alert_id: int):
+        return self._request("PUT", f"/inteligencia/automacoes/{alert_id}/reconhecer")
+
     def get_productivity_report(self):
         return self._request("GET", "/relatorios/produtividade")
 

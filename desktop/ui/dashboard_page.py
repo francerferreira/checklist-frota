@@ -6,6 +6,7 @@ from PySide6.QtWidgets import (
     QGridLayout,
     QHBoxLayout,
     QLabel,
+    QPushButton,
     QTableWidget,
     QTableWidgetItem,
     QVBoxLayout,
@@ -28,6 +29,17 @@ def _format_minutes(value) -> str:
     if hours > 0:
         return f"{hours}h {rem_minutes:02d}m"
     return f"{rem_minutes}m"
+
+
+def _format_hours(value) -> str:
+    try:
+        hours = float(value)
+    except (TypeError, ValueError):
+        return "Sem dados"
+    if hours < 0:
+        return "Sem dados"
+    whole_hours, minutes = divmod(int(round(hours * 60)), 60)
+    return f"{whole_hours}h {minutes:02d}m"
 
 
 class DashboardPage(QFrame):
@@ -189,12 +201,54 @@ class DashboardPage(QFrame):
         table_layout.addWidget(table_caption)
         table_layout.addWidget(self.critical_table)
 
+        intelligence_layout = QGridLayout()
+        intelligence_layout.setSpacing(16)
+        for column in range(4):
+            intelligence_layout.setColumnStretch(column, 1)
+        self.availability_card = StatCard("Disponibilidade média", "Sem dados", "Ativos com status medido no período", icon_name="equipment")
+        self.mtbf_card = StatCard("MTBF", "Sem dados", "Tempo médio entre falhas comparáveis", icon_name="dashboard")
+        self.mttr_card = StatCard("MTTR", "Sem dados", "Tempo médio de reparo até a liberação", icon_name="activities")
+        self.backlog_card = StatCard("Backlog de manutenção", "0", "OS abertas, vencidas e bloqueadas", icon_name="warning")
+        intelligence_layout.addWidget(self.availability_card, 0, 0)
+        intelligence_layout.addWidget(self.mtbf_card, 0, 1)
+        intelligence_layout.addWidget(self.mttr_card, 0, 2)
+        intelligence_layout.addWidget(self.backlog_card, 0, 3)
+
+        self.automation_card = QFrame()
+        style_table_card(self.automation_card)
+        automation_layout = QVBoxLayout(self.automation_card)
+        automation_layout.setContentsMargins(14, 14, 14, 14)
+        automation_layout.setSpacing(10)
+        automation_header = QHBoxLayout()
+        automation_title = QLabel("Alertas automáticos")
+        automation_title.setObjectName("SectionTitle")
+        self.automation_badge = QLabel("0 ativos")
+        self.automation_badge.setObjectName("BadgeSoft")
+        self.run_automation_button = QPushButton("Avaliar regras")
+        self.run_automation_button.clicked.connect(self.evaluate_automations)
+        automation_header.addWidget(automation_title)
+        automation_header.addStretch()
+        automation_header.addWidget(self.automation_badge)
+        automation_header.addWidget(self.run_automation_button)
+        automation_hint = QLabel("Leitura auditável de emergenciais críticos, preventivas vencidas e estoque abaixo do mínimo.")
+        automation_hint.setObjectName("SectionCaption")
+        automation_hint.setWordWrap(True)
+        self.automation_table = QTableWidget(0, 5)
+        self.automation_table.setHorizontalHeaderLabels(["Regra", "Severidade", "Referência", "Alerta", "Estado"])
+        configure_table(self.automation_table, stretch_last=False)
+        self.automation_table.setMinimumHeight(220)
+        automation_layout.addLayout(automation_header)
+        automation_layout.addWidget(automation_hint)
+        automation_layout.addWidget(self.automation_table)
+
         layout.addWidget(heading)
         layout.addWidget(subtitle)
         layout.addWidget(hero_card)
         layout.addLayout(cards_layout)
         layout.addLayout(conversion_layout)
+        layout.addLayout(intelligence_layout)
         layout.addWidget(self.table_card, 1)
+        layout.addWidget(self.automation_card)
 
     def set_loading_state(self, loading: bool):
         if loading:
@@ -204,6 +258,11 @@ class DashboardPage(QFrame):
 
     def refresh(self):
         dashboard = self.api_client.get_dashboard()
+        intelligence = dashboard.get("manutencao_portuaria") or {}
+        reliability = intelligence.get("confiabilidade") or {}
+        availability = intelligence.get("disponibilidade") or {}
+        backlog = intelligence.get("backlog") or {}
+        automations = intelligence.get("automacoes") or {}
         self.total_nc_card.set_content(
             "Total de não conformidades",
             str(dashboard["total_nc"]),
@@ -239,6 +298,22 @@ class DashboardPage(QFrame):
             _format_minutes(dashboard.get("tempo_medio_atividade_para_resolucao_minutos")),
             "Tempo médio da inspeção até a finalização",
         )
+        availability_value = availability.get("average_availability_percentage")
+        self.availability_card.set_content(
+            "Disponibilidade média",
+            f"{availability_value:.2f}%" if isinstance(availability_value, (int, float)) else "Sem dados",
+            f"{availability.get('measured_equipment', 0)} equipamentos com medição",
+        )
+        self.mtbf_card.set_content("MTBF", _format_hours(reliability.get("mtbf_horas")), "Tempo médio entre falhas comparáveis")
+        self.mttr_card.set_content("MTTR", _format_hours(reliability.get("mttr_horas")), "Tempo médio de reparo até a liberação")
+        self.backlog_card.set_content(
+            "Backlog de manutenção",
+            str(backlog.get("total", 0)),
+            f"{backlog.get('vencidas', 0)} vencidas | {backlog.get('materiais_bloqueados', 0)} bloqueadas",
+        )
+        self.automation_badge.setText(f"{automations.get('alertas_ativos', 0)} ativos | {automations.get('alertas_criticos', 0)} críticos")
+        self.run_automation_button.setVisible(bool(getattr(self.api_client, "user_has_management_access", lambda: False)()))
+        self._fill_automation_alerts(automations.get("alertas") or [])
 
         critical_items = dashboard.get("itens_criticos", [])
         executive = overall_executive_status(
@@ -292,5 +367,24 @@ class DashboardPage(QFrame):
             self.critical_table.blockSignals(False)
             self.critical_table.setUpdatesEnabled(True)
             self.critical_table.setSortingEnabled(True)
+
+    def _fill_automation_alerts(self, alerts):
+        self.automation_table.setSortingEnabled(False)
+        self.automation_table.setRowCount(len(alerts))
+        for row_index, alert in enumerate(alerts):
+            values = [
+                str(alert.get("rule_code") or "-"),
+                str(alert.get("severity") or "-"),
+                f"{alert.get('entity_type') or '-'} #{alert.get('entity_id') or '-'}",
+                str(alert.get("message") or "-"),
+                str(alert.get("status") or "-"),
+            ]
+            for column, value in enumerate(values):
+                self.automation_table.setItem(row_index, column, make_table_item(value))
+        self.automation_table.setSortingEnabled(True)
+
+    def evaluate_automations(self):
+        self.api_client.evaluate_automation_rules()
+        self.refresh()
 
 
