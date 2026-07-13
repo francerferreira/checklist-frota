@@ -11,6 +11,7 @@ from app.models.operational_availability import EquipmentOperationalState, Equip
 from app.models.pcm import PreventivePlan
 from app.models.technical_inspection import InspectionExecution, InspectionExecutionItem, InspectionTemplate, InspectionTemplateItem
 from app.models.resolution_package import ResolutionPackage, ResolutionPackageLink
+from app.models.supply_library import MaterialFamilyApplication, TechnicalDocument, Warehouse, WarehouseReservation, WarehouseStock
 from app.models.system_setting import SystemSetting
 from app.models.user import User
 from app.models.vehicle import Vehicle
@@ -41,6 +42,7 @@ __all__ = [
     "MaintenanceWorkOrder",
     "WorkOrderExecution",
     "Material",
+    "MaterialFamilyApplication",
     "MaterialMovement",
     "MechanicNonConformity",
     "OperationalLocation",
@@ -48,6 +50,7 @@ __all__ = [
     "ResolutionPackage",
     "ResolutionPackageLink",
     "SystemSetting",
+    "TechnicalDocument",
     "User",
     "Vehicle",
     "WashBlockedDay",
@@ -55,4 +58,7 @@ __all__ = [
     "WashQueueItem",
     "WashRecord",
     "WashScheduleDecision",
+    "Warehouse",
+    "WarehouseReservation",
+    "WarehouseStock",
 ]

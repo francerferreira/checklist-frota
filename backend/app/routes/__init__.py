@@ -12,6 +12,7 @@ from app.routes.materials import bp as materials_bp
 from app.routes.non_conformities import bp as non_conformities_bp
 from app.routes.pcm import bp as pcm_bp
 from app.routes.resolution_packages import bp as resolution_packages_bp
+from app.routes.supply_library import bp as supply_library_bp
 from app.routes.reports import bp as reports_bp
 from app.routes.upload import bp as upload_bp
 from app.routes.users import bp as users_bp
@@ -37,6 +38,7 @@ def register_blueprints(app):
         non_conformities_bp,
         pcm_bp,
         resolution_packages_bp,
+        supply_library_bp,
         upload_bp,
         reports_bp,
         washes_bp,

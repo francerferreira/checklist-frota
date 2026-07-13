@@ -16,8 +16,8 @@ class WebMobileShellContractTests(unittest.TestCase):
         cls.legacy_readme = LEGACY_README_PATH.read_text(encoding="utf-8")
 
     def test_index_uses_canonical_frontend_bundle(self):
-        self.assertIn('./static/js/app.js?v=20260712-03', self.index_html)
-        self.assertIn('./static/css/styles.css?v=20260712-03', self.index_html)
+        self.assertIn('./static/js/app.js?v=20260713-01', self.index_html)
+        self.assertIn('./static/css/styles.css?v=20260713-01', self.index_html)
         self.assertNotIn("app-20260419-", self.index_html)
 
     def test_frontend_uses_manaus_timezone_for_dates(self):
@@ -62,6 +62,9 @@ class WebMobileShellContractTests(unittest.TestCase):
             'id="availability-list"',
             'id="technical-inspections-screen"',
             'id="technical-inspection-form"',
+            'id="open-technical-library-menu"',
+            'id="technical-library-screen"',
+            'id="technical-library-vehicle"',
             'id="wash-calendar"',
             'id="wash-day-panel"',
             'id="washes-list"',
@@ -97,6 +100,12 @@ class WebMobileShellContractTests(unittest.TestCase):
         self.assertIn("openMaintenanceMenu", app_js)
         self.assertIn("/manutencao/visao", app_js)
         self.assertIn("renderMaintenance", app_js)
+
+    def test_technical_library_is_available_for_field_consultation(self):
+        app_js = (PROJECT_ROOT / "web_app" / "static" / "js" / "app.js").read_text(encoding="utf-8")
+        self.assertIn("openTechnicalLibraryMenu", app_js)
+        self.assertIn("/biblioteca-tecnica?vehicle_id=", app_js)
+        self.assertIn("openTechnicalDocument", app_js)
 
     def test_checklist_history_has_auto_filters_and_sortable_headers(self):
         app_js = (PROJECT_ROOT / "web_app" / "static" / "js" / "app.js").read_text(encoding="utf-8")

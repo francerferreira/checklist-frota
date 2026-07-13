@@ -328,6 +328,36 @@ class APIClient:
         payload = {"plan_id": plan_id} if plan_id else {}
         return self._request("POST", "/pcm/gerar-preventivas", json=payload)
 
+    def get_warehouses(self):
+        return self._request("GET", "/suprimentos/depositos")
+
+    def create_warehouse(self, payload: dict):
+        return self._request("POST", "/suprimentos/depositos", json=payload)
+
+    def get_warehouse_stocks(self):
+        return self._request("GET", "/suprimentos/estoques")
+
+    def initialize_warehouse_stock(self, payload: dict):
+        return self._request("POST", "/suprimentos/estoques", json=payload)
+
+    def get_warehouse_reservations(self):
+        return self._request("GET", "/suprimentos/reservas")
+
+    def reserve_warehouse_material(self, payload: dict):
+        return self._request("POST", "/suprimentos/reservas", json=payload)
+
+    def set_material_family_applications(self, material_id: int, family_ids: list[int]):
+        return self._request("PUT", f"/materiais/{material_id}/familias", json={"family_ids": family_ids})
+
+    def get_technical_documents(self, vehicle_id: int | None = None, *, include_archived: bool = False):
+        params = {"vehicle_id": vehicle_id} if vehicle_id else {}
+        if include_archived:
+            params["incluir_arquivados"] = "true"
+        return self._request("GET", "/biblioteca-tecnica", params=params or None)
+
+    def create_technical_document(self, payload: dict):
+        return self._request("POST", "/biblioteca-tecnica", json=payload)
+
     def download_maintenance_pdf(
         self,
         output_path: str,

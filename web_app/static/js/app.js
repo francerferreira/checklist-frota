@@ -222,6 +222,7 @@ const state = {
     availabilityOverview: null,
     technicalInspectionTemplates: [],
     emergencies: [],
+    technicalDocuments: [],
     ncChecklistStatus: "abertas",
     ncMechanicStatus: "abertas",
     washYear: INITIAL_MANAUS_DATE.year,
@@ -264,6 +265,7 @@ const screens = {
     availability: document.getElementById("availability-screen"),
     technicalInspections: document.getElementById("technical-inspections-screen"),
     emergencies: document.getElementById("emergencies-screen"),
+    technicalLibrary: document.getElementById("technical-library-screen"),
     success: document.getElementById("success-screen"),
 };
 
@@ -316,6 +318,7 @@ const elements = {
     openAvailabilityMenu: document.getElementById("open-availability-menu"),
     openTechnicalInspectionsMenu: document.getElementById("open-technical-inspections-menu"),
     openEmergenciesMenu: document.getElementById("open-emergencies-menu"),
+    openTechnicalLibraryMenu: document.getElementById("open-technical-library-menu"),
     vehiclesBackButton: document.getElementById("vehicles-back-button"),
     activitiesBackButton: document.getElementById("activities-back-button"),
     activityCounter: document.getElementById("activity-counter"),
@@ -388,6 +391,9 @@ const elements = {
     emergencySubmit: document.getElementById("emergency-submit"),
     emergenciesCounter: document.getElementById("emergencies-counter"),
     emergenciesList: document.getElementById("emergencies-list"),
+    technicalLibraryBackButton: document.getElementById("technical-library-back-button"),
+    technicalLibraryVehicle: document.getElementById("technical-library-vehicle"),
+    technicalLibraryList: document.getElementById("technical-library-list"),
     ncChecklistFilterOpen: document.getElementById("nc-checklist-filter-open"),
     ncChecklistFilterClosed: document.getElementById("nc-checklist-filter-closed"),
     ncMechanicFilterOpen: document.getElementById("nc-mechanic-filter-open"),
@@ -1370,6 +1376,57 @@ async function releaseEmergencyWorkOrder(emergency) {
         await apiFetch(`/ordens-servico/${emergency.work_order_id}/liberar`, { method: "PUT", headers: { "Content-Type": "application/json" }, body: "{}" });
         showToast("EQUIPAMENTO LIBERADO E DISPONIBILIDADE RESTAURADA.");
         await openEmergenciesMenu();
+    } catch (error) { showToast(error.message, true); }
+}
+
+async function openTechnicalLibraryMenu() {
+    setActiveScreen("technicalLibrary");
+    const vehicles = state.vehicles.filter((vehicle) => vehicle.ativo !== false);
+    elements.technicalLibraryVehicle.innerHTML = vehicles.map((vehicle) =>
+        `<option value="${vehicle.id}">${escapeHtml(vehicle.frota || vehicle.placa || vehicle.modelo)}</option>`
+    ).join("");
+    if (!vehicles.length) {
+        renderStateCard(elements.technicalLibraryList, { title: "SEM EQUIPAMENTOS", message: "Nenhum equipamento ativo disponível para consulta." });
+        return;
+    }
+    await loadTechnicalLibraryDocuments();
+}
+
+async function loadTechnicalLibraryDocuments() {
+    const vehicleId = Number(elements.technicalLibraryVehicle.value);
+    renderStateCard(elements.technicalLibraryList, { title: "CARREGANDO DOCUMENTOS", message: "Buscando a biblioteca técnica do equipamento.", tone: "loading" });
+    try {
+        state.technicalDocuments = await apiFetch(`/biblioteca-tecnica?vehicle_id=${vehicleId}`);
+        renderTechnicalLibraryDocuments();
+    } catch (error) {
+        renderStateCard(elements.technicalLibraryList, { title: "FALHA AO CARREGAR", message: error.message, tone: "error" });
+        showToast(error.message, true);
+    }
+}
+
+function renderTechnicalLibraryDocuments() {
+    const rows = state.technicalDocuments || [];
+    elements.technicalLibraryList.innerHTML = "";
+    if (!rows.length) {
+        renderStateCard(elements.technicalLibraryList, { title: "SEM DOCUMENTOS", message: "A gestão ainda não vinculou documentos técnicos a este equipamento ou família." });
+        return;
+    }
+    rows.forEach((documentRow) => {
+        const card = document.createElement("article");
+        card.className = "technical-library-card";
+        card.innerHTML = `<header><div><span>${escapeHtml(documentRow.code || "DOCUMENTO")}</span><strong>${escapeHtml(documentRow.title || "")}</strong><em>${escapeHtml(documentRow.document_type || "-")} | REV. ${escapeHtml(documentRow.revision || "-")}</em></div><b>${escapeHtml(documentRow.effective_status || documentRow.status || "-")}</b></header><p>${escapeHtml(documentRow.description || "Sem descrição adicional.")}</p><button class="primary-button" type="button">ABRIR DOCUMENTO</button>`;
+        card.querySelector("button").addEventListener("click", () => openTechnicalDocument(documentRow));
+        elements.technicalLibraryList.appendChild(card);
+    });
+}
+
+async function openTechnicalDocument(documentRow) {
+    try {
+        const response = await fetch(`${state.apiBaseUrl}${documentRow.file_path}`, { headers: { Authorization: `Bearer ${state.token}` } });
+        if (!response.ok) throw new Error("Não foi possível abrir o documento.");
+        const url = URL.createObjectURL(await response.blob());
+        window.open(url, "_blank", "noopener");
+        window.setTimeout(() => URL.revokeObjectURL(url), 60000);
     } catch (error) { showToast(error.message, true); }
 }
 
@@ -5235,6 +5292,7 @@ on(elements.openMaintenanceMenu, "click", openMaintenanceMenu);
 on(elements.openAvailabilityMenu, "click", openAvailabilityMenu);
 on(elements.openTechnicalInspectionsMenu, "click", openTechnicalInspectionsMenu);
 on(elements.openEmergenciesMenu, "click", openEmergenciesMenu);
+on(elements.openTechnicalLibraryMenu, "click", openTechnicalLibraryMenu);
 on(elements.emergencyCreateForm, "submit", submitEmergency);
 on(elements.washPrevMonth, "click", () => changeWashMonth(-1));
 on(elements.washNextMonth, "click", () => changeWashMonth(1));
@@ -5289,6 +5347,11 @@ on(elements.emergenciesBackButton, "click", () => {
     renderHome();
     setActiveScreen("home");
 });
+on(elements.technicalLibraryBackButton, "click", () => {
+    renderHome();
+    setActiveScreen("home");
+});
+on(elements.technicalLibraryVehicle, "change", loadTechnicalLibraryDocuments);
 on(elements.technicalInspectionsBackButton, "click", () => {
     renderHome();
     setActiveScreen("home");

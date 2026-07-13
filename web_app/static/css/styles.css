@@ -2657,6 +2657,16 @@ textarea {
     font-weight: 900;
 }
 
+.library-caption {
+    margin: 10px 0 0;
+    color: #64748b;
+    font-size: 0.82rem;
+}
+
+.technical-library-card {
+    border-left: 5px solid #0f5da8;
+}
+
 .emergency-released {
     background: #dcfce7;
     color: #166534;

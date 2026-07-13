@@ -4,6 +4,7 @@ import os
 import sys
 import tempfile
 import unittest
+from io import BytesIO
 from pathlib import Path
 
 
@@ -54,6 +55,24 @@ class UploadSecurityTests(unittest.TestCase):
     def test_local_upload_download_keeps_authenticated_flow(self):
         response = self.client.get("/uploads/arquivo-inexistente.jpg", headers=self.headers)
         self.assertEqual(response.status_code, 404)
+
+    def test_authenticated_technical_pdf_upload_is_allowed(self):
+        response = self.client.post(
+            "/upload",
+            data={
+                "file": (BytesIO(b"%PDF-1.4\nmanual tecnico"), "manual-tecnico.pdf"),
+                "vehicle": "BIBLIOTECA", "item": "MANUAL",
+            },
+            headers=self.headers,
+            content_type="multipart/form-data",
+        )
+        self.assertEqual(response.status_code, 201, response.get_json())
+        path = response.get_json()["path"]
+        downloaded = self.client.get(path, headers=self.headers)
+        self.assertEqual(downloaded.status_code, 200)
+        downloaded.close()
+        with self.app.app_context():
+            (Path(self.app.config["UPLOAD_FOLDER"]) / Path(path).name).unlink(missing_ok=True)
 
 
 if __name__ == "__main__":

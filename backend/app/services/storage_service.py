@@ -12,7 +12,7 @@ from werkzeug.utils import secure_filename
 
 from app.utils.timezone import MANAUS_TZ, now_manaus_naive
 
-ALLOWED_EXTENSIONS = {".jpg", ".jpeg", ".png", ".webp"}
+ALLOWED_EXTENSIONS = {".jpg", ".jpeg", ".png", ".webp", ".pdf"}
 
 
 def _slugify(value: str) -> str:
@@ -54,7 +54,7 @@ def build_filename(file_storage: FileStorage, vehicle: str, item: str, user: str
     original_name = secure_filename(file_storage.filename or "")
     extension = Path(original_name).suffix.lower() or ".jpg"
     if extension not in ALLOWED_EXTENSIONS:
-        raise ValueError("Formato de imagem nao suportado.")
+        raise ValueError("Formato de arquivo não suportado.")
 
     timestamp = now_manaus_naive().strftime("%Y-%m-%d-%H%M%S")
     return f"{_slugify(vehicle)}_{_slugify(item)}_{_slugify(user)}_{timestamp}{extension}"

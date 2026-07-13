@@ -25,6 +25,7 @@ class Material(db.Model):
         cascade="all, delete-orphan",
         lazy="selectin",
     )
+    family_applications = db.relationship("MaterialFamilyApplication", back_populates="material", cascade="all, delete-orphan", lazy="selectin")
 
     __table_args__ = (
         db.CheckConstraint(
@@ -53,6 +54,7 @@ class Material(db.Model):
             "ativo": self.ativo,
             "baixo_estoque": self.quantidade_estoque <= self.estoque_minimo,
             "created_at": self.created_at.isoformat() if self.created_at else None,
+            "family_applications": [row.to_dict() for row in self.family_applications if row.active],
         }
 
 

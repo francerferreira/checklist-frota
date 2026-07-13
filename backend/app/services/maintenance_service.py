@@ -1064,6 +1064,10 @@ def link_schedule_material(schedule_id: int, payload: dict, *, user_id: int) -> 
     material = Material.query.get(material_id)
     if not material or not material.ativo:
         raise ValueError("Material informado e invalido ou esta inativo.")
+    for item in schedule.items:
+        from app.services.supply_library_service import material_is_applicable_to_vehicle
+        if not material_is_applicable_to_vehicle(material, item.vehicle_id):
+            raise ValueError("Este material não está liberado para a família de um ou mais equipamentos da programação.")
 
     quantity_per_vehicle = int(payload.get("quantity_per_vehicle") or payload.get("quantidade_por_veiculo") or 1)
     if quantity_per_vehicle <= 0:
@@ -1144,6 +1148,8 @@ def update_schedule_item(item_id: int, payload: dict, *, user) -> MaintenanceSch
         vehicle_label = item.vehicle.frota if item.vehicle and item.vehicle.frota else f"Veículo {item.vehicle_id}"
         for link in item.schedule.materials:
             required = int(link.quantity_per_vehicle or 1)
+            from app.services.supply_library_service import consume_warehouse_reservation
+            consume_warehouse_reservation(link.id, required)
             register_material_movement(
                 link.material,
                 quantity=required,

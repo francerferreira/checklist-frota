@@ -14,7 +14,7 @@
     <title>CHECKLIST DE FROTA</title>
     <link rel="icon" type="image/png" sizes="192x192" href="./static/icons/icon-192.png?v=20260421-02">
     <link rel="apple-touch-icon" href="./static/icons/icon-192.png?v=20260421-02">
-    <link rel="stylesheet" href="./static/css/styles.css?v=20260712-03">
+    <link rel="stylesheet" href="./static/css/styles.css?v=20260713-01">
 </head>
 <body>
     <div class="mobile-shell">
@@ -118,6 +118,11 @@
                         <span>09</span>
                         <strong>EMERGENCIAL</strong>
                         <em>Comunicar parada, executar a OS, testar e liberar o equipamento.</em>
+                    </button>
+                    <button id="open-technical-library-menu" class="menu-card" type="button">
+                        <span>10</span>
+                        <strong>BIBLIOTECA TÉCNICA</strong>
+                        <em>Consultar manuais, procedimentos e diagramas do equipamento.</em>
                     </button>
                 </div>
             </section>
@@ -436,6 +441,18 @@
                 <div id="emergencies-list" class="activity-list"></div>
             </section>
 
+            <section id="technical-library-screen" class="screen hidden">
+                <div class="screen-heading compact">
+                    <button id="technical-library-back-button" class="icon-button" type="button">MENU</button>
+                    <div><h2>BIBLIOTECA TÉCNICA</h2></div>
+                </div>
+                <section class="module-section">
+                    <label><span>EQUIPAMENTO</span><select id="technical-library-vehicle"></select></label>
+                    <p class="library-caption">São exibidos documentos vinculados diretamente ao equipamento e à sua família.</p>
+                </section>
+                <div id="technical-library-list" class="activity-list"></div>
+            </section>
+
             <section id="checklist-screen" class="screen hidden">
                 <div class="screen-heading compact">
                     <button id="back-button" class="icon-button" type="button">VOLTAR</button>
@@ -515,7 +532,7 @@
 
     <div id="toast" class="toast hidden"></div>
     <script src="./static/js/config.js?v=20260428-01"></script>
-    <script src="./static/js/app.js?v=20260712-03"></script>
+    <script src="./static/js/app.js?v=20260713-01"></script>
 </body>
 </html>
 
