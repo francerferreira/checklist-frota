@@ -21,6 +21,7 @@ from PySide6.QtWidgets import (
 
 from api_client import APIClient, DEFAULT_API_BASE_URL
 from components import LoadingOverlay, show_notice
+from embedded_backend import ensure_local_backend
 from runtime_paths import asset_path, data_path
 from theme import apply_soft_shadow
 
@@ -557,7 +558,36 @@ class _LoginWorker(QObject):
             payload = self.api_client.login(self.login_value, self.password_value)
             self.success.emit(payload)
         except Exception as exc:
+            remote_url = self.api_client.base_url
+            if not self._is_local_url(remote_url) and self._should_try_local(str(exc)):
+                local_url = "http://127.0.0.1:5000"
+                self.api_client.set_base_url(local_url)
+                if ensure_local_backend(self.api_client, wait_seconds=10.0):
+                    try:
+                        payload = self.api_client.login(self.login_value, self.password_value)
+                        self.success.emit(payload)
+                        return
+                    except Exception as local_exc:
+                        self.api_client.set_base_url(remote_url)
+                        self.failed.emit(
+                            "A API em nuvem nao respondeu e o acesso local tambem falhou: "
+                            f"{local_exc}"
+                        )
+                        return
+                self.api_client.set_base_url(remote_url)
             self.failed.emit(str(exc))
         finally:
             self.finished.emit()
+
+    @staticmethod
+    def _is_local_url(url: str) -> bool:
+        return "127.0.0.1" in str(url).lower() or "localhost" in str(url).lower()
+
+    @staticmethod
+    def _should_try_local(message: str) -> bool:
+        text = str(message or "").lower()
+        return any(
+            marker in text
+            for marker in ("timed out", "timeout", "connection", "max retries", "502", "503", "504")
+        )
 
