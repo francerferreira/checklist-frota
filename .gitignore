@@ -19,6 +19,7 @@ dist/
 data/
 exports/
 test-results/
+.tmp_tests/
 tmp_lavagem.xlsx
 backend/backups/
 backend_data/

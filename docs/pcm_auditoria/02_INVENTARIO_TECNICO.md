@@ -14,8 +14,8 @@ O schema fisico e os dados do PostgreSQL de producao nao foram consultados. Assi
 | `desktop/` | 46 | 23.004 | gestao Desktop PySide6 |
 | `web_app/` | 23 | 33.621 | Web Mobile/PWA e legados JS |
 | `migrations/` | 11 | 752 | Alembic/Flask-Migrate |
-| `tests/` | 32 | 3.277 | pytest e Playwright |
-| `tools/` | 4 | 1.748 | apoio operacional |
+| `tests/` | 33 | aproximadamente 3.400 | pytest e Playwright |
+| `tools/` | 5 | aproximadamente 2.100 | apoio operacional e protecao |
 
 ## Tecnologias e dependencias
 
@@ -176,6 +176,6 @@ Detalhamento PCM em `06_MAPA_DE_APIS.md`.
 
 ## Testes existentes
 
-32 arquivos cobrem auditoria, disponibilidade, checklist, navegacao Desktop, emergenciais/OS, estrutura de equipamentos, exportacao, arquivos externos, inteligencia, mensagens, operacao mobile, PCM, migrations 2/3/4/5/6/7/9/11, seguranca, severidade, suprimentos, inspecoes, fuso horario, upload, veiculos e Web Mobile/Playwright.
+33 arquivos cobrem auditoria, disponibilidade, checklist, navegacao Desktop, emergenciais/OS, estrutura de equipamentos, exportacao, arquivos externos, inteligencia, mensagens, operacao mobile, PCM, migrations 2/3/4/5/6/7/9/11, seguranca, severidade, suprimentos, inspecoes, fuso horario, upload, veiculos, Web Mobile/Playwright e ferramentas de protecao da Fase 1.
 
 Lacunas de teste: concorrencia de numero de OS, cancelamento/reabertura, correcao de horimetro, ciclos 500-6000 h, faixas de backlog, disponibilidade por periodo total, paradas sobrepostas, Base Mestre/Power BI e importacao RTG/LBS com rollback.
