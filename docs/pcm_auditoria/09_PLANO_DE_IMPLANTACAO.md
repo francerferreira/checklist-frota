@@ -37,6 +37,8 @@ Estimativas em dias-pessoa, nao em dias corridos. Nao incluem espera por acesso,
 
 ## Fase 2 - Arquitetura-alvo
 
+Status em 17/07/2026: executada tecnicamente nos documentos `14_ADRS_ARQUITETURA_ALVO_FASE_2.md`, `15_DE_PARA_OPERACIONAL_FASE_2.md` e `16_RESULTADO_FASE_2_ARQUITETURA_ALVO.md`. O gate operacional permanece pendente e migrations continuam em `NO-GO`.
+
 Decisoes obrigatorias:
 
 - `Vehicle` como raiz tecnica e `EquipmentFamily` como classificacao oficial.
