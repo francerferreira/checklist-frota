@@ -13,8 +13,8 @@ Abreviacoes de caminhos: models em `backend/app/models/`, services em `backend/a
 | EQ-01 | cadastro mestre unico | `Vehicle`/`vehicles` | `apply_equipment_profile()` | `/veiculos` | `EquipmentPage` | `test_vehicle_routes.py` | Existente; aceite pendente |
 | EQ-02 | familias RTG/LBS/Spreader | `EquipmentFamily` | `seed_equipment_structure()` | `/equipamentos/estrutura` | `EquipmentPage` | `test_equipment_structure_routes.py` | Existente; dados pendentes |
 | EQ-03 | campos mestres completos | `Vehicle`, `EquipmentProfile` | `apply_equipment_profile()` | `/veiculos` | `EquipmentPage` | parcial em vehicle routes | Parcial |
-| EQ-04 | local atual | `OperationalLocation`, `EquipmentProfile` | profile service | `/equipamentos/locais` | `EquipmentPage` | estrutura routes | Parcial; sem historia |
-| EQ-05 | historico de movimento | Ausente | Ausente | Ausente | Ausente | Ausente | Nao encontrado |
+| EQ-04 | local atual | `OperationalLocation`, `EquipmentProfile` | `move_equipment_location()` | `/equipamentos/locais` | `EquipmentPage` | estrutura routes | Implementado no backend |
+| EQ-05 | historico de movimento | `EquipmentLocationMovement` | `build_equipment_location_history()` | `/equipamentos/{id}/movimentos-localizacao` | tela pendente | `test_equipment_structure_routes.py`, `test_phase3a_location_migration.py` | Implementado no backend; tela Fase 4 |
 | EQ-06 | detalhe dinamico por ativo | models existentes | `resolve_mobile_asset()` | `/operacao-mobile/ativos/{code}` | `vehicles-screen` | `test_mobile_operations_routes.py` | Parcial |
 | EQ-07 | 22 RTG e 16 LBS homologados | `vehicles`/profiles | - | `/veiculos` | `EquipmentPage` | Ausente para dados reais | Validacao operacional |
 | EQ-08 | vinculo LBS-Spreader temporal | `EquipmentLink` | `sync_active_equipment_link()` | `/equipamentos/vinculos` | cadastro | `test_equipment_structure_routes.py` | Existente; homologar regra |

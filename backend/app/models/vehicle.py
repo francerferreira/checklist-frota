@@ -51,6 +51,11 @@ class Vehicle(db.Model):
         back_populates="child",
         lazy="selectin",
     )
+    location_movements = db.relationship(
+        "EquipmentLocationMovement",
+        back_populates="vehicle",
+        lazy="dynamic",
+    )
     operational_state = db.relationship(
         "EquipmentOperationalState",
         back_populates="vehicle",

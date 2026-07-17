@@ -5,7 +5,7 @@
 - Autenticacao padrao: `Authorization: Bearer <token>` via `auth_required()` em `backend/app/services/auth_service.py`.
 - Publicos: `GET /health` e `POST /login`. Logout exige token.
 - Perfis atuais: `admin`, `gestor`, `mecanico`, `motorista`.
-- Total encontrado: 149 endpoints em 22 blueprints, mais `/health`.
+- Total encontrado: 151 endpoints em 22 blueprints, mais `/health`.
 
 ## Saude e autenticacao
 
@@ -28,6 +28,8 @@
 | GET | `/equipamentos/estrutura` | estrutura | Bearer | autenticado | familias/locais | Implementado |
 | POST/PUT | `/equipamentos/familias[/{id}]` | criar/editar familia | Bearer | admin/gestor | `EquipmentFamily` | Implementado |
 | POST/PUT | `/equipamentos/locais[/{id}]` | criar/editar local | Bearer | admin/gestor | `OperationalLocation` | Implementado |
+| GET | `/equipamentos/{id}/movimentos-localizacao` | consultar historico de local | Bearer | autenticado | `build_equipment_location_history()` | Implementado 3A.1 |
+| POST | `/equipamentos/{id}/movimentos-localizacao` | movimentar equipamento | Bearer | admin/gestor | `move_equipment_location()` | Implementado 3A.1 |
 | GET/POST | `/equipamentos/vinculos` | listar/criar vinculo | Bearer | leitura autenticada; escrita admin/gestor | `EquipmentLink` | Implementado |
 | PUT | `/equipamentos/vinculos/{id}/encerrar` | encerrar vinculo | Bearer | admin/gestor | `EquipmentLink` | Implementado |
 

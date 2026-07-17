@@ -19,7 +19,16 @@ os.environ["WASH_CONTROL_FILE"] = ""
 
 from app import create_app
 from app.extensions import db
-from app.models import EquipmentFamily, EquipmentLink, EquipmentProfile, OperationalLocation, User, Vehicle
+from app.models import (
+    AuditLog,
+    EquipmentFamily,
+    EquipmentLink,
+    EquipmentLocationMovement,
+    EquipmentProfile,
+    OperationalLocation,
+    User,
+    Vehicle,
+)
 from app.services.auth_service import generate_token
 
 
@@ -34,6 +43,11 @@ class EquipmentStructureRoutesTests(unittest.TestCase):
             admin = User.query.filter_by(login="admin").first()
             assert admin is not None
             cls.headers = {"Authorization": f"Bearer {generate_token(admin)}"}
+            operator = User(nome="Operador Local", login="operador_local", tipo="motorista", ativo=True)
+            operator.set_password("teste123")
+            db.session.add(operator)
+            db.session.commit()
+            cls.operator_headers = {"Authorization": f"Bearer {generate_token(operator)}"}
 
     @classmethod
     def tearDownClass(cls):
@@ -45,6 +59,7 @@ class EquipmentStructureRoutesTests(unittest.TestCase):
 
     def setUp(self):
         with self.app.app_context():
+            EquipmentLocationMovement.query.delete()
             EquipmentLink.query.delete()
             EquipmentProfile.query.delete()
             Vehicle.query.delete()
@@ -146,6 +161,79 @@ class EquipmentStructureRoutesTests(unittest.TestCase):
         )
         self.assertEqual(response.status_code, 400, response.get_json())
         self.assertIn("Spreader", response.get_json()["error"])
+
+    def test_location_movement_updates_current_location_and_keeps_audit_history(self):
+        origin_response = self.client.post(
+            "/equipamentos/locais",
+            json={"code": "PATIO-ATR-01", "name": "Patio ATR 01", "location_type": "PATIO"},
+            headers=self.headers,
+        )
+        destination_response = self.client.post(
+            "/equipamentos/locais",
+            json={"code": "PATIO-ALFA-04", "name": "Patio Alfandegado 04", "location_type": "PATIO"},
+            headers=self.headers,
+        )
+        self.assertEqual(origin_response.status_code, 201, origin_response.get_json())
+        self.assertEqual(destination_response.status_code, 201, destination_response.get_json())
+        origin = origin_response.get_json()["data"]
+        destination = destination_response.get_json()["data"]
+        vehicle = self._create_vehicle(
+            frota="RTG MOV 01",
+            family=self._family("rtg"),
+            model="RTG",
+            operational_location_id=origin["id"],
+        )
+
+        forbidden = self.client.post(
+            f"/equipamentos/{vehicle['id']}/movimentos-localizacao",
+            json={"to_location_id": destination["id"], "reason": "Mudanca de patio"},
+            headers=self.operator_headers,
+        )
+        self.assertEqual(forbidden.status_code, 403, forbidden.get_json())
+
+        moved = self.client.post(
+            f"/equipamentos/{vehicle['id']}/movimentos-localizacao",
+            json={
+                "to_location_id": destination["id"],
+                "reason": "Mudanca de patio operacional",
+                "notes": "Movimento controlado da Fase 3A",
+            },
+            headers=self.headers,
+        )
+        self.assertEqual(moved.status_code, 201, moved.get_json())
+        movement = moved.get_json()["data"]
+        self.assertEqual(movement["from_location_id"], origin["id"])
+        self.assertEqual(movement["to_location_id"], destination["id"])
+        self.assertEqual(movement["source"], "MANUAL")
+
+        history = self.client.get(
+            f"/equipamentos/{vehicle['id']}/movimentos-localizacao",
+            headers=self.operator_headers,
+        )
+        self.assertEqual(history.status_code, 200, history.get_json())
+        data = history.get_json()["data"]
+        self.assertEqual(data["current_location"]["id"], destination["id"])
+        self.assertEqual(len(data["movements"]), 1)
+
+        duplicate = self.client.post(
+            f"/equipamentos/{vehicle['id']}/movimentos-localizacao",
+            json={"to_location_id": destination["id"], "reason": "Mesmo local"},
+            headers=self.headers,
+        )
+        self.assertEqual(duplicate.status_code, 400, duplicate.get_json())
+
+        with self.app.app_context():
+            current = db.session.get(Vehicle, vehicle["id"])
+            self.assertEqual(current.equipment_profile.operational_location_id, destination["id"])
+            self.assertEqual(current.local, "Patio Alfandegado 04")
+            self.assertEqual(
+                AuditLog.query.filter_by(
+                    entity_type="EQUIPMENT_LOCATION_MOVEMENT",
+                    entity_id=movement["id"],
+                    action="LOCATION_MOVED",
+                ).count(),
+                1,
+            )
 
 
 if __name__ == "__main__":

@@ -3,7 +3,13 @@ from app.models.automation_execution import AutomationExecution
 from app.models.audit_log import AuditLog
 from app.models.checklist import Checklist, ChecklistItem
 from app.models.checklist_catalog_item import ChecklistCatalogItem
-from app.models.equipment_structure import EquipmentFamily, EquipmentLink, EquipmentProfile, OperationalLocation
+from app.models.equipment_structure import (
+    EquipmentFamily,
+    EquipmentLink,
+    EquipmentLocationMovement,
+    EquipmentProfile,
+    OperationalLocation,
+)
 from app.models.emergency import EmergencyEvent, WorkOrderExecution
 from app.models.maintenance import MaintenanceMaterial, MaintenanceSchedule, MaintenanceScheduleItem, MaintenanceWorkOrder
 from app.models.material import Material, MaterialMovement
@@ -31,6 +37,7 @@ __all__ = [
     "ChecklistItem",
     "EquipmentFamily",
     "EquipmentLink",
+    "EquipmentLocationMovement",
     "EquipmentProfile",
     "EquipmentOperationalState",
     "EquipmentStatusEvent",

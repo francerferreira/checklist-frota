@@ -13,8 +13,8 @@ O schema fisico e os dados do PostgreSQL de producao nao foram consultados. Assi
 | `backend/app/` | 79 | 12.601 | API, regras, persistencia, relatorios |
 | `desktop/` | 46 | 23.004 | gestao Desktop PySide6 |
 | `web_app/` | 23 | 33.621 | Web Mobile/PWA e legados JS |
-| `migrations/` | 11 | 752 | Alembic/Flask-Migrate |
-| `tests/` | 33 | aproximadamente 3.400 | pytest e Playwright |
+| `migrations/` | 12 | aproximadamente 850 | Alembic/Flask-Migrate |
+| `tests/` | 34 | aproximadamente 3.500 | pytest e Playwright |
 | `tools/` | 5 | aproximadamente 2.100 | apoio operacional e protecao |
 
 ## Tecnologias e dependencias
@@ -34,13 +34,13 @@ O schema fisico e os dados do PostgreSQL de producao nao foram consultados. Assi
 
 | Pasta | Conteudo | Evidencia |
 |---|---|---|
-| `backend/app/models/` | 46 tabelas declaradas | atributos `__tablename__` |
-| `backend/app/routes/` | 22 blueprints, 149 endpoints | decoradores `@bp.get/post/put/delete` |
+| `backend/app/models/` | 47 tabelas declaradas | atributos `__tablename__` |
+| `backend/app/routes/` | 22 blueprints, 151 endpoints | decoradores `@bp.get/post/put/delete` |
 | `backend/app/services/` | regras de negocio e integracoes | funcoes de servico |
 | `desktop/ui/` | 20 paginas gerenciais | `MainWindow._build_pages()` |
 | `web_app/` | 13 telas/secoes operacionais principais | `<section id=...>` em `index.html` |
-| `migrations/versions/` | baseline + 9 evolucoes lineares | `revision`/`down_revision` |
-| `tests/` | 32 arquivos de teste | nomes listados abaixo |
+| `migrations/versions/` | baseline + 10 evolucoes lineares | `revision`/`down_revision` |
+| `tests/` | 34 arquivos de teste | nomes listados abaixo |
 | `.github/` | automacao do repositorio | workflows versionados |
 
 ## Models e tabelas
@@ -49,7 +49,7 @@ O schema fisico e os dados do PostgreSQL de producao nao foram consultados. Assi
 
 - `User` -> `users`, em `backend/app/models/user.py`.
 - `Vehicle` -> `vehicles`, em `backend/app/models/vehicle.py`.
-- `EquipmentFamily`, `OperationalLocation`, `EquipmentProfile`, `EquipmentLink` -> `equipment_families`, `operational_locations`, `equipment_profiles`, `equipment_links`, em `equipment_structure.py`.
+- `EquipmentFamily`, `OperationalLocation`, `EquipmentProfile`, `EquipmentLink`, `EquipmentLocationMovement` -> estrutura, vinculo e historico de localizacao, em `equipment_structure.py`.
 - `SystemSetting` -> `system_settings`.
 - `RevokedToken` -> `revoked_tokens`.
 
@@ -95,12 +95,13 @@ O schema fisico e os dados do PostgreSQL de producao nao foram consultados. Assi
 | `20260713_0007` | inteligencia e automacoes | `0006` |
 | `20260713_0008` | seguranca e governanca | `0007` |
 | `20260713_0009` | operacao mobile por ativo | `0008` |
+| `20260717_0010` | movimento historico de localizacao | `0009` |
 
 Risco: `backend/app/__init__.py:create_app()` tambem altera/garante schema em runtime por `db.create_all()` e `ensure_runtime_schema()`. Deve ser comparado com o PostgreSQL antes de nova migration.
 
 ## Rotas e APIs
 
-Foram identificados 149 endpoints em blueprints, mais `/health`. Quantidade por arquivo:
+Foram identificados 151 endpoints em blueprints, mais `/health`. Quantidade por arquivo:
 
 | Modulo | Qtd. | Arquivo |
 |---|---:|---|
@@ -110,7 +111,7 @@ Foram identificados 149 endpoints em blueprints, mais `/health`. Quantidade por 
 | Disponibilidade | 5 | `routes/availability.py` |
 | Checklist | 10 | `routes/checklist.py` |
 | Emergenciais/OS | 10 | `routes/emergencies.py` |
-| Estrutura de equipamentos | 8 | `routes/equipment_structure.py` |
+| Estrutura de equipamentos | 10 | `routes/equipment_structure.py` |
 | Inteligencia | 4 | `routes/intelligence.py` |
 | Manutencao | 14 | `routes/maintenance.py` |
 | Materiais | 7 | `routes/materials.py` |
@@ -176,6 +177,6 @@ Detalhamento PCM em `06_MAPA_DE_APIS.md`.
 
 ## Testes existentes
 
-33 arquivos cobrem auditoria, disponibilidade, checklist, navegacao Desktop, emergenciais/OS, estrutura de equipamentos, exportacao, arquivos externos, inteligencia, mensagens, operacao mobile, PCM, migrations 2/3/4/5/6/7/9/11, seguranca, severidade, suprimentos, inspecoes, fuso horario, upload, veiculos, Web Mobile/Playwright e ferramentas de protecao da Fase 1.
+34 arquivos cobrem auditoria, disponibilidade, checklist, navegacao Desktop, emergenciais/OS, estrutura de equipamentos e movimentos de localizacao, exportacao, arquivos externos, inteligencia, mensagens, operacao mobile, PCM, migrations 2/3/4/5/6/7/9/11/3A, seguranca, severidade, suprimentos, inspecoes, fuso horario, upload, veiculos, Web Mobile/Playwright e ferramentas de protecao da Fase 1.
 
 Lacunas de teste: concorrencia de numero de OS, cancelamento/reabertura, correcao de horimetro, ciclos 500-6000 h, faixas de backlog, disponibilidade por periodo total, paradas sobrepostas, Base Mestre/Power BI e importacao RTG/LBS com rollback.

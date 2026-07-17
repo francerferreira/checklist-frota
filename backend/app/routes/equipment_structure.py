@@ -6,7 +6,11 @@ from sqlalchemy.exc import IntegrityError
 from app.extensions import db
 from app.models import EquipmentFamily, EquipmentLink, OperationalLocation, Vehicle
 from app.services.auth_service import auth_required, user_has_management_access
-from app.services.equipment_structure_service import sync_active_equipment_link
+from app.services.equipment_structure_service import (
+    build_equipment_location_history,
+    move_equipment_location,
+    sync_active_equipment_link,
+)
 from app.utils.responses import api_response
 from app.utils.timezone import now_manaus_naive
 
@@ -178,6 +182,39 @@ def update_operational_location(location_id: int):
     except IntegrityError as exc:
         return _integrity_error(exc)
     return api_response(True, data=location.to_dict())
+
+
+@bp.get("/equipamentos/<int:vehicle_id>/movimentos-localizacao")
+@auth_required
+def equipment_location_history(vehicle_id: int):
+    try:
+        data = build_equipment_location_history(vehicle_id)
+    except LookupError as exc:
+        return api_response(False, error=str(exc), status_code=404)
+    return api_response(True, data=data)
+
+
+@bp.post("/equipamentos/<int:vehicle_id>/movimentos-localizacao")
+@auth_required
+def create_equipment_location_movement(vehicle_id: int):
+    denied = _guard_management_access()
+    if denied:
+        return denied
+    try:
+        movement = move_equipment_location(
+            vehicle_id,
+            request.get_json(silent=True) or {},
+            user_id=g.current_user.id,
+        )
+    except LookupError as exc:
+        db.session.rollback()
+        return api_response(False, error=str(exc), status_code=404)
+    except ValueError as exc:
+        db.session.rollback()
+        return api_response(False, error=str(exc), status_code=400)
+    except IntegrityError as exc:
+        return _integrity_error(exc)
+    return api_response(True, data=movement.to_dict(), status_code=201)
 
 
 @bp.get("/equipamentos/vinculos")

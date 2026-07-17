@@ -1,14 +1,18 @@
 from __future__ import annotations
 
+from datetime import datetime
+
 from app.extensions import db
 from app.models.equipment_structure import (
     EquipmentFamily,
     EquipmentLink,
+    EquipmentLocationMovement,
     EquipmentProfile,
     OperationalLocation,
 )
 from app.models.vehicle import Vehicle
-from app.utils.timezone import now_manaus_naive
+from app.services.audit_service import record_event
+from app.utils.timezone import MANAUS_TZ, now_manaus_naive
 
 
 DEFAULT_EQUIPMENT_FAMILIES = (
@@ -43,6 +47,24 @@ def _optional_id(value) -> int | None:
     except (TypeError, ValueError) as exc:
         raise ValueError("Identificador invalido na estrutura do equipamento.") from exc
     return parsed if parsed > 0 else None
+
+
+def _movement_datetime(value) -> datetime:
+    if value in (None, ""):
+        return now_manaus_naive()
+    try:
+        parsed = datetime.fromisoformat(str(value).strip().replace("Z", "+00:00"))
+    except (TypeError, ValueError) as exc:
+        raise ValueError("Data da movimentacao invalida.") from exc
+    if parsed.tzinfo is not None:
+        parsed = parsed.astimezone(MANAUS_TZ).replace(tzinfo=None)
+    if parsed > now_manaus_naive():
+        raise ValueError("Data da movimentacao nao pode estar no futuro.")
+    return parsed
+
+
+def _legacy_location_text(location: OperationalLocation) -> str:
+    return location.full_name()[:120]
 
 
 def seed_equipment_structure() -> None:
@@ -114,7 +136,7 @@ def apply_equipment_profile(vehicle: Vehicle, payload: dict) -> EquipmentProfile
             raise ValueError("Local operacional invalido ou inativo.")
         profile.operational_location_id = location.id if location else None
         if location:
-            vehicle.local = location.full_name()
+            vehicle.local = _legacy_location_text(location)
 
     if "serial_number" in payload:
         profile.serial_number = _clean(payload.get("serial_number"))
@@ -128,6 +150,103 @@ def apply_equipment_profile(vehicle: Vehicle, payload: dict) -> EquipmentProfile
             raise ValueError("Criticidade invalida.")
         profile.criticality = criticality
     return profile
+
+
+def move_equipment_location(
+    vehicle_id: int,
+    payload: dict,
+    *,
+    user_id: int,
+    source: str = "MANUAL",
+) -> EquipmentLocationMovement:
+    vehicle = db.session.get(Vehicle, vehicle_id)
+    if not vehicle or not vehicle.ativo:
+        raise LookupError("Equipamento ativo nao encontrado.")
+    profile = (
+        EquipmentProfile.query.filter_by(vehicle_id=vehicle.id)
+        .with_for_update()
+        .first()
+    )
+    if not profile:
+        raise ValueError("Equipamento sem perfil tecnico para movimentacao.")
+
+    destination_id = _optional_id(payload.get("to_location_id"))
+    if not destination_id:
+        raise ValueError("Informe o local de destino.")
+    destination = db.session.get(OperationalLocation, destination_id)
+    if not destination or not destination.active:
+        raise ValueError("Local de destino invalido ou inativo.")
+
+    origin = profile.location
+    if origin and origin.id == destination.id:
+        raise ValueError("O equipamento ja esta no local informado.")
+
+    reason = _clean(payload.get("reason"))
+    if not reason:
+        raise ValueError("Informe o motivo da movimentacao.")
+    if len(reason) > 255:
+        raise ValueError("O motivo da movimentacao deve ter ate 255 caracteres.")
+
+    moved_at = _movement_datetime(payload.get("moved_at"))
+    latest = (
+        EquipmentLocationMovement.query.filter_by(vehicle_id=vehicle.id)
+        .order_by(
+            EquipmentLocationMovement.moved_at.desc(),
+            EquipmentLocationMovement.id.desc(),
+        )
+        .first()
+    )
+    if latest and moved_at <= latest.moved_at:
+        raise ValueError("A movimentacao deve ser posterior ao ultimo registro do equipamento.")
+
+    normalized_source = str(source or "MANUAL").strip().upper()
+    if normalized_source not in {"MANUAL", "IMPORTADO", "AUTOMACAO", "MIGRACAO"}:
+        raise ValueError("Origem da movimentacao invalida.")
+
+    movement = EquipmentLocationMovement(
+        vehicle_id=vehicle.id,
+        from_location_id=origin.id if origin else None,
+        to_location_id=destination.id,
+        reason=reason,
+        notes=_clean(payload.get("notes")),
+        source=normalized_source,
+        moved_at=moved_at,
+        created_by_user_id=user_id,
+    )
+    db.session.add(movement)
+    profile.operational_location_id = destination.id
+    vehicle.local = _legacy_location_text(destination)
+    db.session.flush()
+    record_event(
+        user_id=user_id,
+        entity_type="EQUIPMENT_LOCATION_MOVEMENT",
+        entity_id=movement.id,
+        action="LOCATION_MOVED",
+        old_value=origin.full_name() if origin else "SEM_LOCAL",
+        new_value=f"{destination.full_name()} | Motivo: {reason}",
+    )
+    db.session.commit()
+    return movement
+
+
+def build_equipment_location_history(vehicle_id: int) -> dict:
+    vehicle = db.session.get(Vehicle, vehicle_id)
+    if not vehicle:
+        raise LookupError("Equipamento nao encontrado.")
+    profile = vehicle.equipment_profile
+    movements = (
+        EquipmentLocationMovement.query.filter_by(vehicle_id=vehicle.id)
+        .order_by(
+            EquipmentLocationMovement.moved_at.desc(),
+            EquipmentLocationMovement.id.desc(),
+        )
+        .all()
+    )
+    return {
+        "vehicle_id": vehicle.id,
+        "current_location": profile.location.to_dict() if profile and profile.location else None,
+        "movements": [movement.to_dict() for movement in movements],
+    }
 
 
 def sync_active_equipment_link(

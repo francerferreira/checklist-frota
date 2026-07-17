@@ -56,6 +56,8 @@ Decisoes obrigatorias:
 
 ### 3A Equipamento e governanca
 
+Status em 17/07/2026: incremento 3A.1 de movimento historico de localizacao implementado no backend e migration `20260717_0010`. Parametros, matriz de permissoes e evidencias normalizadas permanecem pendentes.
+
 - Movimento de localizacao.
 - Parametros operacionais.
 - Permissoes e auditoria de dominio.

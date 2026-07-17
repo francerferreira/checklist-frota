@@ -150,6 +150,82 @@ class EquipmentProfile(db.Model):
         }
 
 
+class EquipmentLocationMovement(db.Model):
+    __tablename__ = "equipment_location_movements"
+
+    id = db.Column(db.Integer, primary_key=True)
+    vehicle_id = db.Column(
+        db.Integer,
+        db.ForeignKey("vehicles.id"),
+        nullable=False,
+        index=True,
+    )
+    from_location_id = db.Column(
+        db.Integer,
+        db.ForeignKey("operational_locations.id"),
+        nullable=True,
+        index=True,
+    )
+    to_location_id = db.Column(
+        db.Integer,
+        db.ForeignKey("operational_locations.id"),
+        nullable=False,
+        index=True,
+    )
+    reason = db.Column(db.String(255), nullable=False)
+    notes = db.Column(db.Text, nullable=True)
+    source = db.Column(db.String(30), nullable=False, default="MANUAL", index=True)
+    moved_at = db.Column(db.DateTime, nullable=False, default=now_manaus_naive, index=True)
+    created_by_user_id = db.Column(
+        db.Integer,
+        db.ForeignKey("users.id"),
+        nullable=False,
+        index=True,
+    )
+    created_at = db.Column(db.DateTime, nullable=False, default=now_manaus_naive)
+
+    vehicle = db.relationship("Vehicle", back_populates="location_movements", lazy="joined")
+    from_location = db.relationship(
+        "OperationalLocation",
+        foreign_keys=[from_location_id],
+        lazy="joined",
+    )
+    to_location = db.relationship(
+        "OperationalLocation",
+        foreign_keys=[to_location_id],
+        lazy="joined",
+    )
+    created_by = db.relationship("User", lazy="joined")
+
+    __table_args__ = (
+        db.CheckConstraint(
+            "from_location_id IS NULL OR from_location_id <> to_location_id",
+            name="ck_equipment_location_movement_distinct",
+        ),
+        db.CheckConstraint(
+            "source IN ('MANUAL', 'IMPORTADO', 'AUTOMACAO', 'MIGRACAO')",
+            name="ck_equipment_location_movement_source",
+        ),
+    )
+
+    def to_dict(self) -> dict:
+        return {
+            "id": self.id,
+            "vehicle_id": self.vehicle_id,
+            "from_location_id": self.from_location_id,
+            "to_location_id": self.to_location_id,
+            "reason": self.reason,
+            "notes": self.notes,
+            "source": self.source,
+            "moved_at": self.moved_at.isoformat() if self.moved_at else None,
+            "created_by_user_id": self.created_by_user_id,
+            "created_at": self.created_at.isoformat() if self.created_at else None,
+            "from_location": self.from_location.to_dict() if self.from_location else None,
+            "to_location": self.to_location.to_dict() if self.to_location else None,
+            "created_by": self.created_by.to_dict() if self.created_by else None,
+        }
+
+
 class EquipmentLink(db.Model):
     __tablename__ = "equipment_links"
 

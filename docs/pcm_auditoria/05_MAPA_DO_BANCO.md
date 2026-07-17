@@ -2,7 +2,7 @@
 
 ## Fonte do mapa
 
-Mapa logico derivado de 46 `__tablename__` em `backend/app/models/` e da cadeia `20260712_0000` a `20260713_0009` em `migrations/versions/`. O PostgreSQL fisico de producao nao foi inspecionado; divergencias reais continuam pendentes de comparacao.
+Mapa logico derivado de 47 `__tablename__` em `backend/app/models/` e da cadeia `20260712_0000` a `20260717_0010` em `migrations/versions/`. O PostgreSQL fisico de producao nao foi inspecionado; divergencias reais continuam pendentes de comparacao.
 
 ## Diagrama logico PCM
 
@@ -42,6 +42,7 @@ Observacao: `PreventivePlan` se relaciona com `MaintenanceSchedule` pelo `source
 | `operational_locations` | `id` | `parent_id -> self` | code, name, type | code unique | area/patio/berco hierarquico |
 | `equipment_profiles` | `id` | `vehicle_id`, `family_id`, `operational_location_id` | vehicle/family/criticality | vehicle unique; serial unique | complemento tecnico/local atual |
 | `equipment_links` | `id` | parent/child vehicle, created_by user | tipo, inicio, ativo | FKs/index; checks pai diferente | vinculo temporal LBS-Spreader |
+| `equipment_location_movements` | `id` | vehicle, origem/destino, created_by | destino, motivo, source, moved_at | FKs/datas/source index; origem diferente do destino | historico auditavel de localizacao |
 | `equipment_operational_states` | `id` | `vehicle_id` | status e checks de leitura | vehicle unique | snapshot de status/horimetro |
 | `equipment_status_events` | `id` | vehicle, created_by | status, source, inicio | status/datas/FKs index | historico de disponibilidade |
 | `hourmeter_readings` | `id` | vehicle, created_by | leitura >= 0; data nao futura na regra | unique `(vehicle_id, recorded_at)` | serie de horimetro |
