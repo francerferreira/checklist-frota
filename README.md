@@ -43,15 +43,9 @@ requirements.txt
   - micro por veiculo
   - consulta detalhada por item
 
-## Usuarios padrao
+## Primeiro administrador
 
-Criados automaticamente na primeira inicializacao:
-
-- Admin: `admin` / `123456`
-- Gestor: `gestor` / `123456`
-- Motorista: `motorista` / `123456`
-
-O desktop agora abre com `admin / 123456` preenchido por padrao.
+O sistema nao cria usuarios nem senhas padrao automaticamente. Para inicializar uma base vazia, informe temporariamente `INITIAL_ADMIN_LOGIN` e `INITIAL_ADMIN_PASSWORD` no ambiente do backend. A senha precisa ter pelo menos 12 caracteres; depois do primeiro acesso, remova essas variaveis.
 
 ## Inventario da frota
 

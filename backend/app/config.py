@@ -33,6 +33,13 @@ def _csv_env(name: str) -> tuple[str, ...]:
     return tuple(item.strip() for item in (os.getenv(name) or "").split(",") if item.strip())
 
 
+def _bool_env(name: str, default: bool = False) -> bool:
+    value = os.getenv(name)
+    if value is None:
+        return default
+    return value.strip().lower() in {"1", "true", "yes", "on"}
+
+
 class Config:
     SECRET_KEY = os.getenv("SECRET_KEY", "checklist-frota-dev-secret")
     SQLALCHEMY_DATABASE_URI = _normalize_database_url(
@@ -42,8 +49,14 @@ class Config:
     JSON_SORT_KEYS = False
     MAX_CONTENT_LENGTH = 15 * 1024 * 1024
     TOKEN_MAX_AGE_SECONDS = int(os.getenv("TOKEN_MAX_AGE_SECONDS", "28800"))
-    CORS_STRICT_MODE = os.getenv("CORS_STRICT_MODE", "false").strip().lower() in {"1", "true", "yes"}
-    CORS_ALLOWED_ORIGINS = _csv_env("CORS_ALLOWED_ORIGINS")
+    CORS_STRICT_MODE = _bool_env("CORS_STRICT_MODE", default=True)
+    CORS_ALLOWED_ORIGINS = _csv_env("CORS_ALLOWED_ORIGINS") or (
+        "http://127.0.0.1:5500",
+        "http://localhost:5500",
+    )
+    INITIAL_ADMIN_LOGIN = (os.getenv("INITIAL_ADMIN_LOGIN") or "").strip()
+    INITIAL_ADMIN_PASSWORD = os.getenv("INITIAL_ADMIN_PASSWORD") or ""
+    INITIAL_ADMIN_NAME = (os.getenv("INITIAL_ADMIN_NAME") or "Administrador").strip()
     AUTOMATION_JOB_TOKEN = os.getenv("AUTOMATION_JOB_TOKEN")
     UPLOAD_FOLDER = DATA_ROOT / "uploads"
     BACKUP_FOLDER = Path(os.getenv("BACKUP_FOLDER", DATA_ROOT / "backups"))

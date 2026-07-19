@@ -15,7 +15,10 @@ DB_PATH = Path(tempfile.gettempdir()) / "checklist_frota_security_governance_tes
 os.environ["DATABASE_URL"] = f"sqlite:///{DB_PATH}"
 os.environ["INVENTORY_FILE"] = ""
 os.environ["WASH_CONTROL_FILE"] = ""
-os.environ["CORS_STRICT_MODE"] = "false"
+os.environ["CORS_STRICT_MODE"] = "true"
+os.environ["CORS_ALLOWED_ORIGINS"] = "https://web-seguro.example"
+os.environ["INITIAL_ADMIN_LOGIN"] = "admin"
+os.environ["INITIAL_ADMIN_PASSWORD"] = "SenhaDeTesteForte123!"
 
 from app import create_app
 from app.extensions import db
@@ -50,7 +53,7 @@ class SecurityGovernanceRoutesTests(unittest.TestCase):
         self.assertIn("healthy", payload["audit"])
 
     def test_new_logout_revokes_only_the_current_session(self):
-        login = self.client.post("/login", json={"login": "admin", "senha": "123456"})
+        login = self.client.post("/login", json={"login": "admin", "senha": "SenhaDeTesteForte123!"})
         self.assertEqual(login.status_code, 200, login.get_json())
         token = login.get_json()["data"]["token"]
         headers = {"Authorization": f"Bearer {token}"}
@@ -62,6 +65,12 @@ class SecurityGovernanceRoutesTests(unittest.TestCase):
             legacy_token = _serializer().dumps({"user_id": self.admin.id, "tipo": self.admin.tipo})
         legacy_headers = {"Authorization": f"Bearer {legacy_token}"}
         self.assertEqual(self.client.get("/admin/audit-health", headers=legacy_headers).status_code, 200)
+
+    def test_cors_allows_only_the_configured_web_origin(self):
+        allowed = self.client.get("/health", headers={"Origin": "https://web-seguro.example"})
+        blocked = self.client.get("/health", headers={"Origin": "https://example-attacker.invalid"})
+        self.assertEqual(allowed.headers.get("Access-Control-Allow-Origin"), "https://web-seguro.example")
+        self.assertIsNone(blocked.headers.get("Access-Control-Allow-Origin"))
 
 
 if __name__ == "__main__":

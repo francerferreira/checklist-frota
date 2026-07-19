@@ -12,30 +12,7 @@ from app.services.wash_service import discover_wash_file, ensure_auxiliary_vehic
 
 
 def seed_reference_data() -> None:
-    if not User.query.filter_by(login="admin").first():
-        admin = User(nome="Administrador", login="admin", tipo="admin")
-        admin.set_password("123456")
-        db.session.add(admin)
-
-    if not User.query.filter_by(login="gestor").first():
-        gestor = User(nome="Gestor Operacional", login="gestor", tipo="gestor")
-        gestor.set_password("123456")
-        db.session.add(gestor)
-
-    if not User.query.filter_by(login="motorista").first():
-        motorista = User(nome="Motorista Padrao", login="motorista", tipo="motorista")
-        motorista.set_password("123456")
-        db.session.add(motorista)
-
-    if not User.query.filter_by(login="mecanico").first():
-        mecanico = User(nome="Mecanico Padrao", login="mecanico", tipo="mecanico")
-        mecanico.set_password("123456")
-        db.session.add(mecanico)
-
-    if not User.query.filter_by(login="francer").first():
-        francer = User(nome="Francer Ferreira", login="francer", tipo="admin")
-        francer.set_password("123456")
-        db.session.add(francer)
+    _seed_initial_admin()
 
     db.session.commit()
     seed_equipment_structure()
@@ -51,3 +28,21 @@ def seed_reference_data() -> None:
     if WashQueueItem.query.count() == 0:
         sync_wash_queue(wash_file)
     seed_operational_states()
+
+
+def _seed_initial_admin() -> None:
+    """Create an admin only when an explicit, strong bootstrap secret exists."""
+    login = current_app.config.get("INITIAL_ADMIN_LOGIN", "")
+    password = current_app.config.get("INITIAL_ADMIN_PASSWORD", "")
+    if not login and not password:
+        return
+    if not login or not password:
+        raise RuntimeError("INITIAL_ADMIN_LOGIN e INITIAL_ADMIN_PASSWORD devem ser informados juntos.")
+    if len(password) < 12:
+        raise RuntimeError("INITIAL_ADMIN_PASSWORD deve ter pelo menos 12 caracteres.")
+    if User.query.filter_by(login=login).first():
+        return
+
+    admin = User(nome=current_app.config.get("INITIAL_ADMIN_NAME") or "Administrador", login=login, tipo="admin")
+    admin.set_password(password)
+    db.session.add(admin)

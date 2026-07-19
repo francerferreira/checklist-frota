@@ -65,7 +65,7 @@ start "Checklist Desktop" cmd /c "set ""CHECKLIST_API_URL=%CHECKLIST_API_URL%"" 
 echo.
 echo Sistema iniciado.
 echo Login padrao local: admin
-echo Senha padrao local: 123456
+echo Nenhuma senha padrao e criada automaticamente.
 echo API em uso: %CHECKLIST_API_URL%
 echo.
 pause

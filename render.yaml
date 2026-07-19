@@ -11,9 +11,15 @@ services:
       - key: TOKEN_MAX_AGE_SECONDS
         value: 28800
       - key: CORS_STRICT_MODE
-        value: "false"
+        value: "true"
       - key: CORS_ALLOWED_ORIGINS
+        value: https://checklist-web-uej3.onrender.com
+      - key: INITIAL_ADMIN_LOGIN
         sync: false
+      - key: INITIAL_ADMIN_PASSWORD
+        sync: false
+      - key: INITIAL_ADMIN_NAME
+        value: Administrador
       - key: AUTOMATION_JOB_TOKEN
         sync: false
       - key: STORAGE_BACKEND
