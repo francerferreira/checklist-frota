@@ -34,7 +34,8 @@ def create_app() -> Flask:
     db.init_app(app)
     migrate.init_app(app, db)
     allowed_origins = app.config["CORS_ALLOWED_ORIGINS"]
-    cors_origins = allowed_origins if app.config["CORS_STRICT_MODE"] else ("*",)
+    # Never reflect arbitrary origins; an old environment flag must not reopen CORS.
+    cors_origins = allowed_origins
     cors.init_app(app, resources={r"/*": {"origins": cors_origins}})
 
     @app.get("/health")
