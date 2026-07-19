@@ -1,13 +1,13 @@
 ﻿@echo off
-setlocal
+setlocal EnableExtensions EnableDelayedExpansion
 chcp 65001 >nul
 
 pushd "%~dp0"
 set "ROOT=%CD%"
 set "WEB_PORT=5500"
 set "WEB_URL=http://127.0.0.1:%WEB_PORT%"
-set "WEB_OPEN_URL=%WEB_URL%/?v=20260420-02"
 if not defined CHECKLIST_API_URL set "CHECKLIST_API_URL=https://checklist-frota-qngw.onrender.com"
+set "USE_LOCAL_API=0"
 echo API padrao do Web Mobile: %CHECKLIST_API_URL%
 echo.
 
@@ -16,38 +16,23 @@ echo   Checklist de Frota - Web Mobile
 echo ============================================
 echo.
 
-for /f "usebackq delims=" %%I in (`powershell -NoProfile -Command "$root = Get-ChildItem $env:USERPROFILE -Directory | Where-Object { $_.Name -like 'OneDrive*' } | Select-Object -First 1 -ExpandProperty FullName; if (-not $root) { exit 1 }; $pg = Join-Path $root 'Documentos\Postgres\pgsql'; if (Test-Path $pg) { Write-Output $pg } else { exit 1 }"`) do set "PGROOT=%%I"
-
-if not defined PGROOT (
-    echo Nao foi possivel localizar o PostgreSQL portatil em Documentos\Postgres\pgsql.
-    echo Abra primeiro pelo arquivo abrir_checklist_frota.bat ou verifique a pasta do PostgreSQL.
-    pause
-    exit /b 1
-)
-
-set "PGBIN=%PGROOT%\bin"
-set "PGDATA=%PGROOT%\data"
-set "PGLOG=%PGROOT%\postgres.log"
-
-echo [1/4] Verificando PostgreSQL...
-"%PGBIN%\pg_isready.exe" -h 127.0.0.1 -p 5432 >nul 2>&1
-if errorlevel 1 (
-    echo PostgreSQL parado. Iniciando na porta 5432...
-    "%PGBIN%\pg_ctl.exe" -D "%PGDATA%" -l "%PGLOG%" start
+echo [1/4] Verificando API na nuvem...
+echo %CHECKLIST_API_URL% | findstr /I "127.0.0.1 localhost" >nul
+if not errorlevel 1 set "USE_LOCAL_API=1"
+if "!USE_LOCAL_API!"=="0" (
+    powershell -NoProfile -Command "try { Invoke-WebRequest -Uri '%CHECKLIST_API_URL%/health' -UseBasicParsing -TimeoutSec 8 | Out-Null; exit 0 } catch { exit 1 }"
     if errorlevel 1 (
-        echo Falha ao iniciar PostgreSQL.
-        pause
-        exit /b 1
+        echo API na nuvem indisponivel. Usando backend local.
+        set "USE_LOCAL_API=1"
+    ) else (
+        echo API na nuvem respondeu.
     )
-    timeout /t 3 >nul
-) else (
-    echo PostgreSQL ja esta ativo.
 )
 
 echo.
 echo [2/4] Verificando backend Flask...
-echo %CHECKLIST_API_URL% | findstr /I "127.0.0.1 localhost" >nul
-if not errorlevel 1 (
+if "!USE_LOCAL_API!"=="1" (
+    set "CHECKLIST_API_URL=http://127.0.0.1:5000"
     powershell -NoProfile -Command "try { Invoke-WebRequest -Uri 'http://127.0.0.1:5000/' -UseBasicParsing -TimeoutSec 2 | Out-Null; exit 0 } catch { exit 1 }"
     if errorlevel 1 (
         echo Backend nao respondeu em http://127.0.0.1:5000.
@@ -74,6 +59,8 @@ if errorlevel 1 (
 )
 
 for /f "usebackq delims=" %%I in (`powershell -NoProfile -Command "$ip = Get-NetIPAddress -AddressFamily IPv4 | Where-Object { $_.IPAddress -notlike '127.*' -and $_.PrefixOrigin -ne 'WellKnown' } | Sort-Object InterfaceMetric | Select-Object -First 1 -ExpandProperty IPAddress; if ($ip) { Write-Output $ip }"`) do set "LOCAL_IP=%%I"
+if "!USE_LOCAL_API!"=="1" if defined LOCAL_IP set "CHECKLIST_API_URL=http://!LOCAL_IP!:5000"
+set "WEB_OPEN_URL=%WEB_URL%/?v=20260719-01^&api=!CHECKLIST_API_URL!"
 
 echo.
 echo [4/4] Abrindo navegador...
@@ -85,7 +72,7 @@ echo %WEB_OPEN_URL%
 echo.
 if defined LOCAL_IP (
     echo Para abrir no celular na mesma rede Wi-Fi:
-    echo http://%LOCAL_IP%:%WEB_PORT%/?v=20260420-02
+    echo http://!LOCAL_IP!:%WEB_PORT%/?v=20260719-01^&api=!CHECKLIST_API_URL!
     echo.
 )
 echo Na tela de login do Web Mobile, use a API:

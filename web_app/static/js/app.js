@@ -433,6 +433,7 @@ elements.apiBaseUrl.value = state.apiBaseUrl;
 updateConnectionStatus();
 
 function resolveApiBaseUrl() {
+    const requestedUrl = new URLSearchParams(window.location.search).get("api")?.trim().replace(/\/$/, "");
     const savedUrl = localStorage.getItem("apiBaseUrl");
     const configuredUrl = window.CHECKLIST_CONFIG?.API_BASE_URL?.replace(/\/$/, "");
     const currentHost = window.location.hostname || "127.0.0.1";
@@ -440,6 +441,11 @@ function resolveApiBaseUrl() {
     const currentUrl = `${currentProtocol}//${currentHost}:5000`;
     const isRemoteAccess = currentHost !== "127.0.0.1" && currentHost !== "localhost";
     const isSavedLocal = savedUrl?.includes("127.0.0.1") || savedUrl?.includes("localhost");
+
+    if (requestedUrl && /^https?:\/\//i.test(requestedUrl)) {
+        localStorage.setItem("apiBaseUrl", requestedUrl);
+        return requestedUrl;
+    }
 
     if (configuredUrl && (!savedUrl || isSavedLocal)) {
         localStorage.setItem("apiBaseUrl", configuredUrl);
@@ -604,10 +610,10 @@ async function login(credentials) {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify(credentials),
-        }, 20000);
+        }, 45000);
     } catch (error) {
         if (error.name === "AbortError") {
-            throw new Error("O login demorou demais para responder. Tente novamente em instantes.");
+            throw new Error("A API nao respondeu em 45 segundos (" + state.apiBaseUrl + "). Verifique a conexao ou abra pelo iniciar local.");
         }
         throw error;
     }
