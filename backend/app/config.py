@@ -50,10 +50,15 @@ class Config:
     MAX_CONTENT_LENGTH = 15 * 1024 * 1024
     TOKEN_MAX_AGE_SECONDS = int(os.getenv("TOKEN_MAX_AGE_SECONDS", "28800"))
     CORS_STRICT_MODE = _bool_env("CORS_STRICT_MODE", default=True)
-    CORS_ALLOWED_ORIGINS = _csv_env("CORS_ALLOWED_ORIGINS") or (
-        "https://checklist-web-uej3.onrender.com",
-        "http://127.0.0.1:5500",
-        "http://localhost:5500",
+    CORS_ALLOWED_ORIGINS = tuple(
+        dict.fromkeys(
+            _csv_env("CORS_ALLOWED_ORIGINS")
+            + (
+                "https://checklist-web-uej3.onrender.com",
+                "http://127.0.0.1:5500",
+                "http://localhost:5500",
+            )
+        )
     )
     INITIAL_ADMIN_LOGIN = (os.getenv("INITIAL_ADMIN_LOGIN") or "").strip()
     INITIAL_ADMIN_PASSWORD = os.getenv("INITIAL_ADMIN_PASSWORD") or ""
