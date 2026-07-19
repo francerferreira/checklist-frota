@@ -79,7 +79,7 @@ As contagens abaixo representam criterios auditados na matriz `03_DE_PARA_FUNCIO
 - Nao existem cancelamento e reabertura formal de OS.
 - Backlog nao possui todas as situacoes, faixas de idade e visoes exigidas.
 - MTBF, MTTR e disponibilidade existem com conceitos diferentes ou cobertura parcial.
-- Nao existe Base Mestre consolidada nem endpoint especifico para Power BI.
+- A Base Mestre API foi criada na Fase 5 com contrato `pcm.base_mestre.v1`; a tela dedicada e a homologacao Power BI ainda estao pendentes.
 - A importacao Excel atual trata apenas planilhas `CARRETAS` e `CAVALOS`, sem staging, preview e rollback de RTG/LBS.
 
 ## Principais riscos

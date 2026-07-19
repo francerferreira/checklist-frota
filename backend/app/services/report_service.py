@@ -1,12 +1,28 @@
 from __future__ import annotations
 
-from datetime import datetime, timedelta
+from datetime import date, datetime, timedelta
 import re
 
-from sqlalchemy import case, desc, func, or_
+from sqlalchemy import and_, case, desc, func, or_
+from sqlalchemy.orm import joinedload
 
 from app.extensions import db
-from app.models import Activity, ActivityItem, Checklist, ChecklistItem, MaintenanceScheduleItem, MechanicNonConformity, User, Vehicle, WashRecord
+from app.models import (
+    Activity,
+    ActivityItem,
+    Checklist,
+    ChecklistItem,
+    EquipmentFamily,
+    EquipmentProfile,
+    MaintenanceSchedule,
+    MaintenanceScheduleItem,
+    MaintenanceWorkOrder,
+    MechanicNonConformity,
+    User,
+    Vehicle,
+    WashRecord,
+)
+from app.utils.timezone import now_manaus_naive
 
 _ORIGIN_PATTERN = re.compile(r"\[ORIGEM:(?P<type>[A-Z_]+)#(?P<id>\d+)\]")
 
@@ -248,6 +264,292 @@ def build_dashboard_summary() -> dict:
         "tempo_medio_atividade_para_resolucao_minutos": _average_minutes(activity_to_resolution_minutes),
         "itens_criticos": critical_items,
         "manutencao_portuaria": build_maintenance_intelligence_overview(),
+    }
+
+
+def _parse_master_base_date(value: str | None, field_name: str) -> date | None:
+    if not value:
+        return None
+    try:
+        return date.fromisoformat(str(value).strip())
+    except ValueError as exc:
+        raise ValueError(f"Data {field_name} invalida; use AAAA-MM-DD.") from exc
+
+
+def _master_base_row(item: MaintenanceScheduleItem) -> dict:
+    schedule = item.schedule
+    vehicle = item.vehicle
+    profile = vehicle.equipment_profile if vehicle else None
+    location = profile.location if profile else None
+    family = profile.family if profile else None
+    work_order = item.work_order
+    reference_date = item.scheduled_date or (item.created_at.date() if item.created_at else None)
+    age_days = (now_manaus_naive().date() - reference_date).days if reference_date else None
+    operational_state = vehicle.operational_state if vehicle else None
+
+    return {
+        "intervention_id": f"INTERVENCAO-{item.id:08d}",
+        "schedule_item_id": item.id,
+        "schedule_id": item.schedule_id,
+        "work_order_id": work_order.id if work_order else None,
+        "order_number": work_order.order_number if work_order else None,
+        "source_type": schedule.source_type if schedule else None,
+        "source_origin_type": schedule.source_origin_type() if schedule else None,
+        "title": schedule.title if schedule else None,
+        "item_name": work_order.item_name if work_order and work_order.item_name else (schedule.item_name if schedule else None),
+        "status": work_order.status if work_order else item.status,
+        "item_status": item.status,
+        "work_order_status": work_order.status if work_order else None,
+        "scheduled_date": item.scheduled_date.isoformat() if item.scheduled_date else None,
+        "created_at": item.created_at.isoformat() if item.created_at else None,
+        "updated_at": item.updated_at.isoformat() if item.updated_at else None,
+        "age_days": max(age_days, 0) if age_days is not None else None,
+        "assigned_mechanic_user_id": (
+            work_order.assigned_mechanic_user_id
+            if work_order and work_order.assigned_mechanic_user_id
+            else item.assigned_mechanic_user_id
+        ),
+        "vehicle": {
+            "id": vehicle.id,
+            "frota": vehicle.frota,
+            "modelo": vehicle.modelo,
+            "tipo": vehicle.tipo,
+            "ativo": bool(vehicle.ativo),
+        }
+        if vehicle
+        else None,
+        "family": {
+            "id": family.id,
+            "code": family.code,
+            "name": family.name,
+        }
+        if family
+        else None,
+        "location": {
+            "id": location.id,
+            "code": location.code,
+            "name": location.name,
+            "full_name": location.full_name(),
+        }
+        if location
+        else None,
+        "operational_status": operational_state.operational_status if operational_state else "SEM_APONTAMENTO",
+        "latest_hourmeter": (
+            float(operational_state.latest_hourmeter)
+            if operational_state and operational_state.latest_hourmeter is not None
+            else None
+        ),
+    }
+
+
+def build_management_master_base(
+    *,
+    page: int = 1,
+    page_size: int = 50,
+    family_code: str | None = None,
+    vehicle_id: int | None = None,
+    location_id: int | None = None,
+    status: str | None = None,
+    source_type: str | None = None,
+    search: str | None = None,
+    date_from: str | None = None,
+    date_to: str | None = None,
+    active_only: bool = True,
+) -> dict:
+    if page < 1:
+        raise ValueError("A pagina deve ser maior que zero.")
+    if page_size < 1 or page_size > 100:
+        raise ValueError("O tamanho da pagina deve estar entre 1 e 100.")
+
+    parsed_date_from = _parse_master_base_date(date_from, "inicial")
+    parsed_date_to = _parse_master_base_date(date_to, "final")
+    if parsed_date_from and parsed_date_to and parsed_date_from > parsed_date_to:
+        raise ValueError("A data inicial nao pode ser posterior a data final.")
+
+    query = (
+        MaintenanceScheduleItem.query
+        .join(MaintenanceSchedule, MaintenanceSchedule.id == MaintenanceScheduleItem.schedule_id)
+        .join(Vehicle, Vehicle.id == MaintenanceScheduleItem.vehicle_id)
+        .outerjoin(EquipmentProfile, EquipmentProfile.vehicle_id == Vehicle.id)
+        .outerjoin(EquipmentFamily, EquipmentFamily.id == EquipmentProfile.family_id)
+        .outerjoin(
+            MaintenanceWorkOrder,
+            MaintenanceWorkOrder.schedule_item_id == MaintenanceScheduleItem.id,
+        )
+        .options(
+            joinedload(MaintenanceScheduleItem.schedule),
+            joinedload(MaintenanceScheduleItem.vehicle),
+            joinedload(MaintenanceScheduleItem.work_order),
+        )
+    )
+    if active_only:
+        query = query.filter(Vehicle.ativo.is_(True), Vehicle.retirado_em.is_(None))
+    if family_code:
+        query = query.filter(func.lower(EquipmentFamily.code) == str(family_code).strip().lower())
+    if vehicle_id:
+        query = query.filter(Vehicle.id == vehicle_id)
+    if location_id:
+        query = query.filter(EquipmentProfile.operational_location_id == location_id)
+    if status:
+        normalized_status = str(status).strip().upper()
+        query = query.filter(
+            or_(
+                and_(
+                    MaintenanceWorkOrder.id.isnot(None),
+                    MaintenanceWorkOrder.status == normalized_status,
+                ),
+                and_(
+                    MaintenanceWorkOrder.id.is_(None),
+                    MaintenanceScheduleItem.status == normalized_status,
+                ),
+            )
+        )
+    if source_type:
+        query = query.filter(MaintenanceSchedule.source_type == str(source_type).strip().upper())
+    if search and str(search).strip():
+        term = f"%{str(search).strip()}%"
+        query = query.filter(
+            or_(
+                MaintenanceWorkOrder.order_number.ilike(term),
+                MaintenanceSchedule.title.ilike(term),
+                MaintenanceSchedule.item_name.ilike(term),
+                Vehicle.frota.ilike(term),
+                Vehicle.modelo.ilike(term),
+            )
+        )
+    if parsed_date_from:
+        query = query.filter(MaintenanceScheduleItem.scheduled_date >= parsed_date_from)
+    if parsed_date_to:
+        query = query.filter(MaintenanceScheduleItem.scheduled_date <= parsed_date_to)
+
+    total = query.order_by(None).count()
+    rows = (
+        query.order_by(
+            MaintenanceScheduleItem.scheduled_date.desc().nullslast(),
+            MaintenanceScheduleItem.id.desc(),
+        )
+        .offset((page - 1) * page_size)
+        .limit(page_size)
+        .all()
+    )
+    total_pages = (total + page_size - 1) // page_size if total else 0
+    return {
+        "schema_version": "pcm.base_mestre.v1",
+        "items": [_master_base_row(item) for item in rows],
+        "pagination": {
+            "page": page,
+            "page_size": page_size,
+            "total": total,
+            "total_pages": total_pages,
+            "has_next": page < total_pages,
+            "has_previous": page > 1 and total > 0,
+        },
+        "filters_applied": {
+            "family_code": family_code,
+            "vehicle_id": vehicle_id,
+            "location_id": location_id,
+            "status": status.upper() if status else None,
+            "source_type": source_type.upper() if source_type else None,
+            "search": search,
+            "date_from": parsed_date_from.isoformat() if parsed_date_from else None,
+            "date_to": parsed_date_to.isoformat() if parsed_date_to else None,
+            "active_only": active_only,
+        },
+    }
+
+
+MASTER_BASE_EXPORT_COLUMNS = (
+    "intervention_id",
+    "schedule_item_id",
+    "schedule_id",
+    "work_order_id",
+    "order_number",
+    "source_type",
+    "source_origin_type",
+    "title",
+    "item_name",
+    "status",
+    "item_status",
+    "work_order_status",
+    "scheduled_date",
+    "created_at",
+    "updated_at",
+    "age_days",
+    "assigned_mechanic_user_id",
+    "vehicle_id",
+    "vehicle_frota",
+    "vehicle_modelo",
+    "vehicle_tipo",
+    "vehicle_ativo",
+    "family_id",
+    "family_code",
+    "family_name",
+    "location_id",
+    "location_code",
+    "location_name",
+    "operational_status",
+    "latest_hourmeter",
+)
+
+
+def flatten_management_master_row(row: dict) -> dict:
+    vehicle = row.get("vehicle") or {}
+    family = row.get("family") or {}
+    location = row.get("location") or {}
+    return {
+        "intervention_id": row.get("intervention_id"),
+        "schedule_item_id": row.get("schedule_item_id"),
+        "schedule_id": row.get("schedule_id"),
+        "work_order_id": row.get("work_order_id"),
+        "order_number": row.get("order_number"),
+        "source_type": row.get("source_type"),
+        "source_origin_type": row.get("source_origin_type"),
+        "title": row.get("title"),
+        "item_name": row.get("item_name"),
+        "status": row.get("status"),
+        "item_status": row.get("item_status"),
+        "work_order_status": row.get("work_order_status"),
+        "scheduled_date": row.get("scheduled_date"),
+        "created_at": row.get("created_at"),
+        "updated_at": row.get("updated_at"),
+        "age_days": row.get("age_days"),
+        "assigned_mechanic_user_id": row.get("assigned_mechanic_user_id"),
+        "vehicle_id": vehicle.get("id"),
+        "vehicle_frota": vehicle.get("frota"),
+        "vehicle_modelo": vehicle.get("modelo"),
+        "vehicle_tipo": vehicle.get("tipo"),
+        "vehicle_ativo": vehicle.get("ativo"),
+        "family_id": family.get("id"),
+        "family_code": family.get("code"),
+        "family_name": family.get("name"),
+        "location_id": location.get("id"),
+        "location_code": location.get("code"),
+        "location_name": location.get("full_name") or location.get("name"),
+        "operational_status": row.get("operational_status"),
+        "latest_hourmeter": row.get("latest_hourmeter"),
+    }
+
+
+def build_management_master_export(**filters) -> dict:
+    max_rows = 5000
+    page_size = 100
+    first_page = build_management_master_base(page=1, page_size=page_size, **filters)
+    items = list(first_page["items"])
+    total_pages = first_page["pagination"]["total_pages"]
+    for page in range(2, total_pages + 1):
+        if len(items) >= max_rows:
+            break
+        next_page = build_management_master_base(page=page, page_size=page_size, **filters)
+        items.extend(next_page["items"])
+
+    rows = [flatten_management_master_row(item) for item in items[:max_rows]]
+    return {
+        "schema_version": first_page["schema_version"],
+        "columns": list(MASTER_BASE_EXPORT_COLUMNS),
+        "items": rows,
+        "total": first_page["pagination"]["total"],
+        "exported": len(rows),
+        "truncated": first_page["pagination"]["total"] > len(rows),
     }
 
 

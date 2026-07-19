@@ -16,7 +16,7 @@ As paginas sao criadas por `MainWindow._build_pages()` em `desktop/ui/main_windo
 | Central de Resolucao | `nc` | admin/gestor/mecanico | NC e pacotes | resolver/agrupar | `/nao_conformidades`, `/pacotes_resolucao` | Implementada | integrar origem/tipo de OS |
 | Produtividade | `productivity` | admin/gestor/mecanico | usuarios/checklists | consultar | `/relatorios/produtividade` | Implementada | fora do nucleo PCM |
 | Historico Checklist | `checklist_history` | admin/gestor | checklists | filtrar/consultar | `/checklist/historico-matriz` | Implementada | preservar |
-| Relatorios | `reports` | admin/gestor | macro/micro/item | consultar/exportar | `/relatorios/*` | Implementada | Base Mestre ausente |
+| Relatorios | `reports` | admin/gestor | macro/micro/item/Base Mestre via API | consultar/exportar | `/relatorios/*` | Implementada | tela dedicada da Base Mestre e KPIs homologados |
 | Frota/Equipamentos | `equipment` | admin/gestor | vehicles/perfis/familias/locais | criar/editar/inativar/importar | `/veiculos`, `/equipamentos/estrutura` | Parcial PCM | tela individual consolidada e movimentos |
 | Checklist | `checklist_items` | admin/gestor | catalogo e itens | configurar | `/checklist-itens` | Implementada | preservar |
 | Templates Tecnicos | `inspection_templates` | admin/gestor | modelos/versionamento | criar/publicar/versionar | `/inspecoes-tecnicas/modelos` | Implementada | preservar/reusar por familia |

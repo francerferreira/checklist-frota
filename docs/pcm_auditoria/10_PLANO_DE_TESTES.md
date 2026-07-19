@@ -19,9 +19,9 @@ Validar cada evolucao sem perder as funcoes atuais de checklist, frota, lavagem,
 
 ## Baseline atual
 
-Existem 32 arquivos em `tests/`, incluindo `test_availability_routes.py`, `test_emergency_work_order_routes.py`, `test_mobile_operations_routes.py`, `test_pcm_routes.py`, `test_audit_service.py`, testes de migrations e Playwright. Antes de implementar, a suite deve estar verde no mesmo ambiente que servira de baseline.
+Existem 35 arquivos em `tests/`, incluindo `test_availability_routes.py`, `test_emergency_work_order_routes.py`, `test_mobile_operations_routes.py`, `test_pcm_routes.py`, `test_audit_service.py`, testes de migrations e Playwright. A Fase 7 executou as suites tecnicas selecionadas em processos isolados.
 
-Nao foi executada a suite neste ciclo documental; este e um plano, nao uma homologacao.
+Os resultados desta rodada estao em `19_RESULTADO_FASE_7_HOMOLOGACAO.md`. A homologacao operacional com equipe, inventario real e controles manuais ainda nao foi realizada.
 
 ## Casos de OS
 

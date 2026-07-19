@@ -142,7 +142,7 @@ Abreviacoes de caminhos: models em `backend/app/models/`, services em `backend/a
 
 | Requisito | Persistencia | Backend/API | Tela | Teste | Status |
 |---|---|---|---|---|---|
-| Base Mestre/Power BI | Ausente | Ausente | Ausente | Ausente | Nao encontrado |
+| Base Mestre/Power BI | consulta e exportacao v1 | endpoints protegidos e versionados | tela dedicada pendente | contrato/API aprovados | Parcial; Power BI pendente |
 | Evidencia normalizada | Ausente; apenas paths | upload/storage existe | formularios pontuais | upload security | Parcial |
 | Parametros PCM versionados | `SystemSetting` generico | admin rules parcial | AdminRulesPage | governance parcial | Parcial |
 | Jobs preventivos | timestamps no plano | funcao/endpoint manual | botao | sem job | Nao integrado |

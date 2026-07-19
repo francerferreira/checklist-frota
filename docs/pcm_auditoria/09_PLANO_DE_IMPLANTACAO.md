@@ -95,17 +95,20 @@ Cada subfase deve ter migration, teste e rollback proprios; nao aplicar tudo em 
 
 ## Fase 5 - Gestao
 
-- Criar consulta Base Mestre paginada.
-- Reconciliar indicadores com amostra manual aprovada.
-- Publicar cards antes de graficos complexos.
-- Expor CSV/Excel/JSON tipados.
-- Validar consumo no Power BI sem acesso direto irrestrito ao banco.
+Status em 19/07/2026: entrega tecnica concluida para Base Mestre e exportacoes. A reconciliacao manual, o selo oficial dos indicadores e o consumo homologado no Power BI continuam pendentes de dados e aprovacao operacional.
+
+- Consulta Base Mestre paginada: concluida em `GET /relatorios/base-mestre`.
+- CSV/Excel/JSON tipados: concluidos em `GET /relatorios/base-mestre/exportar`.
+- Cards e graficos complexos: manter os cards atuais; formulas oficiais ainda aguardam homologacao.
+- Power BI: contrato HTTP versionado (`pcm.base_mestre.v1`) disponivel; consumo real ainda nao homologado.
 
 ## Fase 6 - Importacao
 
 Fluxo obrigatorio: upload -> staging -> preview -> validacao -> relatorio de erros -> aprovacao -> transacao -> reconciliacao -> fechamento do lote. Nunca gravar diretamente ao selecionar o Excel.
 
 ## Fase 7 - Testes e homologacao
+
+Status em 19/07/2026: bateria tecnica concluida e documentada em `19_RESULTADO_FASE_7_HOMOLOGACAO.md`. O aceite operacional e o piloto real continuam pendentes.
 
 - Piloto com poucos RTG/LBS e ao menos um Spreader vinculado.
 - Comparacao paralela com controles atuais.

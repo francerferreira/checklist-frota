@@ -5,7 +5,7 @@
 - Autenticacao padrao: `Authorization: Bearer <token>` via `auth_required()` em `backend/app/services/auth_service.py`.
 - Publicos: `GET /health` e `POST /login`. Logout exige token.
 - Perfis atuais: `admin`, `gestor`, `mecanico`, `motorista`.
-- Total encontrado: 151 endpoints em 22 blueprints, mais `/health`.
+- Total encontrado: 153 endpoints em 22 blueprints, mais `/health`.
 
 ## Saude e autenticacao
 
@@ -32,6 +32,13 @@
 | POST | `/equipamentos/{id}/movimentos-localizacao` | movimentar equipamento | Bearer | admin/gestor | `move_equipment_location()` | Implementado 3A.1 |
 | GET/POST | `/equipamentos/vinculos` | listar/criar vinculo | Bearer | leitura autenticada; escrita admin/gestor | `EquipmentLink` | Implementado |
 | PUT | `/equipamentos/vinculos/{id}/encerrar` | encerrar vinculo | Bearer | admin/gestor | `EquipmentLink` | Implementado |
+
+## Gestao e Base Mestre
+
+| Metodo | Endpoint | Funcao | Autenticacao | Permissao | Service/Model | Situacao |
+|---|---|---|---|---|---|---|
+| GET | `/relatorios/base-mestre` | consulta paginada de intervencoes | Bearer | admin/gestor | `build_management_master_base()` | Implementado Fase 5 |
+| GET | `/relatorios/base-mestre/exportar` | exporta JSON, CSV ou XLSX | Bearer | admin/gestor | `build_management_master_export()` | Implementado Fase 5 |
 
 ## Disponibilidade e horimetro
 

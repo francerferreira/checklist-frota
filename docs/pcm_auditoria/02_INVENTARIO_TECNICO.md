@@ -35,12 +35,12 @@ O schema fisico e os dados do PostgreSQL de producao nao foram consultados. Assi
 | Pasta | Conteudo | Evidencia |
 |---|---|---|
 | `backend/app/models/` | 47 tabelas declaradas | atributos `__tablename__` |
-| `backend/app/routes/` | 22 blueprints, 151 endpoints | decoradores `@bp.get/post/put/delete` |
+| `backend/app/routes/` | 22 blueprints, 153 endpoints | decoradores `@bp.get/post/put/delete` |
 | `backend/app/services/` | regras de negocio e integracoes | funcoes de servico |
 | `desktop/ui/` | 20 paginas gerenciais | `MainWindow._build_pages()` |
 | `web_app/` | 13 telas/secoes operacionais principais | `<section id=...>` em `index.html` |
 | `migrations/versions/` | baseline + 10 evolucoes lineares | `revision`/`down_revision` |
-| `tests/` | 34 arquivos de teste | nomes listados abaixo |
+| `tests/` | 35 arquivos de teste | nomes listados abaixo |
 | `.github/` | automacao do repositorio | workflows versionados |
 
 ## Models e tabelas
@@ -101,7 +101,7 @@ Risco: `backend/app/__init__.py:create_app()` tambem altera/garante schema em ru
 
 ## Rotas e APIs
 
-Foram identificados 151 endpoints em blueprints, mais `/health`. Quantidade por arquivo:
+Foram identificados 153 endpoints em blueprints, mais `/health`. Quantidade por arquivo:
 
 | Modulo | Qtd. | Arquivo |
 |---|---:|---|
@@ -119,7 +119,7 @@ Foram identificados 151 endpoints em blueprints, mais `/health`. Quantidade por 
 | Operacao mobile | 2 | `routes/mobile_operations.py` |
 | Nao conformidades | 3 | `routes/non_conformities.py` |
 | PCM | 7 | `routes/pcm.py` |
-| Relatorios | 6 | `routes/reports.py` |
+| Relatorios | 8 | `routes/reports.py` |
 | Pacotes de resolucao | 4 | `routes/resolution_packages.py` |
 | Suprimentos/biblioteca | 12 | `routes/supply_library.py` |
 | Inspecoes tecnicas | 7 | `routes/technical_inspections.py` |
