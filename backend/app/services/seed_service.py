@@ -23,10 +23,11 @@ def seed_reference_data() -> None:
         if inventory_file:
             import_inventory_data(inventory_file)
 
-    wash_file = discover_wash_file(current_app.config.get("WASH_CONTROL_FILE"))
-    ensure_auxiliary_vehicles(wash_file)
-    if WashQueueItem.query.count() == 0:
-        sync_wash_queue(wash_file)
+    if not current_app.config.get("PORTUARY_ONLY_MODE"):
+        wash_file = discover_wash_file(current_app.config.get("WASH_CONTROL_FILE"))
+        ensure_auxiliary_vehicles(wash_file)
+        if WashQueueItem.query.count() == 0:
+            sync_wash_queue(wash_file)
     seed_operational_states()
 
 

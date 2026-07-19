@@ -68,6 +68,7 @@ class Config:
     BACKUP_FOLDER = Path(os.getenv("BACKUP_FOLDER", DATA_ROOT / "backups"))
     INVENTORY_FILE = os.getenv("INVENTORY_FILE")
     WASH_CONTROL_FILE = os.getenv("WASH_CONTROL_FILE")
+    PORTUARY_ONLY_MODE = _bool_env("PORTUARY_ONLY_MODE", default=False)
     STORAGE_BACKEND = os.getenv("STORAGE_BACKEND", "local").strip().lower()
     SUPABASE_URL = (os.getenv("SUPABASE_URL") or "").rstrip("/")
     SUPABASE_SERVICE_ROLE_KEY = os.getenv("SUPABASE_SERVICE_ROLE_KEY")
