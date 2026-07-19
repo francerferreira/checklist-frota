@@ -51,6 +51,7 @@ class Config:
     TOKEN_MAX_AGE_SECONDS = int(os.getenv("TOKEN_MAX_AGE_SECONDS", "28800"))
     CORS_STRICT_MODE = _bool_env("CORS_STRICT_MODE", default=True)
     CORS_ALLOWED_ORIGINS = _csv_env("CORS_ALLOWED_ORIGINS") or (
+        "https://checklist-web-uej3.onrender.com",
         "http://127.0.0.1:5500",
         "http://localhost:5500",
     )
