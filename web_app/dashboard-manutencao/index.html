@@ -1,0 +1,107 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <meta name="theme-color" content="#0756B5">
+    <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+    <title>Dashboard Operacional de Manutenção</title>
+    <link rel="icon" type="image/png" sizes="192x192" href="../static/icons/icon-192.png?v=20260720-01">
+    <link rel="stylesheet" href="../static/css/styles.css?v=20260720-01">
+    <link rel="stylesheet" href="../static/css/maintenance-dashboard.css?v=20260720-01">
+</head>
+<body class="dashboard-page">
+    <main class="maintenance-dashboard-shell">
+        <header class="dashboard-header">
+            <div class="dashboard-brand">
+                <img src="../static/icons/cf-logo-mark.png" alt="Checklist de Frota">
+                <div>
+                    <a class="dashboard-back-link" href="../">VOLTAR AO SISTEMA</a>
+                    <h1>Dashboard Operacional de Manutenção</h1>
+                    <p id="dashboard-subtitle">Carregando sessão e dados operacionais.</p>
+                </div>
+            </div>
+            <div class="dashboard-header-meta">
+                <strong id="dashboard-clock">--/--/---- --:--</strong>
+                <span id="dashboard-last-update">AINDA NÃO ATUALIZADO</span>
+                <button id="dashboard-refresh" class="dashboard-action" type="button">ATUALIZAR</button>
+            </div>
+        </header>
+
+        <section id="dashboard-access-state" class="dashboard-state-card" aria-live="polite"></section>
+
+        <section id="dashboard-content" class="dashboard-content hidden">
+            <section class="dashboard-filter-card" aria-label="Filtros do dashboard">
+                <div class="dashboard-section-heading">
+                    <div>
+                        <span>FILTROS OPERACIONAIS</span>
+                        <h2>Período e ativos</h2>
+                    </div>
+                    <button id="dashboard-clear-filters" class="dashboard-clear-button" type="button">LIMPAR FILTROS</button>
+                </div>
+                <div class="dashboard-filters">
+                    <label>DATA INICIAL<input id="dashboard-date-from" type="date"></label>
+                    <label>DATA FINAL<input id="dashboard-date-to" type="date"></label>
+                    <label>FAMÍLIA<select id="dashboard-family"><option value="">TODAS</option></select></label>
+                    <label>EQUIPAMENTO<select id="dashboard-vehicle"><option value="">TODOS</option></select></label>
+                    <label>LOCAL<select id="dashboard-location"><option value="">TODOS</option></select></label>
+                    <button id="dashboard-apply-filters" class="dashboard-apply-button" type="button">APLICAR</button>
+                </div>
+            </section>
+
+            <section class="dashboard-kpi-grid" aria-label="Indicadores principais">
+                <article class="dashboard-kpi blue"><span>EQUIPAMENTOS</span><strong id="kpi-equipment-total">--</strong><em>ATIVOS NO FILTRO</em></article>
+                <article class="dashboard-kpi green"><span>DISPONÍVEIS</span><strong id="kpi-available">--</strong><em>INCLUI RESTRIÇÃO</em></article>
+                <article class="dashboard-kpi red"><span>INDISPONÍVEIS</span><strong id="kpi-unavailable">--</strong><em>PARADA OPERACIONAL</em></article>
+                <article class="dashboard-kpi amber"><span>EM MANUTENÇÃO</span><strong id="kpi-maintenance">--</strong><em>STATUS ATUAL</em></article>
+                <article class="dashboard-kpi blue"><span>DISPONIBILIDADE</span><strong id="kpi-availability">--</strong><em id="kpi-measured">SEM MEDIÇÃO</em></article>
+                <article class="dashboard-kpi amber"><span>OS ABERTAS</span><strong id="kpi-open-orders">--</strong><em id="kpi-overdue-orders">-- VENCIDAS</em></article>
+                <article class="dashboard-kpi red"><span>PREVENTIVAS</span><strong id="kpi-preventives">--</strong><em>VENCENDO OU VENCIDAS</em></article>
+                <article class="dashboard-kpi blue"><span>MTTR / MTBF</span><strong id="kpi-reliability">--</strong><em id="kpi-reliability-detail">SEM EXECUÇÕES COMPLETAS</em></article>
+            </section>
+
+            <section class="dashboard-grid dashboard-grid-wide">
+                <article class="dashboard-panel">
+                    <div class="dashboard-section-heading compact">
+                        <div><span>DISPONIBILIDADE</span><h2>Por família de equipamento</h2></div>
+                        <em id="dashboard-availability-caption">SEM MEDIÇÃO</em>
+                    </div>
+                    <div id="dashboard-family-availability" class="dashboard-family-list"></div>
+                </article>
+                <article class="dashboard-panel">
+                    <div class="dashboard-section-heading compact">
+                        <div><span>PREVENTIVAS</span><h2>Planos com atenção</h2></div>
+                        <em id="dashboard-preventive-caption">0 ITENS</em>
+                    </div>
+                    <div id="dashboard-preventive-list" class="dashboard-simple-list"></div>
+                </article>
+            </section>
+
+            <section class="dashboard-panel dashboard-critical-panel">
+                <div class="dashboard-section-heading compact">
+                    <div><span>PRIORIDADE OPERACIONAL</span><h2>Equipamentos críticos</h2></div>
+                    <em id="dashboard-critical-caption">0 ATIVOS</em>
+                </div>
+                <div id="dashboard-critical-list" class="dashboard-critical-list"></div>
+            </section>
+
+            <section class="dashboard-panel">
+                <div class="dashboard-section-heading compact">
+                    <div><span>ACOMPANHAMENTO</span><h2>Ordens de serviço</h2></div>
+                    <em id="dashboard-orders-caption">0 REGISTROS</em>
+                </div>
+                <div class="dashboard-table-wrap">
+                    <table>
+                        <thead><tr><th>OS</th><th>ATIVO</th><th>ORIGEM</th><th>STATUS</th><th>PROGRAMADA</th><th>EM ABERTO</th><th>RESPONSÁVEL</th></tr></thead>
+                        <tbody id="dashboard-orders-table"></tbody>
+                    </table>
+                </div>
+            </section>
+
+            <section id="dashboard-data-gap" class="dashboard-data-gap"></section>
+        </section>
+    </main>
+    <script src="../static/js/config.js?v=20260720-01"></script>
+    <script src="../static/js/maintenance-dashboard.js?v=20260720-01"></script>
+</body>
+</html>

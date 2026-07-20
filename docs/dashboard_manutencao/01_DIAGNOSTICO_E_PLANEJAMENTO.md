@@ -168,3 +168,17 @@ Executada em 2026-07-20, sem migration nem alteracao de dados operacionais.
 - Testes: contrato do dashboard, disponibilidade e inteligencia de manutencao.
 
 O Web e o modo TV nao foram alterados nesta fase. Eles serao a Fase 2, depois da validacao deste contrato de dados.
+
+## 11. Execucao da Fase 2 - tela operacional Web
+
+Executada em 2026-07-20, sem migration, sem alteracao de dados operacionais e sem nova dependencia de frontend.
+
+- Nova rota estatica autenticada: `web_app/dashboard-manutencao/index.html` em `/dashboard-manutencao/`.
+- Novo script: `web_app/static/js/maintenance-dashboard.js`, reutilizando a sessao e a URL de API ja usadas pelo Web Mobile.
+- Novo estilo responsivo: `web_app/static/css/maintenance-dashboard.css`, preservando os tokens visuais existentes.
+- Novo atalho no menu inicial para perfis `admin` e `gestor`; os demais perfis nao visualizam o acesso.
+- Filtros entregues: periodo, familia, equipamento e local.
+- Dados exibidos: situacao dos ativos, disponibilidade, OS, preventivas, ativos criticos, MTTR e MTBF quando houver registros reais.
+- Dados indisponiveis permanecem explicitamente como `SEM DADOS`; custos, turno e causa estruturada continuam fora do painel por nao existirem no modelo atual.
+- O modo TV, atualizacao automatica e graficos permanecem nas fases posteriores do plano.
+- Testes: contrato estatico da nova tela e contrato do Web Mobile, alem da validacao de sintaxe JavaScript.

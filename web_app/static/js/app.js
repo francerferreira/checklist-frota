@@ -328,6 +328,7 @@ const elements = {
     openTechnicalInspectionsMenu: document.getElementById("open-technical-inspections-menu"),
     openEmergenciesMenu: document.getElementById("open-emergencies-menu"),
     openTechnicalLibraryMenu: document.getElementById("open-technical-library-menu"),
+    openMaintenanceDashboardMenu: document.getElementById("open-maintenance-dashboard-menu"),
     vehiclesBackButton: document.getElementById("vehicles-back-button"),
     activitiesBackButton: document.getElementById("activities-back-button"),
     activityCounter: document.getElementById("activity-counter"),
@@ -756,6 +757,8 @@ async function loadWashOverview() {
 }
 
 function renderHome() {
+    const canViewMaintenanceDashboard = ["admin", "gestor"].includes(String(state.user?.tipo || "").toLowerCase());
+    elements.openMaintenanceDashboardMenu?.classList.toggle("hidden", !canViewMaintenanceDashboard);
     const openActivitiesCount = state.activities.filter((activity) => activity.status === "ABERTA").length;
     const programmedWashesCount = getWashScheduleItems().filter((item) => item.status_execucao !== "LAVADO").length;
     const canAccessMechanicModule = hasMechanicWorkspaceAccess();
@@ -5572,6 +5575,9 @@ on(elements.openAvailabilityMenu, "click", openAvailabilityMenu);
 on(elements.openTechnicalInspectionsMenu, "click", openTechnicalInspectionsMenu);
 on(elements.openEmergenciesMenu, "click", openEmergenciesMenu);
 on(elements.openTechnicalLibraryMenu, "click", openTechnicalLibraryMenu);
+on(elements.openMaintenanceDashboardMenu, "click", () => {
+    window.location.href = "./dashboard-manutencao/";
+});
 on(elements.emergencyCreateForm, "submit", submitEmergency);
 on(elements.washPrevMonth, "click", () => changeWashMonth(-1));
 on(elements.washNextMonth, "click", () => changeWashMonth(1));
