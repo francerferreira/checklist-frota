@@ -12,6 +12,7 @@ from app.models import (
     EquipmentStatusEvent,
     MaintenanceSchedule,
     MaintenanceWorkOrder,
+    MaintenanceWorkOrderCost,
     OperationalLocation,
     PreventivePlan,
     Vehicle,
@@ -231,6 +232,45 @@ def _reliability_metrics(filters: DashboardFilters, vehicle_ids: list[int]) -> d
     }
 
 
+def _governance_metrics(filters: DashboardFilters, vehicle_ids: list[int]) -> dict:
+    if not vehicle_ids:
+        return {
+            "cost_total": 0.0,
+            "cost_records": 0,
+            "cost_by_category": {},
+            "classified_orders": 0,
+            "orders_with_shift": 0,
+        }
+    window_start, window_end = _window_bounds(filters)
+    costs = (
+        MaintenanceWorkOrderCost.query
+        .join(MaintenanceWorkOrder)
+        .filter(
+            MaintenanceWorkOrder.vehicle_id.in_(vehicle_ids),
+            MaintenanceWorkOrderCost.occurred_at >= window_start,
+            MaintenanceWorkOrderCost.occurred_at <= window_end,
+        )
+        .all()
+    )
+    totals = Counter()
+    for cost in costs:
+        totals[cost.category] += float(cost.amount or 0)
+    orders = [
+        order
+        for order in _orders_for_vehicles(vehicle_ids)
+        if order.created_at and filters.date_from <= order.created_at.date() <= filters.date_to
+    ]
+    classified_orders = sum(1 for order in orders if order.failure_cause or order.affected_component)
+    orders_with_shift = sum(1 for order in orders if order.work_shift)
+    return {
+        "cost_total": round(sum(totals.values()), 2),
+        "cost_records": len(costs),
+        "cost_by_category": {category: round(total, 2) for category, total in totals.items()},
+        "classified_orders": classified_orders,
+        "orders_with_shift": orders_with_shift,
+    }
+
+
 def _due_preventives(filters: DashboardFilters, vehicle_ids: list[int]) -> list[dict]:
     if not vehicle_ids:
         return []
@@ -292,6 +332,14 @@ def build_dashboard_summary(filters: DashboardFilters) -> dict:
     summary = availability.get("summary") or {}
     status_counts = summary.get("status_counts") or {}
     due_preventives = _due_preventives(filters, vehicle_ids)
+    governance = _governance_metrics(filters, vehicle_ids)
+    unavailable = []
+    if not governance["cost_records"]:
+        unavailable.append("custos")
+    if not governance["classified_orders"]:
+        unavailable.append("causa e componente de falha")
+    if not governance["orders_with_shift"]:
+        unavailable.append("turno")
     return {
         "filters": filters.to_dict(),
         "generated_at": now_manaus_naive().isoformat(),
@@ -306,12 +354,17 @@ def build_dashboard_summary(filters: DashboardFilters) -> dict:
             "work_orders": _work_order_summary(filters, vehicle_ids),
             "preventives_due_or_overdue": len(due_preventives),
             "reliability": _reliability_metrics(filters, vehicle_ids),
+            "governance": governance,
         },
         "data_availability": {
-            "maintenance_costs": False,
-            "failure_cause": False,
-            "work_shift": False,
-            "reason": "Custos, causa estruturada de falha e turno ainda nao possuem campos operacionais unificados.",
+            "maintenance_costs": bool(governance["cost_records"]),
+            "failure_cause": bool(governance["classified_orders"]),
+            "work_shift": bool(governance["orders_with_shift"]),
+            "reason": (
+                "Todos os campos de governanca possuem apontamentos no filtro."
+                if not unavailable
+                else "Ainda faltam apontamentos reais de " + ", ".join(unavailable) + " no filtro."
+            ),
         },
     }
 

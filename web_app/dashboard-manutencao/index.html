@@ -24,6 +24,7 @@
             <div class="dashboard-header-meta">
                 <strong id="dashboard-clock">--/--/---- --:--</strong>
                 <span id="dashboard-last-update">AINDA NÃO ATUALIZADO</span>
+                <button id="dashboard-governance-toggle" class="dashboard-action secondary" type="button">GOVERNANÇA</button>
                 <button id="dashboard-tv-access-toggle" class="dashboard-action secondary" type="button">ACESSO TV</button>
                 <button id="dashboard-refresh" class="dashboard-action" type="button">ATUALIZAR</button>
             </div>
@@ -62,6 +63,60 @@
                     <label>EQUIPAMENTO<select id="dashboard-vehicle"><option value="">TODOS</option></select></label>
                     <label>LOCAL<select id="dashboard-location"><option value="">TODOS</option></select></label>
                     <button id="dashboard-apply-filters" class="dashboard-apply-button" type="button">APLICAR</button>
+                </div>
+            </section>
+
+            <section id="dashboard-governance-panel" class="dashboard-governance-panel hidden" aria-label="Governança de manutenção">
+                <div class="dashboard-section-heading compact">
+                    <div><span>DADOS REAIS E AUDITÁVEIS</span><h2>Governança de OS</h2></div>
+                    <em id="dashboard-governance-state">SELECIONE UMA OS</em>
+                </div>
+                <p>Registre custos, fornecedor, causa, componente e turno diretamente na ordem. Metas ficam vazias até serem definidas pela gestão.</p>
+
+                <div class="dashboard-governance-grid">
+                    <form id="dashboard-governance-targets-form" class="dashboard-governance-card">
+                        <h3>Metas gerenciais</h3>
+                        <div class="dashboard-governance-fields two-columns">
+                            <label>DISPONIBILIDADE MÍNIMA (%)<input id="governance-target-availability" type="number" min="0" max="100" step="0.01" placeholder="Não configurada"></label>
+                            <label>MTTR MÁXIMO (HORAS)<input id="governance-target-mttr" type="number" min="0" step="0.01" placeholder="Não configurada"></label>
+                            <label>MTBF MÍNIMO (HORAS)<input id="governance-target-mtbf" type="number" min="0" step="0.01" placeholder="Não configurada"></label>
+                            <label>PREVENTIVAS MÍNIMAS (%)<input id="governance-target-preventive" type="number" min="0" max="100" step="0.01" placeholder="Não configurada"></label>
+                        </div>
+                        <button class="dashboard-apply-button" type="submit">SALVAR METAS</button>
+                    </form>
+
+                    <form id="dashboard-governance-classification-form" class="dashboard-governance-card">
+                        <h3>Classificação da ordem</h3>
+                        <div class="dashboard-governance-fields">
+                            <label>ORDEM DE SERVIÇO<select id="governance-work-order"><option value="">SELECIONE UMA OS</option></select></label>
+                            <label>CAUSA DA FALHA<input id="governance-failure-cause" maxlength="160" placeholder="Ex.: desgaste, vazamento, falha elétrica"></label>
+                            <label>COMPONENTE AFETADO<input id="governance-affected-component" maxlength="160" placeholder="Ex.: spreader, motor, sistema hidráulico"></label>
+                            <label>TURNO<input id="governance-work-shift" maxlength="30" placeholder="Informe o turno real"></label>
+                        </div>
+                        <button class="dashboard-apply-button" type="submit">SALVAR CLASSIFICAÇÃO</button>
+                    </form>
+                </div>
+
+                <div class="dashboard-governance-grid">
+                    <form id="dashboard-governance-cost-form" class="dashboard-governance-card">
+                        <h3>Novo lançamento de custo</h3>
+                        <div class="dashboard-governance-fields two-columns">
+                            <label>CATEGORIA<select id="governance-cost-category"><option value="PECA">PEÇA</option><option value="MAO_DE_OBRA">MÃO DE OBRA</option><option value="SERVICO_EXTERNO">SERVIÇO EXTERNO</option></select></label>
+                            <label>VALOR (R$)<input id="governance-cost-amount" type="number" min="0" step="0.01" required></label>
+                            <label>DESCRIÇÃO<input id="governance-cost-description" maxlength="200" required placeholder="Material, serviço ou mão de obra"></label>
+                            <label>FORNECEDOR<input id="governance-cost-supplier" maxlength="160" placeholder="Quando aplicável"></label>
+                            <label>COMPONENTE<input id="governance-cost-component" maxlength="160" placeholder="Quando aplicável"></label>
+                            <label>DATA E HORA<input id="governance-cost-occurred-at" type="datetime-local"></label>
+                        </div>
+                        <label class="dashboard-governance-notes">OBSERVAÇÃO<textarea id="governance-cost-notes" maxlength="2000" rows="2"></textarea></label>
+                        <button class="dashboard-apply-button" type="submit">REGISTRAR CUSTO</button>
+                    </form>
+
+                    <section class="dashboard-governance-card" aria-live="polite">
+                        <h3>Custos da ordem</h3>
+                        <div id="governance-cost-summary" class="dashboard-governance-summary">Selecione uma OS para visualizar os custos.</div>
+                        <div id="governance-cost-list" class="dashboard-governance-cost-list"></div>
+                    </section>
                 </div>
             </section>
 

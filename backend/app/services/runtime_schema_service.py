@@ -6,7 +6,7 @@ from app.extensions import db
 from app.models.activity import ActivityNonConformityLink
 from app.models.dashboard_tv_access import DashboardTvAccessToken
 from app.models.resolution_package import ResolutionPackage, ResolutionPackageLink
-from app.models.maintenance import MaintenanceWorkOrder
+from app.models.maintenance import MaintenanceWorkOrder, MaintenanceWorkOrderCost
 from app.models.system_setting import SystemSetting
 from app.services.checklist_catalog import classify_catalog_item_group
 
@@ -205,21 +205,17 @@ def ensure_runtime_schema() -> None:
 
     if "activities" in inspector.get_table_names():
         columns = {column["name"] for column in inspector.get_columns("activities")}
-        if "assigned_mechanic_user_id" not in columns:
-            db.session.execute(text("ALTER TABLE activities ADD COLUMN assigned_mechanic_user_id INTEGER"))
-            db.session.commit()
-        if "source_type" not in columns:
-            db.session.execute(text("ALTER TABLE activities ADD COLUMN source_type VARCHAR(40)"))
-            db.session.commit()
-        if "source_key" not in columns:
-            db.session.execute(text("ALTER TABLE activities ADD COLUMN source_key VARCHAR(180)"))
-            db.session.commit()
-        if "source_modulo" not in columns:
-            db.session.execute(text("ALTER TABLE activities ADD COLUMN source_modulo VARCHAR(20)"))
-            db.session.commit()
-        if "auto_link_nc" not in columns:
-            db.session.execute(text("ALTER TABLE activities ADD COLUMN auto_link_nc BOOLEAN DEFAULT FALSE"))
-            db.session.commit()
+        _ensure_column("activities", columns, "assigned_mechanic_user_id", "INTEGER")
+        _ensure_column("activities", columns, "source_type", "VARCHAR(40)")
+        _ensure_column("activities", columns, "source_key", "VARCHAR(180)")
+        _ensure_column("activities", columns, "source_modulo", "VARCHAR(20)")
+        _ensure_column("activities", columns, "auto_link_nc", "BOOLEAN DEFAULT FALSE")
+
+    if "maintenance_work_orders" in inspector.get_table_names():
+        columns = {column["name"] for column in inspector.get_columns("maintenance_work_orders")}
+        _ensure_column("maintenance_work_orders", columns, "failure_cause", "VARCHAR(160)")
+        _ensure_column("maintenance_work_orders", columns, "affected_component", "VARCHAR(160)")
+        _ensure_column("maintenance_work_orders", columns, "work_shift", "VARCHAR(30)")
 
     if "activity_items" in inspector.get_table_names():
         columns = {column["name"] for column in inspector.get_columns("activity_items")}
@@ -243,4 +239,5 @@ def ensure_runtime_schema() -> None:
     ResolutionPackage.__table__.create(bind=db.engine, checkfirst=True)
     ResolutionPackageLink.__table__.create(bind=db.engine, checkfirst=True)
     MaintenanceWorkOrder.__table__.create(bind=db.engine, checkfirst=True)
+    MaintenanceWorkOrderCost.__table__.create(bind=db.engine, checkfirst=True)
     SystemSetting.__table__.create(bind=db.engine, checkfirst=True)

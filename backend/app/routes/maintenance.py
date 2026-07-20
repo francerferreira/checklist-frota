@@ -27,6 +27,14 @@ from app.services.maintenance_service import (
     update_schedule_item,
 )
 from app.services.maintenance_pdf_export_service import export_maintenance_pdf
+from app.services.maintenance_governance_service import (
+    create_work_order_cost,
+    delete_work_order_cost,
+    get_governance_targets,
+    get_work_order_governance,
+    update_governance_targets,
+    update_work_order_classification,
+)
 from app.utils.responses import api_response
 
 bp = Blueprint("maintenance", __name__)
@@ -159,6 +167,129 @@ def maintenance_work_order_pdf_report(work_order_id: int):
         as_attachment=True,
         download_name=payload["filename"],
     )
+
+
+@bp.get("/manutencao/os/<int:work_order_id>/governanca")
+@auth_required
+def maintenance_work_order_governance(work_order_id: int):
+    denied = _guard_management_access()
+    if denied:
+        return denied
+    try:
+        return api_response(True, data=get_work_order_governance(work_order_id))
+    except LookupError as exc:
+        return api_response(False, error=str(exc), status_code=404)
+
+
+@bp.put("/manutencao/os/<int:work_order_id>/classificacao")
+@auth_required
+def update_maintenance_work_order_classification(work_order_id: int):
+    denied = _guard_management_access()
+    if denied:
+        return denied
+    try:
+        order = update_work_order_classification(work_order_id, request.get_json(silent=True) or {})
+        record_event(
+            user_id=g.current_user.id,
+            entity_type="MAINTENANCE_WORK_ORDER",
+            entity_id=order.id,
+            action="GOVERNANCE_CLASSIFICATION_UPDATED",
+            new_value=str({
+                "failure_cause": order.failure_cause,
+                "affected_component": order.affected_component,
+                "work_shift": order.work_shift,
+            }),
+        )
+        db.session.commit()
+        return api_response(True, data=get_work_order_governance(order.id))
+    except LookupError as exc:
+        return api_response(False, error=str(exc), status_code=404)
+    except ValueError as exc:
+        return api_response(False, error=str(exc), status_code=400)
+
+
+@bp.post("/manutencao/os/<int:work_order_id>/custos")
+@auth_required
+def create_maintenance_work_order_cost(work_order_id: int):
+    denied = _guard_management_access()
+    if denied:
+        return denied
+    try:
+        cost = create_work_order_cost(work_order_id, request.get_json(silent=True) or {}, user_id=g.current_user.id)
+        record_event(
+            user_id=g.current_user.id,
+            entity_type="MAINTENANCE_WORK_ORDER_COST",
+            entity_id=cost.id,
+            action="COST_RECORDED",
+            new_value=str({
+                "work_order_id": cost.work_order_id,
+                "category": cost.category,
+                "amount": float(cost.amount),
+                "supplier_name": cost.supplier_name,
+            }),
+        )
+        db.session.commit()
+        return api_response(True, data=get_work_order_governance(work_order_id), status_code=201)
+    except LookupError as exc:
+        return api_response(False, error=str(exc), status_code=404)
+    except ValueError as exc:
+        return api_response(False, error=str(exc), status_code=400)
+
+
+@bp.delete("/manutencao/os/<int:work_order_id>/custos/<int:cost_id>")
+@auth_required
+def delete_maintenance_work_order_cost(work_order_id: int, cost_id: int):
+    denied = _guard_management_access()
+    if denied:
+        return denied
+    try:
+        cost = delete_work_order_cost(work_order_id, cost_id)
+        record_event(
+            user_id=g.current_user.id,
+            entity_type="MAINTENANCE_WORK_ORDER_COST",
+            entity_id=cost_id,
+            action="COST_DELETED",
+            old_value=str({
+                "work_order_id": work_order_id,
+                "category": cost["category"],
+                "amount": cost["amount"],
+                "supplier_name": cost["supplier_name"],
+            }),
+        )
+        db.session.commit()
+        return api_response(True, data=get_work_order_governance(work_order_id))
+    except LookupError as exc:
+        return api_response(False, error=str(exc), status_code=404)
+
+
+@bp.get("/manutencao/governanca/metas")
+@auth_required
+def maintenance_governance_targets():
+    denied = _guard_management_access()
+    if denied:
+        return denied
+    return api_response(True, data=get_governance_targets())
+
+
+@bp.put("/manutencao/governanca/metas")
+@auth_required
+def update_maintenance_governance_targets():
+    denied = _guard_management_access()
+    if denied:
+        return denied
+    try:
+        data = update_governance_targets(request.get_json(silent=True) or {}, user_id=g.current_user.id)
+        record_event(
+            user_id=g.current_user.id,
+            entity_type="SYSTEM_SETTING",
+            entity_id=0,
+            action="MAINTENANCE_GOVERNANCE_TARGETS_UPDATED",
+            new_value=str(data["targets"]),
+        )
+        db.session.commit()
+        return api_response(True, data=data)
+    except ValueError as exc:
+        return api_response(False, error=str(exc), status_code=400)
 
 
 @bp.post("/manutencao/programacoes")

@@ -587,6 +587,121 @@ body.dashboard-page {
     font-weight: 900;
 }
 
+.dashboard-governance-panel {
+    display: grid;
+    gap: 16px;
+    padding: clamp(16px, 2vw, 24px);
+    border: 1px solid #b9d4f8;
+    border-radius: var(--radius);
+    background: #f5faff;
+    box-shadow: var(--shadow-soft);
+}
+
+.dashboard-governance-panel > p {
+    margin: -8px 0 0;
+    color: var(--muted-strong);
+    font-size: 0.84rem;
+}
+
+.dashboard-governance-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 16px;
+}
+
+.dashboard-governance-card {
+    display: grid;
+    gap: 13px;
+    padding: 16px;
+    border: 1px solid var(--line);
+    border-radius: 14px;
+    background: #ffffff;
+}
+
+.dashboard-governance-card h3 {
+    margin: 0;
+    color: var(--ink);
+    font-size: 1rem;
+}
+
+.dashboard-governance-fields {
+    display: grid;
+    gap: 10px;
+}
+
+.dashboard-governance-fields.two-columns {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.dashboard-governance-fields label,
+.dashboard-governance-notes {
+    display: grid;
+    gap: 6px;
+    color: var(--muted-strong);
+    font-size: 0.68rem;
+    font-weight: 900;
+    letter-spacing: 0.03em;
+}
+
+.dashboard-governance-fields input,
+.dashboard-governance-fields select,
+.dashboard-governance-notes textarea {
+    width: 100%;
+    min-height: 42px;
+    box-sizing: border-box;
+    padding: 9px 11px;
+    border: 1px solid var(--line-strong);
+    border-radius: 10px;
+    background: #ffffff;
+    color: var(--ink);
+    font: inherit;
+}
+
+.dashboard-governance-notes textarea {
+    resize: vertical;
+}
+
+.dashboard-governance-summary {
+    padding: 12px;
+    border-radius: 10px;
+    background: #eef6ff;
+    color: var(--blue-dark);
+    font-size: 0.82rem;
+    font-weight: 800;
+}
+
+.dashboard-governance-cost-list {
+    display: grid;
+    gap: 8px;
+}
+
+.dashboard-governance-cost-row {
+    display: grid;
+    grid-template-columns: 1fr auto;
+    gap: 10px;
+    align-items: center;
+    padding: 10px 0;
+    border-top: 1px solid var(--line);
+}
+
+.dashboard-governance-cost-row span,
+.dashboard-governance-cost-row small {
+    display: block;
+    color: var(--muted-strong);
+    font-size: 0.74rem;
+}
+
+.dashboard-governance-cost-row button {
+    min-height: 34px;
+    padding: 0 10px;
+    border: 1px solid #fecaca;
+    border-radius: 8px;
+    background: #ffffff;
+    color: #b91c1c;
+    cursor: pointer;
+    font-weight: 900;
+}
+
 @media (max-width: 780px) {
     .maintenance-dashboard-shell { padding: 14px; }
     .dashboard-header { align-items: flex-start; flex-direction: column; }
@@ -597,4 +712,7 @@ body.dashboard-page {
     .dashboard-grid-charts { grid-template-columns: 1fr; }
     .dashboard-tv-access-form { grid-template-columns: 1fr; }
     .dashboard-tv-access-row { grid-template-columns: 1fr; }
+    .dashboard-governance-grid,
+    .dashboard-governance-fields.two-columns { grid-template-columns: 1fr; }
+    .dashboard-governance-cost-row { grid-template-columns: 1fr; }
 }

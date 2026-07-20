@@ -49,6 +49,29 @@ const dashboardElements = {
     trendCaption: document.getElementById("dashboard-trend-caption"),
     reasonCaption: document.getElementById("dashboard-reason-caption"),
     performance: document.getElementById("dashboard-performance"),
+    governanceToggle: document.getElementById("dashboard-governance-toggle"),
+    governancePanel: document.getElementById("dashboard-governance-panel"),
+    governanceState: document.getElementById("dashboard-governance-state"),
+    governanceTargetsForm: document.getElementById("dashboard-governance-targets-form"),
+    governanceTargetAvailability: document.getElementById("governance-target-availability"),
+    governanceTargetMttr: document.getElementById("governance-target-mttr"),
+    governanceTargetMtbf: document.getElementById("governance-target-mtbf"),
+    governanceTargetPreventive: document.getElementById("governance-target-preventive"),
+    governanceClassificationForm: document.getElementById("dashboard-governance-classification-form"),
+    governanceWorkOrder: document.getElementById("governance-work-order"),
+    governanceFailureCause: document.getElementById("governance-failure-cause"),
+    governanceAffectedComponent: document.getElementById("governance-affected-component"),
+    governanceWorkShift: document.getElementById("governance-work-shift"),
+    governanceCostForm: document.getElementById("dashboard-governance-cost-form"),
+    governanceCostCategory: document.getElementById("governance-cost-category"),
+    governanceCostAmount: document.getElementById("governance-cost-amount"),
+    governanceCostDescription: document.getElementById("governance-cost-description"),
+    governanceCostSupplier: document.getElementById("governance-cost-supplier"),
+    governanceCostComponent: document.getElementById("governance-cost-component"),
+    governanceCostOccurredAt: document.getElementById("governance-cost-occurred-at"),
+    governanceCostNotes: document.getElementById("governance-cost-notes"),
+    governanceCostSummary: document.getElementById("governance-cost-summary"),
+    governanceCostList: document.getElementById("governance-cost-list"),
     tvAccessToggle: document.getElementById("dashboard-tv-access-toggle"),
     tvAccessPanel: document.getElementById("dashboard-tv-access-panel"),
     tvAccessName: document.getElementById("dashboard-tv-access-name"),
@@ -275,6 +298,151 @@ function formatTvAccessDate(value) {
     return Number.isNaN(date.getTime()) ? value : DASHBOARD_CLOCK_FORMAT.format(date);
 }
 
+function formatMoney(value) {
+    return new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(Number(value || 0));
+}
+
+function renderGovernanceTargets(data) {
+    const targets = data.targets || {};
+    dashboardElements.governanceTargetAvailability.value = targets.availability_min_percent ?? "";
+    dashboardElements.governanceTargetMttr.value = targets.mttr_max_hours ?? "";
+    dashboardElements.governanceTargetMtbf.value = targets.mtbf_min_hours ?? "";
+    dashboardElements.governanceTargetPreventive.value = targets.preventive_compliance_min_percent ?? "";
+}
+
+async function loadGovernanceTargets() {
+    renderGovernanceTargets(await apiFetch("/manutencao/governanca/metas"));
+}
+
+function renderGovernanceOrderOptions(items) {
+    const selected = dashboardElements.governanceWorkOrder.value;
+    const options = (items || []).map((item) => `<option value="${escapeHtml(item.id)}">${escapeHtml(item.order_number)} | ${escapeHtml(item.vehicle?.frota || "ATIVO")} | ${escapeHtml(item.status)}</option>`).join("");
+    dashboardElements.governanceWorkOrder.innerHTML = `<option value="">SELECIONE UMA OS</option>${options}`;
+    if (selected && [...dashboardElements.governanceWorkOrder.options].some((option) => option.value === selected)) {
+        dashboardElements.governanceWorkOrder.value = selected;
+    }
+}
+
+function clearGovernanceOrder() {
+    dashboardElements.governanceFailureCause.value = "";
+    dashboardElements.governanceAffectedComponent.value = "";
+    dashboardElements.governanceWorkShift.value = "";
+    dashboardElements.governanceCostSummary.textContent = "Selecione uma OS para visualizar os custos.";
+    dashboardElements.governanceCostList.innerHTML = "";
+    dashboardElements.governanceState.textContent = "SELECIONE UMA OS";
+}
+
+function renderGovernanceOrder(data) {
+    const order = data.work_order || {};
+    const classification = data.classification || {};
+    const summary = data.cost_summary || {};
+    dashboardElements.governanceFailureCause.value = classification.failure_cause || "";
+    dashboardElements.governanceAffectedComponent.value = classification.affected_component || "";
+    dashboardElements.governanceWorkShift.value = classification.work_shift || "";
+    dashboardElements.governanceState.textContent = `${order.order_number || "OS"} | ${summary.records || 0} LANÇAMENTOS`;
+    const categories = summary.by_category || {};
+    dashboardElements.governanceCostSummary.textContent = `TOTAL: ${formatMoney(summary.total)} | PEÇAS: ${formatMoney(categories.PECA)} | MÃO DE OBRA: ${formatMoney(categories.MAO_DE_OBRA)} | EXTERNO: ${formatMoney(categories.SERVICO_EXTERNO)}`;
+    const costs = data.costs || [];
+    dashboardElements.governanceCostList.innerHTML = costs.length ? costs.map((cost) => `<article class="dashboard-governance-cost-row">
+        <div><strong>${escapeHtml(cost.category)} | ${escapeHtml(cost.description)}</strong><span>${escapeHtml(cost.supplier_name || "SEM FORNECEDOR")} | ${escapeHtml(cost.affected_component || "SEM COMPONENTE")}</span><small>${escapeHtml(formatTvAccessDate(cost.occurred_at))} | ${formatMoney(cost.amount)}</small></div>
+        <button type="button" data-governance-cost-delete="${cost.id}">EXCLUIR</button>
+    </article>`).join("") : '<span class="dashboard-empty">Nenhum custo registrado nesta OS.</span>';
+    dashboardElements.governanceCostList.querySelectorAll("[data-governance-cost-delete]").forEach((button) => {
+        button.addEventListener("click", async () => {
+            if (!window.confirm("Excluir este lançamento de custo? Esta ação ficará registrada na auditoria.")) return;
+            try {
+                await apiFetch(`/manutencao/os/${dashboardElements.governanceWorkOrder.value}/custos/${button.dataset.governanceCostDelete}`, { method: "DELETE" });
+                await loadGovernanceOrder();
+            } catch (error) {
+                setDashboardState("Falha ao excluir custo", error.message, true);
+            }
+        });
+    });
+}
+
+async function loadGovernanceOrder() {
+    const workOrderId = dashboardElements.governanceWorkOrder.value;
+    if (!workOrderId) {
+        clearGovernanceOrder();
+        return;
+    }
+    dashboardElements.governanceState.textContent = "CARREGANDO OS...";
+    try {
+        renderGovernanceOrder(await apiFetch(`/manutencao/os/${workOrderId}/governanca`));
+    } catch (error) {
+        clearGovernanceOrder();
+        setDashboardState("Falha ao carregar governança da OS", error.message, true);
+    }
+}
+
+async function saveGovernanceTargets(event) {
+    event.preventDefault();
+    try {
+        const data = await apiFetch("/manutencao/governanca/metas", {
+            method: "PUT",
+            body: {
+                availability_min_percent: dashboardElements.governanceTargetAvailability.value,
+                mttr_max_hours: dashboardElements.governanceTargetMttr.value,
+                mtbf_min_hours: dashboardElements.governanceTargetMtbf.value,
+                preventive_compliance_min_percent: dashboardElements.governanceTargetPreventive.value,
+            },
+        });
+        renderGovernanceTargets(data);
+        setDashboardState("Metas de governança salvas", "Nenhum valor é assumido automaticamente.");
+    } catch (error) {
+        setDashboardState("Falha ao salvar metas", error.message, true);
+    }
+}
+
+async function saveGovernanceClassification(event) {
+    event.preventDefault();
+    const workOrderId = dashboardElements.governanceWorkOrder.value;
+    if (!workOrderId) {
+        setDashboardState("Selecione uma OS", "Escolha a ordem antes de salvar a classificação.", true);
+        return;
+    }
+    try {
+        renderGovernanceOrder(await apiFetch(`/manutencao/os/${workOrderId}/classificacao`, {
+            method: "PUT",
+            body: {
+                failure_cause: dashboardElements.governanceFailureCause.value,
+                affected_component: dashboardElements.governanceAffectedComponent.value,
+                work_shift: dashboardElements.governanceWorkShift.value,
+            },
+        }));
+        setDashboardState("Classificação da OS salva", "O registro foi incluído na trilha de auditoria.");
+    } catch (error) {
+        setDashboardState("Falha ao salvar classificação", error.message, true);
+    }
+}
+
+async function createGovernanceCost(event) {
+    event.preventDefault();
+    const workOrderId = dashboardElements.governanceWorkOrder.value;
+    if (!workOrderId) {
+        setDashboardState("Selecione uma OS", "Escolha a ordem antes de registrar custo.", true);
+        return;
+    }
+    try {
+        renderGovernanceOrder(await apiFetch(`/manutencao/os/${workOrderId}/custos`, {
+            method: "POST",
+            body: {
+                category: dashboardElements.governanceCostCategory.value,
+                amount: dashboardElements.governanceCostAmount.value,
+                description: dashboardElements.governanceCostDescription.value,
+                supplier_name: dashboardElements.governanceCostSupplier.value,
+                affected_component: dashboardElements.governanceCostComponent.value,
+                occurred_at: dashboardElements.governanceCostOccurredAt.value,
+                notes: dashboardElements.governanceCostNotes.value,
+            },
+        }));
+        dashboardElements.governanceCostForm.reset();
+        setDashboardState("Custo registrado", "O lançamento foi vinculado somente à OS selecionada e auditado.");
+    } catch (error) {
+        setDashboardState("Falha ao registrar custo", error.message, true);
+    }
+}
+
 function renderTvAccesses(items) {
     dashboardElements.tvAccessList.innerHTML = items.length ? items.map((item) => {
         const state = item.active ? "ATIVO" : (item.revoked_at ? "REVOGADO" : "EXPIRADO");
@@ -396,6 +564,8 @@ async function loadDashboard() {
         renderPreventives(preventives);
         renderCriticalEquipment(critical);
         renderOrders(orders);
+        renderGovernanceOrderOptions(orders.items);
+        if (dashboardElements.governanceWorkOrder.value) await loadGovernanceOrder();
         dashboardElements.content.classList.remove("hidden");
         setDashboardState("Dados operacionais atualizados", "Indicadores sem histórico suficiente são exibidos como sem dados.");
         dashboardElements.lastUpdate.textContent = `ATUALIZADO EM ${DASHBOARD_CLOCK_FORMAT.format(new Date())}`;
@@ -439,6 +609,21 @@ async function bootstrapDashboard() {
 
 dashboardElements.refresh.addEventListener("click", loadDashboard);
 dashboardElements.applyFilters.addEventListener("click", loadDashboard);
+dashboardElements.governanceToggle.addEventListener("click", async () => {
+    const willOpen = dashboardElements.governancePanel.classList.contains("hidden");
+    dashboardElements.governancePanel.classList.toggle("hidden", !willOpen);
+    if (!willOpen) return;
+    try {
+        await loadGovernanceTargets();
+        await loadGovernanceOrder();
+    } catch (error) {
+        setDashboardState("Falha ao carregar governança", error.message, true);
+    }
+});
+dashboardElements.governanceWorkOrder.addEventListener("change", loadGovernanceOrder);
+dashboardElements.governanceTargetsForm.addEventListener("submit", saveGovernanceTargets);
+dashboardElements.governanceClassificationForm.addEventListener("submit", saveGovernanceClassification);
+dashboardElements.governanceCostForm.addEventListener("submit", createGovernanceCost);
 dashboardElements.tvAccessToggle.addEventListener("click", async () => {
     const willOpen = dashboardElements.tvAccessPanel.classList.contains("hidden");
     dashboardElements.tvAccessPanel.classList.toggle("hidden", !willOpen);

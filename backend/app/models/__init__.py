@@ -12,7 +12,7 @@ from app.models.equipment_structure import (
     OperationalLocation,
 )
 from app.models.emergency import EmergencyEvent, WorkOrderExecution
-from app.models.maintenance import MaintenanceMaterial, MaintenanceSchedule, MaintenanceScheduleItem, MaintenanceWorkOrder
+from app.models.maintenance import MaintenanceMaterial, MaintenanceSchedule, MaintenanceScheduleItem, MaintenanceWorkOrder, MaintenanceWorkOrderCost
 from app.models.material import Material, MaterialMovement
 from app.models.mechanic_non_conformity import MechanicNonConformity
 from app.models.mobile_operation import MobileSyncOperation
@@ -53,6 +53,7 @@ __all__ = [
     "MaintenanceSchedule",
     "MaintenanceScheduleItem",
     "MaintenanceWorkOrder",
+    "MaintenanceWorkOrderCost",
     "WorkOrderExecution",
     "Material",
     "MaterialFamilyApplication",

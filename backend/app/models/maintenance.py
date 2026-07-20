@@ -308,6 +308,9 @@ class MaintenanceWorkOrder(db.Model):
     opened_by_user_id = db.Column(db.Integer, db.ForeignKey("users.id"), nullable=True, index=True)
     title = db.Column(db.String(200), nullable=False, index=True)
     item_name = db.Column(db.String(160), nullable=True, index=True)
+    failure_cause = db.Column(db.String(160), nullable=True, index=True)
+    affected_component = db.Column(db.String(160), nullable=True, index=True)
+    work_shift = db.Column(db.String(30), nullable=True, index=True)
     status = db.Column(db.String(30), nullable=False, default="ABERTA", index=True)
     scheduled_date = db.Column(db.Date, nullable=True, index=True)
     created_at = db.Column(db.DateTime, nullable=False, default=now_manaus_naive, index=True)
@@ -320,6 +323,7 @@ class MaintenanceWorkOrder(db.Model):
     opened_by = db.relationship("User", foreign_keys=[opened_by_user_id], lazy="joined")
     resolution_package = db.relationship("ResolutionPackage", lazy="joined")
     execution = db.relationship("WorkOrderExecution", back_populates="work_order", uselist=False, lazy="select", cascade="all, delete-orphan")
+    cost_records = db.relationship("MaintenanceWorkOrderCost", back_populates="work_order", lazy="select", cascade="all, delete-orphan")
 
     __table_args__ = (
         db.CheckConstraint(
@@ -340,6 +344,9 @@ class MaintenanceWorkOrder(db.Model):
             "opened_by_user_id": self.opened_by_user_id,
             "title": self.title,
             "item_name": self.item_name,
+            "failure_cause": self.failure_cause,
+            "affected_component": self.affected_component,
+            "work_shift": self.work_shift,
             "status": self.status,
             "scheduled_date": self.scheduled_date.isoformat() if self.scheduled_date else None,
             "created_at": self.created_at.isoformat() if self.created_at else None,
@@ -349,4 +356,49 @@ class MaintenanceWorkOrder(db.Model):
             "vehicle": self.vehicle.to_dict() if self.vehicle else None,
             "assigned_mechanic": self.assigned_mechanic.to_dict() if self.assigned_mechanic else None,
             "opened_by": self.opened_by.to_dict() if self.opened_by else None,
+        }
+
+
+class MaintenanceWorkOrderCost(db.Model):
+    __tablename__ = "maintenance_work_order_costs"
+
+    id = db.Column(db.Integer, primary_key=True)
+    work_order_id = db.Column(db.Integer, db.ForeignKey("maintenance_work_orders.id"), nullable=False, index=True)
+    category = db.Column(db.String(30), nullable=False, index=True)
+    description = db.Column(db.String(200), nullable=False)
+    supplier_name = db.Column(db.String(160), nullable=True, index=True)
+    affected_component = db.Column(db.String(160), nullable=True, index=True)
+    amount = db.Column(db.Numeric(14, 2), nullable=False)
+    occurred_at = db.Column(db.DateTime, nullable=False, default=now_manaus_naive, index=True)
+    notes = db.Column(db.Text, nullable=True)
+    recorded_by_user_id = db.Column(db.Integer, db.ForeignKey("users.id"), nullable=False, index=True)
+    created_at = db.Column(db.DateTime, nullable=False, default=now_manaus_naive, index=True)
+    updated_at = db.Column(db.DateTime, nullable=False, default=now_manaus_naive, onupdate=now_manaus_naive)
+
+    work_order = db.relationship("MaintenanceWorkOrder", back_populates="cost_records")
+    recorded_by = db.relationship("User", foreign_keys=[recorded_by_user_id], lazy="joined")
+
+    __table_args__ = (
+        db.CheckConstraint(
+            "category IN ('PECA', 'MAO_DE_OBRA', 'SERVICO_EXTERNO')",
+            name="ck_maintenance_work_order_cost_category",
+        ),
+        db.CheckConstraint("amount >= 0", name="ck_maintenance_work_order_cost_amount_non_negative"),
+    )
+
+    def to_dict(self) -> dict:
+        return {
+            "id": self.id,
+            "work_order_id": self.work_order_id,
+            "category": self.category,
+            "description": self.description,
+            "supplier_name": self.supplier_name,
+            "affected_component": self.affected_component,
+            "amount": float(self.amount or 0),
+            "occurred_at": self.occurred_at.isoformat() if self.occurred_at else None,
+            "notes": self.notes,
+            "recorded_by_user_id": self.recorded_by_user_id,
+            "recorded_by": self.recorded_by.to_dict() if self.recorded_by else None,
+            "created_at": self.created_at.isoformat() if self.created_at else None,
+            "updated_at": self.updated_at.isoformat() if self.updated_at else None,
         }

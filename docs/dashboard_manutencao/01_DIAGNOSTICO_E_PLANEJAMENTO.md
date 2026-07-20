@@ -208,3 +208,16 @@ Executada em 2026-07-20. Esta etapa adiciona uma tabela tecnica de acessos TV, s
 - A carga TV omite motivos, observacoes, responsaveis, itens individuais, custos e outros detalhes sensiveis; exibe apenas KPIs e agregados operacionais.
 - Credenciais geradas e revogadas sao auditadas, e `token_hash` foi marcado como campo sensivel para nao aparecer em logs de auditoria.
 - Testes: emissao, listagem sem segredo, leitura restrita, revogacao, permissao, contrato estatico e sintaxe JavaScript.
+
+## 14. Execucao da Fase 5 - dados faltantes e governanca
+
+Executada em 2026-07-20 com migration aditiva em tempo de inicializacao. Nenhum cadastro, historico, estoque, checklist ou OS existente foi apagado ou alterado automaticamente.
+
+- `MaintenanceWorkOrder` passou a aceitar classificacao opcional de causa da falha, componente afetado e turno informado pela operacao.
+- Nova tabela `maintenance_work_order_costs`: custo por OS, com categoria `PECA`, `MAO_DE_OBRA` ou `SERVICO_EXTERNO`, descricao, fornecedor, componente, valor, data, observacao e responsavel pelo registro.
+- `ensure_runtime_schema()` cria a tabela e adiciona as tres colunas de classificacao quando necessario. A mudanca e somente aditiva e pode ser aplicada no PostgreSQL/Supabase durante o proximo inicio da API.
+- Endpoints restritos a `admin` e `gestor`: consulta e classificacao de OS, inclusao/exclusao de custo e leitura/gravacao das metas de governanca.
+- Metas persistidas em `system_settings`: disponibilidade minima, MTTR maximo, MTBF minimo e conformidade preventiva minima. Todas iniciam vazias; o sistema nao inventa meta nem custo.
+- Dashboard normal ganhou o painel `GOVERNANCA`, que lista as OS do filtro atual e permite registrar os dados. O modo TV nao recebe custos nem dados sensiveis.
+- Inclusao, alteracao e exclusao de dados de governanca geram eventos de auditoria.
+- Testes: permissao financeira, validacao de limites, custo por OS, auditoria, atualizacao da disponibilidade de dados, regressao do dashboard, Web Mobile e modo TV.
