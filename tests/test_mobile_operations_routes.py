@@ -31,7 +31,12 @@ class MobileOperationsRoutesTests(unittest.TestCase):
         cls.app = create_app()
         cls.client = cls.app.test_client()
         with cls.app.app_context():
-            admin = User.query.filter_by(login="admin").one()
+            admin = User.query.filter_by(login="admin").first()
+            if not admin:
+                admin = User(nome="Administrador Teste", login="admin", tipo="admin", ativo=True)
+                admin.set_password("teste123")
+                db.session.add(admin)
+                db.session.flush()
             mechanic = User(nome="Mecanico Mobile", login="mecanico_mobile", tipo="mecanico", ativo=True)
             mechanic.set_password("teste123")
             family = EquipmentFamily.query.filter_by(code="rtg").one()

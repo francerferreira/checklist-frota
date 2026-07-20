@@ -84,7 +84,8 @@ class WebMobilePlaywrightTests(unittest.TestCase):
         cls.app = create_app()
         cls.backend_host = "127.0.0.1"
         cls.backend_port = _free_port()
-        cls.frontend_port = _free_port()
+        # The backend intentionally permits the local Web origin on port 5500.
+        cls.frontend_port = 5500
         cls.backend_url = f"http://{cls.backend_host}:{cls.backend_port}"
         cls.frontend_url = f"http://{cls.backend_host}:{cls.frontend_port}/index.html"
 
@@ -103,7 +104,12 @@ class WebMobilePlaywrightTests(unittest.TestCase):
             db.session.commit()
 
             admin = User.query.filter_by(login="admin").first()
-            assert admin is not None
+            if not admin:
+                admin = User(nome="Administrador Teste", login="admin", tipo="admin", ativo=True)
+                admin.set_password("teste123")
+                db.session.add(admin)
+                db.session.flush()
+            admin.set_password("123456")
 
             suffix = uuid.uuid4().hex[:6].upper()
             vehicle = Vehicle(
@@ -220,6 +226,26 @@ class WebMobilePlaywrightTests(unittest.TestCase):
         self.page.locator("#login-button").tap()
         self._wait_for_screen("home-screen")
         expect(self.page.locator("#open-checklist-menu")).to_be_visible()
+
+    def test_primary_and_dashboard_layouts_do_not_overflow_common_viewports(self):
+        pages = [
+            self.frontend_url,
+            f"http://{self.backend_host}:{self.frontend_port}/dashboard-manutencao/",
+        ]
+        viewports = [
+            {"width": 390, "height": 844},
+            {"width": 768, "height": 1024},
+            {"width": 1366, "height": 768},
+            {"width": 1920, "height": 1080},
+        ]
+        for viewport in viewports:
+            self.page.set_viewport_size(viewport)
+            for page_url in pages:
+                self.page.goto(page_url, wait_until="domcontentloaded")
+                overflow = self.page.evaluate(
+                    "() => document.documentElement.scrollWidth > window.innerWidth + 1"
+                )
+                self.assertFalse(overflow, f"Overflow horizontal em {viewport} para {page_url}")
 
     def test_admin_can_open_critical_mobile_modules(self):
         self._login()

@@ -221,3 +221,16 @@ Executada em 2026-07-20 com migration aditiva em tempo de inicializacao. Nenhum 
 - Dashboard normal ganhou o painel `GOVERNANCA`, que lista as OS do filtro atual e permite registrar os dados. O modo TV nao recebe custos nem dados sensiveis.
 - Inclusao, alteracao e exclusao de dados de governanca geram eventos de auditoria.
 - Testes: permissao financeira, validacao de limites, custo por OS, auditoria, atualizacao da disponibilidade de dados, regressao do dashboard, Web Mobile e modo TV.
+
+## 15. Execucao da Fase 6 - validacao e liberacao
+
+Executada em 2026-07-20. A validacao local foi concluida; a liberacao integral em producao depende da recuperacao da API hospedada no Render.
+
+- Testes de governanca, dashboard, modo TV e contrato do Web Mobile: 28 testes aprovados e 21 subtestes aprovados.
+- Testes isolados de disponibilidade, operacao Mobile e inteligencia: 9 testes aprovados.
+- Teste de navegador local com Playwright: 5 testes aprovados, incluindo login, checklist, inspecao offline, sessao, modulos criticos e responsividade.
+- Responsividade conferida sem rolagem horizontal em 390x844, 768x1024, 1366x768 e 1920x1080, para a tela principal e o Dashboard de Manutencao.
+- Os testes que dependiam do usuario tecnico `admin` foram tornados autossuficientes. Eles nao dependem mais de uma variavel de ambiente de seed e nao alteram usuarios de producao.
+- O teste de navegador passou a usar a origem local permitida `http://127.0.0.1:5500`; nenhuma regra de CORS foi aberta ou reduzida.
+- Publicacao estatica confirmada: a pagina `/dashboard-manutencao/` contem o painel de governanca no site Render.
+- Pendencia de producao: `https://checklist-frota-qngw.onrender.com/health` nao respondeu apos 90 segundos. Como essa rota testa `SELECT 1` no PostgreSQL, a liberacao da API fica pendente de verificacao do deploy e da conexao `DATABASE_URL` no Render. Nenhum dado foi alterado para tentar contornar essa falha.

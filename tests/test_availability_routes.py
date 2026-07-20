@@ -37,6 +37,11 @@ class AvailabilityRoutesTests(unittest.TestCase):
         cls.client = cls.app.test_client()
         with cls.app.app_context():
             admin = User.query.filter_by(login="admin").first()
+            if not admin:
+                admin = User(nome="Administrador Teste", login="admin", tipo="admin", ativo=True)
+                admin.set_password("teste123")
+                db.session.add(admin)
+                db.session.commit()
             cls.user_id = admin.id
             cls.headers = {"Authorization": f"Bearer {generate_token(admin)}"}
 
