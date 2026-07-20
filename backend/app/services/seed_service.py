@@ -12,18 +12,21 @@ from app.services.wash_service import discover_wash_file, ensure_auxiliary_vehic
 
 
 def seed_reference_data() -> None:
+    portuary_only = current_app.config.get("PORTUARY_ONLY_MODE")
+
     _seed_initial_admin()
 
     db.session.commit()
     seed_equipment_structure()
-    seed_checklist_catalog_items()
+    if not portuary_only:
+        seed_checklist_catalog_items()
 
     if Vehicle.query.count() == 0:
         inventory_file = discover_inventory_file(current_app.config.get("INVENTORY_FILE"))
         if inventory_file:
             import_inventory_data(inventory_file)
 
-    if not current_app.config.get("PORTUARY_ONLY_MODE"):
+    if not portuary_only:
         wash_file = discover_wash_file(current_app.config.get("WASH_CONTROL_FILE"))
         ensure_auxiliary_vehicles(wash_file)
         if WashQueueItem.query.count() == 0:
