@@ -60,6 +60,30 @@
                 <article class="dashboard-kpi blue"><span>MTTR / MTBF</span><strong id="kpi-reliability">--</strong><em id="kpi-reliability-detail">SEM EXECUÇÕES COMPLETAS</em></article>
             </section>
 
+            <section class="dashboard-grid dashboard-grid-charts" aria-label="Graficos operacionais">
+                <article class="dashboard-panel">
+                    <div class="dashboard-section-heading compact">
+                        <div><span>SITUACAO ATUAL</span><h2>Ativos por status operacional</h2></div>
+                        <em id="dashboard-status-caption">SEM DADOS</em>
+                    </div>
+                    <div id="dashboard-operational-status-chart" class="dashboard-bar-chart"></div>
+                </article>
+                <article class="dashboard-panel">
+                    <div class="dashboard-section-heading compact">
+                        <div><span>ORDENS DE SERVICO</span><h2>Distribuicao por status</h2></div>
+                        <em id="dashboard-work-order-chart-caption">SEM DADOS</em>
+                    </div>
+                    <div id="dashboard-work-order-status-chart" class="dashboard-bar-chart"></div>
+                </article>
+                <article class="dashboard-panel">
+                    <div class="dashboard-section-heading compact">
+                        <div><span>PLANOS PREVENTIVOS</span><h2>Situacao dos planos ativos</h2></div>
+                        <em id="dashboard-preventive-chart-caption">SEM DADOS</em>
+                    </div>
+                    <div id="dashboard-preventive-status-chart" class="dashboard-bar-chart"></div>
+                </article>
+            </section>
+
             <section class="dashboard-grid dashboard-grid-wide">
                 <article class="dashboard-panel">
                     <div class="dashboard-section-heading compact">
@@ -85,6 +109,23 @@
                 <div id="dashboard-critical-list" class="dashboard-critical-list"></div>
             </section>
 
+            <section class="dashboard-grid dashboard-grid-wide">
+                <article class="dashboard-panel">
+                    <div class="dashboard-section-heading compact">
+                        <div><span>EVOLUCAO</span><h2>Apontamentos operacionais no periodo</h2></div>
+                        <em id="dashboard-trend-caption">SEM EVENTOS</em>
+                    </div>
+                    <div id="dashboard-operational-trend" class="dashboard-trend-chart"></div>
+                </article>
+                <article class="dashboard-panel">
+                    <div class="dashboard-section-heading compact">
+                        <div><span>INDISPONIBILIDADES</span><h2>Motivos registrados</h2></div>
+                        <em id="dashboard-reason-caption">SEM DADOS</em>
+                    </div>
+                    <div id="dashboard-unavailability-reasons-chart" class="dashboard-bar-chart"></div>
+                </article>
+            </section>
+
             <section class="dashboard-panel">
                 <div class="dashboard-section-heading compact">
                     <div><span>ACOMPANHAMENTO</span><h2>Ordens de serviço</h2></div>
@@ -99,6 +140,7 @@
             </section>
 
             <section id="dashboard-data-gap" class="dashboard-data-gap"></section>
+            <p id="dashboard-performance" class="dashboard-performance" aria-live="polite"></p>
         </section>
     </main>
     <script src="../static/js/config.js?v=20260720-01"></script>

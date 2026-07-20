@@ -3,6 +3,7 @@ from flask import Blueprint, g, request
 from app.services.auth_service import auth_required, user_has_management_access
 from app.services.maintenance_dashboard_service import (
     build_dashboard_availability,
+    build_dashboard_charts,
     build_dashboard_critical_equipment,
     build_dashboard_filter_options,
     build_dashboard_preventives,
@@ -48,6 +49,12 @@ def summary():
 @auth_required
 def availability():
     return _run(lambda: build_dashboard_availability(parse_dashboard_filters(request.args)))
+
+
+@bp.get("/graficos")
+@auth_required
+def charts():
+    return _run(lambda: build_dashboard_charts(parse_dashboard_filters(request.args)))
 
 
 @bp.get("/ordens")

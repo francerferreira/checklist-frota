@@ -182,3 +182,15 @@ Executada em 2026-07-20, sem migration, sem alteracao de dados operacionais e se
 - Dados indisponiveis permanecem explicitamente como `SEM DADOS`; custos, turno e causa estruturada continuam fora do painel por nao existirem no modelo atual.
 - O modo TV, atualizacao automatica e graficos permanecem nas fases posteriores do plano.
 - Testes: contrato estatico da nova tela e contrato do Web Mobile, alem da validacao de sintaxe JavaScript.
+
+## 12. Execucao da Fase 3 - graficos e desempenho
+
+Executada em 2026-07-20, sem migration, sem indice novo e sem dependencia externa de frontend.
+
+- Novo endpoint somente leitura: `GET /dashboard-manutencao/graficos`.
+- Graficos leves feitos com HTML e CSS: status operacional, OS por status, planos preventivos, evolucao de apontamentos e motivos registrados de indisponibilidade.
+- A disponibilidade por familia continua usando o calculo existente; a tela passa a reutilizar a resposta do endpoint de graficos para evitar uma requisicao Web duplicada.
+- O ranking usa somente o campo real `equipment_status_events.reason` para eventos `INDISPONIVEL`; nao o apresenta como causa estruturada de falha.
+- A resposta informa a duracao da consulta e usa cache por processo de 15 segundos para os graficos, reduzindo repeticao imediata sem ocultar atualizacoes por longos periodos.
+- Nenhum indice foi criado: a decisao fica para depois da observacao de tempos reais em producao.
+- Testes: dados reais do fixture, permissao, cache curto, contrato da tela e sintaxe JavaScript.

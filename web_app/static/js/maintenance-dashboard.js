@@ -38,6 +38,17 @@ const dashboardElements = {
     criticalCaption: document.getElementById("dashboard-critical-caption"),
     ordersCaption: document.getElementById("dashboard-orders-caption"),
     dataGap: document.getElementById("dashboard-data-gap"),
+    operationalStatusChart: document.getElementById("dashboard-operational-status-chart"),
+    workOrderStatusChart: document.getElementById("dashboard-work-order-status-chart"),
+    preventiveStatusChart: document.getElementById("dashboard-preventive-status-chart"),
+    operationalTrend: document.getElementById("dashboard-operational-trend"),
+    unavailabilityReasonsChart: document.getElementById("dashboard-unavailability-reasons-chart"),
+    statusCaption: document.getElementById("dashboard-status-caption"),
+    workOrderChartCaption: document.getElementById("dashboard-work-order-chart-caption"),
+    preventiveChartCaption: document.getElementById("dashboard-preventive-chart-caption"),
+    trendCaption: document.getElementById("dashboard-trend-caption"),
+    reasonCaption: document.getElementById("dashboard-reason-caption"),
+    performance: document.getElementById("dashboard-performance"),
 };
 
 function escapeHtml(value) {
@@ -174,6 +185,79 @@ function renderAvailability(data) {
     }).join("") : '<span class="dashboard-empty">Não há equipamentos para os filtros selecionados.</span>';
 }
 
+function chartStatusClass(value) {
+    return `status-${String(value || "sem-dados").toLowerCase().replace(/_/g, "-")}`;
+}
+
+function renderBarChart(element, items, getLabel, emptyMessage) {
+    const max = Math.max(1, ...items.map((item) => Number(item.total) || 0));
+    element.innerHTML = items.length ? items.map((item) => {
+        const total = Number(item.total) || 0;
+        const label = getLabel(item);
+        const width = Math.max(0, Math.min(100, (total / max) * 100));
+        return `<div class="dashboard-bar-row ${chartStatusClass(item.status)}"><strong title="${escapeHtml(label)}">${escapeHtml(label)}</strong><div class="dashboard-bar-track"><i style="width:${width}%"></i></div><em>${total}</em></div>`;
+    }).join("") : `<span class="dashboard-empty">${escapeHtml(emptyMessage)}</span>`;
+}
+
+function renderOperationalTrend(items) {
+    const max = Math.max(1, ...items.map((item) => Number(item.total) || 0));
+    dashboardElements.operationalTrend.innerHTML = items.length ? items.map((item) => {
+        const total = Number(item.total) || 0;
+        const height = Math.max(4, Math.min(100, (total / max) * 100));
+        const day = String(item.date || "");
+        const label = day.length === 10 ? `${day.slice(8, 10)}/${day.slice(5, 7)}` : day;
+        return `<div class="dashboard-trend-column" title="${escapeHtml(`${day}: ${total} apontamentos`)}"><i style="height:${height}%"></i><span>${escapeHtml(label)}</span></div>`;
+    }).join("") : '<span class="dashboard-empty">Nao ha apontamentos operacionais no periodo selecionado.</span>';
+}
+
+function renderCharts(data) {
+    const operationalLabels = {
+        DISPONIVEL: "DISPONIVEL",
+        INDISPONIVEL: "INDISPONIVEL",
+        RESTRICAO: "RESTRICAO",
+        MANUTENCAO: "EM MANUTENCAO",
+        SEM_APONTAMENTO: "SEM APONTAMENTO",
+    };
+    renderAvailability({
+        summary: data.availability_summary || {},
+        by_family: data.availability_by_family || [],
+    });
+    renderBarChart(
+        dashboardElements.operationalStatusChart,
+        data.operational_status || [],
+        (item) => operationalLabels[item.status] || item.status,
+        "Nao ha ativos para os filtros selecionados.",
+    );
+    renderBarChart(
+        dashboardElements.workOrderStatusChart,
+        data.work_orders_by_status || [],
+        (item) => item.status || "SEM STATUS",
+        "Nao ha ordens de servico para os filtros selecionados.",
+    );
+    renderBarChart(
+        dashboardElements.preventiveStatusChart,
+        data.preventives_by_status || [],
+        (item) => item.status || "SEM DADOS",
+        "Nao ha planos preventivos ativos para os filtros selecionados.",
+    );
+    renderOperationalTrend(data.operational_events_trend || []);
+    renderBarChart(
+        dashboardElements.unavailabilityReasonsChart,
+        data.unavailability_reasons || [],
+        (item) => item.reason || "SEM MOTIVO REGISTRADO",
+        "Nao ha motivos de indisponibilidade registrados no periodo.",
+    );
+    dashboardElements.statusCaption.textContent = `${(data.operational_status || []).reduce((total, item) => total + (Number(item.total) || 0), 0)} ATIVOS`;
+    dashboardElements.workOrderChartCaption.textContent = `${(data.work_orders_by_status || []).reduce((total, item) => total + (Number(item.total) || 0), 0)} OS`;
+    dashboardElements.preventiveChartCaption.textContent = `${(data.preventives_by_status || []).reduce((total, item) => total + (Number(item.total) || 0), 0)} PLANOS`;
+    dashboardElements.trendCaption.textContent = `${(data.operational_events_trend || []).length} DIAS COM EVENTOS`;
+    dashboardElements.reasonCaption.textContent = `${(data.unavailability_reasons || []).length} MOTIVOS`;
+    const performance = data.performance || {};
+    dashboardElements.performance.textContent = performance.cached
+        ? `GRAFICOS REUTILIZADOS DO CACHE OPERACIONAL (${performance.cache_ttl_seconds || 0} s).`
+        : `CONSULTA DOS GRAFICOS: ${performance.query_duration_ms ?? "--"} ms. CACHE OPERACIONAL: ${performance.cache_ttl_seconds || 0} s.`;
+}
+
 function renderPreventives(data) {
     const items = data.items || [];
     dashboardElements.preventiveCaption.textContent = `${data.total_due_or_overdue || 0} ITENS`;
@@ -237,15 +321,15 @@ async function loadDashboard() {
     dashboardElements.refresh.textContent = "ATUALIZANDO...";
     setDashboardState("Atualizando dados operacionais", "Consultando somente registros reais da base.");
     try {
-        const [summary, availability, preventives, critical, orders] = await Promise.all([
+        const [summary, charts, preventives, critical, orders] = await Promise.all([
             apiFetch(withQuery("/dashboard-manutencao/resumo")),
-            apiFetch(withQuery("/dashboard-manutencao/disponibilidade")),
+            apiFetch(withQuery("/dashboard-manutencao/graficos")),
             apiFetch(withQuery("/dashboard-manutencao/preventivas")),
             apiFetch(withQuery("/dashboard-manutencao/ativos-criticos")),
             apiFetch(`${withQuery("/dashboard-manutencao/ordens")}${buildQuery() ? "&" : "?"}tamanho_pagina=20`),
         ]);
         renderSummary(summary);
-        renderAvailability(availability);
+        renderCharts(charts);
         renderPreventives(preventives);
         renderCriticalEquipment(critical);
         renderOrders(orders);

@@ -3,11 +3,13 @@ from __future__ import annotations
 from collections import Counter, defaultdict
 from dataclasses import dataclass
 from datetime import date, datetime, time
+from time import monotonic
 
 from app.models import (
     EmergencyEvent,
     EquipmentFamily,
     EquipmentProfile,
+    EquipmentStatusEvent,
     MaintenanceSchedule,
     MaintenanceWorkOrder,
     OperationalLocation,
@@ -23,6 +25,8 @@ from app.utils.timezone import now_manaus_naive, today_manaus
 OPEN_ORDER_STATUSES = {"ABERTA", "PROGRAMADA", "AGUARDANDO_MATERIAL", "EM_EXECUCAO", "REPROGRAMADA"}
 CRITICAL_OPERATIONAL_STATUSES = {"INDISPONIVEL", "MANUTENCAO"}
 CRITICALITY_ORDER = {"CRITICA": 0, "ALTA": 1, "MEDIA": 2, "BAIXA": 3}
+DASHBOARD_CHART_CACHE_TTL_SECONDS = 15
+_dashboard_chart_cache: dict[tuple, tuple[float, dict]] = {}
 
 
 @dataclass(frozen=True)
@@ -364,6 +368,125 @@ def build_dashboard_preventives(filters: DashboardFilters) -> dict:
         "total_due_or_overdue": len(due),
         "items": due,
     }
+
+
+def _dashboard_chart_cache_key(filters: DashboardFilters) -> tuple:
+    return (
+        filters.date_from.isoformat(),
+        filters.date_to.isoformat(),
+        filters.family_id,
+        filters.vehicle_id,
+        filters.location_id,
+    )
+
+
+def _operational_event_charts(filters: DashboardFilters, vehicle_ids: list[int]) -> dict:
+    if not vehicle_ids:
+        return {"trend": [], "unavailability_reasons": []}
+    window_start, window_end = _window_bounds(filters)
+    events = (
+        EquipmentStatusEvent.query
+        .with_entities(
+            EquipmentStatusEvent.started_at,
+            EquipmentStatusEvent.status,
+            EquipmentStatusEvent.reason,
+        )
+        .filter(
+            EquipmentStatusEvent.vehicle_id.in_(vehicle_ids),
+            EquipmentStatusEvent.started_at >= window_start,
+            EquipmentStatusEvent.started_at <= window_end,
+        )
+        .order_by(EquipmentStatusEvent.started_at.asc())
+        .all()
+    )
+    daily_counts: dict[str, Counter] = defaultdict(Counter)
+    reason_counts: Counter = Counter()
+    for started_at, status, reason in events:
+        daily_counts[started_at.date().isoformat()][status] += 1
+        if status == "INDISPONIVEL" and reason and reason.strip():
+            reason_counts[reason.strip()] += 1
+    trend = []
+    for day, counts in sorted(daily_counts.items()):
+        trend.append({
+            "date": day,
+            "total": sum(counts.values()),
+            "available": counts.get("DISPONIVEL", 0),
+            "unavailable": counts.get("INDISPONIVEL", 0),
+            "restricted": counts.get("RESTRICAO", 0),
+            "maintenance": counts.get("MANUTENCAO", 0),
+        })
+    return {
+        "trend": trend,
+        "unavailability_reasons": [
+            {"reason": reason, "total": total}
+            for reason, total in reason_counts.most_common(8)
+        ],
+    }
+
+
+def _preventive_status_chart(vehicle_ids: list[int]) -> list[dict]:
+    if not vehicle_ids:
+        return []
+    counts = Counter()
+    for plan in PreventivePlan.query.filter(
+        PreventivePlan.status == "ATIVO",
+        PreventivePlan.vehicle_id.in_(vehicle_ids),
+    ).all():
+        counts[plan_due_state(plan).get("status", "SEM_DADOS")] += 1
+    order = ("VENCIDA", "VENCENDO", "EM_DIA")
+    return [{"status": status, "total": counts[status]} for status in order if counts[status]]
+
+
+def build_dashboard_charts(filters: DashboardFilters) -> dict:
+    cache_key = _dashboard_chart_cache_key(filters)
+    cache_now = monotonic()
+    expired_keys = [
+        key for key, (stored_at, _) in _dashboard_chart_cache.items()
+        if cache_now - stored_at >= DASHBOARD_CHART_CACHE_TTL_SECONDS
+    ]
+    for key in expired_keys:
+        del _dashboard_chart_cache[key]
+    cached = _dashboard_chart_cache.get(cache_key)
+    if cached and cache_now - cached[0] < DASHBOARD_CHART_CACHE_TTL_SECONDS:
+        payload = dict(cached[1])
+        payload["performance"] = {
+            "cached": True,
+            "cache_ttl_seconds": DASHBOARD_CHART_CACHE_TTL_SECONDS,
+            "query_duration_ms": 0,
+        }
+        return payload
+
+    started_at = monotonic()
+    vehicle_ids = _vehicle_ids(filters)
+    overview = _filtered_availability(filters)
+    status_counts = (overview.get("summary") or {}).get("status_counts") or {}
+    work_order_counts = Counter(order.status for order in _orders_for_vehicles(vehicle_ids))
+    events = _operational_event_charts(filters, vehicle_ids)
+    payload = {
+        "filters": filters.to_dict(),
+        "availability_summary": overview.get("summary") or {},
+        "availability_by_family": _availability_by_family(overview.get("rows") or []),
+        "operational_status": [
+            {"status": status, "total": int(status_counts.get(status, 0))}
+            for status in ("DISPONIVEL", "INDISPONIVEL", "RESTRICAO", "MANUTENCAO", "SEM_APONTAMENTO")
+            if int(status_counts.get(status, 0))
+        ],
+        "work_orders_by_status": [
+            {"status": status, "total": total}
+            for status, total in sorted(work_order_counts.items())
+        ],
+        "preventives_by_status": _preventive_status_chart(vehicle_ids),
+        "operational_events_trend": events["trend"],
+        "unavailability_reasons": events["unavailability_reasons"],
+    }
+    query_duration_ms = round((monotonic() - started_at) * 1000, 2)
+    _dashboard_chart_cache[cache_key] = (cache_now, payload)
+    payload["performance"] = {
+        "cached": False,
+        "cache_ttl_seconds": DASHBOARD_CHART_CACHE_TTL_SECONDS,
+        "query_duration_ms": query_duration_ms,
+    }
+    return payload
 
 
 def build_dashboard_critical_equipment(filters: DashboardFilters) -> dict:

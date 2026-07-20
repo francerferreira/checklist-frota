@@ -237,6 +237,23 @@ class MaintenanceDashboardRoutesTests(unittest.TestCase):
         )
         self.assertEqual(invalid_page.status_code, 400, invalid_page.get_json())
 
+    def test_charts_use_real_operational_records_and_short_cache(self):
+        charts = self.client.get("/dashboard-manutencao/graficos", headers=self.admin_headers)
+        self.assertEqual(charts.status_code, 200, charts.get_json())
+        payload = charts.get_json()["data"]
+        self.assertEqual(payload["availability_by_family"][0]["family_code"], "rtg")
+        self.assertEqual(payload["operational_status"], [{"status": "INDISPONIVEL", "total": 1}])
+        self.assertIn({"status": "ABERTA", "total": 1}, payload["work_orders_by_status"])
+        self.assertIn({"status": "CONCLUIDA", "total": 2}, payload["work_orders_by_status"])
+        self.assertEqual(payload["preventives_by_status"], [{"status": "VENCIDA", "total": 1}])
+        self.assertEqual(payload["unavailability_reasons"], [{"reason": "Falha de teste", "total": 1}])
+        self.assertFalse(payload["performance"]["cached"])
+        self.assertGreaterEqual(payload["performance"]["query_duration_ms"], 0)
+
+        cached = self.client.get("/dashboard-manutencao/graficos", headers=self.admin_headers)
+        self.assertEqual(cached.status_code, 200, cached.get_json())
+        self.assertTrue(cached.get_json()["data"]["performance"]["cached"])
+
     def test_filter_options_and_work_order_pagination(self):
         filters = self.client.get("/dashboard-manutencao/filtros", headers=self.admin_headers)
         self.assertEqual(filters.status_code, 200, filters.get_json())

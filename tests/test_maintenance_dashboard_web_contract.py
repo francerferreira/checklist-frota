@@ -17,9 +17,12 @@ class MaintenanceDashboardWebContractTests(unittest.TestCase):
         self.assertIn("Dashboard Operacional de Manutenção", dashboard_html)
         self.assertIn("maintenance-dashboard.js", dashboard_html)
         self.assertIn("/dashboard-manutencao/resumo", dashboard_js)
-        self.assertIn("/dashboard-manutencao/disponibilidade", dashboard_js)
+        self.assertIn("/dashboard-manutencao/graficos", dashboard_js)
         self.assertIn("/dashboard-manutencao/ativos-criticos", dashboard_js)
         self.assertIn("SEM DADOS", dashboard_js)
+        self.assertIn("dashboard-operational-status-chart", dashboard_html)
+        self.assertIn("dashboard-operational-trend", dashboard_html)
+        self.assertIn("dashboard-performance", dashboard_html)
 
     def test_mobile_menu_links_dashboard_only_after_authenticated_app_renders(self):
         index_html = INDEX_PATH.read_text(encoding="utf-8")
