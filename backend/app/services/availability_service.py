@@ -157,7 +157,8 @@ def list_hourmeter_readings(vehicle_id: int) -> list[dict]:
 
 def build_availability_overview(*, date_from=None, date_to=None,
                                 family_id: int | None = None,
-                                location_id: int | None = None) -> dict:
+                                location_id: int | None = None,
+                                vehicle_id: int | None = None) -> dict:
     today = today_manaus()
     start_date = _parse_date(date_from, default=today, field_name="Data inicial")
     end_date = _parse_date(date_to, default=today, field_name="Data final")
@@ -170,6 +171,8 @@ def build_availability_overview(*, date_from=None, date_to=None,
         query = query.filter_by(family_id=family_id)
     if location_id:
         query = query.filter_by(operational_location_id=location_id)
+    if vehicle_id:
+        query = query.filter(Vehicle.id == vehicle_id)
     vehicles = query.order_by(Vehicle.frota.asc()).all()
     vehicle_ids = [vehicle.id for vehicle in vehicles]
     events_by_vehicle = {vehicle_id: [] for vehicle_id in vehicle_ids}

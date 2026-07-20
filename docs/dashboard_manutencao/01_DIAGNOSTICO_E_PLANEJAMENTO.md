@@ -156,6 +156,15 @@ Decisao recomendada:
 
 Implementar somente as Fases 1 e 2. Elas entregam uma tela autenticada com dados reais ja existentes, sem tocar em migrations nem inventar campos. O modo TV e os graficos avancados devem vir depois que o contrato de dados for validado.
 
-## 10. Nenhuma alteracao funcional nesta etapa
+## 10. Execucao da Fase 1 - contrato de dados
 
-Este documento nao altera banco, migrations, APIs, servicos, autenticacao, permissoes, Web ou Desktop. Ele registra o diagnostico, os riscos e a ordem segura de execucao.
+Executada em 2026-07-20, sem migration nem alteracao de dados operacionais.
+
+- Novo servico: `backend/app/services/maintenance_dashboard_service.py`.
+- Novo blueprint protegido: `backend/app/routes/maintenance_dashboard.py`.
+- Endpoints somente leitura: `GET /dashboard-manutencao/filtros`, `/resumo`, `/disponibilidade`, `/ordens`, `/preventivas` e `/ativos-criticos`.
+- Acesso inicial: somente `admin` e `gestor`, reutilizando a permissao atual de gestao.
+- Filtros aplicados: periodo, familia, equipamento e local.
+- Testes: contrato do dashboard, disponibilidade e inteligencia de manutencao.
+
+O Web e o modo TV nao foram alterados nesta fase. Eles serao a Fase 2, depois da validacao deste contrato de dados.
