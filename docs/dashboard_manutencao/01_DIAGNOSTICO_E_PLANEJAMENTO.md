@@ -194,3 +194,17 @@ Executada em 2026-07-20, sem migration, sem indice novo e sem dependencia extern
 - A resposta informa a duracao da consulta e usa cache por processo de 15 segundos para os graficos, reduzindo repeticao imediata sem ocultar atualizacoes por longos periodos.
 - Nenhum indice foi criado: a decisao fica para depois da observacao de tempos reais em producao.
 - Testes: dados reais do fixture, permissao, cache curto, contrato da tela e sintaxe JavaScript.
+
+## 13. Execucao da Fase 4 - modo TV seguro
+
+Executada em 2026-07-20. Esta etapa adiciona uma tabela tecnica de acessos TV, sem alterar dados operacionais, cadastros, OS ou usuarios.
+
+- Nova rota estatica: `web_app/dashboard-manutencao/tv/index.html` em `/dashboard-manutencao/tv/`.
+- Layout de alto contraste e leitura a distancia, com relogio, tela cheia, rotacao de tres paineis a cada 20 segundos e atualizacao dos dados a cada 60 segundos.
+- Novo modelo `DashboardTvAccessToken`: armazena somente o hash da credencial, emissor, expiracao, revogacao e ultimo uso. O valor bruto nunca e persistido.
+- Gestao protegida por `admin` ou `gestor`: `GET` e `POST /dashboard-manutencao/tv/acessos`, `DELETE /dashboard-manutencao/tv/acessos/<id>`.
+- Leitura TV por `GET /dashboard-manutencao/tv/dados` usando exclusivamente o header `X-Dashboard-TV-Token`; nao aceita token normal de usuario nem senha.
+- A tela TV pede o codigo manualmente e o guarda somente em `sessionStorage`, nao na URL e nem em `localStorage`.
+- A carga TV omite motivos, observacoes, responsaveis, itens individuais, custos e outros detalhes sensiveis; exibe apenas KPIs e agregados operacionais.
+- Credenciais geradas e revogadas sao auditadas, e `token_hash` foi marcado como campo sensivel para nao aparecer em logs de auditoria.
+- Testes: emissao, listagem sem segredo, leitura restrita, revogacao, permissao, contrato estatico e sintaxe JavaScript.

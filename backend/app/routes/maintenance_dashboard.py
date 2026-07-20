@@ -1,6 +1,17 @@
-from flask import Blueprint, g, request
+from functools import wraps
 
+from flask import Blueprint, g, jsonify, request
+
+from app.extensions import db
+from app.services.audit_service import record_event
 from app.services.auth_service import auth_required, user_has_management_access
+from app.services.dashboard_tv_access_service import (
+    build_tv_dashboard_payload,
+    create_tv_access_token,
+    list_tv_access_tokens,
+    revoke_tv_access_token,
+    verify_tv_access_token,
+)
 from app.services.maintenance_dashboard_service import (
     build_dashboard_availability,
     build_dashboard_charts,
@@ -33,6 +44,18 @@ def _run(action):
         return api_response(False, error=str(exc), status_code=400)
 
 
+def tv_access_required(view):
+    @wraps(view)
+    def wrapped(*args, **kwargs):
+        access = verify_tv_access_token(request.headers.get("X-Dashboard-TV-Token"))
+        if not access:
+            return jsonify({"error": "Acesso TV invalido, expirado ou revogado."}), 401
+        g.dashboard_tv_access = access
+        return view(*args, **kwargs)
+
+    return wrapped
+
+
 @bp.get("/filtros")
 @auth_required
 def filters():
@@ -55,6 +78,63 @@ def availability():
 @auth_required
 def charts():
     return _run(lambda: build_dashboard_charts(parse_dashboard_filters(request.args)))
+
+
+@bp.get("/tv/dados")
+@tv_access_required
+def tv_data():
+    try:
+        return api_response(True, data=build_tv_dashboard_payload(parse_dashboard_filters(request.args)))
+    except ValueError as exc:
+        return api_response(False, error=str(exc), status_code=400)
+
+
+@bp.get("/tv/acessos")
+@auth_required
+def tv_accesses():
+    return _run(lambda: {"items": list_tv_access_tokens()})
+
+
+@bp.post("/tv/acessos")
+@auth_required
+def create_tv_access():
+    denied = _guard_management()
+    if denied:
+        return denied
+    try:
+        access, raw_token = create_tv_access_token(g.current_user, request.get_json(silent=True) or {})
+        record_event(
+            user_id=g.current_user.id,
+            entity_type="DASHBOARD_TV_ACCESS",
+            entity_id=access.id,
+            action="TV_ACCESS_CREATED",
+            new_value=f"name={access.name}; expires_at={access.expires_at.isoformat()}",
+        )
+        db.session.commit()
+        return api_response(True, data={"access": access.to_dict(), "token": raw_token}, status_code=201)
+    except ValueError as exc:
+        return api_response(False, error=str(exc), status_code=400)
+
+
+@bp.delete("/tv/acessos/<int:access_id>")
+@auth_required
+def revoke_tv_access(access_id: int):
+    denied = _guard_management()
+    if denied:
+        return denied
+    try:
+        access = revoke_tv_access_token(access_id)
+        record_event(
+            user_id=g.current_user.id,
+            entity_type="DASHBOARD_TV_ACCESS",
+            entity_id=access.id,
+            action="TV_ACCESS_REVOKED",
+            new_value=f"name={access.name}; revoked_at={access.revoked_at.isoformat() if access.revoked_at else '-'}",
+        )
+        db.session.commit()
+        return api_response(True, data=access.to_dict())
+    except ValueError as exc:
+        return api_response(False, error=str(exc), status_code=404)
 
 
 @bp.get("/ordens")

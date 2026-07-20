@@ -17,7 +17,7 @@ from app.models.audit_log import AuditLog
 from app.models.user import User
 
 _AUDIT_HOOKS_REGISTERED = False
-_SENSITIVE_FIELDS = {"senha_hash", "password", "password_hash", "token"}
+_SENSITIVE_FIELDS = {"senha_hash", "password", "password_hash", "token", "token_hash"}
 _IGNORED_UPDATE_FIELDS = {"updated_at"}
 _MAX_AUDIT_VALUE_LEN = 5000
 LOGGER = logging.getLogger(__name__)

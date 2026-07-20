@@ -8,6 +8,8 @@ PROJECT_ROOT = Path(__file__).resolve().parents[1]
 INDEX_PATH = PROJECT_ROOT / "web_app" / "index.html"
 DASHBOARD_PATH = PROJECT_ROOT / "web_app" / "dashboard-manutencao" / "index.html"
 DASHBOARD_JS_PATH = PROJECT_ROOT / "web_app" / "static" / "js" / "maintenance-dashboard.js"
+TV_DASHBOARD_PATH = PROJECT_ROOT / "web_app" / "dashboard-manutencao" / "tv" / "index.html"
+TV_DASHBOARD_JS_PATH = PROJECT_ROOT / "web_app" / "static" / "js" / "maintenance-dashboard-tv.js"
 
 
 class MaintenanceDashboardWebContractTests(unittest.TestCase):
@@ -31,6 +33,20 @@ class MaintenanceDashboardWebContractTests(unittest.TestCase):
         self.assertIn("openMaintenanceDashboardMenu", app_js)
         self.assertIn('window.location.href = "./dashboard-manutencao/"', app_js)
         self.assertIn("canViewMaintenanceDashboard", app_js)
+
+    def test_tv_dashboard_uses_dedicated_access_code_and_safe_endpoint(self):
+        dashboard_html = DASHBOARD_PATH.read_text(encoding="utf-8")
+        dashboard_js = DASHBOARD_JS_PATH.read_text(encoding="utf-8")
+        tv_html = TV_DASHBOARD_PATH.read_text(encoding="utf-8")
+        tv_js = TV_DASHBOARD_JS_PATH.read_text(encoding="utf-8")
+        self.assertIn("tv-access-token", tv_html)
+        self.assertIn("maintenance-dashboard-tv.js", tv_html)
+        self.assertIn("/dashboard-manutencao/tv/dados", tv_js)
+        self.assertIn('"X-Dashboard-TV-Token"', tv_js)
+        self.assertIn("sessionStorage", tv_js)
+        self.assertIn("TV_REFRESH_MS", tv_js)
+        self.assertIn("dashboard-tv-access-create", dashboard_html)
+        self.assertIn("/dashboard-manutencao/tv/acessos", dashboard_js)
 
 
 if __name__ == "__main__":

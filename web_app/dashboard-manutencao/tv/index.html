@@ -1,0 +1,61 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <meta name="theme-color" content="#061a35">
+    <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+    <title>Painel TV | Manutencao Portuaria</title>
+    <link rel="stylesheet" href="../../static/css/maintenance-dashboard-tv.css?v=20260720-01">
+</head>
+<body class="tv-page">
+    <main class="tv-shell">
+        <section id="tv-access" class="tv-access-card">
+            <img src="../../static/icons/cf-logo-mark.png" alt="Checklist de Frota">
+            <span>MODO TV - LEITURA OPERACIONAL</span>
+            <h1>Dashboard de Manutencao</h1>
+            <p>Informe o codigo temporario gerado no painel administrativo. Ele nao e uma senha de usuario.</p>
+            <label>CODIGO DE ACESSO<input id="tv-access-token" type="password" autocomplete="off" spellcheck="false" placeholder="tv_..."></label>
+            <button id="tv-access-start" type="button">INICIAR PAINEL TV</button>
+            <p id="tv-access-message" class="tv-access-message" aria-live="polite"></p>
+        </section>
+
+        <section id="tv-dashboard" class="tv-dashboard hidden" aria-live="polite">
+            <header class="tv-header">
+                <div><span>CHECKLIST DE FROTA</span><h1>MANUTENCAO PORTUARIA</h1></div>
+                <div class="tv-meta"><strong id="tv-clock">--/--/---- --:--</strong><span id="tv-last-update">AGUARDANDO DADOS</span></div>
+                <div class="tv-actions"><button id="tv-fullscreen" type="button">TELA CHEIA</button><button id="tv-stop" type="button">ENCERRAR</button></div>
+            </header>
+
+            <section id="tv-status" class="tv-status" aria-live="polite"></section>
+            <section class="tv-screen active" data-tv-screen="0">
+                <div class="tv-kpi-grid">
+                    <article><span>ATIVOS</span><strong id="tv-kpi-total">--</strong></article>
+                    <article class="good"><span>DISPONIVEIS</span><strong id="tv-kpi-available">--</strong></article>
+                    <article class="bad"><span>INDISPONIVEIS</span><strong id="tv-kpi-unavailable">--</strong></article>
+                    <article class="warn"><span>EM MANUTENCAO</span><strong id="tv-kpi-maintenance">--</strong></article>
+                    <article><span>DISPONIBILIDADE</span><strong id="tv-kpi-availability">SEM DADOS</strong></article>
+                    <article class="warn"><span>OS ABERTAS</span><strong id="tv-kpi-orders">--</strong></article>
+                    <article class="bad"><span>PREVENTIVAS</span><strong id="tv-kpi-preventives">--</strong></article>
+                    <article><span>MTTR / MTBF</span><strong id="tv-kpi-reliability">SEM DADOS</strong></article>
+                </div>
+                <div class="tv-panel tv-status-panel"><div><span>SITUACAO ATUAL</span><h2>Ativos por status operacional</h2></div><div id="tv-operational-status" class="tv-bar-list"></div></div>
+            </section>
+
+            <section class="tv-screen" data-tv-screen="1">
+                <div class="tv-panel"><div><span>DISPONIBILIDADE</span><h2>Por familia de equipamento</h2></div><div id="tv-family-availability" class="tv-family-list"></div></div>
+                <div class="tv-panel"><div><span>EVOLUCAO</span><h2>Apontamentos operacionais no periodo</h2></div><div id="tv-trend" class="tv-trend"></div></div>
+            </section>
+
+            <section class="tv-screen" data-tv-screen="2">
+                <div class="tv-panel"><div><span>ORDENS DE SERVICO</span><h2>Distribuicao por status</h2></div><div id="tv-work-orders" class="tv-bar-list"></div></div>
+                <div class="tv-panel"><div><span>PREVENTIVAS</span><h2>Situacao dos planos ativos</h2></div><div id="tv-preventives" class="tv-bar-list"></div></div>
+            </section>
+
+            <footer class="tv-footer"><span id="tv-screen-label">PAINEL 1 DE 3</span><span>ATUALIZACAO AUTOMATICA A CADA 60 SEGUNDOS</span></footer>
+        </section>
+    </main>
+    <script src="../../static/js/config.js?v=20260720-01"></script>
+    <script src="../../static/js/maintenance-dashboard-tv.js?v=20260720-01"></script>
+</body>
+</html>

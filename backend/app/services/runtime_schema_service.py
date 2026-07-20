@@ -4,6 +4,7 @@ from sqlalchemy import inspect, text
 
 from app.extensions import db
 from app.models.activity import ActivityNonConformityLink
+from app.models.dashboard_tv_access import DashboardTvAccessToken
 from app.models.resolution_package import ResolutionPackage, ResolutionPackageLink
 from app.models.maintenance import MaintenanceWorkOrder
 from app.models.system_setting import SystemSetting
@@ -238,6 +239,7 @@ def ensure_runtime_schema() -> None:
     _ensure_checklist_catalog_constraint(inspector)
 
     ActivityNonConformityLink.__table__.create(bind=db.engine, checkfirst=True)
+    DashboardTvAccessToken.__table__.create(bind=db.engine, checkfirst=True)
     ResolutionPackage.__table__.create(bind=db.engine, checkfirst=True)
     ResolutionPackageLink.__table__.create(bind=db.engine, checkfirst=True)
     MaintenanceWorkOrder.__table__.create(bind=db.engine, checkfirst=True)

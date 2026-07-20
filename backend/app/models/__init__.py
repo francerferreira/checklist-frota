@@ -3,6 +3,7 @@ from app.models.automation_execution import AutomationExecution
 from app.models.audit_log import AuditLog
 from app.models.checklist import Checklist, ChecklistItem
 from app.models.checklist_catalog_item import ChecklistCatalogItem
+from app.models.dashboard_tv_access import DashboardTvAccessToken
 from app.models.equipment_structure import (
     EquipmentFamily,
     EquipmentLink,
@@ -35,6 +36,7 @@ __all__ = [
     "Checklist",
     "ChecklistCatalogItem",
     "ChecklistItem",
+    "DashboardTvAccessToken",
     "EquipmentFamily",
     "EquipmentLink",
     "EquipmentLocationMovement",

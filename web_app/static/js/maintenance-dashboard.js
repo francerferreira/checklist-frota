@@ -49,6 +49,13 @@ const dashboardElements = {
     trendCaption: document.getElementById("dashboard-trend-caption"),
     reasonCaption: document.getElementById("dashboard-reason-caption"),
     performance: document.getElementById("dashboard-performance"),
+    tvAccessToggle: document.getElementById("dashboard-tv-access-toggle"),
+    tvAccessPanel: document.getElementById("dashboard-tv-access-panel"),
+    tvAccessName: document.getElementById("dashboard-tv-access-name"),
+    tvAccessDuration: document.getElementById("dashboard-tv-access-duration"),
+    tvAccessCreate: document.getElementById("dashboard-tv-access-create"),
+    tvAccessResult: document.getElementById("dashboard-tv-access-result"),
+    tvAccessList: document.getElementById("dashboard-tv-access-list"),
 };
 
 function escapeHtml(value) {
@@ -97,12 +104,16 @@ function refreshSessionActivity() {
     localStorage.setItem("sessionLastActivityAt", String(Date.now()));
 }
 
-async function apiFetch(path) {
+async function apiFetch(path, options = {}) {
     const controller = new AbortController();
     const timeout = window.setTimeout(() => controller.abort(), 20000);
     try {
+        const headers = { Authorization: `Bearer ${dashboardState.token}` };
+        if (options.body !== undefined) headers["Content-Type"] = "application/json";
         const response = await fetch(`${dashboardState.apiBaseUrl}${path}`, {
-            headers: { Authorization: `Bearer ${dashboardState.token}` },
+            method: options.method || "GET",
+            headers,
+            body: options.body === undefined ? undefined : JSON.stringify(options.body),
             signal: controller.signal,
         });
         const body = await response.json().catch(() => ({}));
@@ -258,6 +269,58 @@ function renderCharts(data) {
         : `CONSULTA DOS GRAFICOS: ${performance.query_duration_ms ?? "--"} ms. CACHE OPERACIONAL: ${performance.cache_ttl_seconds || 0} s.`;
 }
 
+function formatTvAccessDate(value) {
+    if (!value) return "-";
+    const date = new Date(value);
+    return Number.isNaN(date.getTime()) ? value : DASHBOARD_CLOCK_FORMAT.format(date);
+}
+
+function renderTvAccesses(items) {
+    dashboardElements.tvAccessList.innerHTML = items.length ? items.map((item) => {
+        const state = item.active ? "ATIVO" : (item.revoked_at ? "REVOGADO" : "EXPIRADO");
+        const action = item.active ? `<button type="button" data-tv-access-revoke="${item.id}">REVOGAR</button>` : "";
+        return `<article class="dashboard-tv-access-row"><div><strong>${escapeHtml(item.name)}</strong><span>${state} | EXPIRA: ${escapeHtml(formatTvAccessDate(item.expires_at))}</span><small>ULTIMO USO: ${escapeHtml(formatTvAccessDate(item.last_used_at))}</small></div>${action}</article>`;
+    }).join("") : '<span class="dashboard-empty">Nenhum acesso TV foi gerado.</span>';
+    dashboardElements.tvAccessList.querySelectorAll("[data-tv-access-revoke]").forEach((button) => {
+        button.addEventListener("click", async () => {
+            if (!window.confirm("Revogar este acesso TV imediatamente?")) return;
+            try {
+                await apiFetch(`/dashboard-manutencao/tv/acessos/${button.dataset.tvAccessRevoke}`, { method: "DELETE" });
+                await loadTvAccesses();
+            } catch (error) {
+                setDashboardState("Falha ao revogar acesso TV", error.message, true);
+            }
+        });
+    });
+}
+
+async function loadTvAccesses() {
+    const data = await apiFetch("/dashboard-manutencao/tv/acessos");
+    renderTvAccesses(data.items || []);
+}
+
+async function createTvAccess() {
+    dashboardElements.tvAccessCreate.disabled = true;
+    dashboardElements.tvAccessCreate.textContent = "GERANDO...";
+    try {
+        const data = await apiFetch("/dashboard-manutencao/tv/acessos", {
+            method: "POST",
+            body: {
+                name: dashboardElements.tvAccessName.value,
+                expires_in_minutes: Number(dashboardElements.tvAccessDuration.value),
+            },
+        });
+        dashboardElements.tvAccessResult.classList.remove("hidden");
+        dashboardElements.tvAccessResult.innerHTML = `<strong>Codigo gerado. Copie agora: ele nao sera mostrado novamente.</strong><code>${escapeHtml(data.token)}</code><span>Expira em: ${escapeHtml(formatTvAccessDate(data.access?.expires_at))}</span>`;
+        await loadTvAccesses();
+    } catch (error) {
+        setDashboardState("Falha ao gerar acesso TV", error.message, true);
+    } finally {
+        dashboardElements.tvAccessCreate.disabled = false;
+        dashboardElements.tvAccessCreate.textContent = "GERAR CODIGO";
+    }
+}
+
 function renderPreventives(data) {
     const items = data.items || [];
     dashboardElements.preventiveCaption.textContent = `${data.total_due_or_overdue || 0} ITENS`;
@@ -376,6 +439,18 @@ async function bootstrapDashboard() {
 
 dashboardElements.refresh.addEventListener("click", loadDashboard);
 dashboardElements.applyFilters.addEventListener("click", loadDashboard);
+dashboardElements.tvAccessToggle.addEventListener("click", async () => {
+    const willOpen = dashboardElements.tvAccessPanel.classList.contains("hidden");
+    dashboardElements.tvAccessPanel.classList.toggle("hidden", !willOpen);
+    if (!willOpen) return;
+    dashboardElements.tvAccessResult.classList.add("hidden");
+    try {
+        await loadTvAccesses();
+    } catch (error) {
+        setDashboardState("Falha ao carregar acessos TV", error.message, true);
+    }
+});
+dashboardElements.tvAccessCreate.addEventListener("click", createTvAccess);
 dashboardElements.clearFilters.addEventListener("click", () => {
     const range = getDefaultRange();
     dashboardElements.dateFrom.value = range.from;

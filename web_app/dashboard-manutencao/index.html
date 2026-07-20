@@ -24,11 +24,27 @@
             <div class="dashboard-header-meta">
                 <strong id="dashboard-clock">--/--/---- --:--</strong>
                 <span id="dashboard-last-update">AINDA NÃO ATUALIZADO</span>
+                <button id="dashboard-tv-access-toggle" class="dashboard-action secondary" type="button">ACESSO TV</button>
                 <button id="dashboard-refresh" class="dashboard-action" type="button">ATUALIZAR</button>
             </div>
         </header>
 
         <section id="dashboard-access-state" class="dashboard-state-card" aria-live="polite"></section>
+
+        <section id="dashboard-tv-access-panel" class="dashboard-tv-access-panel hidden" aria-label="Acessos do modo TV">
+            <div class="dashboard-section-heading compact">
+                <div><span>ACESSO DE LEITURA</span><h2>Modo TV</h2></div>
+                <a href="./tv/" target="_blank" rel="noopener">ABRIR TELA TV</a>
+            </div>
+            <p>Gere um codigo temporario para a TV. O codigo aparece somente uma vez e pode ser revogado aqui.</p>
+            <div class="dashboard-tv-access-form">
+                <label>NOME<input id="dashboard-tv-access-name" maxlength="80" value="TV OPERACIONAL"></label>
+                <label>DURACAO<select id="dashboard-tv-access-duration"><option value="120">2 HORAS</option><option value="480" selected>8 HORAS</option><option value="720">12 HORAS</option><option value="1440">24 HORAS</option></select></label>
+                <button id="dashboard-tv-access-create" class="dashboard-apply-button" type="button">GERAR CODIGO</button>
+            </div>
+            <div id="dashboard-tv-access-result" class="dashboard-tv-access-result hidden" aria-live="polite"></div>
+            <div id="dashboard-tv-access-list" class="dashboard-tv-access-list"></div>
+        </section>
 
         <section id="dashboard-content" class="dashboard-content hidden">
             <section class="dashboard-filter-card" aria-label="Filtros do dashboard">

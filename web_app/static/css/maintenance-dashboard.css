@@ -487,6 +487,106 @@ body.dashboard-page {
     text-align: right;
 }
 
+.dashboard-action.secondary {
+    border-color: var(--blue);
+    background: #eff6ff;
+    color: var(--blue-dark);
+}
+
+.dashboard-tv-access-panel {
+    margin: 18px 0;
+    padding: 20px;
+    border: 1px solid #b9d4f8;
+    border-radius: 18px;
+    background: #f5faff;
+}
+
+.dashboard-tv-access-panel > p {
+    margin: 10px 0 16px;
+    color: var(--muted-strong);
+}
+
+.dashboard-tv-access-panel a {
+    color: var(--blue-dark);
+    font-size: 0.76rem;
+    font-weight: 900;
+    text-decoration: none;
+}
+
+.dashboard-tv-access-form {
+    display: grid;
+    grid-template-columns: minmax(180px, 1fr) minmax(150px, 0.55fr) auto;
+    gap: 12px;
+    align-items: end;
+}
+
+.dashboard-tv-access-form label {
+    display: grid;
+    gap: 6px;
+    color: var(--muted-strong);
+    font-size: 0.68rem;
+    font-weight: 900;
+}
+
+.dashboard-tv-access-form input,
+.dashboard-tv-access-form select {
+    min-height: 42px;
+    padding: 0 11px;
+    border: 1px solid var(--line-strong);
+    border-radius: 10px;
+    background: #fff;
+    font: inherit;
+}
+
+.dashboard-tv-access-result {
+    margin-top: 14px;
+    padding: 12px;
+    border-radius: 10px;
+    background: #e9f7ef;
+    color: #075f38;
+    overflow-wrap: anywhere;
+}
+
+.dashboard-tv-access-result code {
+    display: block;
+    margin-top: 6px;
+    font-size: 0.78rem;
+    font-weight: 800;
+}
+
+.dashboard-tv-access-list {
+    display: grid;
+    gap: 8px;
+    margin-top: 14px;
+}
+
+.dashboard-tv-access-row {
+    display: grid;
+    grid-template-columns: 1fr auto;
+    gap: 12px;
+    align-items: center;
+    padding: 10px 0;
+    border-top: 1px solid var(--line);
+}
+
+.dashboard-tv-access-row span,
+.dashboard-tv-access-row small {
+    display: block;
+    color: var(--muted-strong);
+    font-size: 0.73rem;
+}
+
+.dashboard-tv-access-row button {
+    min-height: 34px;
+    padding: 0 10px;
+    border: 1px solid #fecaca;
+    border-radius: 8px;
+    background: #fff;
+    color: #b91c1c;
+    cursor: pointer;
+    font-weight: 900;
+}
+
 @media (max-width: 780px) {
     .maintenance-dashboard-shell { padding: 14px; }
     .dashboard-header { align-items: flex-start; flex-direction: column; }
@@ -495,4 +595,6 @@ body.dashboard-page {
     .dashboard-critical-row,
     .dashboard-bar-row { grid-template-columns: 1fr; }
     .dashboard-grid-charts { grid-template-columns: 1fr; }
+    .dashboard-tv-access-form { grid-template-columns: 1fr; }
+    .dashboard-tv-access-row { grid-template-columns: 1fr; }
 }
