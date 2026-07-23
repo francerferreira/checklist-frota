@@ -103,6 +103,7 @@ class MaintenanceGovernanceRoutesTests(unittest.TestCase):
             db.session.add(order)
             db.session.commit()
             self.work_order_id = order.id
+            self.item_id = item.id
 
     def test_management_records_classification_and_costs_with_audit(self):
         classification = self.client.put(
@@ -179,6 +180,30 @@ class MaintenanceGovernanceRoutesTests(unittest.TestCase):
             headers=self.mechanic_headers,
         )
         self.assertEqual(response.status_code, 403, response.get_json())
+
+    def test_reprogramming_requires_reason_and_records_audit(self):
+        missing_reason = self.client.put(
+            f"/manutencao/itens/{self.item_id}/reprogramar",
+            headers=self.admin_headers,
+            json={"scheduled_date": "2026-08-01"},
+        )
+        self.assertEqual(missing_reason.status_code, 400, missing_reason.get_json())
+
+        reprogrammed = self.client.put(
+            f"/manutencao/itens/{self.item_id}/reprogramar",
+            headers=self.admin_headers,
+            json={"scheduled_date": "2026-08-01", "reason": "Janela operacional indisponível"},
+        )
+        self.assertEqual(reprogrammed.status_code, 200, reprogrammed.get_json())
+        self.assertEqual(reprogrammed.get_json()["data"]["status"], "REPROGRAMADO")
+
+        with self.app.app_context():
+            audit = AuditLog.query.filter_by(
+                entity_type="MAINTENANCE_SCHEDULE_ITEM",
+                entity_id=self.item_id,
+                action="REPROGRAMMED",
+            ).one()
+            self.assertIn("Janela operacional indisponível", audit.new_value)
 
 
 if __name__ == "__main__":

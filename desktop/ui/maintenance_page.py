@@ -824,6 +824,8 @@ class MaintenancePage(QFrame):
         self.move_date_input.setCalendarPopup(True)
         self.move_date_input.setDisplayFormat("dd/MM/yyyy")
         self.move_date_input.setDate(QDate.currentDate())
+        self.move_reason_input = QLineEdit()
+        self.move_reason_input.setPlaceholderText("Obrigatório: explique por que o serviço foi movido")
 
         self.move_button = QPushButton("Reprogramar itens")
         self.move_button.setProperty("variant", "primary")
@@ -865,12 +867,14 @@ class MaintenancePage(QFrame):
         action_layout.addWidget(QLabel("Nova data"), 2, 2)
         action_layout.addWidget(self.move_date_input, 2, 3)
         action_layout.addWidget(self.move_button, 2, 4)
+        action_layout.addWidget(QLabel("Motivo da reprogramação"), 3, 0)
+        action_layout.addWidget(self.move_reason_input, 3, 1, 1, 3)
         action_layout.addWidget(self.export_work_order_button, 3, 4)
         action_layout.addWidget(self.remove_button, 4, 4)
-        action_layout.addWidget(QLabel("Início da redistribuição"), 3, 0)
-        action_layout.addWidget(self.redistribute_start_input, 3, 1)
-        action_layout.addWidget(QLabel("Cap./dia"), 3, 2)
-        action_layout.addWidget(self.redistribute_capacity_input, 3, 3)
+        action_layout.addWidget(QLabel("Início da redistribuição"), 4, 0)
+        action_layout.addWidget(self.redistribute_start_input, 4, 1)
+        action_layout.addWidget(QLabel("Cap./dia"), 4, 2)
+        action_layout.addWidget(self.redistribute_capacity_input, 4, 3)
         action_layout.addWidget(self.redistribute_button, 5, 3, 1, 2)
         action_layout.setColumnStretch(1, 1)
         action_layout.setColumnStretch(4, 1)
@@ -2211,6 +2215,10 @@ class MaintenancePage(QFrame):
             return
 
         target_date = self.move_date_input.date().toString("yyyy-MM-dd")
+        reason = self.move_reason_input.text().strip()
+        if not reason:
+            show_notice(self, "Motivo obrigatório", "Explique o motivo antes de reprogramar os itens.", icon_name="warning")
+            return
         moved = 0
         skipped = 0
         errors: list[str] = []
@@ -2220,12 +2228,16 @@ class MaintenancePage(QFrame):
                 skipped += 1
                 continue
             try:
-                self.api_client.reprogram_maintenance_item(int(item.get("id")), {"scheduled_date": target_date})
+                self.api_client.reprogram_maintenance_item(
+                    int(item.get("id")),
+                    {"scheduled_date": target_date, "reason": reason},
+                )
                 moved += 1
             except Exception as exc:
                 errors.append(str(exc))
 
         if moved:
+            self.move_reason_input.clear()
             self.refresh()
             self.data_changed.emit()
         summary = f"Itens reprogramados: {moved} | ignorados: {skipped}"

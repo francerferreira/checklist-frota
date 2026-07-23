@@ -17,6 +17,7 @@ from app.models import (
     WashQueueItem,
 )
 from app.models.maintenance import PACKAGE_SOURCE_PREFIX
+from app.services.audit_service import record_event
 from app.services.material_service import register_material_movement
 
 
@@ -1039,18 +1040,30 @@ def reprogram_schedule_item(item_id: int, payload: dict, *, user) -> Maintenance
     scheduled_date = _parse_date(payload.get("scheduled_date") or payload.get("data"))
     if not scheduled_date:
         raise ValueError("Informe a nova data do cronograma.")
+    reason = _clean(payload.get("reason") or payload.get("motivo") or payload.get("observation") or payload.get("observacao"))
+    if not reason:
+        raise ValueError("Informe o motivo da reprogramacao.")
 
     assigned_mechanic = payload.get("assigned_mechanic_user_id")
     if assigned_mechanic is not None:
         item.assigned_mechanic_user_id = int(assigned_mechanic) if str(assigned_mechanic).strip() else None
 
+    previous_date = item.scheduled_date.isoformat() if item.scheduled_date else "sem data"
     item.scheduled_date = scheduled_date
     if item.status not in {"INSTALADO", "CANCELADO"}:
         item.status = "REPROGRAMADO"
-    item.observation = _clean(payload.get("observation") or payload.get("observacao")) or item.observation
+    item.observation = reason
     db.session.flush()
     _sync_work_order_for_item(item)
     recalculate_schedule(item.schedule)
+    record_event(
+        user_id=getattr(user, "id", None),
+        entity_type="MAINTENANCE_SCHEDULE_ITEM",
+        entity_id=item.id,
+        action="REPROGRAMMED",
+        old_value=f"data={previous_date}",
+        new_value=f"data={scheduled_date.isoformat()}; motivo={reason}",
+    )
     db.session.commit()
     return item
 
