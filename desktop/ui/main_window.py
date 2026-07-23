@@ -44,6 +44,7 @@ from ui.maintenance_page import MaintenancePage
 from ui.non_conformities_page import NonConformitiesPage
 from ui.operational_center_page import OperationalCenterPage
 from ui.productivity_page import ProductivityPage
+from ui.purchases_page import PurchasesPage
 from ui.pcm_page import PCMPage
 from ui.supply_library_page import SupplyLibraryPage
 from ui.reports_page import ReportsPage
@@ -287,6 +288,7 @@ class MainWindow(QMainWindow):
         self.maintenance_page = MaintenancePage(self.api_client)
         self.pcm_page = PCMPage(self.api_client)
         self.resources_page = ResourcesPage(self.api_client)
+        self.purchases_page = PurchasesPage(self.api_client)
         self.supply_library_page = SupplyLibraryPage(self.api_client)
         self.reports_page = ReportsPage(self.api_client)
         self.users_page = UsersPage(self.api_client, self.user)
@@ -312,6 +314,7 @@ class MainWindow(QMainWindow):
             "maintenance": self.maintenance_page,
             "pcm": self.pcm_page,
             "resources": self.resources_page,
+            "purchases": self.purchases_page,
             "supply_library": self.supply_library_page,
             "users": self.users_page,
             "cloud_backup": self.cloud_backup_page,
@@ -336,6 +339,7 @@ class MainWindow(QMainWindow):
             "maintenance": "Manutenção",
             "pcm": "PCM",
             "resources": "Recursos e ferramentas",
+            "purchases": "Compras e fornecedores",
             "supply_library": "Suprimentos e Biblioteca",
             "reports": "Relatórios",
             "checklist_history": "Histórico Checklist",
@@ -377,7 +381,7 @@ class MainWindow(QMainWindow):
         menu_groups = {
             "Operação": ["dashboard", "operations_center", "availability", "emergencies"],
             "Manutenção": ["maintenance", "pcm", "resources", "activities", "washes", "inspection_templates"],
-            "Ativos e suprimentos": ["equipment", "checklist_items", "materials", "supply_library"],
+            "Ativos e suprimentos": ["equipment", "checklist_items", "materials", "supply_library", "purchases"],
             "Gestão": ["nc", "reports", "productivity", "checklist_history"],
             "Administração": ["users", "cloud_backup", "audit_logs", "admin_rules"],
         }
@@ -438,7 +442,7 @@ class MainWindow(QMainWindow):
         sections = [
             ("1 - Operação", ["dashboard", "operations_center", "availability", "emergencies"]),
             ("2 - Manutenção e PCM", ["maintenance", "pcm", "resources", "activities", "washes", "inspection_templates"]),
-            ("3 - Ativos e suprimentos", ["equipment", "checklist_items", "materials", "supply_library"]),
+            ("3 - Ativos e suprimentos", ["equipment", "checklist_items", "materials", "supply_library", "purchases"]),
             ("4 - Gestão e histórico", ["nc", "reports", "productivity", "checklist_history"]),
             ("5 - Administração", ["users", "cloud_backup", "audit_logs", "admin_rules"]),
         ]
@@ -711,6 +715,8 @@ class MainWindow(QMainWindow):
                 self.pcm_page.refresh()
             elif page_key == "resources":
                 self.resources_page.refresh()
+            elif page_key == "purchases":
+                self.purchases_page.refresh()
             elif page_key == "supply_library":
                 self.supply_library_page.refresh()
             elif page_key == "reports":

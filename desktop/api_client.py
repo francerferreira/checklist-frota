@@ -336,6 +336,24 @@ class APIClient:
     def cancel_maintenance_resource_reservation(self, reservation_id: int, reason: str | None = None):
         return self._request("POST", f"/recursos/reservas/{reservation_id}/cancelar", json={"reason": reason or ""})
 
+    def get_suppliers(self):
+        return self._request("GET", "/compras/fornecedores")
+
+    def create_supplier(self, payload: dict):
+        return self._request("POST", "/compras/fornecedores", json=payload)
+
+    def get_purchase_requests(self):
+        return self._request("GET", "/compras/solicitacoes")
+
+    def create_purchase_request(self, payload: dict):
+        return self._request("POST", "/compras/solicitacoes", json=payload)
+
+    def approve_purchase_request(self, purchase_id: int):
+        return self._request("POST", f"/compras/solicitacoes/{purchase_id}/aprovar", json={})
+
+    def receive_purchase_request(self, purchase_id: int, payload: dict):
+        return self._request("POST", f"/compras/solicitacoes/{purchase_id}/recebimentos", json=payload)
+
     def get_preventive_plans(self):
         return self._request("GET", "/pcm/planos-preventivos")
 
