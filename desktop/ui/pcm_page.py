@@ -4,7 +4,7 @@ from datetime import date
 
 from PySide6.QtCore import Signal
 from PySide6.QtWidgets import (
-    QComboBox, QDateEdit, QDialog, QDialogButtonBox, QFormLayout, QFrame, QHBoxLayout,
+    QComboBox, QDateEdit, QDialog, QDialogButtonBox, QDoubleSpinBox, QFormLayout, QFrame, QHBoxLayout,
     QLabel, QLineEdit, QPushButton, QSpinBox, QTableWidget, QVBoxLayout,
 )
 
@@ -22,37 +22,55 @@ class PreventivePlanDialog(QDialog):
             if row.get("ativo", True):
                 self.vehicle.addItem(row.get("frota") or row.get("placa") or row.get("modelo"), row.get("id"))
         self.title = QLineEdit()
+        self.description = QLineEdit()
+        self.description.setPlaceholderText("Ex.: lubrificar articulações e conferir vazamentos")
         self.trigger = QComboBox()
         self.trigger.addItem("Por calendário", "CALENDARIO")
         self.trigger.addItem("Por horímetro", "HORIMETRO")
         self.trigger.addItem("Calendário e horímetro", "AMBOS")
+        self.trigger.currentIndexChanged.connect(self._sync_trigger_fields)
         self.interval_days = QSpinBox(); self.interval_days.setRange(1, 3650); self.interval_days.setValue(30)
         self.next_due_date = QDateEdit(); self.next_due_date.setCalendarPopup(True); self.next_due_date.setDate(date.today())
+        self.tolerance_days = QSpinBox(); self.tolerance_days.setRange(0, 3650); self.tolerance_days.setValue(0); self.tolerance_days.setSuffix(" dia(s)")
         self.interval_hourmeter = QLineEdit(); self.interval_hourmeter.setPlaceholderText("Ex.: 250")
         self.next_due_hourmeter = QLineEdit(); self.next_due_hourmeter.setPlaceholderText("Obrigatório se não houver leitura")
+        self.tolerance_hourmeter = QDoubleSpinBox(); self.tolerance_hourmeter.setRange(0, 1_000_000); self.tolerance_hourmeter.setDecimals(2); self.tolerance_hourmeter.setSuffix(" h")
+        self.estimated_duration_minutes = QSpinBox(); self.estimated_duration_minutes.setRange(1, 10_080); self.estimated_duration_minutes.setValue(60); self.estimated_duration_minutes.setSuffix(" min")
         self.priority = QComboBox()
         for value in ("BAIXA", "MEDIA", "ALTA", "CRITICA"):
             self.priority.addItem(value, value)
         self.mechanic = QComboBox(); self.mechanic.addItem("Não atribuir agora", None)
         for row in mechanics:
             self.mechanic.addItem(row.get("nome") or row.get("login"), row.get("id"))
-        form.addRow("Equipamento", self.vehicle); form.addRow("Título", self.title); form.addRow("Gatilho", self.trigger)
-        form.addRow("Periodicidade (dias)", self.interval_days); form.addRow("Próxima data", self.next_due_date)
-        form.addRow("Periodicidade (horímetro)", self.interval_hourmeter); form.addRow("Próximo horímetro", self.next_due_hourmeter)
-        form.addRow("Prioridade", self.priority); form.addRow("Mecânico", self.mechanic)
+        form.addRow("Equipamento", self.vehicle); form.addRow("Título", self.title); form.addRow("Descrição", self.description); form.addRow("Gatilho", self.trigger)
+        form.addRow("Periodicidade (dias)", self.interval_days); form.addRow("Próxima data", self.next_due_date); form.addRow("Tolerância de data", self.tolerance_days)
+        form.addRow("Periodicidade (horímetro)", self.interval_hourmeter); form.addRow("Próximo horímetro", self.next_due_hourmeter); form.addRow("Tolerância de horímetro", self.tolerance_hourmeter)
+        form.addRow("Duração estimada", self.estimated_duration_minutes); form.addRow("Prioridade", self.priority); form.addRow("Mecânico", self.mechanic)
         buttons = QDialogButtonBox(QDialogButtonBox.Cancel | QDialogButtonBox.Save)
         buttons.accepted.connect(self.accept); buttons.rejected.connect(self.reject); form.addRow(buttons)
+        self._sync_trigger_fields()
+
+    def _sync_trigger_fields(self):
+        trigger = self.trigger.currentData()
+        calendar_enabled = trigger in {"CALENDARIO", "AMBOS"}
+        hourmeter_enabled = trigger in {"HORIMETRO", "AMBOS"}
+        for field in (self.interval_days, self.next_due_date, self.tolerance_days):
+            field.setEnabled(calendar_enabled)
+        for field in (self.interval_hourmeter, self.next_due_hourmeter, self.tolerance_hourmeter):
+            field.setEnabled(hourmeter_enabled)
 
     def payload(self) -> dict:
         trigger = self.trigger.currentData()
         data = {
             "vehicle_id": self.vehicle.currentData(), "title": self.title.text().strip(), "trigger_type": trigger,
-            "priority": self.priority.currentData(), "assigned_mechanic_user_id": self.mechanic.currentData(),
+            "description": self.description.text().strip(), "priority": self.priority.currentData(),
+            "assigned_mechanic_user_id": self.mechanic.currentData(),
+            "estimated_duration_minutes": self.estimated_duration_minutes.value(),
         }
         if trigger in {"CALENDARIO", "AMBOS"}:
-            data.update({"interval_days": self.interval_days.value(), "next_due_date": self.next_due_date.date().toString("yyyy-MM-dd")})
+            data.update({"interval_days": self.interval_days.value(), "next_due_date": self.next_due_date.date().toString("yyyy-MM-dd"), "tolerance_days": self.tolerance_days.value()})
         if trigger in {"HORIMETRO", "AMBOS"}:
-            data.update({"interval_hourmeter": self.interval_hourmeter.text().strip(), "next_due_hourmeter": self.next_due_hourmeter.text().strip() or None})
+            data.update({"interval_hourmeter": self.interval_hourmeter.text().strip(), "next_due_hourmeter": self.next_due_hourmeter.text().strip() or None, "tolerance_hourmeter": self.tolerance_hourmeter.value()})
         return data
 
 
