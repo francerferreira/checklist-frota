@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from sqlalchemy import inspect, text
+from flask import current_app
 
 from app.extensions import db
 from app.models.activity import ActivityNonConformityLink
@@ -175,6 +176,14 @@ def _backfill_checklist_item_grouping() -> None:
 
 
 def ensure_runtime_schema() -> None:
+    if not current_app.config.get("LEGACY_LOCAL_BOOTSTRAP_ENABLED"):
+        raise RuntimeError(
+            "Alteracao automatica de schema esta desativada. Use Alembic para PostgreSQL."
+        )
+    if db.engine.dialect.name != "sqlite":
+        raise RuntimeError(
+            "Alteracao automatica de schema e restrita ao SQLite temporario de testes."
+        )
     inspector = inspect(db.engine)
 
     if "wash_records" in inspector.get_table_names():

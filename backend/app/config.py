@@ -15,7 +15,7 @@ DATA_ROOT.mkdir(parents=True, exist_ok=True)
 
 def _normalize_database_url(url: str | None) -> str:
     if not url:
-        return f"sqlite:///{DATA_ROOT / 'checklist_frota.db'}"
+        return ""
 
     if url.startswith("postgres://"):
         return url.replace("postgres://", "postgresql+psycopg2://", 1)
@@ -40,10 +40,24 @@ def _bool_env(name: str, default: bool = False) -> bool:
     return value.strip().lower() in {"1", "true", "yes", "on"}
 
 
+def _is_sqlite_url(url: str) -> bool:
+    return url.lower().startswith("sqlite:")
+
+
 class Config:
+    APP_ENV = (os.getenv("CHECKLIST_ENV") or "development").strip().lower()
+    ALLOW_SQLITE = _bool_env("CHECKLIST_ALLOW_SQLITE", default=APP_ENV == "test")
+    LEGACY_LOCAL_BOOTSTRAP_ENABLED = _bool_env(
+        "CHECKLIST_LEGACY_LOCAL_BOOTSTRAP",
+        default=APP_ENV == "test",
+    )
     SECRET_KEY = os.getenv("SECRET_KEY", "checklist-frota-dev-secret")
-    SQLALCHEMY_DATABASE_URI = _normalize_database_url(
+    RAW_DATABASE_URL = (
         None if os.getenv("CHECKLIST_FORCE_LOCAL_DB") == "1" else os.getenv("DATABASE_URL")
+    )
+    SQLALCHEMY_DATABASE_URI = _normalize_database_url(
+        RAW_DATABASE_URL
+        or (f"sqlite:///{DATA_ROOT / 'checklist_frota.db'}" if ALLOW_SQLITE else None)
     )
     SQLALCHEMY_TRACK_MODIFICATIONS = False
     JSON_SORT_KEYS = False
@@ -75,3 +89,22 @@ class Config:
     SUPABASE_STORAGE_BUCKET = os.getenv("SUPABASE_STORAGE_BUCKET", "evidencias")
     FREE_DB_LIMIT_MB = int(os.getenv("FREE_DB_LIMIT_MB", "500"))
     FREE_STORAGE_LIMIT_MB = int(os.getenv("FREE_STORAGE_LIMIT_MB", "1024"))
+
+    @classmethod
+    def validate_environment(cls) -> None:
+        """Reject implicit local databases in official application profiles."""
+        if cls.APP_ENV not in {"development", "test", "production"}:
+            raise RuntimeError("CHECKLIST_ENV deve ser development, test ou production.")
+        if not cls.SQLALCHEMY_DATABASE_URI:
+            raise RuntimeError(
+                "DATABASE_URL e obrigatoria. SQLite temporario exige CHECKLIST_ALLOW_SQLITE=1."
+            )
+        if _is_sqlite_url(cls.SQLALCHEMY_DATABASE_URI) and not cls.ALLOW_SQLITE:
+            raise RuntimeError(
+                "SQLite nao e permitido neste ambiente. Use PostgreSQL ou defina "
+                "CHECKLIST_ALLOW_SQLITE=1 somente para teste ou laboratorio temporario."
+            )
+        if cls.LEGACY_LOCAL_BOOTSTRAP_ENABLED and not _is_sqlite_url(cls.SQLALCHEMY_DATABASE_URI):
+            raise RuntimeError(
+                "CHECKLIST_LEGACY_LOCAL_BOOTSTRAP somente pode ser usado com SQLite temporario."
+            )

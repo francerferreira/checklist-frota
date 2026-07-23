@@ -27,6 +27,7 @@ def create_app() -> Flask:
         load_dotenv(parent_root / ".env")
     from app.config import Config
 
+    Config.validate_environment()
     app = Flask(__name__)
     app.config.from_object(Config)
     Path(app.config["UPLOAD_FOLDER"]).mkdir(parents=True, exist_ok=True)
@@ -51,10 +52,13 @@ def create_app() -> Flask:
     register_blueprints(app)
 
     with app.app_context():
-        db.create_all()
-        ensure_runtime_schema()
-        db.create_all()
-        seed_reference_data()
+        if app.config["LEGACY_LOCAL_BOOTSTRAP_ENABLED"]:
+            # Transitional support for disposable SQLite tests only. PostgreSQL
+            # structures must be created by Alembic, never by application startup.
+            db.create_all()
+            ensure_runtime_schema()
+            db.create_all()
+            seed_reference_data()
         install_audit_hooks()
 
     return app

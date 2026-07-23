@@ -78,7 +78,7 @@ Tambem e possivel disparar a importacao manualmente pela tela `Equipamentos` no 
 
 ## Banco de dados
 
-O projeto esta preparado para PostgreSQL via `DATABASE_URL`.
+O projeto exige PostgreSQL via `DATABASE_URL` nos ambientes oficiais.
 
 Exemplo:
 
@@ -86,7 +86,18 @@ Exemplo:
 DATABASE_URL=postgresql+psycopg://postgres:postgres@localhost:5432/checklist_frota
 ```
 
-Para subir rapidamente em desenvolvimento, o backend faz fallback para SQLite local se `DATABASE_URL` nao estiver definida. Em producao, use PostgreSQL.
+SQLite nao possui fallback silencioso. Ele so pode ser usado em testes ou no laboratorio temporario da Fase 1A, com `CHECKLIST_ALLOW_SQLITE=1`. O schema PostgreSQL deve ser criado e alterado por Alembic; o startup da API nao cria nem altera tabelas.
+
+Configuracao oficial minima:
+
+```env
+CHECKLIST_ENV=development
+DATABASE_URL=postgresql+psycopg2://USUARIO:SENHA@HOST:5432/checklist_frota
+CHECKLIST_ALLOW_SQLITE=0
+CHECKLIST_LEGACY_LOCAL_BOOTSTRAP=0
+```
+
+Para testes automatizados, o projeto usa SQLite isolado e descartavel. Isso e permitido somente porque a suite define `CHECKLIST_ENV=test`, `CHECKLIST_ALLOW_SQLITE=1` e `CHECKLIST_LEGACY_LOCAL_BOOTSTRAP=1`; nunca use essa combinacao para operacao real.
 
 Se voce ja tiver rodado a versao anterior com o banco SQLite antigo, recrie o arquivo `backend/checklist_frota.db` ou aplique migracao antes de usar esta nova versao, porque o schema de equipamentos foi ampliado.
 
