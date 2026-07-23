@@ -225,6 +225,8 @@ def ensure_runtime_schema() -> None:
         _ensure_column("maintenance_work_orders", columns, "failure_cause", "VARCHAR(160)")
         _ensure_column("maintenance_work_orders", columns, "affected_component", "VARCHAR(160)")
         _ensure_column("maintenance_work_orders", columns, "work_shift", "VARCHAR(30)")
+        _ensure_column("maintenance_work_orders", columns, "budget_amount", "NUMERIC(14, 2)")
+        _ensure_column("maintenance_work_orders", columns, "budget_notes", "TEXT")
 
     if "materials" in inspector.get_table_names():
         columns = {column["name"] for column in inspector.get_columns("materials")}

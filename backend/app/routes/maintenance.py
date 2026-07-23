@@ -32,6 +32,7 @@ from app.services.maintenance_governance_service import (
     delete_work_order_cost,
     get_governance_targets,
     get_work_order_governance,
+    update_work_order_budget,
     update_governance_targets,
     update_work_order_classification,
 )
@@ -199,6 +200,29 @@ def update_maintenance_work_order_classification(work_order_id: int):
                 "affected_component": order.affected_component,
                 "work_shift": order.work_shift,
             }),
+        )
+        db.session.commit()
+        return api_response(True, data=get_work_order_governance(order.id))
+    except LookupError as exc:
+        return api_response(False, error=str(exc), status_code=404)
+    except ValueError as exc:
+        return api_response(False, error=str(exc), status_code=400)
+
+
+@bp.put("/manutencao/os/<int:work_order_id>/orcamento")
+@auth_required
+def update_maintenance_work_order_budget(work_order_id: int):
+    denied = _guard_management_access()
+    if denied:
+        return denied
+    try:
+        order = update_work_order_budget(work_order_id, request.get_json(silent=True) or {})
+        record_event(
+            user_id=g.current_user.id,
+            entity_type="MAINTENANCE_WORK_ORDER",
+            entity_id=order.id,
+            action="BUDGET_UPDATED",
+            new_value=str({"amount": float(order.budget_amount), "notes": order.budget_notes}),
         )
         db.session.commit()
         return api_response(True, data=get_work_order_governance(order.id))

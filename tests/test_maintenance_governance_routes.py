@@ -131,6 +131,17 @@ class MaintenanceGovernanceRoutesTests(unittest.TestCase):
         self.assertEqual(data["cost_summary"]["by_category"]["PECA"], 1250.5)
         cost_id = data["costs"][0]["id"]
 
+        budget = self.client.put(
+            f"/manutencao/os/{self.work_order_id}/orcamento",
+            headers=self.admin_headers,
+            json={"amount": "1000.00", "notes": "Limite aprovado para a intervenção"},
+        )
+        self.assertEqual(budget.status_code, 200, budget.get_json())
+        budget_summary = budget.get_json()["data"]["budget_summary"]
+        self.assertEqual(budget_summary["budget_amount"], 1000.0)
+        self.assertEqual(budget_summary["actual_amount"], 1250.5)
+        self.assertEqual(budget_summary["variance"], 250.5)
+
         dashboard = self.client.get("/dashboard-manutencao/resumo", headers=self.admin_headers)
         self.assertEqual(dashboard.status_code, 200, dashboard.get_json())
         availability = dashboard.get_json()["data"]["data_availability"]
@@ -143,6 +154,7 @@ class MaintenanceGovernanceRoutesTests(unittest.TestCase):
             actions = {row.action for row in AuditLog.query.all()}
             self.assertIn("GOVERNANCE_CLASSIFICATION_UPDATED", actions)
             self.assertIn("COST_RECORDED", actions)
+            self.assertIn("BUDGET_UPDATED", actions)
 
         deleted = self.client.delete(
             f"/manutencao/os/{self.work_order_id}/custos/{cost_id}",

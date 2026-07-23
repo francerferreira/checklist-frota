@@ -58,6 +58,22 @@ def _cost_summary(costs: list[MaintenanceWorkOrderCost]) -> dict:
     }
 
 
+def _budget_summary(order: MaintenanceWorkOrder, costs: list[MaintenanceWorkOrderCost]) -> dict:
+    actual = sum((Decimal(cost.amount or 0) for cost in costs), Decimal("0.00"))
+    if order.budget_amount is None:
+        return {"configured": False, "budget_amount": None, "actual_amount": float(actual), "variance": None, "consumption_percent": None}
+    budget = Decimal(order.budget_amount)
+    variance = actual - budget
+    consumption = (actual / budget * Decimal("100")) if budget else None
+    return {
+        "configured": True,
+        "budget_amount": float(budget),
+        "actual_amount": float(actual),
+        "variance": float(variance),
+        "consumption_percent": float(consumption.quantize(Decimal("0.01"))) if consumption is not None else None,
+    }
+
+
 def get_work_order_governance(work_order_id: int) -> dict:
     order = db.session.get(MaintenanceWorkOrder, work_order_id)
     if not order:
@@ -72,6 +88,7 @@ def get_work_order_governance(work_order_id: int) -> dict:
         },
         "costs": [item.to_dict() for item in costs],
         "cost_summary": _cost_summary(costs),
+        "budget_summary": _budget_summary(order, costs),
         "cost_categories": list(COST_CATEGORIES),
     }
 
@@ -83,6 +100,16 @@ def update_work_order_classification(work_order_id: int, payload: dict) -> Maint
     order.failure_cause = _clean_text(payload.get("failure_cause"), "a causa da falha")
     order.affected_component = _clean_text(payload.get("affected_component"), "o componente afetado")
     order.work_shift = _clean_text(payload.get("work_shift"), "o turno", limit=30)
+    db.session.flush()
+    return order
+
+
+def update_work_order_budget(work_order_id: int, payload: dict) -> MaintenanceWorkOrder:
+    order = db.session.get(MaintenanceWorkOrder, work_order_id)
+    if not order:
+        raise LookupError("Ordem de servico nao encontrada.")
+    order.budget_amount = _parse_amount(payload.get("amount"))
+    order.budget_notes = _clean_text(payload.get("notes"), "a observacao", limit=2000)
     db.session.flush()
     return order
 

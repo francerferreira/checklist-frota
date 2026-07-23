@@ -311,6 +311,8 @@ class MaintenanceWorkOrder(db.Model):
     failure_cause = db.Column(db.String(160), nullable=True, index=True)
     affected_component = db.Column(db.String(160), nullable=True, index=True)
     work_shift = db.Column(db.String(30), nullable=True, index=True)
+    budget_amount = db.Column(db.Numeric(14, 2), nullable=True)
+    budget_notes = db.Column(db.Text, nullable=True)
     status = db.Column(db.String(30), nullable=False, default="ABERTA", index=True)
     scheduled_date = db.Column(db.Date, nullable=True, index=True)
     created_at = db.Column(db.DateTime, nullable=False, default=now_manaus_naive, index=True)
@@ -347,6 +349,8 @@ class MaintenanceWorkOrder(db.Model):
             "failure_cause": self.failure_cause,
             "affected_component": self.affected_component,
             "work_shift": self.work_shift,
+            "budget_amount": float(self.budget_amount) if self.budget_amount is not None else None,
+            "budget_notes": self.budget_notes,
             "status": self.status,
             "scheduled_date": self.scheduled_date.isoformat() if self.scheduled_date else None,
             "created_at": self.created_at.isoformat() if self.created_at else None,
