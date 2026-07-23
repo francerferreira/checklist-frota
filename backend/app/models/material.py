@@ -16,6 +16,8 @@ class Material(db.Model):
     foto_path = db.Column(db.String(255), nullable=True)
     quantidade_estoque = db.Column(db.Integer, nullable=False, default=0)
     estoque_minimo = db.Column(db.Integer, nullable=False, default=0)
+    ponto_reposicao = db.Column(db.Integer, nullable=False, default=0)
+    classe_abc = db.Column(db.String(1), nullable=False, default="C", index=True)
     ativo = db.Column(db.Boolean, nullable=False, default=True, index=True)
     created_at = db.Column(db.DateTime, nullable=False, default=now_manaus_naive)
 
@@ -40,6 +42,14 @@ class Material(db.Model):
             "estoque_minimo >= 0",
             name="ck_material_estoque_minimo_non_negative",
         ),
+        db.CheckConstraint(
+            "ponto_reposicao >= 0",
+            name="ck_material_ponto_reposicao_non_negative",
+        ),
+        db.CheckConstraint(
+            "classe_abc IN ('A', 'B', 'C')",
+            name="ck_material_classe_abc",
+        ),
     )
 
     def to_dict(self) -> dict:
@@ -51,8 +61,11 @@ class Material(db.Model):
             "foto_path": self.foto_path,
             "quantidade_estoque": self.quantidade_estoque,
             "estoque_minimo": self.estoque_minimo,
+            "ponto_reposicao": self.ponto_reposicao,
+            "classe_abc": self.classe_abc,
             "ativo": self.ativo,
             "baixo_estoque": self.quantidade_estoque <= self.estoque_minimo,
+            "repor": self.quantidade_estoque <= self.ponto_reposicao,
             "created_at": self.created_at.isoformat() if self.created_at else None,
             "family_applications": [row.to_dict() for row in self.family_applications if row.active],
         }

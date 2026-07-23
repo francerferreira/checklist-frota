@@ -226,6 +226,16 @@ def ensure_runtime_schema() -> None:
         _ensure_column("maintenance_work_orders", columns, "affected_component", "VARCHAR(160)")
         _ensure_column("maintenance_work_orders", columns, "work_shift", "VARCHAR(30)")
 
+    if "materials" in inspector.get_table_names():
+        columns = {column["name"] for column in inspector.get_columns("materials")}
+        if "ponto_reposicao" not in columns:
+            _ensure_column("materials", columns, "ponto_reposicao", "INTEGER NOT NULL DEFAULT 0")
+            db.session.execute(
+                text("UPDATE materials SET ponto_reposicao = estoque_minimo WHERE ponto_reposicao = 0 AND estoque_minimo > 0")
+            )
+            db.session.commit()
+        _ensure_column("materials", columns, "classe_abc", "VARCHAR(1) NOT NULL DEFAULT 'C'")
+
     if "activity_items" in inspector.get_table_names():
         columns = {column["name"] for column in inspector.get_columns("activity_items")}
         if "material_id" not in columns:

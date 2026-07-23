@@ -428,8 +428,12 @@ def create_material():
     try:
         quantidade_estoque = _as_positive_int(payload.get("quantidade_estoque"), default=0)
         estoque_minimo = _as_positive_int(payload.get("estoque_minimo"), default=0)
+        ponto_reposicao = _as_positive_int(payload.get("ponto_reposicao"), default=estoque_minimo)
     except ValueError as exc:
         return api_response(False, error=str(exc), status_code=400)
+    classe_abc = str(payload.get("classe_abc") or "C").strip().upper()
+    if classe_abc not in {"A", "B", "C"}:
+        return api_response(False, error="Classe ABC invalida.", status_code=400)
 
     material = Material(
         referencia=referencia,
@@ -438,6 +442,8 @@ def create_material():
         foto_path=_clean(payload.get("foto_path")),
         quantidade_estoque=0,
         estoque_minimo=estoque_minimo,
+        ponto_reposicao=ponto_reposicao,
+        classe_abc=classe_abc,
         ativo=bool(payload.get("ativo", True)),
     )
     db.session.add(material)
@@ -480,14 +486,20 @@ def update_material(material_id: int):
 
     try:
         estoque_minimo = _as_positive_int(payload.get("estoque_minimo"), default=material.estoque_minimo)
+        ponto_reposicao = _as_positive_int(payload.get("ponto_reposicao"), default=material.ponto_reposicao)
     except ValueError as exc:
         return api_response(False, error=str(exc), status_code=400)
+    classe_abc = str(payload.get("classe_abc") or material.classe_abc).strip().upper()
+    if classe_abc not in {"A", "B", "C"}:
+        return api_response(False, error="Classe ABC invalida.", status_code=400)
 
     material.referencia = referencia
     material.descricao = descricao
     material.aplicacao_tipo = aplicacao_tipo
     material.foto_path = _clean(payload.get("foto_path")) or material.foto_path
     material.estoque_minimo = estoque_minimo
+    material.ponto_reposicao = ponto_reposicao
+    material.classe_abc = classe_abc
     material.ativo = bool(payload.get("ativo", material.ativo))
 
     db.session.commit()

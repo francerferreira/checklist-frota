@@ -110,6 +110,18 @@ class MaterialDialog(QDialog):
         self.estoque_minimo_spin.setMaximum(999999)
         self.estoque_minimo_spin.setValue(int(self.material.get("estoque_minimo", 0)))
 
+        self.ponto_reposicao_spin = QSpinBox()
+        self.ponto_reposicao_spin.setMinimum(0)
+        self.ponto_reposicao_spin.setMaximum(999999)
+        self.ponto_reposicao_spin.setValue(int(self.material.get("ponto_reposicao", self.material.get("estoque_minimo", 0))))
+
+        self.classe_abc_combo = QComboBox()
+        for value in ("A", "B", "C"):
+            self.classe_abc_combo.addItem(f"Classe {value}", value)
+        abc_index = self.classe_abc_combo.findData(self.material.get("classe_abc", "C"))
+        if abc_index >= 0:
+            self.classe_abc_combo.setCurrentIndex(abc_index)
+
         self.ativo_checkbox = QCheckBox("Material ativo")
         self.ativo_checkbox.setChecked(bool(self.material.get("ativo", True)))
 
@@ -139,6 +151,8 @@ class MaterialDialog(QDialog):
         add_field(1, 0, "Aplicação", self.aplicacao_combo, highlight=True)
         add_field(1, 1, "Quantidade em estoque", self.quantidade_spin, highlight=True)
         add_field(2, 0, "Estoque mínimo", self.estoque_minimo_spin)
+        add_field(3, 0, "Ponto de reposição", self.ponto_reposicao_spin)
+        add_field(3, 1, "Curva ABC", self.classe_abc_combo)
 
         media_field = QFrame()
         media_field.setObjectName("DialogInfoBlock")
@@ -191,6 +205,8 @@ class MaterialDialog(QDialog):
                 "aplicacao_tipo": self.aplicacao_combo.currentData(),
                 "quantidade_estoque": int(self.quantidade_spin.value()),
                 "estoque_minimo": int(self.estoque_minimo_spin.value()),
+                "ponto_reposicao": int(self.ponto_reposicao_spin.value()),
+                "classe_abc": self.classe_abc_combo.currentData(),
                 "ativo": self.ativo_checkbox.isChecked(),
             }
             if self.selected_file:

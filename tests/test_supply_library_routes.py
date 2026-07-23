@@ -28,7 +28,11 @@ class SupplyLibraryRouteTests(unittest.TestCase):
         if DB_PATH.exists(): DB_PATH.unlink()
         cls.app = create_app(); cls.client = cls.app.test_client()
         with cls.app.app_context():
-            admin = User.query.filter_by(login="admin").one()
+            admin = User.query.filter_by(login="admin").first()
+            if not admin:
+                admin = User(nome="Administrador Suprimentos", login="admin", tipo="admin", ativo=True)
+                admin.set_password("teste123")
+                db.session.add(admin)
             mechanic = User(nome="Mecanico Suprimentos", login="mecanico_supr", tipo="mecanico", ativo=True); mechanic.set_password("teste123")
             family = EquipmentFamily.query.filter_by(code="rtg").one()
             vehicle = Vehicle(placa="", modelo="RTG", frota="RTG SUPR", tipo="rtg", ativo=True)
