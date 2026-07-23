@@ -18,6 +18,7 @@ from app.models.mechanic_non_conformity import MechanicNonConformity
 from app.models.mobile_operation import MobileSyncOperation
 from app.models.operational_availability import EquipmentOperationalState, EquipmentStatusEvent, HourmeterReading
 from app.models.pcm import PreventivePlan
+from app.models.resource import MaintenanceResource, MaintenanceResourceReservation
 from app.models.technical_inspection import InspectionExecution, InspectionExecutionItem, InspectionTemplate, InspectionTemplateItem
 from app.models.resolution_package import ResolutionPackage, ResolutionPackageLink
 from app.models.revoked_token import RevokedToken
@@ -62,6 +63,8 @@ __all__ = [
     "MobileSyncOperation",
     "OperationalLocation",
     "PreventivePlan",
+    "MaintenanceResource",
+    "MaintenanceResourceReservation",
     "ResolutionPackage",
     "ResolutionPackageLink",
     "RevokedToken",

@@ -17,6 +17,7 @@ from app.routes.pcm import bp as pcm_bp
 from app.routes.resolution_packages import bp as resolution_packages_bp
 from app.routes.supply_library import bp as supply_library_bp
 from app.routes.reports import bp as reports_bp
+from app.routes.resources import bp as resources_bp
 from app.routes.upload import bp as upload_bp
 from app.routes.users import bp as users_bp
 from app.routes.vehicles import bp as vehicles_bp
@@ -47,6 +48,7 @@ def register_blueprints(app):
         supply_library_bp,
         upload_bp,
         reports_bp,
+        resources_bp,
         washes_bp,
     ):
         app.register_blueprint(blueprint)

@@ -321,6 +321,21 @@ class APIClient:
     def get_pcm_backlog(self):
         return self._request("GET", "/pcm/backlog")
 
+    def get_maintenance_resources(self):
+        return self._request("GET", "/recursos")
+
+    def create_maintenance_resource(self, payload: dict):
+        return self._request("POST", "/recursos", json=payload)
+
+    def get_maintenance_resource_reservations(self, resource_id: int):
+        return self._request("GET", f"/recursos/{resource_id}/reservas")
+
+    def reserve_maintenance_resource(self, resource_id: int, payload: dict):
+        return self._request("POST", f"/recursos/{resource_id}/reservas", json=payload)
+
+    def cancel_maintenance_resource_reservation(self, reservation_id: int, reason: str | None = None):
+        return self._request("POST", f"/recursos/reservas/{reservation_id}/cancelar", json={"reason": reason or ""})
+
     def get_preventive_plans(self):
         return self._request("GET", "/pcm/planos-preventivos")
 

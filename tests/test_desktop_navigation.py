@@ -38,6 +38,7 @@ class FakeAPIClient:
             "availability": 0,
             "inspection_templates": 0,
             "pcm": 0,
+            "resources": 0,
             "supply_library": 0,
             "reports_macro": 0,
             "reports_micro": 0,
@@ -105,6 +106,10 @@ class FakeAPIClient:
         return {"preventive_plans": [], "summary": {"vencendo_ou_vencidos": 0}}
 
     def get_pcm_backlog(self):
+        return []
+
+    def get_maintenance_resources(self):
+        self.calls["resources"] += 1
         return []
 
     def get_warehouses(self):
@@ -247,6 +252,11 @@ class DesktopNavigationTests(unittest.TestCase):
         self.app.processEvents()
         self.assertEqual(self.api_client.calls["pcm"], 1)
 
+        self.window.switch_page("resources")
+        QTest.qWait(30)
+        self.app.processEvents()
+        self.assertEqual(self.api_client.calls["resources"], 1)
+
         self.window.switch_page("supply_library")
         QTest.qWait(30)
         self.app.processEvents()
@@ -329,6 +339,7 @@ class DesktopNavigationTests(unittest.TestCase):
             self.assertIn("availability", gestor_window.page_map)
             self.assertIn("inspection_templates", gestor_window.page_map)
             self.assertIn("pcm", gestor_window.page_map)
+            self.assertIn("resources", gestor_window.page_map)
             self.assertIn("supply_library", gestor_window.page_map)
 
             self.assertEqual(set(motorista_window.page_map.keys()), {"dashboard"})
