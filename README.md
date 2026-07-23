@@ -99,6 +99,12 @@ CHECKLIST_LEGACY_LOCAL_BOOTSTRAP=0
 
 Para testes automatizados, o projeto usa SQLite isolado e descartavel. Isso e permitido somente porque a suite define `CHECKLIST_ENV=test`, `CHECKLIST_ALLOW_SQLITE=1` e `CHECKLIST_LEGACY_LOCAL_BOOTSTRAP=1`; nunca use essa combinacao para operacao real.
 
+## Desenvolvimento local com SQLite
+
+Para o laboratorio local, execute `abrir_backend_sqlite_local.bat`. O atalho habilita o SQLite de forma explicita e cria/usa `backend/checklist_frota.db`; nao existe fallback silencioso para SQLite.
+
+Use esse modo apenas no computador de desenvolvimento. O PostgreSQL continua sendo o banco indicado para homologacao e producao.
+
 Se voce ja tiver rodado a versao anterior com o banco SQLite antigo, recrie o arquivo `backend/checklist_frota.db` ou aplique migracao antes de usar esta nova versao, porque o schema de equipamentos foi ampliado.
 
 ## Instalacao

@@ -221,10 +221,11 @@ class MainWindow(QMainWindow):
         self.pending_refreshes: set[str] = set()
         self.page_subwindows: dict[str, QWidget] = {}
         self.tree_items: dict[str, QWidget] = {}
+        self.section_items: list[QTreeWidgetItem] = []
         self._syncing_tree = False
         self.sidebar_visible = True
 
-        self.setWindowTitle("Sistema de Checklist de Frota")
+        self.setWindowTitle("Sistema de Manutenção de Frota")
         self.setMinimumSize(1280, 760)
         app = QApplication.instance()
         if app is not None:
@@ -321,7 +322,7 @@ class MainWindow(QMainWindow):
             "nc": "Central de Resolução",
             "productivity": "Produtividade",
             "operations_center": "Central Operacional",
-            "equipment": "Frota",
+            "equipment": "Equipamentos",
             "checklist_items": "Checklist",
             "inspection_templates": "Templates Técnicos",
             "materials": "Materiais",
@@ -370,12 +371,11 @@ class MainWindow(QMainWindow):
         menubar.clear()
 
         menu_groups = {
-            "Cadastro": ["equipment", "users"],
-            "Tabelas": ["checklist_items", "inspection_templates", "materials", "supply_library"],
-            "Movimento": ["operations_center", "availability", "emergencies", "activities", "washes", "maintenance", "pcm"],
-            "Relatórios": ["reports", "productivity", "checklist_history"],
-            "Sistema": [],
-            "Utilitários": ["dashboard", "nc", "cloud_backup", "audit_logs", "admin_rules"],
+            "Operação": ["dashboard", "operations_center", "availability", "emergencies"],
+            "Manutenção": ["maintenance", "pcm", "activities", "washes", "inspection_templates"],
+            "Ativos e suprimentos": ["equipment", "checklist_items", "materials", "supply_library"],
+            "Gestão": ["nc", "reports", "productivity", "checklist_history"],
+            "Administração": ["users", "cloud_backup", "audit_logs", "admin_rules"],
         }
 
         for menu_title, keys in menu_groups.items():
@@ -405,9 +405,16 @@ class MainWindow(QMainWindow):
         panel_layout.setContentsMargins(6, 6, 6, 6)
         panel_layout.setSpacing(6)
 
-        title = QLabel("Módulo Checklist de Frota")
+        title = QLabel("Gestão de Manutenção")
         title.setObjectName("SectionTitle")
         panel_layout.addWidget(title)
+
+        self.navigation_search = QLineEdit()
+        self.navigation_search.setObjectName("NavigationSearch")
+        self.navigation_search.setPlaceholderText("Buscar tela ou módulo...")
+        self.navigation_search.setClearButtonEnabled(True)
+        self.navigation_search.textChanged.connect(self._filter_navigation)
+        panel_layout.addWidget(self.navigation_search)
 
         self.nav_tree = QTreeWidget()
         self.nav_tree.setHeaderHidden(True)
@@ -421,24 +428,41 @@ class MainWindow(QMainWindow):
     def _populate_tree(self):
         self.nav_tree.clear()
         self.tree_items = {}
+        self.section_items = []
 
-        root = self._make_tree_item(self.nav_tree, "Módulo Checklist de Frota", icon_name="dashboard")
+        root = self._make_tree_item(self.nav_tree, "Sistema de Manutenção de Frota", icon_name="dashboard")
         sections = [
-            ("1 - Cadastro", ["equipment", "users"]),
-            ("2 - Tabelas", ["checklist_items", "inspection_templates", "materials", "supply_library"]),
-            ("3 - Movimento", ["operations_center", "availability", "emergencies", "activities", "washes", "maintenance", "pcm"]),
-            ("4 - Relatórios", ["reports", "productivity", "checklist_history"]),
-            ("5 - Utilitários", ["dashboard", "nc", "cloud_backup", "audit_logs", "admin_rules"]),
+            ("1 - Operação", ["dashboard", "operations_center", "availability", "emergencies"]),
+            ("2 - Manutenção e PCM", ["maintenance", "pcm", "activities", "washes", "inspection_templates"]),
+            ("3 - Ativos e suprimentos", ["equipment", "checklist_items", "materials", "supply_library"]),
+            ("4 - Gestão e histórico", ["nc", "reports", "productivity", "checklist_history"]),
+            ("5 - Administração", ["users", "cloud_backup", "audit_logs", "admin_rules"]),
         ]
 
         for section_label, keys in sections:
             section_item = self._make_tree_item(root, section_label, icon_name="reports")
+            self.section_items.append(section_item)
             for key in keys:
                 if key not in self.page_map:
                     continue
                 item = self._make_tree_item(section_item, self.page_titles.get(key, key), page_key=key, icon_name="dashboard")
                 self.tree_items[key] = item
 
+        self.nav_tree.expandAll()
+
+    def _filter_navigation(self, search_text: str):
+        query = search_text.strip().casefold()
+        for item in self.tree_items.values():
+            item.setHidden(bool(query) and query not in item.text(0).casefold())
+
+        for section_item in self.section_items:
+            has_visible_page = any(not section_item.child(index).isHidden() for index in range(section_item.childCount()))
+            section_item.setHidden(bool(query) and not has_visible_page)
+
+        root = self.nav_tree.topLevelItem(0)
+        if root is not None:
+            has_visible_section = any(not section_item.isHidden() for section_item in self.section_items)
+            root.setHidden(bool(query) and not has_visible_section)
         self.nav_tree.expandAll()
 
     def _make_tree_item(self, parent, label: str, *, page_key: str | None = None, icon_name: str = "dashboard"):
@@ -506,6 +530,8 @@ class MainWindow(QMainWindow):
         toggle_button.setMinimumHeight(24)
         toggle_button.clicked.connect(self.toggle_sidebar)
         status.addPermanentWidget(toggle_button)
+        self.navigation_context_label = make_cell("NAVEGAÇÃO › INÍCIO", 240)
+        status.addPermanentWidget(self.navigation_context_label)
         status.addPermanentWidget(make_cell("REV 1.0.0.0", 120))
         status.addPermanentWidget(
             make_cell(((current_user.get("nome") or current_user.get("login") or "-").upper()), 160)
@@ -563,12 +589,18 @@ class MainWindow(QMainWindow):
         finally:
             self._syncing_tree = False
 
+    def _update_navigation_context(self, page_key: str):
+        if hasattr(self, "navigation_context_label"):
+            page_title = self.page_titles.get(page_key, page_key)
+            self.navigation_context_label.setText(f"NAVEGAÇÃO › {page_title.upper()}")
+
     def switch_page(self, page_key: str):
         if page_key not in self.page_map:
             return
         same_page = self.current_page_key == page_key
         self.current_page_key = page_key
         self._sync_tree_selection(page_key)
+        self._update_navigation_context(page_key)
 
         sub = self._ensure_subwindow(page_key)
         for other_key, other_sub in self.page_subwindows.items():

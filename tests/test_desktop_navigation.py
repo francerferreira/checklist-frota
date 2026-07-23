@@ -262,6 +262,23 @@ class DesktopNavigationTests(unittest.TestCase):
         self.app.processEvents()
         self.assertEqual(self.api_client.calls["dashboard"], 1)
 
+    def test_navigation_search_filters_modules_and_updates_context(self):
+        self.window.navigation_search.setText("central")
+        self.app.processEvents()
+
+        self.assertFalse(self.window.tree_items["operations_center"].isHidden())
+        self.assertTrue(self.window.tree_items["equipment"].isHidden())
+
+        self.window.switch_page("operations_center")
+        self.assertEqual(
+            self.window.navigation_context_label.text(),
+            "NAVEGAÇÃO › CENTRAL OPERACIONAL",
+        )
+
+        self.window.navigation_search.clear()
+        self.app.processEvents()
+        self.assertFalse(self.window.tree_items["equipment"].isHidden())
+
     def test_data_change_from_users_marks_other_pages_dirty_without_refreshing_all(self):
         self.window.switch_page("users")
         QTest.qWait(30)
