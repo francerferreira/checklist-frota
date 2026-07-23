@@ -9,6 +9,10 @@ SQLite não será usado como fallback automático. Se a conexão PostgreSQL esti
 ausente ou incorreta, a aplicação deverá parar com uma mensagem clara, sem criar
 outro banco silenciosamente.
 
+SQLite poderá ser usado somente como bancada descartável na preparação inicial
+da Fase 1, conforme as regras da seção 3. Ele não aprova a Fase 1 e não poderá
+ser usado como persistência da Fase 2.
+
 A arquitetura continuará separada em:
 
 - Backend Flask responsável por regras, segurança, banco e API;
@@ -37,7 +41,49 @@ expressa, pois duplicaria telas, testes e manutenção.
 Esse diagnóstico torna a preparação correta do PostgreSQL o primeiro bloqueio
 da implementação.
 
-## 3. Regras obrigatórias para o desenvolvimento
+## 3. Uso transitório do SQLite
+
+O SQLite fica limitado à **Fase 1A**, uma preparação interna da Fase 1.
+
+| Momento | Regra |
+|---|---|
+| Preparação inicial da Fase 1 | SQLite permitido como banco descartável |
+| Aceite e conclusão da Fase 1 | PostgreSQL obrigatório |
+| Fase 2 em diante | Persistência somente em PostgreSQL |
+| Testes unitários rápidos | SQLite permitido quando o teste não depender do dialeto |
+| Testes de integração e migrations | PostgreSQL obrigatório |
+
+### Permitido com SQLite
+
+- Mudança da pasta do projeto;
+- Mapa mestre;
+- Protótipos visuais;
+- Menu, navegação e componentes usando fixtures;
+- Contratos de API sem persistência definitiva;
+- Regras puras;
+- Testes unitários rápidos.
+
+### Proibido consolidar em SQLite
+
+- Login, usuários e permissões persistentes;
+- Auditoria;
+- Comentários e anexos persistentes;
+- Migrations oficiais;
+- Equipamentos, horímetros e disponibilidade;
+- OS, preventivas e planejamento;
+- Estoque, compras, custos e concorrência;
+- Dados que precisem ser migrados para produção.
+
+O modo SQLite deverá ser explícito, nunca automático. Seu arquivo temporário não
+deverá ficar dentro do repositório ou da Área de Trabalho sincronizada pelo
+OneDrive. Quando necessário, deverá usar uma pasta local descartável fora da
+sincronização, por exemplo sob `%LOCALAPPDATA%`.
+
+Todo dado criado nesse modo será considerado descartável. Antes de iniciar a
+persistência da Fase 2, será obrigatório concluir os critérios PostgreSQL da
+Fase 1.
+
+## 4. Regras obrigatórias para o desenvolvimento
 
 1. Nunca desenvolver diretamente no banco de produção.
 2. Manter bancos separados para desenvolvimento, testes e homologação.
@@ -60,7 +106,7 @@ da implementação.
 13. Nenhuma fase seguinte começa enquanto os critérios de aceite da anterior
     estiverem pendentes.
 
-## 4. Ambientes PostgreSQL obrigatórios
+## 5. Ambientes PostgreSQL obrigatórios
 
 | Ambiente | Finalidade | Regra de proteção |
 |---|---|---|
@@ -82,7 +128,7 @@ Antes de qualquer comando destrutivo, o processo deverá validar:
 - Backup quando existir dado relevante;
 - Variável explícita de autorização para reset.
 
-## 5. Padrão de entrega de cada fase
+## 6. Padrão de entrega de cada fase
 
 Cada fase deverá produzir:
 
@@ -113,6 +159,8 @@ Criar uma fundação reproduzível e segura para o novo sistema.
 - Criar usuário proprietário/migration e usuário runtime com privilégios
   mínimos e responsabilidades separadas;
 - Proteger produção contra comandos de desenvolvimento;
+- Disponibilizar, se necessário, o modo SQLite Fase 1A de forma explícita,
+  descartável e fora do OneDrive;
 - Criar o mapa mestre:
   `módulo → tela → subtela → aba → rota → perfil → model → API → reaproveitamento`;
 - Definir a interface gerencial principal;
@@ -133,6 +181,7 @@ Criar uma fundação reproduzível e segura para o novo sistema.
 
 - PostgreSQL de desenvolvimento acessível;
 - PostgreSQL de testes isolado;
+- Modo SQLite bootstrap incapaz de ser ativado silenciosamente;
 - Migration do zero até o head;
 - Comando seguro de upgrade;
 - Comando seguro de seed;
@@ -720,7 +769,7 @@ Fase 11.
 
 ---
 
-## 6. Mapa de cobertura dos 24 módulos
+## 7. Mapa de cobertura dos 24 módulos
 
 | Módulo solicitado | Fase |
 |---|---:|
@@ -749,7 +798,7 @@ Fase 11.
 | Administração | 2 |
 | Configurações | 2, 5, 7, 8 e 11 |
 
-## 7. Ordem de execução aprovada
+## 8. Ordem de execução aprovada
 
 ```text
 Fase 1 → Fase 2 → Fase 3 → Fase 4 → Fase 5 → Fase 6
