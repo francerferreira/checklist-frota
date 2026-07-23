@@ -29,6 +29,7 @@ class FakeAPIClient:
         self.user = {"login": "admin"}
         self.calls = {
             "dashboard": 0,
+            "operations_center": 0,
             "nc": 0,
             "productivity": 0,
             "equipment": 0,
@@ -87,6 +88,10 @@ class FakeAPIClient:
             },
             "rows": [],
         }
+
+    def get_critical_equipment(self):
+        self.calls["operations_center"] += 1
+        return {"items": []}
 
     def get_equipment_structure(self):
         return {"families": [{"id": 1, "code": "rtg", "name": "RTG"}], "locations": []}
@@ -227,6 +232,11 @@ class DesktopNavigationTests(unittest.TestCase):
         self.app.processEvents()
         self.assertEqual(self.api_client.calls["availability"], 1)
 
+        self.window.switch_page("operations_center")
+        QTest.qWait(30)
+        self.app.processEvents()
+        self.assertEqual(self.api_client.calls["operations_center"], 1)
+
         self.window.switch_page("inspection_templates")
         QTest.qWait(30)
         self.app.processEvents()
@@ -298,6 +308,7 @@ class DesktopNavigationTests(unittest.TestCase):
             self.assertNotIn("cloud_backup", gestor_window.page_map)
             self.assertNotIn("audit_logs", gestor_window.page_map)
             self.assertIn("maintenance", gestor_window.page_map)
+            self.assertIn("operations_center", gestor_window.page_map)
             self.assertIn("availability", gestor_window.page_map)
             self.assertIn("inspection_templates", gestor_window.page_map)
             self.assertIn("pcm", gestor_window.page_map)

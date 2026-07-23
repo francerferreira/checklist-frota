@@ -6,6 +6,7 @@ from collections.abc import Mapping
 PAGE_ACCESS_BY_ROLE = {
     "admin": {
         "dashboard",
+        "operations_center",
         "nc",
         "productivity",
         "reports",
@@ -28,6 +29,7 @@ PAGE_ACCESS_BY_ROLE = {
     },
     "gestor": {
         "dashboard",
+        "operations_center",
         "nc",
         "productivity",
         "reports",
@@ -47,6 +49,7 @@ PAGE_ACCESS_BY_ROLE = {
     },
     "mecanico": {
         "dashboard",
+        "operations_center",
         "nc",
         "productivity",
         "activities",

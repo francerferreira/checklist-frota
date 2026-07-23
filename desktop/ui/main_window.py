@@ -42,6 +42,7 @@ from ui.inspection_templates_page import InspectionTemplatesPage
 from ui.materials_page import MaterialsPage
 from ui.maintenance_page import MaintenancePage
 from ui.non_conformities_page import NonConformitiesPage
+from ui.operational_center_page import OperationalCenterPage
 from ui.productivity_page import ProductivityPage
 from ui.pcm_page import PCMPage
 from ui.supply_library_page import SupplyLibraryPage
@@ -271,6 +272,7 @@ class MainWindow(QMainWindow):
         self.dashboard_page = DashboardPage(self.api_client)
         self.nc_page = NonConformitiesPage(self.api_client)
         self.productivity_page = ProductivityPage(self.api_client)
+        self.operational_center_page = OperationalCenterPage(self.api_client)
         self.equipment_page = EquipmentPage(self.api_client)
         self.checklist_items_page = ChecklistItemsPage(self.api_client)
         self.inspection_templates_page = InspectionTemplatesPage(self.api_client)
@@ -293,6 +295,7 @@ class MainWindow(QMainWindow):
             "dashboard": self.dashboard_page,
             "nc": self.nc_page,
             "productivity": self.productivity_page,
+            "operations_center": self.operational_center_page,
             "checklist_history": self.checklist_history_page,
             "reports": self.reports_page,
             "equipment": self.equipment_page,
@@ -317,6 +320,7 @@ class MainWindow(QMainWindow):
             "dashboard": "Dashboard",
             "nc": "Central de Resolução",
             "productivity": "Produtividade",
+            "operations_center": "Central Operacional",
             "equipment": "Frota",
             "checklist_items": "Checklist",
             "inspection_templates": "Templates Técnicos",
@@ -368,7 +372,7 @@ class MainWindow(QMainWindow):
         menu_groups = {
             "Cadastro": ["equipment", "users"],
             "Tabelas": ["checklist_items", "inspection_templates", "materials", "supply_library"],
-            "Movimento": ["availability", "emergencies", "activities", "washes", "maintenance", "pcm"],
+            "Movimento": ["operations_center", "availability", "emergencies", "activities", "washes", "maintenance", "pcm"],
             "Relatórios": ["reports", "productivity", "checklist_history"],
             "Sistema": [],
             "Utilitários": ["dashboard", "nc", "cloud_backup", "audit_logs", "admin_rules"],
@@ -422,7 +426,7 @@ class MainWindow(QMainWindow):
         sections = [
             ("1 - Cadastro", ["equipment", "users"]),
             ("2 - Tabelas", ["checklist_items", "inspection_templates", "materials", "supply_library"]),
-            ("3 - Movimento", ["availability", "emergencies", "activities", "washes", "maintenance", "pcm"]),
+            ("3 - Movimento", ["operations_center", "availability", "emergencies", "activities", "washes", "maintenance", "pcm"]),
             ("4 - Relatórios", ["reports", "productivity", "checklist_history"]),
             ("5 - Utilitários", ["dashboard", "nc", "cloud_backup", "audit_logs", "admin_rules"]),
         ]
@@ -647,6 +651,8 @@ class MainWindow(QMainWindow):
                 self.nc_page.refresh()
             elif page_key == "productivity":
                 self.productivity_page.refresh()
+            elif page_key == "operations_center":
+                self.operational_center_page.refresh()
             elif page_key == "equipment":
                 self.equipment_page.refresh()
             elif page_key == "checklist_items":

@@ -115,6 +115,9 @@ class APIClient:
             params["local_id"] = location_id
         return self._request("GET", "/disponibilidade/visao", params=params or None)
 
+    def get_critical_equipment(self):
+        return self._request("GET", "/dashboard-manutencao/ativos-criticos")
+
     def set_equipment_operational_status(self, vehicle_id: int, payload: dict):
         return self._request("PUT", f"/equipamentos/{vehicle_id}/status-operacional", json=payload)
 
