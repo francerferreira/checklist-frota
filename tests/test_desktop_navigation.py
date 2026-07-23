@@ -48,6 +48,7 @@ class FakeAPIClient:
             "users": 0,
             "images": 0,
         }
+        self.navigation_preferences = {"favorites": [], "recent": []}
 
     def get_dashboard(self):
         self.calls["dashboard"] += 1
@@ -119,6 +120,25 @@ class FakeAPIClient:
     def get_purchase_requests(self):
         self.calls["purchases"] += 1
         return []
+
+    def get_navigation_preferences(self):
+        return self.navigation_preferences
+
+    def toggle_navigation_favorite(self, page_key):
+        favorites = self.navigation_preferences["favorites"]
+        existing = next((row for row in favorites if row.get("page_key") == page_key), None)
+        if existing:
+            favorites.remove(existing)
+            return {"page_key": page_key, "is_favorite": False}
+        row = {"page_key": page_key, "is_favorite": True}
+        favorites.append(row)
+        return row
+
+    def register_navigation_access(self, page_key):
+        recent = [row for row in self.navigation_preferences["recent"] if row.get("page_key") != page_key]
+        recent.insert(0, {"page_key": page_key})
+        self.navigation_preferences["recent"] = recent[:6]
+        return {"page_key": page_key}
 
     def get_warehouses(self):
         self.calls["supply_library"] += 1

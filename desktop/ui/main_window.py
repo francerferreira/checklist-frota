@@ -224,6 +224,8 @@ class MainWindow(QMainWindow):
         self.page_subwindows: dict[str, QWidget] = {}
         self.tree_items: dict[str, QWidget] = {}
         self.section_items: list[QTreeWidgetItem] = []
+        self.favorite_page_keys: set[str] = set()
+        self.recent_page_keys: list[str] = []
         self._syncing_tree = False
         self.sidebar_visible = True
 
@@ -264,6 +266,7 @@ class MainWindow(QMainWindow):
 
         self.setCentralWidget(container)
         self._build_status_bar()
+        self._load_navigation_preferences()
         self.loading_overlay = LoadingOverlay(self.mdi_area.viewport())
         self._build_mdi_placeholder_logo()
         apply_button_styles(self)
@@ -439,6 +442,16 @@ class MainWindow(QMainWindow):
         self.section_items = []
 
         root = self._make_tree_item(self.nav_tree, "Sistema de Manutenção de Frota", icon_name="dashboard")
+        favorite_keys = [key for key in self.page_titles if key in self.favorite_page_keys and key in self.page_map]
+        recent_keys = [key for key in self.recent_page_keys if key in self.page_map]
+        for section_label, keys in (("Favoritos", favorite_keys), ("Recentes", recent_keys)):
+            if not keys:
+                continue
+            section_item = self._make_tree_item(root, section_label, icon_name="dashboard")
+            self.section_items.append(section_item)
+            for key in keys:
+                item = self._make_tree_item(section_item, self.page_titles.get(key, key), page_key=key, icon_name="dashboard")
+                self.tree_items[key] = item
         sections = [
             ("1 - Operação", ["dashboard", "operations_center", "availability", "emergencies"]),
             ("2 - Manutenção e PCM", ["maintenance", "pcm", "resources", "activities", "washes", "inspection_templates"]),
@@ -457,6 +470,8 @@ class MainWindow(QMainWindow):
                 self.tree_items[key] = item
 
         self.nav_tree.expandAll()
+        if self.current_page_key:
+            self._sync_tree_selection(self.current_page_key)
 
     def _filter_navigation(self, search_text: str):
         query = search_text.strip().casefold()
@@ -538,6 +553,10 @@ class MainWindow(QMainWindow):
         toggle_button.setMinimumHeight(24)
         toggle_button.clicked.connect(self.toggle_sidebar)
         status.addPermanentWidget(toggle_button)
+        self.favorite_page_button = QPushButton("☆ Favoritar")
+        self.favorite_page_button.setMinimumHeight(24)
+        self.favorite_page_button.clicked.connect(self.toggle_current_page_favorite)
+        status.addPermanentWidget(self.favorite_page_button)
         self.navigation_context_label = make_cell("NAVEGAÇÃO › INÍCIO", 240)
         status.addPermanentWidget(self.navigation_context_label)
         status.addPermanentWidget(make_cell("REV 1.0.0.0", 120))
@@ -602,6 +621,58 @@ class MainWindow(QMainWindow):
             page_title = self.page_titles.get(page_key, page_key)
             self.navigation_context_label.setText(f"NAVEGAÇÃO › {page_title.upper()}")
 
+    def _load_navigation_preferences(self):
+        try:
+            preferences = self.api_client.get_navigation_preferences() or {}
+        except Exception:
+            return
+        self.favorite_page_keys = {
+            str(row.get("page_key"))
+            for row in preferences.get("favorites", [])
+            if str(row.get("page_key") or "") in self.page_map
+        }
+        self.recent_page_keys = [
+            str(row.get("page_key"))
+            for row in preferences.get("recent", [])
+            if str(row.get("page_key") or "") in self.page_map
+        ]
+        self._populate_tree()
+
+    def _update_favorite_button(self):
+        if not hasattr(self, "favorite_page_button"):
+            return
+        if self.current_page_key in self.favorite_page_keys:
+            self.favorite_page_button.setText("★ Desfavoritar")
+        else:
+            self.favorite_page_button.setText("☆ Favoritar")
+        self.favorite_page_button.setEnabled(bool(self.current_page_key))
+
+    def toggle_current_page_favorite(self):
+        page_key = self.current_page_key
+        if not page_key:
+            return
+        try:
+            preference = self.api_client.toggle_navigation_favorite(page_key)
+        except Exception as exc:
+            show_notice(self, "Favorito não alterado", str(exc), icon_name="warning")
+            return
+        if preference.get("is_favorite"):
+            self.favorite_page_keys.add(page_key)
+        else:
+            self.favorite_page_keys.discard(page_key)
+        self._populate_tree()
+        self._update_favorite_button()
+
+    def _record_navigation_access(self, page_key: str):
+        try:
+            self.api_client.register_navigation_access(page_key)
+        except Exception:
+            return
+        self.recent_page_keys = [key for key in self.recent_page_keys if key != page_key]
+        self.recent_page_keys.insert(0, page_key)
+        self.recent_page_keys = self.recent_page_keys[:6]
+        self._populate_tree()
+
     def switch_page(self, page_key: str):
         if page_key not in self.page_map:
             return
@@ -609,6 +680,7 @@ class MainWindow(QMainWindow):
         self.current_page_key = page_key
         self._sync_tree_selection(page_key)
         self._update_navigation_context(page_key)
+        self._update_favorite_button()
 
         sub = self._ensure_subwindow(page_key)
         for other_key, other_sub in self.page_subwindows.items():
@@ -629,6 +701,7 @@ class MainWindow(QMainWindow):
         if not same_page:
             self._animate_page(page)
         self.request_page_refresh(page_key)
+        QTimer.singleShot(0, lambda key=page_key: self._record_navigation_access(key))
 
     def _resize_mdi_placeholder_logo(self):
         if not hasattr(self, "mdi_logo_label"):

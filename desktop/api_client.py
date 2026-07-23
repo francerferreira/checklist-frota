@@ -354,6 +354,15 @@ class APIClient:
     def receive_purchase_request(self, purchase_id: int, payload: dict):
         return self._request("POST", f"/compras/solicitacoes/{purchase_id}/recebimentos", json=payload)
 
+    def get_navigation_preferences(self):
+        return self._request("GET", "/navegacao/preferencias")
+
+    def toggle_navigation_favorite(self, page_key: str):
+        return self._request("PUT", f"/navegacao/paginas/{page_key}/favorito", json={})
+
+    def register_navigation_access(self, page_key: str):
+        return self._request("POST", f"/navegacao/paginas/{page_key}/acessar", json={})
+
     def get_preventive_plans(self):
         return self._request("GET", "/pcm/planos-preventivos")
 
