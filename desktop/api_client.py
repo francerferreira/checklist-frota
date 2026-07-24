@@ -230,6 +230,19 @@ class APIClient:
     def delete_user(self, user_id: int):
         return self._request("DELETE", f"/usuarios/{user_id}")
 
+    def get_employees(self, *, search: str | None = None, status: str | None = None, team: str | None = None, shift: str | None = None):
+        params = {"busca": search, "situacao": status, "equipe": team, "turno": shift}
+        return self._request("GET", "/rh/colaboradores", params={key: value for key, value in params.items() if value})
+
+    def get_linkable_employee_users(self):
+        return self._request("GET", "/rh/colaboradores/usuarios-disponiveis")
+
+    def create_employee(self, payload: dict):
+        return self._request("POST", "/rh/colaboradores", json=payload)
+
+    def update_employee(self, employee_id: int, payload: dict):
+        return self._request("PUT", f"/rh/colaboradores/{employee_id}", json=payload)
+
     def get_wash_overview(self, year: int | None = None, month: int | None = None):
         params = {}
         if year:

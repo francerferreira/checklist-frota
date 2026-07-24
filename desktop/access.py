@@ -24,6 +24,7 @@ PAGE_ACCESS_BY_ROLE = {
         "resources",
         "purchases",
         "supply_library",
+        "employees",
         "users",
         "cloud_backup",
         "audit_logs",
@@ -49,6 +50,7 @@ PAGE_ACCESS_BY_ROLE = {
         "resources",
         "purchases",
         "supply_library",
+        "employees",
         "admin_rules",
     },
     "mecanico": {
@@ -69,6 +71,7 @@ PAGE_ACCESS_BY_ROLE = {
 
 ACTION_ACCESS_BY_ROLE = {
     "manage_users": {"admin"},
+    "manage_employees": {"admin", "gestor"},
     "manage_activity_materials": {"admin", "gestor"},
     "view_wash_values": {"admin", "gestor"},
     "manage_wash_values": {"admin", "gestor"},
