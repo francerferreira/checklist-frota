@@ -17,7 +17,7 @@ class WebMobileShellContractTests(unittest.TestCase):
 
     def test_index_uses_canonical_frontend_bundle(self):
         self.assertIn('./static/js/app.js?v=20260724-01', self.index_html)
-        self.assertIn('./static/css/styles.css?v=20260713-02', self.index_html)
+        self.assertIn('./static/css/styles.css?v=20260724-03', self.index_html)
         self.assertNotIn("app-20260419-", self.index_html)
 
     def test_frontend_uses_manaus_timezone_for_dates(self):

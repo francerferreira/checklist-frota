@@ -3152,6 +3152,60 @@ textarea {
     }
 }
 
+/* A interface continua confortável em celular, mas aproveita a área útil de
+   tablet e computador sem forçar o operador a trabalhar em uma faixa estreita. */
+@media (min-width: 760px) {
+    .mobile-shell {
+        width: 100%;
+        max-width: none;
+        padding-left: clamp(20px, 4vw, 56px);
+        padding-right: clamp(20px, 4vw, 56px);
+    }
+
+    .screen {
+        max-width: none;
+    }
+
+    .app-main {
+        gap: 20px;
+    }
+
+    .activity-list,
+    .availability-list {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+}
+
+@media (min-width: 1080px) {
+    .mobile-shell {
+        padding-left: clamp(32px, 5vw, 96px);
+        padding-right: clamp(32px, 5vw, 96px);
+    }
+
+    .menu-grid {
+        grid-template-columns: repeat(4, minmax(0, 1fr));
+    }
+
+    .vehicle-list {
+        grid-template-columns: repeat(4, minmax(0, 1fr));
+    }
+
+    .activity-list {
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+    }
+}
+
+@media (min-width: 1600px) {
+    .mobile-shell {
+        padding-left: clamp(48px, 6vw, 144px);
+        padding-right: clamp(48px, 6vw, 144px);
+    }
+
+    .availability-list {
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+    }
+}
+
 @media (max-width: 380px) {
     .login-card-refined {
         border-radius: 18px;

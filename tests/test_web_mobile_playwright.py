@@ -247,6 +247,31 @@ class WebMobilePlaywrightTests(unittest.TestCase):
                 )
                 self.assertFalse(overflow, f"Overflow horizontal em {viewport} para {page_url}")
 
+    def test_web_mobile_adapts_home_layout_to_phone_tablet_and_desktop(self):
+        self._login()
+        device_layouts = [
+            ({"width": 390, "height": 844}, 1),
+            ({"width": 768, "height": 1024}, 2),
+            ({"width": 1366, "height": 768}, 4),
+            ({"width": 1920, "height": 1080}, 4),
+        ]
+        for viewport, expected_columns in device_layouts:
+            with self.subTest(viewport=viewport):
+                self.page.set_viewport_size(viewport)
+                layout = self.page.evaluate(
+                    """() => {
+                        const shell = document.querySelector('.mobile-shell').getBoundingClientRect();
+                        const menu = getComputedStyle(document.querySelector('.menu-grid'));
+                        return {
+                            shellWidth: shell.width,
+                            viewportWidth: window.innerWidth,
+                            menuColumns: menu.gridTemplateColumns.split(' ').filter(Boolean).length,
+                        };
+                    }"""
+                )
+                self.assertGreaterEqual(layout["shellWidth"], layout["viewportWidth"] - 1)
+                self.assertEqual(layout["menuColumns"], expected_columns)
+
     def test_admin_can_open_critical_mobile_modules(self):
         self._login()
 
