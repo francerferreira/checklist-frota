@@ -1,3 +1,5 @@
+from datetime import date, timedelta
+
 from flask import Blueprint, g, request
 
 from app.extensions import db
@@ -5,6 +7,7 @@ from app.services.auth_service import auth_required, user_has_management_access
 from app.services.pcm_service import (
     build_backlog,
     build_pcm_agenda,
+    build_pcm_programming_window,
     create_preventive_plan,
     generate_due_preventives,
     get_preventive_plan,
@@ -49,6 +52,24 @@ def pcm_backlog():
     if denied:
         return denied
     return api_response(True, data=build_backlog())
+
+
+@bp.get("/pcm/programacao")
+@auth_required
+def pcm_programming():
+    denied = _guard_management()
+    if denied:
+        return denied
+    today = date.today()
+    try:
+        start = date.fromisoformat(str(request.args.get("data_inicial") or today.isoformat()))
+        end = date.fromisoformat(str(request.args.get("data_final") or (today + timedelta(days=14)).isoformat()))
+        capacity = request.args.get("capacidade_minutos", default=480, type=int)
+        if capacity is None:
+            raise ValueError("Capacidade diaria invalida.")
+        return api_response(True, data=build_pcm_programming_window(start_date=start, end_date=end, daily_capacity_minutes=capacity))
+    except ValueError as exc:
+        return api_response(False, error=str(exc), status_code=400)
 
 
 @bp.get("/pcm/planos-preventivos")

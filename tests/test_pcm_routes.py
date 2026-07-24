@@ -57,6 +57,16 @@ class PCMRouteTests(unittest.TestCase):
         self.assertEqual(created.status_code, 201, created.get_json())
         plan = created.get_json()["data"]
         self.assertTrue(plan["code"].startswith("PP-"))
+        programming = self.client.get(
+            f"/pcm/programacao?data_inicial={date.today().isoformat()}&data_final={(date.today() + timedelta(days=3)).isoformat()}&capacidade_minutos=60",
+            headers=self.admin_headers,
+        )
+        self.assertEqual(programming.status_code, 200, programming.get_json())
+        projection = programming.get_json()["data"]
+        self.assertEqual(len(projection["days"]), 4)
+        recommendation = next(row for row in projection["recommended_windows"] if row["plan_id"] == plan["id"])
+        self.assertEqual(recommendation["status"], "PROGRAMAR")
+        self.assertEqual(recommendation["estimated_duration_minutes"], 60)
 
         generated = self.client.post("/pcm/gerar-preventivas", json={"plan_id": plan["id"]}, headers=self.admin_headers)
         self.assertEqual(generated.status_code, 200, generated.get_json())

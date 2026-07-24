@@ -374,6 +374,10 @@ class APIClient:
     def get_pcm_backlog(self):
         return self._request("GET", "/pcm/backlog")
 
+    def get_pcm_programming(self, *, date_from: str | None = None, date_to: str | None = None, daily_capacity_minutes: int = 480):
+        params = {"data_inicial": date_from, "data_final": date_to, "capacidade_minutos": daily_capacity_minutes}
+        return self._request("GET", "/pcm/programacao", params={key: value for key, value in params.items() if value is not None})
+
     def get_maintenance_resources(self):
         return self._request("GET", "/recursos")
 

@@ -288,3 +288,114 @@ def build_backlog() -> list[dict]:
             "estimated_duration_minutes": plan.estimated_duration_minutes if plan else None,
         })
     return result
+
+
+def build_pcm_programming_window(*, start_date: date, end_date: date, daily_capacity_minutes: int = 480) -> dict:
+    """Projecao somente leitura de carga e janelas preventivas no horizonte informado."""
+    if end_date < start_date:
+        raise ValueError("A data final nao pode ser anterior a data inicial.")
+    if (end_date - start_date).days > 90:
+        raise ValueError("O horizonte do PCM pode ter no maximo 90 dias.")
+    if daily_capacity_minutes < 60 or daily_capacity_minutes > 1_440:
+        raise ValueError("A capacidade diaria deve ficar entre 60 e 1440 minutos.")
+
+    plans = PreventivePlan.query.filter_by(status="ATIVO").all()
+    plans_by_id = {plan.id: plan for plan in plans}
+    active_schedule_plan_ids = {
+        plan_id
+        for schedule in MaintenanceSchedule.query.filter(MaintenanceSchedule.status.in_({"ABERTA", "AGUARDANDO_MATERIAL", "PROGRAMADA", "EM_EXECUCAO"})).all()
+        if (plan_id := _plan_id_from_schedule(schedule))
+    }
+    days = {}
+    cursor = start_date
+    while cursor <= end_date:
+        days[cursor] = {"date": cursor, "occupied_minutes": 0, "scheduled_items": 0, "completed_items": 0, "not_executed_items": 0}
+        cursor += timedelta(days=1)
+
+    items = MaintenanceScheduleItem.query.filter(
+        MaintenanceScheduleItem.scheduled_date >= start_date,
+        MaintenanceScheduleItem.scheduled_date <= end_date,
+    ).all()
+    for item in items:
+        if not item.scheduled_date or item.status == "CANCELADO":
+            continue
+        plan = plans_by_id.get(_plan_id_from_schedule(item.schedule))
+        duration = int(plan.estimated_duration_minutes) if plan else 60
+        row = days[item.scheduled_date]
+        row["occupied_minutes"] += duration
+        row["scheduled_items"] += 1
+        row["completed_items"] += int(item.status == "INSTALADO")
+        row["not_executed_items"] += int(item.status == "NAO_EXECUTADO")
+
+    today = today_manaus()
+    compliance_base = compliance_done = 0
+    daily_rows = []
+    for current, row in days.items():
+        completed = row["completed_items"]
+        planned = row["scheduled_items"]
+        if current <= today:
+            compliance_base += planned
+            compliance_done += completed
+        daily_rows.append({
+            "date": current.isoformat(),
+            "capacity_minutes": daily_capacity_minutes,
+            "occupied_minutes": row["occupied_minutes"],
+            "free_minutes": max(daily_capacity_minutes - row["occupied_minutes"], 0),
+            "overloaded_minutes": max(row["occupied_minutes"] - daily_capacity_minutes, 0),
+            "scheduled_items": planned,
+            "completed_items": completed,
+            "not_executed_items": row["not_executed_items"],
+        })
+
+    allocated_minutes = {current: row["occupied_minutes"] for current, row in days.items()}
+    recommendations = []
+    for plan in plans:
+        due = plan_due_state(plan, reference_date=today)
+        if not due["due"] or plan.id in active_schedule_plan_ids:
+            continue
+        if plan.next_due_date:
+            window_start = plan.next_due_date - timedelta(days=plan.tolerance_days or 0)
+            window_end = plan.next_due_date + timedelta(days=plan.tolerance_days or 0)
+        else:
+            window_start, window_end = start_date, end_date
+        candidate_start = max(start_date, window_start)
+        candidate_end = min(end_date, window_end)
+        recommended_date = None
+        if candidate_start <= candidate_end:
+            cursor = candidate_start
+            while cursor <= candidate_end:
+                if allocated_minutes[cursor] + int(plan.estimated_duration_minutes) <= daily_capacity_minutes:
+                    recommended_date = cursor
+                    allocated_minutes[cursor] += int(plan.estimated_duration_minutes)
+                    break
+                cursor += timedelta(days=1)
+        recommendations.append({
+            "plan_id": plan.id,
+            "code": plan.code,
+            "title": plan.title,
+            "vehicle": plan.vehicle.to_dict() if plan.vehicle else None,
+            "priority": plan.priority,
+            "estimated_duration_minutes": plan.estimated_duration_minutes,
+            "window_start": window_start.isoformat(),
+            "window_end": window_end.isoformat(),
+            "recommended_date": recommended_date.isoformat() if recommended_date else None,
+            "status": "PROGRAMAR" if recommended_date else "SEM_CAPACIDADE",
+            "due_status": due["status"],
+        })
+    recommendations.sort(key=lambda row: (row["status"] != "SEM_CAPACIDADE", row["window_end"], row["priority"], row["code"]))
+    total_capacity = len(daily_rows) * daily_capacity_minutes
+    occupied = sum(row["occupied_minutes"] for row in daily_rows)
+    return {
+        "period": {"start": start_date.isoformat(), "end": end_date.isoformat(), "daily_capacity_minutes": daily_capacity_minutes},
+        "summary": {
+            "total_capacity_minutes": total_capacity,
+            "occupied_minutes": occupied,
+            "free_minutes": max(total_capacity - occupied, 0),
+            "overloaded_days": sum(1 for row in daily_rows if row["overloaded_minutes"] > 0),
+            "preventive_compliance_percent": round((compliance_done / compliance_base) * 100, 1) if compliance_base else 0.0,
+            "compliance_base": compliance_base,
+            "pending_preventive_windows": len(recommendations),
+        },
+        "days": daily_rows,
+        "recommended_windows": recommendations,
+    }

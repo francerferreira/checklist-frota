@@ -81,6 +81,7 @@ class PCMPage(QFrame):
         super().__init__(parent)
         self.api_client = api_client
         self.plans: list[dict] = []
+        self.programming: dict = {}
         self.setObjectName("ContentSurface")
         layout = QVBoxLayout(self); layout.setContentsMargins(16, 16, 16, 16); layout.setSpacing(14)
         title = QLabel("PCM - Planos, Agenda e Backlog"); title.setObjectName("PageTitle")
@@ -90,12 +91,26 @@ class PCMPage(QFrame):
         self.plan_card = StatCard("Planos ativos", "0", "Preventivas cadastradas", icon_name="maintenance")
         self.due_card = StatCard("Vencendo", "0", "Planos que já podem gerar OS", icon_name="warning")
         self.backlog_card = StatCard("Backlog", "0", "Ordens de serviço em aberto", icon_name="reports")
-        for card in (self.plan_card, self.due_card, self.backlog_card): cards.addWidget(card)
+        self.capacity_card = StatCard("Capacidade livre", "0 min", "Horizonte operacional selecionado", icon_name="dashboard")
+        self.compliance_card = StatCard("Cumprimento", "0%", "Preventivas concluídas no período", icon_name="maintenance")
+        for card in (self.plan_card, self.due_card, self.backlog_card, self.capacity_card, self.compliance_card): cards.addWidget(card)
         actions = QHBoxLayout(); actions.addStretch()
         create = QPushButton("Novo plano preventivo"); create.setProperty("variant", "primary"); create.clicked.connect(self.create_plan)
         generate = QPushButton("Gerar preventivas vencidas"); generate.clicked.connect(self.generate_due)
         refresh = QPushButton("Atualizar"); refresh.clicked.connect(self.refresh)
         actions.addWidget(create); actions.addWidget(generate); actions.addWidget(refresh)
+        programming_card = QFrame(); style_table_card(programming_card); programming_layout = QVBoxLayout(programming_card)
+        programming_title = QLabel("Capacidade e janelas de programação"); programming_title.setObjectName("SectionTitle")
+        programming_hint = QLabel("Projeção somente leitura: carga diária, capacidade livre e a melhor janela para preventiva vencida."); programming_hint.setObjectName("SectionCaption"); programming_hint.setWordWrap(True)
+        programming_filters = QHBoxLayout()
+        self.programming_start = QDateEdit(); self.programming_start.setCalendarPopup(True); self.programming_start.setDate(date.today())
+        self.programming_end = QDateEdit(); self.programming_end.setCalendarPopup(True); self.programming_end.setDate(date.today().fromordinal(date.today().toordinal() + 14))
+        self.daily_capacity = QSpinBox(); self.daily_capacity.setRange(60, 1440); self.daily_capacity.setValue(480); self.daily_capacity.setSuffix(" min/dia")
+        programming_refresh = QPushButton("Atualizar capacidade"); programming_refresh.clicked.connect(self.refresh)
+        programming_filters.addWidget(QLabel("Início")); programming_filters.addWidget(self.programming_start); programming_filters.addWidget(QLabel("Fim")); programming_filters.addWidget(self.programming_end); programming_filters.addWidget(QLabel("Capacidade")); programming_filters.addWidget(self.daily_capacity); programming_filters.addStretch(); programming_filters.addWidget(programming_refresh)
+        self.capacity_table = QTableWidget(0, 7); self.capacity_table.setHorizontalHeaderLabels(["Data", "Capacidade", "Ocupada", "Livre", "Excesso", "OS", "Concluídas"]); configure_table(self.capacity_table, stretch_last=False); self.capacity_table.setMinimumHeight(220)
+        self.window_table = QTableWidget(0, 7); self.window_table.setHorizontalHeaderLabels(["Plano", "Equipamento", "Prioridade", "Janela", "Duração", "Data sugerida", "Situação"]); configure_table(self.window_table, stretch_last=False); self.window_table.setMinimumHeight(200)
+        programming_layout.addWidget(programming_title); programming_layout.addWidget(programming_hint); programming_layout.addLayout(programming_filters); programming_layout.addWidget(self.capacity_table); programming_layout.addWidget(QLabel("Preventivas aguardando programação")); programming_layout.addWidget(self.window_table)
         plans_card = QFrame(); style_table_card(plans_card); plans_layout = QVBoxLayout(plans_card)
         plans_layout.addWidget(QLabel("Planos preventivos"))
         self.plan_table = QTableWidget(0, 8); self.plan_table.setHorizontalHeaderLabels(["Código", "Equipamento", "Plano", "Gatilho", "Próxima data", "Próx. h", "Situação", "Mecânico"]); configure_table(self.plan_table, stretch_last=False)
@@ -104,15 +119,23 @@ class PCMPage(QFrame):
         backlog_layout.addWidget(QLabel("Backlog derivado das OS abertas"))
         self.backlog_table = QTableWidget(0, 7); self.backlog_table.setHorizontalHeaderLabels(["OS", "Equipamento", "Origem", "Prioridade", "Programada", "Idade", "Bloqueios"]); configure_table(self.backlog_table, stretch_last=False)
         backlog_layout.addWidget(self.backlog_table)
-        layout.addWidget(title); layout.addWidget(subtitle); layout.addLayout(cards); layout.addLayout(actions); layout.addWidget(plans_card, 1); layout.addWidget(backlog_card, 1)
+        layout.addWidget(title); layout.addWidget(subtitle); layout.addLayout(cards); layout.addLayout(actions); layout.addWidget(programming_card, 1); layout.addWidget(plans_card, 1); layout.addWidget(backlog_card, 1)
 
     def refresh(self):
         agenda = self.api_client.get_pcm_agenda()
         self.plans = agenda.get("preventive_plans", [])
         backlog = self.api_client.get_pcm_backlog()
+        self.programming = self.api_client.get_pcm_programming(
+            date_from=self.programming_start.date().toString("yyyy-MM-dd"),
+            date_to=self.programming_end.date().toString("yyyy-MM-dd"),
+            daily_capacity_minutes=self.daily_capacity.value(),
+        )
         self.plan_card.set_content("Planos ativos", str(sum(1 for plan in self.plans if plan.get("status") == "ATIVO")), "Preventivas cadastradas")
         self.due_card.set_content("Vencendo", str(agenda.get("summary", {}).get("vencendo_ou_vencidos", 0)), "Planos que já podem gerar OS")
         self.backlog_card.set_content("Backlog", str(len(backlog)), "Ordens de serviço em aberto")
+        programming_summary = self.programming.get("summary") or {}
+        self.capacity_card.set_content("Capacidade livre", f"{programming_summary.get('free_minutes', 0)} min", f"{programming_summary.get('overloaded_days', 0)} dia(s) acima da capacidade")
+        self.compliance_card.set_content("Cumprimento", f"{programming_summary.get('preventive_compliance_percent', 0):.1f}%", f"Base: {programming_summary.get('compliance_base', 0)} OS passadas")
         self.plan_table.setRowCount(len(self.plans))
         for index, plan in enumerate(self.plans):
             due = plan.get("due") or {}; vehicle = plan.get("vehicle") or {}; mechanic = plan.get("assigned_mechanic") or {}
@@ -123,6 +146,18 @@ class PCMPage(QFrame):
             order = row.get("work_order") or {}; vehicle = order.get("vehicle") or {}; blockers = row.get("blockers") or {}
             values = [order.get("order_number"), vehicle.get("frota") or "-", row.get("source"), row.get("priority"), order.get("scheduled_date") or "-", f"{row.get('age_days', 0)} dia(s)", "Material" if blockers.get("materiais_bloqueados") else "-"]
             for column, value in enumerate(values): self.backlog_table.setItem(index, column, make_table_item(str(value)))
+        days = self.programming.get("days") or []
+        self.capacity_table.setRowCount(len(days))
+        for index, row in enumerate(days):
+            values = [row.get("date"), f"{row.get('capacity_minutes', 0)} min", f"{row.get('occupied_minutes', 0)} min", f"{row.get('free_minutes', 0)} min", f"{row.get('overloaded_minutes', 0)} min", row.get("scheduled_items", 0), row.get("completed_items", 0)]
+            for column, value in enumerate(values): self.capacity_table.setItem(index, column, make_table_item(str(value)))
+        windows = self.programming.get("recommended_windows") or []
+        self.window_table.setRowCount(len(windows))
+        for index, row in enumerate(windows):
+            vehicle = row.get("vehicle") or {}
+            values = [row.get("code"), vehicle.get("frota") or "-", row.get("priority"), f"{row.get('window_start')} a {row.get('window_end')}", f"{row.get('estimated_duration_minutes', 0)} min", row.get("recommended_date") or "-", row.get("status")]
+            for column, value in enumerate(values): self.window_table.setItem(index, column, make_table_item(str(value)))
+        self.capacity_table.resizeColumnsToContents(); self.window_table.resizeColumnsToContents()
 
     def create_plan(self):
         try:

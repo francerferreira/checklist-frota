@@ -110,6 +110,9 @@ class FakeAPIClient:
     def get_pcm_backlog(self):
         return []
 
+    def get_pcm_programming(self, **kwargs):
+        return {"summary": {}, "days": [], "recommended_windows": []}
+
     def get_maintenance_resources(self):
         self.calls["resources"] += 1
         return []
