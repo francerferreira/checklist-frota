@@ -12,8 +12,8 @@ from app.utils.timezone import now_manaus_naive
 bp = Blueprint("navigation", __name__)
 
 ROLE_PAGES = {
-    "admin": {"dashboard", "operations_center", "nc", "productivity", "reports", "checklist_history", "equipment", "checklist_items", "inspection_templates", "materials", "washes", "activities", "maintenance", "availability", "emergencies", "pcm", "resources", "purchases", "supply_library", "employees", "users", "cloud_backup", "audit_logs", "admin_rules"},
-    "gestor": {"dashboard", "operations_center", "nc", "productivity", "reports", "checklist_history", "equipment", "checklist_items", "inspection_templates", "materials", "washes", "activities", "maintenance", "availability", "emergencies", "pcm", "resources", "purchases", "supply_library", "employees", "admin_rules"},
+    "admin": {"dashboard", "operations_center", "nc", "productivity", "reports", "checklist_history", "equipment", "checklist_items", "inspection_templates", "materials", "washes", "activities", "maintenance", "availability", "emergencies", "pcm", "resources", "purchases", "supply_library", "employees", "attendance", "users", "cloud_backup", "audit_logs", "admin_rules"},
+    "gestor": {"dashboard", "operations_center", "nc", "productivity", "reports", "checklist_history", "equipment", "checklist_items", "inspection_templates", "materials", "washes", "activities", "maintenance", "availability", "emergencies", "pcm", "resources", "purchases", "supply_library", "employees", "attendance", "admin_rules"},
     "mecanico": {"dashboard", "operations_center", "nc", "productivity", "activities", "maintenance", "availability", "emergencies"},
     "motorista": {"dashboard"},
 }

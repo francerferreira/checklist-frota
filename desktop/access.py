@@ -25,6 +25,7 @@ PAGE_ACCESS_BY_ROLE = {
         "purchases",
         "supply_library",
         "employees",
+        "attendance",
         "users",
         "cloud_backup",
         "audit_logs",
@@ -51,6 +52,7 @@ PAGE_ACCESS_BY_ROLE = {
         "purchases",
         "supply_library",
         "employees",
+        "attendance",
         "admin_rules",
     },
     "mecanico": {

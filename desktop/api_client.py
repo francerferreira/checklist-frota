@@ -243,6 +243,19 @@ class APIClient:
     def update_employee(self, employee_id: int, payload: dict):
         return self._request("PUT", f"/rh/colaboradores/{employee_id}", json=payload)
 
+    def get_employee_attendance(self, *, employee_id: int | None = None, occurrence_date: str | None = None, occurrence_type: str | None = None):
+        params = {"colaborador_id": employee_id, "data": occurrence_date, "tipo": occurrence_type}
+        return self._request("GET", "/rh/frequencia", params={key: value for key, value in params.items() if value})
+
+    def create_employee_attendance(self, payload: dict):
+        return self._request("POST", "/rh/frequencia", json=payload)
+
+    def update_employee_attendance(self, record_id: int, payload: dict):
+        return self._request("PUT", f"/rh/frequencia/{record_id}", json=payload)
+
+    def cancel_employee_attendance(self, record_id: int, reason: str):
+        return self._request("POST", f"/rh/frequencia/{record_id}/cancelar", json={"reason": reason})
+
     def get_wash_overview(self, year: int | None = None, month: int | None = None):
         params = {}
         if year:
