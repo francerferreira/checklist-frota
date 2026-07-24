@@ -14,6 +14,7 @@ if str(DESKTOP_ROOT) not in sys.path:
     sys.path.insert(0, str(DESKTOP_ROOT))
 
 from PySide6.QtTest import QTest
+from PySide6.QtCore import QUrl
 from PySide6.QtWidgets import QApplication, QFrame
 
 from access import allowed_pages_for_role, user_can
@@ -26,6 +27,7 @@ from ui.users_page import UsersPage
 
 class FakeAPIClient:
     def __init__(self):
+        self.base_url = "http://127.0.0.1:5000"
         self.user = {"login": "admin"}
         self.calls = {
             "dashboard": 0,
@@ -324,6 +326,17 @@ class DesktopNavigationTests(unittest.TestCase):
         self.window.navigation_search.clear()
         self.app.processEvents()
         self.assertFalse(self.window.tree_items["equipment"].isHidden())
+
+    def test_web_panel_actions_reuse_the_active_desktop_api(self):
+        with unittest.mock.patch("ui.main_window.QDesktopServices.openUrl", return_value=True) as open_url:
+            self.window.open_web_mobile()
+            web_mobile_url = open_url.call_args.args[0].toString(QUrl.FullyDecoded)
+            self.window.open_tv_dashboard()
+            tv_dashboard_url = open_url.call_args.args[0].toString(QUrl.FullyDecoded)
+
+        self.assertEqual(web_mobile_url, "http://127.0.0.1:5500/?api=http%3A%2F%2F127.0.0.1%3A5000")
+        self.assertEqual(tv_dashboard_url, "http://127.0.0.1:5500/dashboard-manutencao/tv/?api=http%3A%2F%2F127.0.0.1%3A5000")
+        self.assertTrue(any(action.text() == "Painéis Web" for action in self.window.menuBar().actions()))
 
     def test_data_change_from_users_marks_other_pages_dirty_without_refreshing_all(self):
         self.window.switch_page("users")

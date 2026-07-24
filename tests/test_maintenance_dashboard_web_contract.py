@@ -44,6 +44,7 @@ class MaintenanceDashboardWebContractTests(unittest.TestCase):
         self.assertIn("/dashboard-manutencao/tv/dados", tv_js)
         self.assertIn('"X-Dashboard-TV-Token"', tv_js)
         self.assertIn("sessionStorage", tv_js)
+        self.assertIn('new URLSearchParams(window.location.search).get("api")', tv_js)
         self.assertIn("TV_REFRESH_MS", tv_js)
         self.assertIn("dashboard-tv-access-create", dashboard_html)
         self.assertIn("/dashboard-manutencao/tv/acessos", dashboard_js)

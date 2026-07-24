@@ -1,9 +1,10 @@
 ﻿from __future__ import annotations
 
 from datetime import datetime
+from urllib.parse import quote
 
-from PySide6.QtCore import QEvent, QEasingCurve, QPropertyAnimation, QTimer, Qt
-from PySide6.QtGui import QBrush, QColor, QIcon, QKeySequence, QPixmap, QShortcut
+from PySide6.QtCore import QEvent, QEasingCurve, QPropertyAnimation, QTimer, Qt, QUrl
+from PySide6.QtGui import QBrush, QColor, QDesktopServices, QIcon, QKeySequence, QPixmap, QShortcut
 from PySide6.QtWidgets import (
     QDialog,
     QFrame,
@@ -428,6 +429,12 @@ class MainWindow(QMainWindow):
                 action = menu.addAction(self.page_titles.get(key, key))
                 action.triggered.connect(lambda checked=False, page_key=key: self.switch_page(page_key))
 
+        web_panels_menu = menubar.addMenu("Painéis Web")
+        web_mobile_action = web_panels_menu.addAction("Abrir Web Mobile")
+        web_mobile_action.triggered.connect(self.open_web_mobile)
+        tv_dashboard_action = web_panels_menu.addAction("Abrir Dashboard TV")
+        tv_dashboard_action.triggered.connect(self.open_tv_dashboard)
+
         account_menu = menubar.addMenu("Conta")
         global_search_action = account_menu.addAction("Busca global")
         global_search_action.setShortcut("Ctrl+K")
@@ -439,6 +446,26 @@ class MainWindow(QMainWindow):
         access_action.triggered.connect(self.open_access_dialog)
         exit_action = account_menu.addAction("Encerrar sessão")
         exit_action.triggered.connect(self.close)
+
+    def _web_panel_url(self, relative_path: str) -> str:
+        api_url = quote(str(self.api_client.base_url or "").rstrip("/"), safe="")
+        return f"http://127.0.0.1:5500/{relative_path.lstrip('/')}?api={api_url}"
+
+    def _open_web_panel(self, label: str, relative_path: str) -> None:
+        url = self._web_panel_url(relative_path)
+        if not QDesktopServices.openUrl(QUrl(url)):
+            show_notice(
+                self,
+                f"Não foi possível abrir {label}",
+                "Inicie o atalho ABRIR_WEB_MOBILE_E_DESKTOP_LOCAL.bat e tente novamente.",
+                icon_name="warning",
+            )
+
+    def open_web_mobile(self) -> None:
+        self._open_web_panel("o Web Mobile", "")
+
+    def open_tv_dashboard(self) -> None:
+        self._open_web_panel("o Dashboard TV", "dashboard-manutencao/tv/")
 
     def _build_tree_panel(self):
         panel = QFrame()

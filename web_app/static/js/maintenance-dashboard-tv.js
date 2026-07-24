@@ -40,8 +40,13 @@ function escapeHtml(value) {
 }
 
 function resolveApiBaseUrl() {
+    const requested = new URLSearchParams(window.location.search).get("api")?.trim().replace(/\/$/, "");
     const saved = localStorage.getItem("apiBaseUrl") || "";
     const configured = window.CHECKLIST_CONFIG?.API_BASE_URL || "";
+    if (requested && /^https?:\/\//i.test(requested)) {
+        localStorage.setItem("apiBaseUrl", requested);
+        return requested;
+    }
     return (saved || configured).replace(/\/$/, "");
 }
 
