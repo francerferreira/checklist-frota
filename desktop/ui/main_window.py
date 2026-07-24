@@ -377,6 +377,8 @@ class MainWindow(QMainWindow):
 
         self.nc_page.data_changed.connect(lambda: self.handle_data_changed("nc"))
         self.dashboard_page.alert_open_requested.connect(self.open_contextual_alert)
+        self.dashboard_page.web_mobile_requested.connect(self.open_web_mobile)
+        self.dashboard_page.tv_dashboard_requested.connect(self.open_tv_dashboard)
         if "equipment" in self.page_map:
             self.equipment_page.data_changed.connect(lambda: self.handle_data_changed("equipment"))
         if "checklist_items" in self.page_map:

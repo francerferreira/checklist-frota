@@ -338,6 +338,15 @@ class DesktopNavigationTests(unittest.TestCase):
         self.assertEqual(tv_dashboard_url, "http://127.0.0.1:5500/dashboard-manutencao/tv/?api=http%3A%2F%2F127.0.0.1%3A5000")
         self.assertTrue(any(action.text() == "Painéis Web" for action in self.window.menuBar().actions()))
 
+    def test_dashboard_has_visible_web_shortcuts(self):
+        self.assertEqual(self.window.dashboard_page.web_mobile_button.objectName(), "open-web-mobile-button")
+        self.assertEqual(self.window.dashboard_page.tv_dashboard_button.objectName(), "open-tv-dashboard-button")
+        with unittest.mock.patch("ui.main_window.QDesktopServices.openUrl", return_value=True) as open_url:
+            self.window.dashboard_page.web_mobile_button.click()
+            self.window.dashboard_page.tv_dashboard_button.click()
+
+        self.assertEqual(open_url.call_count, 2)
+
     def test_data_change_from_users_marks_other_pages_dirty_without_refreshing_all(self):
         self.window.switch_page("users")
         QTest.qWait(30)

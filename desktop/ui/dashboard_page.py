@@ -1,6 +1,6 @@
 ﻿from __future__ import annotations
 
-from PySide6.QtCore import Qt, Signal
+from PySide6.QtCore import QSize, Qt, Signal
 from PySide6.QtGui import QColor, QBrush
 from PySide6.QtWidgets import (
     QFrame,
@@ -13,7 +13,7 @@ from PySide6.QtWidgets import (
     QVBoxLayout,
 )
 
-from components import MessageComposerDialog, StatCard, TableSkeletonOverlay
+from components import MessageComposerDialog, StatCard, TableSkeletonOverlay, make_icon
 from services import build_automation_alert_message_package, overall_executive_status, severity_from_counts
 from theme import configure_table, make_table_item, style_card, style_table_card
 
@@ -45,6 +45,8 @@ def _format_hours(value) -> str:
 
 class DashboardPage(QFrame):
     alert_open_requested = Signal(dict)
+    web_mobile_requested = Signal()
+    tv_dashboard_requested = Signal()
 
     def __init__(self, api_client, parent=None):
         super().__init__(parent)
@@ -103,6 +105,30 @@ class DashboardPage(QFrame):
         semaforo_wrap.addWidget(self.hero_badge)
         semaforo_wrap.addWidget(self.severity_strip)
         hero_layout.addLayout(semaforo_wrap, 0)
+
+        quick_access_wrap = QVBoxLayout()
+        quick_access_wrap.setContentsMargins(0, 0, 0, 0)
+        quick_access_wrap.setSpacing(8)
+        quick_access_title = QLabel("Acessos rápidos")
+        quick_access_title.setObjectName("CardTitle")
+        self.web_mobile_button = QPushButton("Web Mobile")
+        self.web_mobile_button.setObjectName("open-web-mobile-button")
+        self.web_mobile_button.setProperty("variant", "primary")
+        self.web_mobile_button.setIcon(make_icon("dashboard", "#FFFFFF", "#115FC0", 18))
+        self.web_mobile_button.setIconSize(QSize(18, 18))
+        self.web_mobile_button.setToolTip("Abrir o Web Mobile no navegador")
+        self.web_mobile_button.clicked.connect(self.web_mobile_requested.emit)
+        self.tv_dashboard_button = QPushButton("Dashboard TV")
+        self.tv_dashboard_button.setObjectName("open-tv-dashboard-button")
+        self.tv_dashboard_button.setProperty("variant", "success")
+        self.tv_dashboard_button.setIcon(make_icon("reports", "#FFFFFF", "#159789", 18))
+        self.tv_dashboard_button.setIconSize(QSize(18, 18))
+        self.tv_dashboard_button.setToolTip("Abrir o Dashboard TV no navegador")
+        self.tv_dashboard_button.clicked.connect(self.tv_dashboard_requested.emit)
+        quick_access_wrap.addWidget(quick_access_title)
+        quick_access_wrap.addWidget(self.web_mobile_button)
+        quick_access_wrap.addWidget(self.tv_dashboard_button)
+        hero_layout.addLayout(quick_access_wrap, 0)
 
         cards_layout = QGridLayout()
         cards_layout.setSpacing(16)

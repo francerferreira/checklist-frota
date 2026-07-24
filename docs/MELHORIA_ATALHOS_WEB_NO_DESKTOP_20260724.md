@@ -7,4 +7,6 @@ O menu `Painéis Web` do Desktop possui dois atalhos:
 
 Os dois enviam a mesma URL de API usada pelo Desktop. Para funcionamento local, inicie antes `ABRIR_WEB_MOBILE_E_DESKTOP_LOCAL.bat`.
 
+Os mesmos atalhos também aparecem como botões com ícones na tela inicial `Dashboard Executivo`.
+
 O Dashboard TV mantém o código temporário próprio; o atalho somente abre a tela, não concede acesso aos dados.
