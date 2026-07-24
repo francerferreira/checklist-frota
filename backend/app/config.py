@@ -60,6 +60,8 @@ class Config:
         or (f"sqlite:///{DATA_ROOT / 'checklist_frota.db'}" if ALLOW_SQLITE else None)
     )
     SQLALCHEMY_TRACK_MODIFICATIONS = False
+    SQLITE_BUSY_TIMEOUT_MS = int(os.getenv("SQLITE_BUSY_TIMEOUT_MS", "15000"))
+    SQLITE_JOURNAL_MODE = (os.getenv("SQLITE_JOURNAL_MODE") or "WAL").strip().upper()
     JSON_SORT_KEYS = False
     MAX_CONTENT_LENGTH = 15 * 1024 * 1024
     TOKEN_MAX_AGE_SECONDS = int(os.getenv("TOKEN_MAX_AGE_SECONDS", "28800"))
@@ -102,9 +104,14 @@ class Config:
         if _is_sqlite_url(cls.SQLALCHEMY_DATABASE_URI) and not cls.ALLOW_SQLITE:
             raise RuntimeError(
                 "SQLite nao e permitido neste ambiente. Use PostgreSQL ou defina "
-                "CHECKLIST_ALLOW_SQLITE=1 somente para teste ou laboratorio temporario."
+                "CHECKLIST_ALLOW_SQLITE=1 somente para ambiente local controlado."
             )
         if cls.LEGACY_LOCAL_BOOTSTRAP_ENABLED and not _is_sqlite_url(cls.SQLALCHEMY_DATABASE_URI):
             raise RuntimeError(
                 "CHECKLIST_LEGACY_LOCAL_BOOTSTRAP somente pode ser usado com SQLite temporario."
             )
+        if _is_sqlite_url(cls.SQLALCHEMY_DATABASE_URI):
+            if cls.SQLITE_BUSY_TIMEOUT_MS < 1000:
+                raise RuntimeError("SQLITE_BUSY_TIMEOUT_MS deve ser de pelo menos 1000 milissegundos.")
+            if cls.SQLITE_JOURNAL_MODE not in {"WAL", "DELETE"}:
+                raise RuntimeError("SQLITE_JOURNAL_MODE deve ser WAL ou DELETE.")

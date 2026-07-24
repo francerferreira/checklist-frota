@@ -12,6 +12,7 @@ from app.routes import register_blueprints
 from app.services.audit_service import audit_runtime_status, install_audit_hooks
 from app.services.runtime_schema_service import ensure_runtime_schema
 from app.services.seed_service import seed_reference_data
+from app.services.sqlite_runtime_service import configure_sqlite_runtime, sqlite_runtime_status
 
 
 def create_app() -> Flask:
@@ -33,6 +34,8 @@ def create_app() -> Flask:
     Path(app.config["UPLOAD_FOLDER"]).mkdir(parents=True, exist_ok=True)
 
     db.init_app(app)
+    with app.app_context():
+        configure_sqlite_runtime(app)
     migrate.init_app(app, db)
     allowed_origins = app.config["CORS_ALLOWED_ORIGINS"]
     # Never reflect arbitrary origins; an old environment flag must not reopen CORS.
@@ -47,7 +50,11 @@ def create_app() -> Flask:
             db.session.rollback()
             return {"status": "unavailable", "database": "unavailable", "audit": audit_runtime_status()}, 503
         audit = audit_runtime_status()
-        return {"status": "ok" if audit["healthy"] else "degraded", "database": "ok", "audit": audit}, 200
+        response = {"status": "ok" if audit["healthy"] else "degraded", "database": "ok", "audit": audit}
+        sqlite_status = sqlite_runtime_status()
+        if sqlite_status["enabled"]:
+            response["sqlite"] = sqlite_status
+        return response, 200
 
     register_blueprints(app)
 
