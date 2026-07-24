@@ -2318,6 +2318,7 @@ function renderMaintenanceSummary(resumo) {
     const blockedOrders = Number(resumo.os_bloqueadas || 0);
     const completedOrders = Number(resumo.os_concluidas || 0);
     const totalBlockers = Number((state.maintenanceOverview?.bloqueios || []).length || 0);
+    const oldestOpenOrders = state.maintenanceOverview?.backlog_prioritario?.os_mais_antigas || [];
     elements.maintenanceSummary.innerHTML = `
         <div>
             <strong>${Number(resumo.pendentes || 0)} PENDENTES</strong>
@@ -2339,6 +2340,12 @@ function renderMaintenanceSummary(resumo) {
             <span style="width:${Math.min(100, Math.max(0, percent))}%"></span>
         </div>
         <span class="progress-hint">CAPACIDADE MEDIA ${Number(resumo.capacidade_media || 0)} | BLOQUEIOS ATIVOS ${totalBlockers} | ACOMPANHE O DIA SELECIONADO PARA EXECUTAR E REPROGRAMAR.</span>
+        <div class="nc-meta-list">
+            <strong>PRIORIDADE DO BACKLOG: 5 OS ABERTAS MAIS ANTIGAS</strong>
+            ${oldestOpenOrders.length ? oldestOpenOrders.map((order, index) => `
+                <span>${index + 1}. ${escapeHtml(String(order.order_number || "OS").toUpperCase())} | ${escapeHtml(String(order.vehicle_label || "EQUIPAMENTO").toUpperCase())} | ${Number(order.age_days || 0)} DIA(S) | ${escapeHtml(String(order.status || "-").replace(/_/g, " "))}</span>
+            `).join("") : "<span>SEM OS ABERTAS NO RECORTE ATUAL.</span>"}
+        </div>
     `;
 }
 

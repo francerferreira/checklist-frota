@@ -376,6 +376,32 @@ def _open_item_statuses() -> set[str]:
     return {"PENDENTE", "PROGRAMADO", "AGUARDANDO_MATERIAL", "REPROGRAMADO"}
 
 
+def _build_oldest_open_work_orders(work_orders: list[MaintenanceWorkOrder], *, today: date) -> list[dict]:
+    """Retorna uma fila curta de decisao, sem alterar a prioridade operacional da OS."""
+    open_statuses = _open_work_order_statuses()
+    rows = [row for row in work_orders if str(row.status or "").upper() in open_statuses]
+
+    def reference_date(row: MaintenanceWorkOrder) -> date:
+        return row.scheduled_date or (row.created_at.date() if row.created_at else today)
+
+    prioritized = sorted(rows, key=lambda row: (reference_date(row), row.id))[:5]
+    return [
+        {
+            "work_order_id": row.id,
+            "order_number": row.order_number,
+            "title": row.title,
+            "status": row.status,
+            "vehicle_id": row.vehicle_id,
+            "vehicle_label": (row.vehicle.frota or row.vehicle.placa or f"Equipamento {row.vehicle_id}") if row.vehicle else f"Equipamento {row.vehicle_id}",
+            "reference_date": reference_date(row).isoformat(),
+            "reference_type": "DATA_PROGRAMADA" if row.scheduled_date else "DATA_DE_ABERTURA",
+            "age_days": max((today - reference_date(row)).days, 0),
+            "assigned_mechanic": row.assigned_mechanic.nome if row.assigned_mechanic else None,
+        }
+        for row in prioritized
+    ]
+
+
 def _build_maintenance_blockers(
     schedules: list[MaintenanceSchedule],
     work_orders: list[MaintenanceWorkOrder],
@@ -810,6 +836,7 @@ def build_maintenance_overview(*, year: int | None = None, month: int | None = N
     overdue_work_orders = [row for row in open_work_orders if row.scheduled_date and row.scheduled_date < today]
     blocked_work_orders = [row for row in work_orders if str(row.status or "").upper() == "AGUARDANDO_MATERIAL"]
     completed_work_orders = [row for row in work_orders if str(row.status or "").upper() == "CONCLUIDA"]
+    oldest_open_work_orders = _build_oldest_open_work_orders(work_orders, today=today)
     blockers = _build_maintenance_blockers(schedules, work_orders)
 
     return {
@@ -841,6 +868,10 @@ def build_maintenance_overview(*, year: int | None = None, month: int | None = N
         "itens": [item.to_dict() for item in items],
         "materiais": [material.to_dict() for material in materials],
         "bloqueios": blockers,
+        "backlog_prioritario": {
+            "os_mais_antigas": oldest_open_work_orders,
+            "criterio": "OS aberta ordenada pela data programada; sem data programada, usa a data de abertura.",
+        },
     }
 
 

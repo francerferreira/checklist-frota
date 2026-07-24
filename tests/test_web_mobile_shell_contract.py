@@ -113,6 +113,7 @@ class WebMobileShellContractTests(unittest.TestCase):
         self.assertIn("openMaintenanceMenu", app_js)
         self.assertIn("/manutencao/visao", app_js)
         self.assertIn("renderMaintenance", app_js)
+        self.assertIn("os_mais_antigas", app_js)
 
     def test_mobile_hr_journey_and_offline_read_cache_are_connected(self):
         app_js = (PROJECT_ROOT / "web_app" / "static" / "js" / "app.js").read_text(encoding="utf-8")
