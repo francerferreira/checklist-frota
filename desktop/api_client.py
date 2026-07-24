@@ -276,6 +276,13 @@ class APIClient:
     def create_employee_history(self, payload: dict):
         return self._request("POST", "/rh/historico", json=payload)
 
+    def get_hr_management(self, *, date_from: str | None = None, date_to: str | None = None, alert_days: int = 30):
+        params = {"data_inicial": date_from, "data_final": date_to, "dias_alerta": alert_days}
+        return self._request("GET", "/rh/gestao", params={key: value for key, value in params.items() if value is not None})
+
+    def register_hr_export(self, payload: dict):
+        return self._request("POST", "/rh/gestao/exportacoes", json=payload)
+
     def get_wash_overview(self, year: int | None = None, month: int | None = None):
         params = {}
         if year:
