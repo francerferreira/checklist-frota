@@ -416,6 +416,9 @@ class APIClient:
     def register_navigation_access(self, page_key: str):
         return self._request("POST", f"/navegacao/paginas/{page_key}/acessar", json={})
 
+    def search_global_records(self, query: str, limit: int = 20):
+        return self._request("GET", "/navegacao/busca-global", params={"q": query, "limite": limit})
+
     def get_preventive_plans(self):
         return self._request("GET", "/pcm/planos-preventivos")
 

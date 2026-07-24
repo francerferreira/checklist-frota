@@ -42,6 +42,7 @@ from ui.employees_page import EmployeesPage
 from ui.attendance_page import AttendancePage
 from ui.employee_records_page import EmployeeRecordsPage
 from ui.hr_management_page import HRManagementPage
+from ui.global_search_dialog import GlobalSearchDialog
 from ui.inspection_templates_page import InspectionTemplatesPage
 from ui.materials_page import MaterialsPage
 from ui.maintenance_page import MaintenancePage
@@ -232,6 +233,7 @@ class MainWindow(QMainWindow):
         self.recent_page_keys: list[str] = []
         self._syncing_tree = False
         self.sidebar_visible = True
+        self.pending_navigation_target: dict | None = None
 
         self.setWindowTitle("Sistema de Manutenção de Frota")
         self.setMinimumSize(1280, 760)
@@ -248,6 +250,9 @@ class MainWindow(QMainWindow):
         self.toggle_sidebar_shortcut = QShortcut(QKeySequence("F9"), self)
         self.toggle_sidebar_shortcut.setContext(Qt.ApplicationShortcut)
         self.toggle_sidebar_shortcut.activated.connect(self.toggle_sidebar)
+        self.global_search_shortcut = QShortcut(QKeySequence("Ctrl+K"), self)
+        self.global_search_shortcut.setContext(Qt.ApplicationShortcut)
+        self.global_search_shortcut.activated.connect(self.open_global_search)
 
         container = QWidget()
         container.setObjectName("MainContainer")
@@ -370,6 +375,7 @@ class MainWindow(QMainWindow):
         self.dirty_pages = set(self.page_map.keys())
 
         self.nc_page.data_changed.connect(lambda: self.handle_data_changed("nc"))
+        self.dashboard_page.alert_open_requested.connect(self.open_contextual_alert)
         if "equipment" in self.page_map:
             self.equipment_page.data_changed.connect(lambda: self.handle_data_changed("equipment"))
         if "checklist_items" in self.page_map:
@@ -423,6 +429,9 @@ class MainWindow(QMainWindow):
                 action.triggered.connect(lambda checked=False, page_key=key: self.switch_page(page_key))
 
         account_menu = menubar.addMenu("Conta")
+        global_search_action = account_menu.addAction("Busca global")
+        global_search_action.setShortcut("Ctrl+K")
+        global_search_action.triggered.connect(self.open_global_search)
         toggle_nav_action = account_menu.addAction("Ocultar/mostrar navegação")
         toggle_nav_action.setShortcut("F9")
         toggle_nav_action.triggered.connect(self.toggle_sidebar)
@@ -581,6 +590,8 @@ class MainWindow(QMainWindow):
         self.favorite_page_button.setMinimumHeight(24)
         self.favorite_page_button.clicked.connect(self.toggle_current_page_favorite)
         status.addPermanentWidget(self.favorite_page_button)
+        self.breadcrumb_label = make_cell("INÍCIO", 250)
+        status.addPermanentWidget(self.breadcrumb_label)
         self.navigation_context_label = make_cell("NAVEGAÇÃO › INÍCIO", 240)
         status.addPermanentWidget(self.navigation_context_label)
         status.addPermanentWidget(make_cell("REV 1.0.0.0", 120))
@@ -592,6 +603,33 @@ class MainWindow(QMainWindow):
 
     def open_access_dialog(self):
         AccessDialog(self.api_client, self.user, self).exec()
+
+    def open_global_search(self):
+        dialog = GlobalSearchDialog(self.api_client, self)
+        dialog.result_selected.connect(self.open_navigation_target)
+        dialog.exec()
+
+    def open_contextual_alert(self, alert: dict):
+        target_page = {
+            "MATERIAL": "materials",
+            "PREVENTIVE_PLAN": "pcm",
+            "EMERGENCY_EVENT": "emergencies",
+        }.get(str(alert.get("entity_type") or "").upper(), "dashboard")
+        self.open_navigation_target({
+            "kind": "ALERTA",
+            "entity_id": alert.get("entity_id"),
+            "title": alert.get("message") or "Alerta operacional",
+            "page_key": target_page,
+        })
+
+    def open_navigation_target(self, target: dict):
+        page_key = str(target.get("page_key") or "")
+        if page_key not in self.page_map:
+            show_notice(self, "Acesso indisponível", "Este registro não está disponível para o seu perfil.", icon_name="warning")
+            return
+        self.pending_navigation_target = dict(target)
+        self.dirty_pages.add(page_key)
+        self.switch_page(page_key)
 
     def _ensure_subwindow(self, page_key: str, *, show_if_hidden: bool = True):
         sub = self.page_subwindows.get(page_key)
@@ -644,6 +682,20 @@ class MainWindow(QMainWindow):
         if hasattr(self, "navigation_context_label"):
             page_title = self.page_titles.get(page_key, page_key)
             self.navigation_context_label.setText(f"NAVEGAÇÃO › {page_title.upper()}")
+            if hasattr(self, "breadcrumb_label"):
+                self.breadcrumb_label.setText(f"INÍCIO › {self._navigation_section(page_key)} › {page_title.upper()}")
+
+    @staticmethod
+    def _navigation_section(page_key: str) -> str:
+        if page_key in {"dashboard", "operations_center", "availability", "emergencies"}:
+            return "OPERAÇÃO"
+        if page_key in {"maintenance", "pcm", "resources", "activities", "washes", "inspection_templates"}:
+            return "MANUTENÇÃO"
+        if page_key in {"equipment", "checklist_items", "materials", "supply_library", "purchases"}:
+            return "ATIVOS"
+        if page_key in {"users", "cloud_backup", "audit_logs", "admin_rules"}:
+            return "ADMINISTRAÇÃO"
+        return "GESTÃO"
 
     def _load_navigation_preferences(self):
         try:
@@ -782,6 +834,8 @@ class MainWindow(QMainWindow):
 
     def _refresh_page(self, page_key: str):
         try:
+            target = self.pending_navigation_target if (self.pending_navigation_target or {}).get("page_key") == page_key else None
+            target_id = target.get("entity_id") if target else None
             if page_key == "dashboard":
                 self.dashboard_page.refresh()
             elif page_key == "nc":
@@ -791,13 +845,13 @@ class MainWindow(QMainWindow):
             elif page_key == "operations_center":
                 self.operational_center_page.refresh()
             elif page_key == "equipment":
-                self.equipment_page.refresh()
+                self.equipment_page.refresh(target_id)
             elif page_key == "checklist_items":
                 self.checklist_items_page.refresh()
             elif page_key == "inspection_templates":
                 self.inspection_templates_page.refresh()
             elif page_key == "materials":
-                self.materials_page.refresh()
+                self.materials_page.refresh(target_id)
             elif page_key == "washes":
                 self.washes_page.refresh()
             elif page_key == "activities":
@@ -822,12 +876,22 @@ class MainWindow(QMainWindow):
                 self.checklist_history_page.refresh()
             elif page_key == "users":
                 self.users_page.refresh()
+            elif page_key == "employees":
+                self.employees_page.refresh(target_id)
+            elif page_key == "attendance":
+                self.attendance_page.refresh()
+            elif page_key == "employee_records":
+                self.employee_records_page.refresh()
+            elif page_key == "hr_management":
+                self.hr_management_page.refresh()
             elif page_key == "cloud_backup":
                 self.cloud_backup_page.refresh()
             elif page_key == "audit_logs":
                 self.audit_logs_page.refresh()
             elif page_key == "admin_rules":
                 self.admin_rules_page.refresh()
+            if target:
+                self.pending_navigation_target = None
         except Exception as exc:
             show_notice(self, "Falha ao carregar dados", str(exc), icon_name="warning")
 

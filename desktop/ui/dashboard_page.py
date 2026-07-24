@@ -1,5 +1,6 @@
 ﻿from __future__ import annotations
 
+from PySide6.QtCore import Qt, Signal
 from PySide6.QtGui import QColor, QBrush
 from PySide6.QtWidgets import (
     QFrame,
@@ -43,6 +44,8 @@ def _format_hours(value) -> str:
 
 
 class DashboardPage(QFrame):
+    alert_open_requested = Signal(dict)
+
     def __init__(self, api_client, parent=None):
         super().__init__(parent)
         self.api_client = api_client
@@ -240,6 +243,7 @@ class DashboardPage(QFrame):
         self.automation_table.setHorizontalHeaderLabels(["Regra", "Severidade", "Referência", "Alerta", "Estado"])
         configure_table(self.automation_table, stretch_last=False)
         self.automation_table.setMinimumHeight(220)
+        self.automation_table.itemDoubleClicked.connect(self.open_automation_alert)
         automation_layout.addLayout(automation_header)
         automation_layout.addWidget(automation_hint)
         automation_layout.addWidget(self.automation_table)
@@ -385,8 +389,17 @@ class DashboardPage(QFrame):
                 str(alert.get("status") or "-"),
             ]
             for column, value in enumerate(values):
-                self.automation_table.setItem(row_index, column, make_table_item(value))
+                self.automation_table.setItem(row_index, column, make_table_item(value, payload=alert if column == 0 else None))
         self.automation_table.setSortingEnabled(True)
+
+    def open_automation_alert(self, *_):
+        rows = self.automation_table.selectedRanges()
+        if not rows:
+            return
+        item = self.automation_table.item(rows[0].topRow(), 0)
+        alert = item.data(Qt.UserRole) if item else None
+        if alert:
+            self.alert_open_requested.emit(alert)
 
     def evaluate_automations(self):
         self.api_client.evaluate_automation_rules()
