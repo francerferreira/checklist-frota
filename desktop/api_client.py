@@ -256,6 +256,26 @@ class APIClient:
     def cancel_employee_attendance(self, record_id: int, reason: str):
         return self._request("POST", f"/rh/frequencia/{record_id}/cancelar", json={"reason": reason})
 
+    def get_employee_documents(self, *, employee_id: int | None = None):
+        params = {"colaborador_id": employee_id} if employee_id else None
+        return self._request("GET", "/rh/documentos", params=params)
+
+    def create_employee_document(self, payload: dict):
+        return self._request("POST", "/rh/documentos", json=payload)
+
+    def get_employee_trainings(self, *, employee_id: int | None = None):
+        params = {"colaborador_id": employee_id} if employee_id else None
+        return self._request("GET", "/rh/treinamentos", params=params)
+
+    def create_employee_training(self, payload: dict):
+        return self._request("POST", "/rh/treinamentos", json=payload)
+
+    def get_employee_history(self, employee_id: int):
+        return self._request("GET", "/rh/historico", params={"colaborador_id": employee_id})
+
+    def create_employee_history(self, payload: dict):
+        return self._request("POST", "/rh/historico", json=payload)
+
     def get_wash_overview(self, year: int | None = None, month: int | None = None):
         params = {}
         if year:

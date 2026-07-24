@@ -40,6 +40,7 @@ from ui.equipment_page import EquipmentPage
 from ui.emergencies_page import EmergenciesPage
 from ui.employees_page import EmployeesPage
 from ui.attendance_page import AttendancePage
+from ui.employee_records_page import EmployeeRecordsPage
 from ui.inspection_templates_page import InspectionTemplatesPage
 from ui.materials_page import MaterialsPage
 from ui.maintenance_page import MaintenancePage
@@ -296,6 +297,7 @@ class MainWindow(QMainWindow):
         self.purchases_page = PurchasesPage(self.api_client)
         self.employees_page = EmployeesPage(self.api_client, self.user)
         self.attendance_page = AttendancePage(self.api_client, self.user)
+        self.employee_records_page = EmployeeRecordsPage(self.api_client, self.user)
         self.supply_library_page = SupplyLibraryPage(self.api_client)
         self.reports_page = ReportsPage(self.api_client)
         self.users_page = UsersPage(self.api_client, self.user)
@@ -324,6 +326,7 @@ class MainWindow(QMainWindow):
             "purchases": self.purchases_page,
             "employees": self.employees_page,
             "attendance": self.attendance_page,
+            "employee_records": self.employee_records_page,
             "supply_library": self.supply_library_page,
             "users": self.users_page,
             "cloud_backup": self.cloud_backup_page,
@@ -351,6 +354,7 @@ class MainWindow(QMainWindow):
             "purchases": "Compras e fornecedores",
             "employees": "Recursos Humanos",
             "attendance": "Frequência e ocorrências",
+            "employee_records": "Documentos e treinamentos",
             "supply_library": "Suprimentos e Biblioteca",
             "reports": "Relatórios",
             "checklist_history": "Histórico Checklist",
@@ -388,6 +392,8 @@ class MainWindow(QMainWindow):
             self.employees_page.data_changed.connect(lambda: self.handle_data_changed("employees"))
         if "attendance" in self.page_map:
             self.attendance_page.data_changed.connect(lambda: self.handle_data_changed("attendance"))
+        if "employee_records" in self.page_map:
+            self.employee_records_page.data_changed.connect(lambda: self.handle_data_changed("employee_records"))
 
     def _build_menu_bar(self):
         menubar = self.menuBar()
@@ -397,7 +403,7 @@ class MainWindow(QMainWindow):
             "Operação": ["dashboard", "operations_center", "availability", "emergencies"],
             "Manutenção": ["maintenance", "pcm", "resources", "activities", "washes", "inspection_templates"],
             "Ativos e suprimentos": ["equipment", "checklist_items", "materials", "supply_library", "purchases"],
-            "Gestão": ["nc", "reports", "productivity", "checklist_history", "employees", "attendance"],
+            "Gestão": ["nc", "reports", "productivity", "checklist_history", "employees", "attendance", "employee_records"],
             "Administração": ["users", "cloud_backup", "audit_logs", "admin_rules"],
         }
 
@@ -468,7 +474,7 @@ class MainWindow(QMainWindow):
             ("1 - Operação", ["dashboard", "operations_center", "availability", "emergencies"]),
             ("2 - Manutenção e PCM", ["maintenance", "pcm", "resources", "activities", "washes", "inspection_templates"]),
             ("3 - Ativos e suprimentos", ["equipment", "checklist_items", "materials", "supply_library", "purchases"]),
-            ("4 - Gestão e histórico", ["nc", "reports", "productivity", "checklist_history", "employees", "attendance"]),
+            ("4 - Gestão e histórico", ["nc", "reports", "productivity", "checklist_history", "employees", "attendance", "employee_records"]),
             ("5 - Administração", ["users", "cloud_backup", "audit_logs", "admin_rules"]),
         ]
 

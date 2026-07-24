@@ -48,6 +48,9 @@ class Employee(db.Model):
 
     user = db.relationship("User", lazy="joined")
     attendance_records = db.relationship("EmployeeAttendanceRecord", back_populates="employee", lazy="select")
+    documents = db.relationship("EmployeeDocument", back_populates="employee", lazy="select")
+    trainings = db.relationship("EmployeeTraining", back_populates="employee", lazy="select")
+    history_events = db.relationship("EmployeeHistoryEvent", back_populates="employee", lazy="select")
 
     __table_args__ = (
         db.CheckConstraint(
@@ -130,3 +133,97 @@ class EmployeeAttendanceRecord(db.Model):
             "cancellation_reason": self.cancellation_reason,
             "employee": self.employee.to_dict() if self.employee else None,
         }
+
+
+class EmployeeDocument(db.Model):
+    __tablename__ = "employee_documents"
+
+    id = db.Column(db.Integer, primary_key=True)
+    employee_id = db.Column(db.Integer, db.ForeignKey("employees.id"), nullable=False, index=True)
+    document_type = db.Column(db.String(80), nullable=False, index=True)
+    issued_on = db.Column(db.Date, nullable=True)
+    expires_on = db.Column(db.Date, nullable=True, index=True)
+    file_path = db.Column(db.String(500), nullable=False)
+    is_sensitive = db.Column(db.Boolean, nullable=False, default=False, index=True)
+    notes = db.Column(db.Text, nullable=True)
+    created_by_user_id = db.Column(db.Integer, db.ForeignKey("users.id"), nullable=False, index=True)
+    created_at = db.Column(db.DateTime, nullable=False, default=now_manaus_naive)
+
+    employee = db.relationship("Employee", back_populates="documents", lazy="joined")
+    created_by = db.relationship("User", lazy="joined")
+
+    def status(self, reference_date: date | None = None) -> str:
+        reference_date = reference_date or date.today()
+        if not self.expires_on:
+            return "SEM_VALIDADE"
+        if self.expires_on < reference_date:
+            return "VENCIDO"
+        if (self.expires_on - reference_date).days <= 30:
+            return "VENCENDO"
+        return "VALIDO"
+
+    def to_dict(self) -> dict:
+        return {
+            "id": self.id,
+            "employee_id": self.employee_id,
+            "document_type": self.document_type,
+            "issued_on": self.issued_on.isoformat() if self.issued_on else None,
+            "expires_on": self.expires_on.isoformat() if self.expires_on else None,
+            "file_path": self.file_path,
+            "is_sensitive": self.is_sensitive,
+            "status": self.status(),
+            "notes": self.notes,
+            "employee": self.employee.to_dict() if self.employee else None,
+        }
+
+
+class EmployeeTraining(db.Model):
+    __tablename__ = "employee_trainings"
+
+    id = db.Column(db.Integer, primary_key=True)
+    employee_id = db.Column(db.Integer, db.ForeignKey("employees.id"), nullable=False, index=True)
+    course_name = db.Column(db.String(160), nullable=False, index=True)
+    training_type = db.Column(db.String(80), nullable=False, index=True)
+    provider_name = db.Column(db.String(160), nullable=True)
+    starts_on = db.Column(db.Date, nullable=True)
+    ends_on = db.Column(db.Date, nullable=True)
+    workload_hours = db.Column(db.Integer, nullable=True)
+    expires_on = db.Column(db.Date, nullable=True, index=True)
+    certificate_path = db.Column(db.String(500), nullable=True)
+    notes = db.Column(db.Text, nullable=True)
+    created_by_user_id = db.Column(db.Integer, db.ForeignKey("users.id"), nullable=False, index=True)
+    created_at = db.Column(db.DateTime, nullable=False, default=now_manaus_naive)
+
+    employee = db.relationship("Employee", back_populates="trainings", lazy="joined")
+    created_by = db.relationship("User", lazy="joined")
+
+    def status(self, reference_date: date | None = None) -> str:
+        reference_date = reference_date or date.today()
+        if not self.ends_on:
+            return "PENDENTE"
+        if self.expires_on and self.expires_on < reference_date:
+            return "VENCIDO"
+        if self.expires_on and (self.expires_on - reference_date).days <= 30:
+            return "VENCENDO"
+        return "VALIDO"
+
+    def to_dict(self) -> dict:
+        return {"id": self.id, "employee_id": self.employee_id, "course_name": self.course_name, "training_type": self.training_type, "provider_name": self.provider_name, "starts_on": self.starts_on.isoformat() if self.starts_on else None, "ends_on": self.ends_on.isoformat() if self.ends_on else None, "workload_hours": self.workload_hours, "expires_on": self.expires_on.isoformat() if self.expires_on else None, "certificate_path": self.certificate_path, "status": self.status(), "notes": self.notes, "employee": self.employee.to_dict() if self.employee else None}
+
+
+class EmployeeHistoryEvent(db.Model):
+    __tablename__ = "employee_history_events"
+
+    id = db.Column(db.Integer, primary_key=True)
+    employee_id = db.Column(db.Integer, db.ForeignKey("employees.id"), nullable=False, index=True)
+    event_type = db.Column(db.String(80), nullable=False, index=True)
+    occurred_on = db.Column(db.Date, nullable=False, index=True)
+    description = db.Column(db.Text, nullable=False)
+    created_by_user_id = db.Column(db.Integer, db.ForeignKey("users.id"), nullable=False, index=True)
+    created_at = db.Column(db.DateTime, nullable=False, default=now_manaus_naive)
+
+    employee = db.relationship("Employee", back_populates="history_events", lazy="joined")
+    created_by = db.relationship("User", lazy="joined")
+
+    def to_dict(self) -> dict:
+        return {"id": self.id, "employee_id": self.employee_id, "event_type": self.event_type, "occurred_on": self.occurred_on.isoformat(), "description": self.description, "employee": self.employee.to_dict() if self.employee else None}
