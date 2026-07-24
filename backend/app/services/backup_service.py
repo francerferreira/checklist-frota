@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 import os
+import shutil
 import zipfile
 from datetime import date, datetime, timedelta
 from decimal import Decimal
@@ -48,6 +49,50 @@ def backup_folder() -> Path:
         folder = Path(current_app.root_path).parents[1] / folder
     folder.mkdir(parents=True, exist_ok=True)
     return folder
+
+
+def _configured_external_backup_folder() -> Path | None:
+    configured = str(current_app.config.get("BACKUP_EXTERNAL_FOLDER") or "").strip()
+    if not configured:
+        return None
+    folder = Path(configured).expanduser().resolve()
+    local_folder = backup_folder().resolve()
+    if folder == local_folder:
+        raise ValueError("BACKUP_EXTERNAL_FOLDER deve ser diferente da pasta local de backups.")
+    folder.mkdir(parents=True, exist_ok=True)
+    return folder
+
+
+def rotate_backup_archives(folder: Path, *, keep_count: int) -> dict:
+    """Mantem somente ZIPs oficiais mais recentes, sem tocar em outros arquivos."""
+    if keep_count < 0:
+        raise ValueError("A retencao de backup nao pode ser negativa.")
+    archives = sorted(
+        (path for path in folder.glob("backup-checklist-*.zip") if path.is_file()),
+        key=lambda path: (path.stat().st_mtime, path.name),
+        reverse=True,
+    )
+    removed = []
+    for archive in archives[keep_count:]:
+        archive.unlink()
+        removed.append(archive.name)
+    return {"kept": min(len(archives), keep_count), "removed": removed}
+
+
+def _replicate_backup(path: Path) -> dict:
+    external_folder = _configured_external_backup_folder()
+    if not external_folder:
+        return {"configured": False, "copied": False, "path": None}
+    destination = external_folder / path.name
+    try:
+        shutil.copy2(path, destination)
+        retention = rotate_backup_archives(
+            external_folder,
+            keep_count=int(current_app.config["BACKUP_RETENTION_COUNT"]),
+        )
+    except OSError as exc:
+        return {"configured": True, "copied": False, "path": str(destination), "error": str(exc)}
+    return {"configured": True, "copied": True, "path": str(destination), "retention": retention}
 
 
 def database_usage_bytes() -> int:
@@ -170,6 +215,12 @@ def create_backup() -> dict:
             "Backup completo do Checklist Live. Guarde este arquivo fora da nuvem antes de limpar dados antigos.",
         )
 
+    retention = rotate_backup_archives(
+        backup_folder(),
+        keep_count=int(current_app.config["BACKUP_RETENTION_COUNT"]),
+    )
+    external_copy = _replicate_backup(path)
+
     return {
         "filename": filename,
         "path": str(path),
@@ -177,6 +228,8 @@ def create_backup() -> dict:
         "size_mb": _mb(path.stat().st_size),
         "download_url": f"/admin/backups/{filename}/download",
         "storage_status": status,
+        "retention": retention,
+        "external_copy": external_copy,
     }
 
 

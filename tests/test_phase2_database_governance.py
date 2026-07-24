@@ -1,5 +1,8 @@
 from __future__ import annotations
 
+import os
+import subprocess
+import sys
 from pathlib import Path
 
 
@@ -23,3 +26,24 @@ def test_startup_schema_is_restricted_to_the_legacy_sqlite_test_profile():
     assert 'if app.config["LEGACY_LOCAL_BOOTSTRAP_ENABLED"]:' in source
     assert "Alteracao automatica de schema esta desativada" in runtime_schema
     assert 'db.engine.dialect.name != "sqlite"' in runtime_schema
+
+
+def test_test_profile_rejects_forcing_the_operational_sqlite_database():
+    environment = {
+        **os.environ,
+        "PYTHONPATH": str(ROOT / "backend"),
+        "CHECKLIST_ENV": "test",
+        "CHECKLIST_ALLOW_SQLITE": "1",
+        "CHECKLIST_FORCE_LOCAL_DB": "1",
+        "DATABASE_URL": "sqlite:///:memory:",
+    }
+    result = subprocess.run(
+        [sys.executable, "-c", "from app.config import Config; Config.validate_environment()"],
+        cwd=ROOT,
+        env=environment,
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    assert result.returncode != 0
+    assert "CHECKLIST_FORCE_LOCAL_DB nao pode ser usado em testes" in result.stderr

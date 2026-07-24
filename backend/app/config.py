@@ -40,6 +40,19 @@ def _bool_env(name: str, default: bool = False) -> bool:
     return value.strip().lower() in {"1", "true", "yes", "on"}
 
 
+def _non_negative_int_env(name: str, default: int) -> int:
+    raw_value = os.getenv(name)
+    if raw_value in (None, ""):
+        return default
+    try:
+        value = int(raw_value)
+    except ValueError as exc:
+        raise RuntimeError(f"{name} deve ser um numero inteiro nao negativo.") from exc
+    if value < 0:
+        raise RuntimeError(f"{name} deve ser um numero inteiro nao negativo.")
+    return value
+
+
 def _is_sqlite_url(url: str) -> bool:
     return url.lower().startswith("sqlite:")
 
@@ -82,6 +95,8 @@ class Config:
     AUTOMATION_JOB_TOKEN = os.getenv("AUTOMATION_JOB_TOKEN")
     UPLOAD_FOLDER = DATA_ROOT / "uploads"
     BACKUP_FOLDER = Path(os.getenv("BACKUP_FOLDER", DATA_ROOT / "backups"))
+    BACKUP_RETENTION_COUNT = _non_negative_int_env("BACKUP_RETENTION_COUNT", default=30)
+    BACKUP_EXTERNAL_FOLDER = (os.getenv("BACKUP_EXTERNAL_FOLDER") or "").strip()
     INVENTORY_FILE = os.getenv("INVENTORY_FILE")
     WASH_CONTROL_FILE = os.getenv("WASH_CONTROL_FILE")
     PORTUARY_ONLY_MODE = _bool_env("PORTUARY_ONLY_MODE", default=False)
@@ -97,6 +112,10 @@ class Config:
         """Reject implicit local databases in official application profiles."""
         if cls.APP_ENV not in {"development", "test", "production"}:
             raise RuntimeError("CHECKLIST_ENV deve ser development, test ou production.")
+        if cls.APP_ENV == "test" and os.getenv("CHECKLIST_FORCE_LOCAL_DB") == "1":
+            raise RuntimeError(
+                "CHECKLIST_FORCE_LOCAL_DB nao pode ser usado em testes; cada teste deve usar seu SQLite temporario."
+            )
         if not cls.SQLALCHEMY_DATABASE_URI:
             raise RuntimeError(
                 "DATABASE_URL e obrigatoria. SQLite temporario exige CHECKLIST_ALLOW_SQLITE=1."
