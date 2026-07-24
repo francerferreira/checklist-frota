@@ -9,6 +9,7 @@ from sqlalchemy import func, or_
 from app.extensions import db
 from app.models import ChecklistItem, Vehicle, Checklist
 from app.services.auth_service import auth_required, user_has_management_access
+from app.services.bi_contract_service import build_readonly_bi_contract
 from app.services.maintenance_intelligence_service import build_maintenance_intelligence_overview
 from app.services.report_service import (
     MASTER_BASE_EXPORT_COLUMNS,
@@ -56,6 +57,14 @@ def get_maintenance_executive_report():
     if not user_has_management_access(g.current_user):
         return api_response(False, error="Somente admin ou gestor podem consultar este relatorio.", status_code=403)
     return api_response(True, data=build_maintenance_intelligence_overview())
+
+
+@bp.get("/bi/contrato")
+@auth_required
+def get_bi_readonly_contract():
+    if not user_has_management_access(g.current_user):
+        return api_response(False, error="Somente admin ou gestor podem consultar o contrato de BI.", status_code=403)
+    return api_response(True, data=build_readonly_bi_contract())
 
 
 def _management_master_filters() -> dict:

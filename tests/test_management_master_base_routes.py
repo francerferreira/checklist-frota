@@ -41,7 +41,12 @@ class ManagementMasterBaseRoutesTests(unittest.TestCase):
         cls.app = create_app()
         cls.client = cls.app.test_client()
         with cls.app.app_context():
-            admin = User.query.filter_by(login="admin").one()
+            admin = User.query.filter_by(login="admin").first()
+            if not admin:
+                admin = User(nome="Administrador Base", login="admin", tipo="admin", ativo=True)
+                admin.set_password("teste123")
+                db.session.add(admin)
+                db.session.flush()
             mechanic = User(nome="Mecanico Base", login="mecanico_base", tipo="mecanico", ativo=True)
             mechanic.set_password("teste123")
             db.session.add(mechanic)
@@ -147,6 +152,19 @@ class ManagementMasterBaseRoutesTests(unittest.TestCase):
         all_rows = self.client.get("/relatorios/base-mestre?ativos=false", headers=self.admin_headers)
         self.assertEqual(all_rows.status_code, 200, all_rows.get_json())
         self.assertEqual(all_rows.get_json()["data"]["pagination"]["total"], 2)
+
+    def test_bi_contract_is_versioned_read_only_and_restricted_to_management(self):
+        response = self.client.get("/relatorios/bi/contrato", headers=self.admin_headers)
+        self.assertEqual(response.status_code, 200, response.get_json())
+        data = response.get_json()["data"]
+        self.assertEqual(data["schema_version"], "bi.sqlite.readonly.v1")
+        self.assertEqual(data["access"]["mode"], "EXPORTACAO_CONTROLADA")
+        self.assertFalse(data["access"]["database_write"])
+        master = next(dataset for dataset in data["datasets"] if dataset["id"] == "pcm_base_mestre")
+        self.assertEqual(master["schema_version"], "pcm.base_mestre.v1")
+        self.assertIn("vehicle_frota", master["columns"])
+        forbidden = self.client.get("/relatorios/bi/contrato", headers=self.mechanic_headers)
+        self.assertEqual(forbidden.status_code, 403, forbidden.get_json())
 
     def test_management_base_exports_keep_a_typed_contract(self):
         json_export = self.client.get(
