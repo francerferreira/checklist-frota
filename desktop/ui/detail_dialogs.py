@@ -11,7 +11,9 @@ from PySide6.QtWidgets import (
     QPushButton,
     QTableWidget,
     QTableWidgetItem,
+    QTabWidget,
     QVBoxLayout,
+    QWidget,
 )
 
 from components import ImagePanel, choose_pdf_save_path, finalize_export_result, make_icon, show_notice, start_export_task_with_preset
@@ -181,6 +183,11 @@ class VehicleDetailDialog(QDialog):
             self.history = {}
         self.occurrences = self.history.get("nao_conformidades") or self.api_client.get_non_conformities(vehicle=vehicle.get("frota"))
         self.operational_history = self._build_operational_history()
+        self.status_history = self._safe_list(lambda: self.api_client.get_equipment_status_history(vehicle["id"]))
+        self.hourmeter_history = self._safe_list(lambda: self.api_client.get_equipment_hourmeters(vehicle["id"]))
+        self.technical_documents = self._safe_list(lambda: self.api_client.get_technical_documents(vehicle["id"]))
+        self.equipment_links = self._safe_list(lambda: self.api_client.get_equipment_links(parent_id=vehicle["id"]))
+        self.equipment_links.extend(self._safe_list(lambda: self.api_client.get_equipment_links(child_id=vehicle["id"])))
 
         self.setWindowTitle("Ficha do equipamento")
         configure_dialog_window(self, width=1280, height=820, min_width=980, min_height=700)
@@ -308,13 +315,79 @@ class VehicleDetailDialog(QDialog):
 
         content.addWidget(image_card, 0, 0)
         content.addWidget(info_card, 0, 1)
-        content.addWidget(table_card, 1, 0, 1, 2)
         content.setColumnStretch(0, 5)
         content.setColumnStretch(1, 5)
-        content.setRowStretch(1, 1)
+
+        summary_tab = QWidget()
+        summary_layout = QVBoxLayout(summary_tab)
+        summary_layout.setContentsMargins(0, 0, 0, 0)
+        summary_layout.addLayout(content)
+        history_tab = QWidget()
+        history_layout = QVBoxLayout(history_tab)
+        history_layout.setContentsMargins(0, 0, 0, 0)
+        history_layout.addWidget(table_card)
+        tabs = QTabWidget()
+        tabs.addTab(summary_tab, "Resumo")
+        tabs.addTab(history_tab, "Historico operacional")
+        tabs.addTab(self._build_operational_tabs(), "Condicao e documentos")
 
         layout.addWidget(header)
-        layout.addLayout(content, 1)
+        layout.addWidget(tabs, 1)
+
+    @staticmethod
+    def _safe_list(loader) -> list[dict]:
+        try:
+            value = loader()
+            return value if isinstance(value, list) else []
+        except Exception:
+            return []
+
+    def _make_table(self, headers: list[str], rows: list[list[object]]) -> QTableWidget:
+        table = QTableWidget(len(rows), len(headers))
+        table.setHorizontalHeaderLabels(headers)
+        configure_table(table)
+        for row_index, values in enumerate(rows):
+            for column, value in enumerate(values):
+                table.setItem(row_index, column, make_table_item(str(value or "-")))
+        table.resizeColumnsToContents()
+        return table
+
+    def _table_tab(self, title: str, caption: str, headers: list[str], rows: list[list[object]]) -> QWidget:
+        tab = QWidget()
+        tab_layout = QVBoxLayout(tab)
+        tab_layout.setContentsMargins(12, 12, 12, 12)
+        heading = QLabel(title)
+        heading.setObjectName("SectionTitle")
+        hint = QLabel(caption)
+        hint.setObjectName("SectionCaption")
+        hint.setWordWrap(True)
+        tab_layout.addWidget(heading)
+        tab_layout.addWidget(hint)
+        tab_layout.addWidget(self._make_table(headers, rows), 1)
+        return tab
+
+    def _build_operational_tabs(self) -> QTabWidget:
+        tabs = QTabWidget()
+        current_state = self.vehicle.get("operational_state") or {}
+        status_rows = [[self._format(current_state.get("status_updated_at")), current_state.get("operational_status") or "SEM APONTAMENTO", current_state.get("status_reason") or "-", "Atual"]]
+        status_rows.extend([[self._format(row.get("started_at")), row.get("status"), row.get("reason"), row.get("source")] for row in self.status_history])
+        tabs.addTab(self._table_tab("Status operacional", "Linha do tempo do estado do equipamento. A primeira linha mostra a situacao atual.", ["Data", "Status", "Motivo", "Origem"], status_rows), "Status")
+        hourmeter_rows = [[self._format(row.get("recorded_at")), row.get("reading"), row.get("source"), row.get("notes")] for row in self.hourmeter_history]
+        tabs.addTab(self._table_tab("Horimetro", "Leituras registradas sem sobrescrever o historico.", ["Data", "Leitura", "Origem", "Observacao"], hourmeter_rows), "Horimetro")
+        document_rows = [[row.get("code"), row.get("title"), row.get("document_type"), row.get("revision"), row.get("valid_until") or "Sem validade", row.get("effective_status") or row.get("status")] for row in self.technical_documents]
+        tabs.addTab(self._table_tab("Documentos tecnicos", "Manuais, diagramas e certificados vinculados ao equipamento ou a sua familia.", ["Codigo", "Documento", "Tipo", "Revisao", "Validade", "Situacao"], document_rows), "Documentos")
+        seen_ids: set[int] = set()
+        link_rows = []
+        for row in self.equipment_links:
+            link_id = int(row.get("id") or 0)
+            if link_id in seen_ids:
+                continue
+            seen_ids.add(link_id)
+            parent = row.get("parent_equipment") or {}
+            child = row.get("child_equipment") or {}
+            link_rows.append([parent.get("frota"), child.get("frota"), row.get("link_type"), "Ativo" if row.get("active") else "Encerrado"])
+        tabs.addTab(self._table_tab("Vinculos", "Relacionamentos operacionais atuais e historicos com outros equipamentos.", ["Origem", "Destino", "Tipo", "Situacao"], link_rows), "Vinculos")
+        return tabs
 
     def _build_operational_history(self):
         rows = []

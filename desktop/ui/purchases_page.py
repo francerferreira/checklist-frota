@@ -10,6 +10,7 @@ from PySide6.QtWidgets import (
     QDialogButtonBox,
     QFormLayout,
     QFrame,
+    QGridLayout,
     QHBoxLayout,
     QLabel,
     QLineEdit,
@@ -92,6 +93,41 @@ class ReceiptDialog(QDialog):
         return {"quantity": self.quantity.value(), "notes": self.notes.text().strip(), "idempotency_key": str(uuid4())}
 
 
+class PurchaseDetailDialog(QDialog):
+    def __init__(self, api_client, purchase_id: int, parent=None):
+        super().__init__(parent)
+        self.setWindowTitle("Detalhe da solicitacao de compra")
+        self.setMinimumSize(840, 560)
+        data = api_client.get_purchase_request(purchase_id)
+        layout = QVBoxLayout(self)
+        title = QLabel(f"Solicitacao {data.get('code') or '-'}")
+        title.setObjectName("PageTitle")
+        subtitle = QLabel("Material, aprovacao, recebimentos e saldo reunidos em uma unica ficha.")
+        subtitle.setObjectName("PageSubtitle")
+        subtitle.setWordWrap(True)
+        layout.addWidget(title); layout.addWidget(subtitle)
+        card = QFrame(); style_table_card(card)
+        grid = QGridLayout(card); grid.setContentsMargins(16, 16, 16, 16); grid.setHorizontalSpacing(18); grid.setVerticalSpacing(8)
+        material = data.get("material") or {}; supplier = data.get("supplier") or {}; creator = data.get("created_by") or {}; approver = data.get("approved_by") or {}
+        fields = [("Material", f"{material.get('referencia') or '-'} - {material.get('descricao') or '-'}"), ("Fornecedor", supplier.get("name") or "A definir"), ("Situacao", data.get("status") or "-"), ("Prioridade", data.get("priority") or "-"), ("Quantidade", str(data.get("requested_quantity") or 0)), ("Recebida", str(data.get("received_quantity") or 0)), ("Saldo", str(data.get("remaining_quantity") or 0)), ("Previsao", data.get("expected_date") or "-"), ("Solicitada por", creator.get("nome") or creator.get("login") or "-"), ("Aprovada por", approver.get("nome") or approver.get("login") or "-"), ("Observacao", data.get("observation") or "-")]
+        for index, (label_text, value_text) in enumerate(fields):
+            label = QLabel(label_text); label.setObjectName("SectionCaption")
+            value = QLabel(str(value_text)); value.setWordWrap(True); value.setObjectName("DialogInfoValue")
+            row, column = divmod(index, 2)
+            grid.addWidget(label, row * 2, column); grid.addWidget(value, row * 2 + 1, column)
+        layout.addWidget(card)
+        receipts_title = QLabel("Recebimentos registrados"); receipts_title.setObjectName("SectionTitle")
+        table = QTableWidget(0, 4); table.setHorizontalHeaderLabels(["Data", "Quantidade", "Recebido por", "Observacao"]); configure_table(table)
+        receipts = data.get("receipts") or []; table.setRowCount(len(receipts))
+        for row, receipt in enumerate(receipts):
+            receiver = receipt.get("received_by") or {}
+            values = [str(receipt.get("received_at") or "").replace("T", " ")[:19], receipt.get("quantity"), receiver.get("nome") or receiver.get("login") or "-", receipt.get("notes") or "-"]
+            for column, value in enumerate(values): table.setItem(row, column, make_table_item(value))
+        table.resizeColumnsToContents()
+        layout.addWidget(receipts_title); layout.addWidget(table, 1)
+        close = QPushButton("Fechar"); close.clicked.connect(self.accept); layout.addWidget(close)
+
+
 class PurchasesPage(QFrame):
     def __init__(self, api_client, parent=None):
         super().__init__(parent)
@@ -112,12 +148,13 @@ class PurchasesPage(QFrame):
         request_button = QPushButton("Nova solicitação"); request_button.setProperty("variant", "primary"); request_button.clicked.connect(self.create_request)
         approve_button = QPushButton("Aprovar selecionada"); approve_button.clicked.connect(self.approve_selected)
         receive_button = QPushButton("Receber selecionada"); receive_button.clicked.connect(self.receive_selected)
+        details_button = QPushButton("Ver detalhes"); details_button.clicked.connect(self.open_details)
         refresh_button = QPushButton("Atualizar"); refresh_button.clicked.connect(self.refresh)
-        for button in (supplier_button, request_button, approve_button, receive_button, refresh_button): actions.addWidget(button)
+        for button in (supplier_button, request_button, approve_button, receive_button, details_button, refresh_button): actions.addWidget(button)
         suppliers_card = QFrame(); style_table_card(suppliers_card); suppliers_layout = QVBoxLayout(suppliers_card); suppliers_layout.addWidget(QLabel("Fornecedores"))
         self.suppliers_table = QTableWidget(0, 4); self.suppliers_table.setHorizontalHeaderLabels(["Código", "Fornecedor", "Contato", "Ativo"]); configure_table(self.suppliers_table, stretch_last=False); suppliers_layout.addWidget(self.suppliers_table)
         requests_card = QFrame(); style_table_card(requests_card); requests_layout = QVBoxLayout(requests_card); requests_layout.addWidget(QLabel("Solicitações de compra"))
-        self.requests_table = QTableWidget(0, 8); self.requests_table.setHorizontalHeaderLabels(["Código", "Material", "Fornecedor", "Qtd.", "Recebido", "Status", "Previsão", "Atraso"]); configure_table(self.requests_table, stretch_last=False); requests_layout.addWidget(self.requests_table)
+        self.requests_table = QTableWidget(0, 8); self.requests_table.setHorizontalHeaderLabels(["Código", "Material", "Fornecedor", "Qtd.", "Recebido", "Status", "Previsão", "Atraso"]); configure_table(self.requests_table, stretch_last=False); self.requests_table.itemDoubleClicked.connect(lambda *_: self.open_details()); requests_layout.addWidget(self.requests_table)
         layout.addWidget(title); layout.addWidget(subtitle); layout.addLayout(cards); layout.addLayout(actions); layout.addWidget(suppliers_card, 1); layout.addWidget(requests_card, 2)
 
     def refresh(self):
@@ -179,3 +216,13 @@ class PurchasesPage(QFrame):
             self.api_client.receive_purchase_request(int(purchase["id"]), dialog.payload()); self.refresh()
         except Exception as exc:
             show_notice(self, "Recebimento não concluído", str(exc), icon_name="warning")
+
+    def open_details(self):
+        purchase = self._selected_request()
+        if not purchase:
+            show_notice(self, "Solicitação obrigatória", "Selecione uma solicitação para ver os detalhes.", icon_name="warning")
+            return
+        try:
+            PurchaseDetailDialog(self.api_client, int(purchase["id"]), self).exec()
+        except Exception as exc:
+            show_notice(self, "Detalhes indisponíveis", str(exc), icon_name="warning")

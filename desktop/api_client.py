@@ -398,6 +398,9 @@ class APIClient:
     def get_purchase_requests(self):
         return self._request("GET", "/compras/solicitacoes")
 
+    def get_purchase_request(self, purchase_id: int):
+        return self._request("GET", f"/compras/solicitacoes/{purchase_id}")
+
     def create_purchase_request(self, payload: dict):
         return self._request("POST", "/compras/solicitacoes", json=payload)
 

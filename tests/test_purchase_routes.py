@@ -101,6 +101,12 @@ class PurchaseRouteTests(unittest.TestCase):
         )
         self.assertEqual(final_receipt.status_code, 200, final_receipt.get_json())
         self.assertEqual(final_receipt.get_json()["data"]["status"], "RECEBIDA")
+        detail = self.client.get(f"/compras/solicitacoes/{purchase['id']}", headers=self.gestor_headers)
+        self.assertEqual(detail.status_code, 200, detail.get_json())
+        detail_data = detail.get_json()["data"]
+        self.assertEqual(detail_data["remaining_quantity"], 0)
+        self.assertEqual(len(detail_data["receipts"]), 2)
+        self.assertEqual(detail_data["created_by"]["login"], "gestor_compras")
         with self.app.app_context():
             self.assertEqual(db.session.get(Material, self.material_id).quantidade_estoque, 5)
 

@@ -108,6 +108,27 @@ def list_purchase_requests():
     return api_response(True, data=[row.to_dict() for row in rows])
 
 
+@bp.get("/compras/solicitacoes/<int:purchase_id>")
+@auth_required
+def get_purchase_request(purchase_id: int):
+    denied = _guard_management()
+    if denied:
+        return denied
+    row = db.session.get(PurchaseRequest, purchase_id)
+    if not row:
+        return api_response(False, error="Solicitacao de compra nao encontrada.", status_code=404)
+    data = row.to_dict()
+    data["created_at"] = row.created_at.isoformat() if row.created_at else None
+    data["approved_at"] = row.approved_at.isoformat() if row.approved_at else None
+    data["created_by"] = row.created_by.to_dict() if row.created_by else None
+    data["approved_by"] = row.approved_by.to_dict() if row.approved_by else None
+    data["receipts"] = [
+        {**receipt.to_dict(), "received_by": receipt.received_by.to_dict() if receipt.received_by else None}
+        for receipt in sorted(row.receipts, key=lambda item: (item.received_at, item.id), reverse=True)
+    ]
+    return api_response(True, data=data)
+
+
 @bp.post("/compras/solicitacoes")
 @auth_required
 def create_purchase_request():
