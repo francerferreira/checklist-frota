@@ -5,7 +5,7 @@ import json
 import re
 
 from app.extensions import db
-from app.models import MobileSyncOperation, Vehicle
+from app.models import MaintenanceScheduleItem, MobileSyncOperation, Vehicle
 from app.services.availability_service import parse_datetime, record_hourmeter
 from app.services.auth_service import user_has_mechanic_workspace_access
 from app.services.emergency_service import (
@@ -16,11 +16,13 @@ from app.services.emergency_service import (
     release_work_order,
     start_work_order,
 )
+from app.services.maintenance_service import update_schedule_item
 from app.utils.timezone import now_manaus_naive
 
 
 MOBILE_OPERATION_TYPES = {
     "HORIMETRO", "EMERGENCIA", "OS_INICIAR", "OS_CONCLUIR", "OS_TESTAR", "OS_LIBERAR",
+    "MANUTENCAO_ATUALIZAR_ITEM",
 }
 ACCESS_CODE_PATTERN = re.compile(r"^CF-ATIVO-(\d+)$", re.IGNORECASE)
 
@@ -70,6 +72,16 @@ def _work_order_guard(work_order, user) -> None:
         raise MobileOperationAccessError("Esta OS esta atribuida a outro mecanico.")
 
 
+def _maintenance_item_guard(item, user) -> None:
+    if not user_has_mechanic_workspace_access(user):
+        raise MobileOperationAccessError("Acesso restrito a manutencao.")
+    if user.tipo != "mecanico":
+        return
+    schedule_mechanic_id = item.schedule.assigned_mechanic_user_id if item.schedule else None
+    if item.assigned_mechanic_user_id not in {None, user.id} and schedule_mechanic_id not in {None, user.id}:
+        raise MobileOperationAccessError("Esta manutencao nao foi direcionada para voce.")
+
+
 def _run_operation(operation_type: str, payload: dict, user):
     if operation_type == "HORIMETRO":
         vehicle_id = int(payload.get("vehicle_id") or 0)
@@ -77,6 +89,26 @@ def _run_operation(operation_type: str, payload: dict, user):
     if operation_type == "EMERGENCIA":
         emergency = create_emergency(payload, user.id)
         return {"emergency": emergency.to_dict(), "vehicle_id": emergency.vehicle_id}
+    if operation_type == "MANUTENCAO_ATUALIZAR_ITEM":
+        item_id = int(payload.get("maintenance_item_id") or 0)
+        item = db.session.get(MaintenanceScheduleItem, item_id)
+        if not item:
+            raise LookupError("Item de manutencao nao encontrado.")
+        _maintenance_item_guard(item, user)
+        status = str(payload.get("status") or "").strip().upper()
+        if status not in {"INSTALADO", "NAO_EXECUTADO"}:
+            raise ValueError("A operacao mobile permite apenas instalar ou marcar como nao executado.")
+        item = update_schedule_item(
+            item_id,
+            {
+                "status": status,
+                "observation": payload.get("observation"),
+                "not_executed_reason": payload.get("not_executed_reason"),
+                "photo_after": payload.get("photo_after"),
+            },
+            user=user,
+        )
+        return {"maintenance_item": item.to_dict(), "vehicle_id": item.vehicle_id}
 
     work_order_id = int(payload.get("work_order_id") or 0)
     work_order = get_work_order(work_order_id)

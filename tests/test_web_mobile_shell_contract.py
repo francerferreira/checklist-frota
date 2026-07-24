@@ -104,6 +104,8 @@ class WebMobileShellContractTests(unittest.TestCase):
         self.assertIn("scanMobileAssetNfc", app_js)
         self.assertIn("syncPendingMobileOperations", app_js)
         self.assertIn("/operacao-mobile/sincronizar", app_js)
+        self.assertIn("MANUTENCAO_ATUALIZAR_ITEM", app_js)
+        self.assertIn("refreshPendingMaintenanceItemIds", app_js)
         self.assertIn('id="asset-access-code"', self.index_html)
 
     def test_preventive_services_remain_available_in_mobile_maintenance_flow(self):

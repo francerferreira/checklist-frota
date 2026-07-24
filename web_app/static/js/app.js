@@ -224,6 +224,7 @@ const state = {
     nonConformityMechanic: [],
     selectedNonConformityItem: "",
     maintenanceOverview: null,
+    pendingMaintenanceItemIds: new Set(),
     hrJourney: null,
     availabilityOverview: null,
     technicalInspectionTemplates: [],
@@ -1136,6 +1137,7 @@ async function openMaintenanceMenu() {
         tone: "loading",
     });
     try {
+        await refreshPendingMaintenanceItemIds();
         await loadMaintenanceOverview();
         localStorage.setItem(OFFLINE_MAINTENANCE_KEY, JSON.stringify(state.maintenanceOverview));
         renderHome();
@@ -2513,6 +2515,7 @@ function makeMaintenanceItemCard(item, index) {
     const photoAfter = item.photo_after ? makeAbsoluteUrl(item.photo_after) : "";
     const status = String(item.status || "PENDENTE").toUpperCase();
     const canExecute = maintenanceItemCanInstall(item);
+    const pendingMobileUpdate = state.pendingMaintenanceItemIds.has(Number(item.id));
     const card = document.createElement("article");
     card.className = "checklist-card activity-item-card maintenance-item-card";
     card.dataset.itemId = item.id;
@@ -2557,6 +2560,7 @@ function makeMaintenanceItemCard(item, index) {
             </div>
         `}
         ${item.observation ? `<div class="nc-meta-list"><span>OBSERVAÇÃO: ${escapeHtml(item.observation)}</span></div>` : ""}
+        ${pendingMobileUpdate ? `<span class="maintenance-flag">ATUALIZAÇÃO SALVA NO APARELHO. AGUARDANDO SINCRONIZAÇÃO.</span>` : ""}
         ${status !== "INSTALADO" && !canExecute.allowed ? `<span class="maintenance-flag">AGUARDANDO MATERIAL / BLOQUEIO</span>` : ""}
         ${workOrder.id ? `<button type="button" class="share-button maintenance-pdf-button">EXPORTAR PDF DA OS</button>` : ""}
         ${status === "INSTALADO" ? `
@@ -2588,10 +2592,10 @@ function makeMaintenanceItemCard(item, index) {
                 <img class="photo-preview maintenance-after-preview" alt="Prévia da foto depois">
                 ${!canExecute.allowed ? `<div class="nc-meta-list"><span>INSTALAÇÃO BLOQUEADA: ${escapeHtml(canExecute.reason)}</span></div>` : ""}
                 <div class="status-group activity-status-group" role="group" aria-label="Ações da manutenção">
-                    <button type="button" class="status-button ok maintenance-execute-button"${canExecute.allowed ? "" : " disabled"}>INSTALAR</button>
-                    <button type="button" class="status-button nc maintenance-not-executed-button">NÃO EXECUTADO</button>
+                    <button type="button" class="status-button ok maintenance-execute-button"${canExecute.allowed && !pendingMobileUpdate ? "" : " disabled"}>INSTALAR</button>
+                    <button type="button" class="status-button nc maintenance-not-executed-button"${pendingMobileUpdate ? " disabled" : ""}>NÃO EXECUTADO</button>
                 </div>
-                ${hasWashReportAccess() ? `
+                ${hasWashReportAccess() && !pendingMobileUpdate ? `
                     <div class="maintenance-reprogram-box">
                         <label>
                             <span>REPROGRAMAR DATA</span>
@@ -2608,8 +2612,10 @@ function makeMaintenanceItemCard(item, index) {
         const fileInput = card.querySelector(".maintenance-after-photo");
         const preview = card.querySelector(".maintenance-after-preview");
         fileInput?.addEventListener("change", () => bindPhotoPreview(fileInput, preview));
-        card.querySelector(".maintenance-execute-button")?.addEventListener("click", () => submitMaintenanceItem(card, item, "INSTALADO"));
-        card.querySelector(".maintenance-not-executed-button")?.addEventListener("click", () => submitMaintenanceItem(card, item, "NAO_EXECUTADO"));
+        if (!pendingMobileUpdate) {
+            card.querySelector(".maintenance-execute-button")?.addEventListener("click", () => submitMaintenanceItem(card, item, "INSTALADO"));
+            card.querySelector(".maintenance-not-executed-button")?.addEventListener("click", () => submitMaintenanceItem(card, item, "NAO_EXECUTADO"));
+        }
         card.querySelector(".maintenance-reprogram-button")?.addEventListener("click", () => reprogramMaintenanceItem(card, item));
     }
     card.querySelector(".maintenance-pdf-button")?.addEventListener("click", () => exportMaintenanceWorkOrderPdf(item));
@@ -2689,23 +2695,34 @@ async function submitMaintenanceItem(card, item, newStatus) {
     button.disabled = true;
     button.textContent = "SALVANDO...";
     try {
-        let photoPath = item.photo_after || "";
-        if (afterFile) {
-            const vehicleName = item.vehicle?.frota || item.vehicle?.placa || "EQUIPAMENTO";
-            const itemName = item.schedule?.title || item.item_name || "MANUTENCAO";
-            photoPath = await uploadEvidence(afterFile, vehicleName, itemName, "manutencao_depois", "MANUTENCAO");
-        }
-
-        await apiFetch(`/manutencao/itens/${item.id}`, {
-            method: "PUT",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
+        const vehicleName = item.vehicle?.frota || item.vehicle?.placa || "EQUIPAMENTO";
+        const itemName = item.schedule?.title || item.item_name || "MANUTENCAO";
+        const result = await submitMobileOperation(
+            "MANUTENCAO_ATUALIZAR_ITEM",
+            {
+                maintenance_item_id: item.id,
+                vehicle_id: item.vehicle_id,
                 status: newStatus,
                 observation,
                 not_executed_reason: notExecutedReason,
-                foto_depois: photoPath || "",
-            }),
-        });
+                photo_after: afterFile ? "" : (item.photo_after || ""),
+            },
+            afterFile ? {
+                file: afterFile,
+                field: "photo_after",
+                vehicleLabel: vehicleName,
+                itemLabel: itemName,
+                kind: "manutencao_depois",
+                folder: "MANUTENCAO",
+            } : null,
+        );
+
+        if (result.queued) {
+            state.pendingMaintenanceItemIds.add(Number(item.id));
+            renderMaintenance();
+            showToast("MANUTENÇÃO SALVA NO APARELHO. SERÁ ENVIADA QUANDO A CONEXÃO VOLTAR.");
+            return;
+        }
 
         await loadMaintenanceOverview();
         renderMaintenance();
@@ -3387,6 +3404,16 @@ async function getMobileOperationQueue() {
     });
 }
 
+async function refreshPendingMaintenanceItemIds() {
+    const queue = await getMobileOperationQueue();
+    state.pendingMaintenanceItemIds = new Set(
+        queue
+            .filter((item) => item.operationType === "MANUTENCAO_ATUALIZAR_ITEM" && ["PENDENTE", "ERRO", "ENVIANDO"].includes(item.status))
+            .map((item) => Number(item.payload?.maintenance_item_id || 0))
+            .filter(Boolean),
+    );
+}
+
 async function updateMobileOperationQueueItem(item) {
     await withOfflineStore(MOBILE_OPERATION_QUEUE_STORE, "readwrite", (store) => store.put(item));
 }
@@ -3458,6 +3485,8 @@ async function syncPendingMobileOperations({ silent = true } = {}) {
         }
     }
     await refreshSyncQueuePanel();
+    await refreshPendingMaintenanceItemIds();
+    if (!screens.maintenance.classList.contains("hidden")) renderMaintenance();
     if (synced && !silent) showToast(`${synced} OPERAÇÃO(ÕES) MOBILE SINCRONIZADA(S).`);
 }
 

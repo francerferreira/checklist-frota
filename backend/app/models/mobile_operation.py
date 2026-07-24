@@ -27,7 +27,7 @@ class MobileSyncOperation(db.Model):
 
     __table_args__ = (
         db.CheckConstraint(
-            "operation_type IN ('HORIMETRO', 'EMERGENCIA', 'OS_INICIAR', 'OS_CONCLUIR', 'OS_TESTAR', 'OS_LIBERAR')",
+            "operation_type IN ('HORIMETRO', 'EMERGENCIA', 'OS_INICIAR', 'OS_CONCLUIR', 'OS_TESTAR', 'OS_LIBERAR', 'MANUTENCAO_ATUALIZAR_ITEM')",
             name="ck_mobile_sync_operation_type",
         ),
         db.CheckConstraint(

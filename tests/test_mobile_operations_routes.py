@@ -27,6 +27,8 @@ from app.models import (
     EquipmentFamily,
     EquipmentProfile,
     HourmeterReading,
+    MaintenanceSchedule,
+    MaintenanceScheduleItem,
     MobileSyncOperation,
     User,
     Vehicle,
@@ -82,8 +84,30 @@ class MobileOperationsRoutesTests(unittest.TestCase):
                     created_by_user_id=admin.id,
                 ),
             ])
+            schedule = MaintenanceSchedule(
+                source_type="ATIVIDADE",
+                source_key="MOBILE-MAINTENANCE-TEST",
+                title="Manutencao mobile",
+                status="PROGRAMADA",
+                start_date=date.today(),
+                end_date=date.today(),
+                daily_capacity=1,
+                created_by_user_id=admin.id,
+                assigned_mechanic_user_id=mechanic.id,
+            )
+            db.session.add(schedule)
+            db.session.flush()
+            maintenance_item = MaintenanceScheduleItem(
+                schedule_id=schedule.id,
+                vehicle_id=vehicle.id,
+                assigned_mechanic_user_id=mechanic.id,
+                scheduled_date=date.today(),
+                status="PROGRAMADO",
+            )
+            db.session.add(maintenance_item)
             db.session.commit()
             cls.vehicle_id = vehicle.id
+            cls.maintenance_item_id = maintenance_item.id
             cls.access_code = vehicle.to_dict()["mobile_access_code"]
             cls.admin_headers = {"Authorization": f"Bearer {generate_token(admin)}"}
             cls.mechanic_headers = {"Authorization": f"Bearer {generate_token(mechanic)}"}
@@ -157,6 +181,35 @@ class MobileOperationsRoutesTests(unittest.TestCase):
         self.assertEqual(repeated.status_code, 200, repeated.get_json())
         self.assertTrue(repeated.get_json()["data"]["replayed"])
         self.assertEqual(first.get_json()["data"]["result"]["emergency"]["event_number"], repeated.get_json()["data"]["result"]["emergency"]["event_number"])
+
+    def test_maintenance_update_sync_is_idempotent_and_limited_to_field_actions(self):
+        payload = {
+            "operation_id": "mobile-maintenance-0001",
+            "operation_type": "MANUTENCAO_ATUALIZAR_ITEM",
+            "payload": {
+                "maintenance_item_id": self.maintenance_item_id,
+                "vehicle_id": self.vehicle_id,
+                "status": "NAO_EXECUTADO",
+                "observation": "Acesso ao equipamento indisponivel no turno.",
+                "not_executed_reason": "Equipamento em operacao.",
+            },
+        }
+        first = self.client.post("/operacao-mobile/sincronizar", json=payload, headers=self.mechanic_headers)
+        repeated = self.client.post("/operacao-mobile/sincronizar", json=payload, headers=self.mechanic_headers)
+        self.assertEqual(first.status_code, 200, first.get_json())
+        self.assertEqual(repeated.status_code, 200, repeated.get_json())
+        self.assertTrue(repeated.get_json()["data"]["replayed"])
+        self.assertEqual(first.get_json()["data"]["result"]["maintenance_item"]["status"], "NAO_EXECUTADO")
+
+        forbidden = self.client.post("/operacao-mobile/sincronizar", json={
+            "operation_id": "mobile-maintenance-0002",
+            "operation_type": "MANUTENCAO_ATUALIZAR_ITEM",
+            "payload": {"maintenance_item_id": self.maintenance_item_id, "status": "REPROGRAMADO"},
+        }, headers=self.mechanic_headers)
+        self.assertEqual(forbidden.status_code, 409, forbidden.get_json())
+        with self.app.app_context():
+            item = db.session.get(MaintenanceScheduleItem, self.maintenance_item_id)
+            self.assertEqual(item.status, "NAO_EXECUTADO")
 
 
 if __name__ == "__main__":
