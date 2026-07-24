@@ -34,20 +34,21 @@ class MaintenanceDashboardWebContractTests(unittest.TestCase):
         self.assertIn('window.location.href = "./dashboard-manutencao/"', app_js)
         self.assertIn("canViewMaintenanceDashboard", app_js)
 
-    def test_tv_dashboard_uses_dedicated_access_code_and_safe_endpoint(self):
+    def test_tv_dashboard_opens_without_access_code(self):
         dashboard_html = DASHBOARD_PATH.read_text(encoding="utf-8")
         dashboard_js = DASHBOARD_JS_PATH.read_text(encoding="utf-8")
         tv_html = TV_DASHBOARD_PATH.read_text(encoding="utf-8")
         tv_js = TV_DASHBOARD_JS_PATH.read_text(encoding="utf-8")
-        self.assertIn("tv-access-token", tv_html)
+        self.assertNotIn("tv-access-token", tv_html)
         self.assertIn("maintenance-dashboard-tv.js", tv_html)
         self.assertIn("/dashboard-manutencao/tv/dados", tv_js)
-        self.assertIn('"X-Dashboard-TV-Token"', tv_js)
-        self.assertIn("sessionStorage", tv_js)
+        self.assertNotIn('"X-Dashboard-TV-Token"', tv_js)
+        self.assertNotIn("sessionStorage", tv_js)
         self.assertIn('new URLSearchParams(window.location.search).get("api")', tv_js)
         self.assertIn("TV_REFRESH_MS", tv_js)
-        self.assertIn("dashboard-tv-access-create", dashboard_html)
-        self.assertIn("/dashboard-manutencao/tv/acessos", dashboard_js)
+        self.assertIn('id="dashboard-open-tv"', dashboard_html)
+        self.assertNotIn("dashboard-tv-access-create", dashboard_html)
+        self.assertNotIn("/dashboard-manutencao/tv/acessos", dashboard_js)
 
 
 if __name__ == "__main__":

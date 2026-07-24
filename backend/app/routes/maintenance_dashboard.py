@@ -1,6 +1,4 @@
-from functools import wraps
-
-from flask import Blueprint, g, jsonify, request
+from flask import Blueprint, g, request
 
 from app.extensions import db
 from app.services.audit_service import record_event
@@ -10,7 +8,6 @@ from app.services.dashboard_tv_access_service import (
     create_tv_access_token,
     list_tv_access_tokens,
     revoke_tv_access_token,
-    verify_tv_access_token,
 )
 from app.services.maintenance_dashboard_service import (
     build_dashboard_availability,
@@ -44,18 +41,6 @@ def _run(action):
         return api_response(False, error=str(exc), status_code=400)
 
 
-def tv_access_required(view):
-    @wraps(view)
-    def wrapped(*args, **kwargs):
-        access = verify_tv_access_token(request.headers.get("X-Dashboard-TV-Token"))
-        if not access:
-            return jsonify({"error": "Acesso TV invalido, expirado ou revogado."}), 401
-        g.dashboard_tv_access = access
-        return view(*args, **kwargs)
-
-    return wrapped
-
-
 @bp.get("/filtros")
 @auth_required
 def filters():
@@ -81,7 +66,6 @@ def charts():
 
 
 @bp.get("/tv/dados")
-@tv_access_required
 def tv_data():
     try:
         return api_response(True, data=build_tv_dashboard_payload(parse_dashboard_filters(request.args)))

@@ -58,7 +58,7 @@ class DashboardTvAccessRoutesTests(unittest.TestCase):
             DashboardTvAccessToken.query.delete()
             db.session.commit()
 
-    def test_management_generates_lists_and_revokes_read_only_access(self):
+    def test_tv_data_is_public_even_after_legacy_access_is_revoked(self):
         created = self.client.post(
             "/dashboard-manutencao/tv/acessos",
             headers=self.admin_headers,
@@ -75,10 +75,7 @@ class DashboardTvAccessRoutesTests(unittest.TestCase):
         self.assertEqual(len(listed.get_json()["data"]["items"]), 1)
         self.assertNotIn(raw_token, str(listed.get_json()))
 
-        tv_data = self.client.get(
-            "/dashboard-manutencao/tv/dados",
-            headers={"X-Dashboard-TV-Token": raw_token},
-        )
+        tv_data = self.client.get("/dashboard-manutencao/tv/dados")
         self.assertEqual(tv_data.status_code, 200, tv_data.get_json())
         dashboard = tv_data.get_json()["data"]
         self.assertIn("kpis", dashboard)
@@ -90,11 +87,8 @@ class DashboardTvAccessRoutesTests(unittest.TestCase):
             headers=self.admin_headers,
         )
         self.assertEqual(revoked.status_code, 200, revoked.get_json())
-        denied = self.client.get(
-            "/dashboard-manutencao/tv/dados",
-            headers={"X-Dashboard-TV-Token": raw_token},
-        )
-        self.assertEqual(denied.status_code, 401, denied.get_json())
+        still_open = self.client.get("/dashboard-manutencao/tv/dados")
+        self.assertEqual(still_open.status_code, 200, still_open.get_json())
 
     def test_only_management_can_issue_tv_access(self):
         denied = self.client.post(
@@ -110,18 +104,16 @@ class DashboardTvAccessRoutesTests(unittest.TestCase):
         )
         self.assertEqual(invalid_duration.status_code, 400, invalid_duration.get_json())
 
-    def test_tv_custom_header_is_allowed_only_for_configured_web_origin(self):
+    def test_public_tv_route_is_allowed_for_configured_web_origin(self):
         response = self.client.options(
             "/dashboard-manutencao/tv/dados",
             headers={
                 "Origin": "https://checklist-web-uej3.onrender.com",
                 "Access-Control-Request-Method": "GET",
-                "Access-Control-Request-Headers": "X-Dashboard-TV-Token",
             },
         )
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.headers.get("Access-Control-Allow-Origin"), "https://checklist-web-uej3.onrender.com")
-        self.assertIn("X-Dashboard-TV-Token", response.headers.get("Access-Control-Allow-Headers", ""))
 
 
 if __name__ == "__main__":

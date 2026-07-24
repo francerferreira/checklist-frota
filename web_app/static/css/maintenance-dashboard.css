@@ -118,6 +118,13 @@ body.dashboard-page {
     cursor: pointer;
 }
 
+a.dashboard-action {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    text-decoration: none;
+}
+
 .dashboard-action,
 .dashboard-apply-button {
     background: #ffffff;

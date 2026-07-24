@@ -6,25 +6,15 @@
     <meta name="theme-color" content="#061a35">
     <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
     <title>Painel TV | Manutencao Portuaria</title>
-    <link rel="stylesheet" href="../../static/css/maintenance-dashboard-tv.css?v=20260720-01">
+    <link rel="stylesheet" href="../../static/css/maintenance-dashboard-tv.css?v=20260724-02">
 </head>
 <body class="tv-page">
     <main class="tv-shell">
-        <section id="tv-access" class="tv-access-card">
-            <img src="../../static/icons/cf-logo-mark.png" alt="Checklist de Frota">
-            <span>MODO TV - LEITURA OPERACIONAL</span>
-            <h1>Dashboard de Manutencao</h1>
-            <p>Informe o codigo temporario gerado no painel administrativo. Ele nao e uma senha de usuario.</p>
-            <label>CODIGO DE ACESSO<input id="tv-access-token" type="password" autocomplete="off" spellcheck="false" placeholder="tv_..."></label>
-            <button id="tv-access-start" type="button">INICIAR PAINEL TV</button>
-            <p id="tv-access-message" class="tv-access-message" aria-live="polite"></p>
-        </section>
-
-        <section id="tv-dashboard" class="tv-dashboard hidden" aria-live="polite">
+        <section id="tv-dashboard" class="tv-dashboard" aria-live="polite">
             <header class="tv-header">
                 <div><span>CHECKLIST DE FROTA</span><h1>MANUTENCAO PORTUARIA</h1></div>
                 <div class="tv-meta"><strong id="tv-clock">--/--/---- --:--</strong><span id="tv-last-update">AGUARDANDO DADOS</span></div>
-                <div class="tv-actions"><button id="tv-fullscreen" type="button">TELA CHEIA</button><button id="tv-stop" type="button">ENCERRAR</button></div>
+                <div class="tv-actions"><button id="tv-fullscreen" type="button">TELA CHEIA</button></div>
             </header>
 
             <section id="tv-status" class="tv-status" aria-live="polite"></section>
@@ -56,6 +46,6 @@
         </section>
     </main>
     <script src="../../static/js/config.js?v=20260720-01"></script>
-    <script src="../../static/js/maintenance-dashboard-tv.js?v=20260720-01"></script>
+    <script src="../../static/js/maintenance-dashboard-tv.js?v=20260724-02"></script>
 </body>
 </html>

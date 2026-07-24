@@ -1,6 +1,5 @@
 const TV_REFRESH_MS = 60 * 1000;
 const TV_ROTATION_MS = 20 * 1000;
-const TV_TOKEN_STORAGE_KEY = "maintenanceDashboardTvAccessCode";
 const TV_CLOCK_FORMAT = new Intl.DateTimeFormat("pt-BR", {
     timeZone: "America/Manaus",
     day: "2-digit",
@@ -10,18 +9,13 @@ const TV_CLOCK_FORMAT = new Intl.DateTimeFormat("pt-BR", {
     minute: "2-digit",
 });
 
-const tvState = { apiBaseUrl: "", token: "", screen: 0 };
+const tvState = { apiBaseUrl: "", screen: 0 };
 const tvElements = {
-    access: document.getElementById("tv-access"),
-    accessToken: document.getElementById("tv-access-token"),
-    accessStart: document.getElementById("tv-access-start"),
-    accessMessage: document.getElementById("tv-access-message"),
     dashboard: document.getElementById("tv-dashboard"),
     status: document.getElementById("tv-status"),
     clock: document.getElementById("tv-clock"),
     lastUpdate: document.getElementById("tv-last-update"),
     fullscreen: document.getElementById("tv-fullscreen"),
-    stop: document.getElementById("tv-stop"),
     screenLabel: document.getElementById("tv-screen-label"),
     operationalStatus: document.getElementById("tv-operational-status"),
     familyAvailability: document.getElementById("tv-family-availability"),
@@ -135,7 +129,7 @@ async function loadTvDashboard() {
     setTvStatus("Atualizando dados operacionais...");
     try {
         const response = await fetch(`${tvState.apiBaseUrl}/dashboard-manutencao/tv/dados`, {
-            headers: { "X-Dashboard-TV-Token": tvState.token },
+            headers: {},
         });
         const body = await response.json().catch(() => ({}));
         if (!response.ok || body.success === false) {
@@ -147,46 +141,9 @@ async function loadTvDashboard() {
         tvElements.lastUpdate.textContent = `ATUALIZADO EM ${TV_CLOCK_FORMAT.format(new Date())}`;
         setTvStatus("Dados operacionais atualizados. A tela alterna automaticamente.");
     } catch (error) {
-        if (error.status === 401) {
-            sessionStorage.removeItem(TV_TOKEN_STORAGE_KEY);
-            tvState.token = "";
-            tvElements.dashboard.classList.add("hidden");
-            tvElements.access.classList.remove("hidden");
-            tvElements.accessMessage.textContent = "Codigo invalido, expirado ou revogado.";
-            return;
-        }
         setTvStatus(error.message, true);
     }
 }
-
-function startTvDashboard(token) {
-    tvState.token = token;
-    sessionStorage.setItem(TV_TOKEN_STORAGE_KEY, token);
-    tvElements.access.classList.add("hidden");
-    tvElements.dashboard.classList.remove("hidden");
-    renderScreen();
-    loadTvDashboard();
-}
-
-tvElements.accessStart.addEventListener("click", () => {
-    const token = tvElements.accessToken.value.trim();
-    if (!token) {
-        tvElements.accessMessage.textContent = "Informe o codigo temporario da TV.";
-        return;
-    }
-    tvElements.accessMessage.textContent = "";
-    startTvDashboard(token);
-});
-tvElements.accessToken.addEventListener("keydown", (event) => {
-    if (event.key === "Enter") tvElements.accessStart.click();
-});
-tvElements.stop.addEventListener("click", () => {
-    sessionStorage.removeItem(TV_TOKEN_STORAGE_KEY);
-    tvState.token = "";
-    tvElements.dashboard.classList.add("hidden");
-    tvElements.access.classList.remove("hidden");
-    tvElements.accessToken.value = "";
-});
 tvElements.fullscreen.addEventListener("click", () => {
     if (document.fullscreenElement) document.exitFullscreen?.();
     else document.documentElement.requestFullscreen?.();
@@ -196,9 +153,10 @@ tvState.apiBaseUrl = resolveApiBaseUrl();
 updateClock();
 window.setInterval(updateClock, 1000);
 window.setInterval(rotateScreen, TV_ROTATION_MS);
-window.setInterval(() => {
-    if (tvState.token) loadTvDashboard();
-}, TV_REFRESH_MS);
-const savedToken = sessionStorage.getItem(TV_TOKEN_STORAGE_KEY);
-if (savedToken && tvState.apiBaseUrl) startTvDashboard(savedToken);
-else if (!tvState.apiBaseUrl) tvElements.accessMessage.textContent = "A URL da API nao esta configurada nesta tela.";
+window.setInterval(loadTvDashboard, TV_REFRESH_MS);
+if (tvState.apiBaseUrl) {
+    renderScreen();
+    loadTvDashboard();
+} else {
+    setTvStatus("A URL da API nao esta configurada nesta tela.", true);
+}

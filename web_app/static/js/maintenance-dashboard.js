@@ -72,13 +72,6 @@ const dashboardElements = {
     governanceCostNotes: document.getElementById("governance-cost-notes"),
     governanceCostSummary: document.getElementById("governance-cost-summary"),
     governanceCostList: document.getElementById("governance-cost-list"),
-    tvAccessToggle: document.getElementById("dashboard-tv-access-toggle"),
-    tvAccessPanel: document.getElementById("dashboard-tv-access-panel"),
-    tvAccessName: document.getElementById("dashboard-tv-access-name"),
-    tvAccessDuration: document.getElementById("dashboard-tv-access-duration"),
-    tvAccessCreate: document.getElementById("dashboard-tv-access-create"),
-    tvAccessResult: document.getElementById("dashboard-tv-access-result"),
-    tvAccessList: document.getElementById("dashboard-tv-access-list"),
 };
 
 function escapeHtml(value) {
@@ -443,52 +436,6 @@ async function createGovernanceCost(event) {
     }
 }
 
-function renderTvAccesses(items) {
-    dashboardElements.tvAccessList.innerHTML = items.length ? items.map((item) => {
-        const state = item.active ? "ATIVO" : (item.revoked_at ? "REVOGADO" : "EXPIRADO");
-        const action = item.active ? `<button type="button" data-tv-access-revoke="${item.id}">REVOGAR</button>` : "";
-        return `<article class="dashboard-tv-access-row"><div><strong>${escapeHtml(item.name)}</strong><span>${state} | EXPIRA: ${escapeHtml(formatTvAccessDate(item.expires_at))}</span><small>ULTIMO USO: ${escapeHtml(formatTvAccessDate(item.last_used_at))}</small></div>${action}</article>`;
-    }).join("") : '<span class="dashboard-empty">Nenhum acesso TV foi gerado.</span>';
-    dashboardElements.tvAccessList.querySelectorAll("[data-tv-access-revoke]").forEach((button) => {
-        button.addEventListener("click", async () => {
-            if (!window.confirm("Revogar este acesso TV imediatamente?")) return;
-            try {
-                await apiFetch(`/dashboard-manutencao/tv/acessos/${button.dataset.tvAccessRevoke}`, { method: "DELETE" });
-                await loadTvAccesses();
-            } catch (error) {
-                setDashboardState("Falha ao revogar acesso TV", error.message, true);
-            }
-        });
-    });
-}
-
-async function loadTvAccesses() {
-    const data = await apiFetch("/dashboard-manutencao/tv/acessos");
-    renderTvAccesses(data.items || []);
-}
-
-async function createTvAccess() {
-    dashboardElements.tvAccessCreate.disabled = true;
-    dashboardElements.tvAccessCreate.textContent = "GERANDO...";
-    try {
-        const data = await apiFetch("/dashboard-manutencao/tv/acessos", {
-            method: "POST",
-            body: {
-                name: dashboardElements.tvAccessName.value,
-                expires_in_minutes: Number(dashboardElements.tvAccessDuration.value),
-            },
-        });
-        dashboardElements.tvAccessResult.classList.remove("hidden");
-        dashboardElements.tvAccessResult.innerHTML = `<strong>Codigo gerado. Copie agora: ele nao sera mostrado novamente.</strong><code>${escapeHtml(data.token)}</code><span>Expira em: ${escapeHtml(formatTvAccessDate(data.access?.expires_at))}</span>`;
-        await loadTvAccesses();
-    } catch (error) {
-        setDashboardState("Falha ao gerar acesso TV", error.message, true);
-    } finally {
-        dashboardElements.tvAccessCreate.disabled = false;
-        dashboardElements.tvAccessCreate.textContent = "GERAR CODIGO";
-    }
-}
-
 function renderPreventives(data) {
     const items = data.items || [];
     dashboardElements.preventiveCaption.textContent = `${data.total_due_or_overdue || 0} ITENS`;
@@ -624,18 +571,6 @@ dashboardElements.governanceWorkOrder.addEventListener("change", loadGovernanceO
 dashboardElements.governanceTargetsForm.addEventListener("submit", saveGovernanceTargets);
 dashboardElements.governanceClassificationForm.addEventListener("submit", saveGovernanceClassification);
 dashboardElements.governanceCostForm.addEventListener("submit", createGovernanceCost);
-dashboardElements.tvAccessToggle.addEventListener("click", async () => {
-    const willOpen = dashboardElements.tvAccessPanel.classList.contains("hidden");
-    dashboardElements.tvAccessPanel.classList.toggle("hidden", !willOpen);
-    if (!willOpen) return;
-    dashboardElements.tvAccessResult.classList.add("hidden");
-    try {
-        await loadTvAccesses();
-    } catch (error) {
-        setDashboardState("Falha ao carregar acessos TV", error.message, true);
-    }
-});
-dashboardElements.tvAccessCreate.addEventListener("click", createTvAccess);
 dashboardElements.clearFilters.addEventListener("click", () => {
     const range = getDefaultRange();
     dashboardElements.dateFrom.value = range.from;
