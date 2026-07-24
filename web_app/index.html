@@ -129,6 +129,11 @@
                         <strong>DASHBOARD DE MANUTENÇÃO</strong>
                         <em>Acompanhar disponibilidade, ordens, preventivas e ativos críticos.</em>
                     </button>
+                    <button id="open-hr-journey-menu" class="menu-card" type="button">
+                        <span>12</span>
+                        <strong>MINHA JORNADA</strong>
+                        <em>Consultar vínculo, frequência recente e treinamentos próximos do vencimento.</em>
+                    </button>
                 </div>
             </section>
 
@@ -405,6 +410,19 @@
                 <div id="maintenance-list" class="activity-list"></div>
             </section>
 
+            <section id="hr-journey-screen" class="screen hidden">
+                <div class="screen-heading compact">
+                    <button id="hr-journey-back-button" class="icon-button" type="button">MENU</button>
+                    <div><h2>MINHA JORNADA</h2></div>
+                </div>
+                <div class="list-toolbar">
+                    <strong id="hr-journey-counter">MEU PERFIL</strong>
+                    <span>CONSULTA PESSOAL. NÃO SUBSTITUI O CONTROLE OFICIAL DE RH.</span>
+                </div>
+                <div id="hr-journey-summary" class="progress-card"></div>
+                <div id="hr-journey-list" class="activity-list"></div>
+            </section>
+
             <section id="availability-screen" class="screen hidden">
                 <div class="screen-heading compact">
                     <button id="availability-back-button" class="icon-button" type="button">MENU</button>
@@ -552,7 +570,7 @@
 
     <div id="toast" class="toast hidden"></div>
     <script src="./static/js/config.js?v=20260719-01"></script>
-    <script src="./static/js/app.js?v=20260719-01"></script>
+    <script src="./static/js/app.js?v=20260724-01"></script>
 </body>
 </html>
 

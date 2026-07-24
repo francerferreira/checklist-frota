@@ -16,7 +16,7 @@ class WebMobileShellContractTests(unittest.TestCase):
         cls.legacy_readme = LEGACY_README_PATH.read_text(encoding="utf-8")
 
     def test_index_uses_canonical_frontend_bundle(self):
-        self.assertIn('./static/js/app.js?v=20260719-01', self.index_html)
+        self.assertIn('./static/js/app.js?v=20260724-01', self.index_html)
         self.assertIn('./static/css/styles.css?v=20260713-02', self.index_html)
         self.assertNotIn("app-20260419-", self.index_html)
 
@@ -111,6 +111,15 @@ class WebMobileShellContractTests(unittest.TestCase):
         self.assertIn("openMaintenanceMenu", app_js)
         self.assertIn("/manutencao/visao", app_js)
         self.assertIn("renderMaintenance", app_js)
+
+    def test_mobile_hr_journey_and_offline_read_cache_are_connected(self):
+        app_js = (PROJECT_ROOT / "web_app" / "static" / "js" / "app.js").read_text(encoding="utf-8")
+        self.assertIn('id="open-hr-journey-menu"', self.index_html)
+        self.assertIn('id="hr-journey-screen"', self.index_html)
+        self.assertIn("openHrJourneyMenu", app_js)
+        self.assertIn("/operacao-mobile/minha-jornada", app_js)
+        self.assertIn('const OFFLINE_HR_JOURNEY_KEY = "offlineHrJourney"', app_js)
+        self.assertIn('const OFFLINE_MAINTENANCE_KEY = "offlineMaintenanceOverview"', app_js)
 
     def test_technical_library_is_available_for_field_consultation(self):
         app_js = (PROJECT_ROOT / "web_app" / "static" / "js" / "app.js").read_text(encoding="utf-8")

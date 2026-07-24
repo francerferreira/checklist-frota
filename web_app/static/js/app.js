@@ -20,6 +20,8 @@ const OFFLINE_CATALOG_KEY = "offlineCatalog";
 const OFFLINE_INSPECTION_TEMPLATES_KEY = "offlineInspectionTemplates";
 const OFFLINE_AVAILABILITY_KEY = "offlineAvailabilityOverview";
 const OFFLINE_EMERGENCIES_KEY = "offlineEmergencies";
+const OFFLINE_MAINTENANCE_KEY = "offlineMaintenanceOverview";
+const OFFLINE_HR_JOURNEY_KEY = "offlineHrJourney";
 const ACTIVE_CHECKLIST_DRAFT_KEY = "activeChecklistDraftVehicleId";
 const SESSION_STARTED_AT_KEY = "sessionStartedAt";
 const SESSION_LAST_ACTIVITY_AT_KEY = "sessionLastActivityAt";
@@ -222,6 +224,7 @@ const state = {
     nonConformityMechanic: [],
     selectedNonConformityItem: "",
     maintenanceOverview: null,
+    hrJourney: null,
     availabilityOverview: null,
     technicalInspectionTemplates: [],
     emergencies: [],
@@ -266,6 +269,7 @@ const screens = {
     checklistHistory: document.getElementById("checklist-history-screen"),
     nonConformities: document.getElementById("non-conformities-screen"),
     maintenance: document.getElementById("maintenance-screen"),
+    hrJourney: document.getElementById("hr-journey-screen"),
     availability: document.getElementById("availability-screen"),
     technicalInspections: document.getElementById("technical-inspections-screen"),
     emergencies: document.getElementById("emergencies-screen"),
@@ -329,6 +333,7 @@ const elements = {
     openEmergenciesMenu: document.getElementById("open-emergencies-menu"),
     openTechnicalLibraryMenu: document.getElementById("open-technical-library-menu"),
     openMaintenanceDashboardMenu: document.getElementById("open-maintenance-dashboard-menu"),
+    openHrJourneyMenu: document.getElementById("open-hr-journey-menu"),
     vehiclesBackButton: document.getElementById("vehicles-back-button"),
     activitiesBackButton: document.getElementById("activities-back-button"),
     activityCounter: document.getElementById("activity-counter"),
@@ -378,6 +383,10 @@ const elements = {
     maintenanceCalendar: document.getElementById("maintenance-calendar"),
     maintenanceDayPanel: document.getElementById("maintenance-day-panel"),
     maintenanceList: document.getElementById("maintenance-list"),
+    hrJourneyBackButton: document.getElementById("hr-journey-back-button"),
+    hrJourneyCounter: document.getElementById("hr-journey-counter"),
+    hrJourneySummary: document.getElementById("hr-journey-summary"),
+    hrJourneyList: document.getElementById("hr-journey-list"),
     availabilityBackButton: document.getElementById("availability-back-button"),
     availabilityCounter: document.getElementById("availability-counter"),
     availabilitySummary: document.getElementById("availability-summary"),
@@ -1128,9 +1137,18 @@ async function openMaintenanceMenu() {
     });
     try {
         await loadMaintenanceOverview();
+        localStorage.setItem(OFFLINE_MAINTENANCE_KEY, JSON.stringify(state.maintenanceOverview));
         renderHome();
         renderMaintenance();
     } catch (error) {
+        const cachedOverview = readJsonStorage(OFFLINE_MAINTENANCE_KEY, null);
+        if (cachedOverview) {
+            state.maintenanceOverview = cachedOverview;
+            renderHome();
+            renderMaintenance();
+            showToast("MANUTENÇÃO OFFLINE CARREGADA. OS LANÇAMENTOS EXIGEM CONEXÃO.");
+            return;
+        }
         elements.maintenanceCounter.textContent = "FALHA";
         elements.maintenanceDayPanel.innerHTML = "";
         renderStateCard(elements.maintenanceList, {
@@ -1140,6 +1158,68 @@ async function openMaintenanceMenu() {
         });
         showToast(error.message, true);
     }
+}
+
+async function openHrJourneyMenu() {
+    setActiveScreen("hrJourney");
+    elements.hrJourneyCounter.textContent = "CARREGANDO...";
+    renderStateCard(elements.hrJourneyList, {
+        title: "CARREGANDO MINHA JORNADA",
+        message: "Buscando apenas os dados vinculados ao seu login.",
+        tone: "loading",
+    });
+    try {
+        state.hrJourney = await apiFetch("/operacao-mobile/minha-jornada");
+        localStorage.setItem(OFFLINE_HR_JOURNEY_KEY, JSON.stringify(state.hrJourney));
+        renderHrJourney();
+    } catch (error) {
+        const cachedJourney = readJsonStorage(OFFLINE_HR_JOURNEY_KEY, null);
+        if (cachedJourney && isOfflineError(error)) {
+            state.hrJourney = cachedJourney;
+            renderHrJourney();
+            showToast("MINHA JORNADA OFFLINE CARREGADA. OS DADOS SÃO A ÚLTIMA CONSULTA SALVA.");
+            return;
+        }
+        elements.hrJourneyCounter.textContent = "INDISPONÍVEL";
+        renderStateCard(elements.hrJourneyList, {
+            title: "JORNADA NÃO DISPONÍVEL",
+            message: error.message || "Este login precisa ser vinculado ao cadastro de colaborador.",
+            tone: "error",
+        });
+        showToast(error.message || "NÃO FOI POSSÍVEL CARREGAR A JORNADA.", true);
+    }
+}
+
+function renderHrJourney() {
+    const journey = state.hrJourney || {};
+    const employee = journey.employee || {};
+    const attendance = journey.attendance || [];
+    const trainingAlerts = journey.training_alerts || [];
+    elements.hrJourneyCounter.textContent = employee.registration ? `${employee.registration} | ${employee.status || "-"}` : "SEM VÍNCULO";
+    elements.hrJourneySummary.innerHTML = `
+        <div>
+            <strong>${escapeHtml(String(employee.full_name || "COLABORADOR").toUpperCase())}</strong>
+            <span>${escapeHtml(String(employee.function_name || "FUNÇÃO NÃO INFORMADA").toUpperCase())} | ${escapeHtml(String(employee.team_name || "EQUIPE NÃO INFORMADA").toUpperCase())}</span>
+        </div>
+        <div class="progress-track" aria-hidden="true"><span style="width: 100%"></span></div>
+        <span>TURNO: ${escapeHtml(String(employee.shift_name || "-").toUpperCase())} | BASE: ${escapeHtml(formatDate(journey.reference_date))}</span>
+    `;
+    const attendanceRows = attendance.length ? attendance.map((row) => `
+        <article class="checklist-card">
+            <div class="item-topline"><span>FREQ.</span><h3>${escapeHtml(String(row.occurrence_type || "-").toUpperCase())}</h3></div>
+            <div class="activity-meta"><strong>${escapeHtml(formatDate(row.occurrence_date))}</strong><span>${row.delay_minutes ? `${Number(row.delay_minutes)} MIN DE ATRASO` : row.is_justified ? "JUSTIFICADO" : "REGISTRADO"}</span></div>
+        </article>
+    `).join("") : `<article class="empty-state"><strong>SEM FREQUÊNCIA RECENTE.</strong><span>CONSULTE O RH SE VOCÊ ESPERAVA UM LANÇAMENTO.</span></article>`;
+    const trainingRows = trainingAlerts.length ? trainingAlerts.map((row) => `
+        <article class="checklist-card">
+            <div class="item-topline"><span>CURSO</span><h3>${escapeHtml(String(row.course_name || "TREINAMENTO").toUpperCase())}</h3></div>
+            <div class="activity-meta"><strong>${escapeHtml(String(row.status || "-").toUpperCase())}</strong><span>VALIDADE: ${escapeHtml(formatDate(row.expires_on))}</span></div>
+        </article>
+    `).join("") : "";
+    elements.hrJourneyList.innerHTML = `
+        <section class="module-section"><div class="module-header"><div><span>FREQUÊNCIA</span><strong>ÚLTIMOS LANÇAMENTOS</strong></div><em>${attendance.length}</em></div>${attendanceRows}</section>
+        <section class="module-section"><div class="module-header"><div><span>TREINAMENTOS</span><strong>ALERTAS DE VALIDADE</strong></div><em>${trainingAlerts.length}</em></div>${trainingRows || "<article class=\"empty-state\"><strong>NENHUM ALERTA PRÓXIMO.</strong><span>NÃO HÁ TREINAMENTO VENCIDO OU VENCENDO EM 30 DIAS.</span></article>"}</section>
+    `;
 }
 
 const OPERATIONAL_STATUS_LABELS = {
@@ -5578,6 +5658,7 @@ on(elements.openTechnicalLibraryMenu, "click", openTechnicalLibraryMenu);
 on(elements.openMaintenanceDashboardMenu, "click", () => {
     window.location.href = "./dashboard-manutencao/";
 });
+on(elements.openHrJourneyMenu, "click", openHrJourneyMenu);
 on(elements.emergencyCreateForm, "submit", submitEmergency);
 on(elements.washPrevMonth, "click", () => changeWashMonth(-1));
 on(elements.washNextMonth, "click", () => changeWashMonth(1));
@@ -5633,6 +5714,10 @@ on(elements.checklistHistoryTypeFilter, "change", scheduleChecklistHistoryFilter
 on(elements.checklistHistoryStartDate, "change", scheduleChecklistHistoryFilters);
 on(elements.checklistHistoryEndDate, "change", scheduleChecklistHistoryFilters);
 on(elements.maintenanceBackButton, "click", () => {
+    renderHome();
+    setActiveScreen("home");
+});
+on(elements.hrJourneyBackButton, "click", () => {
     renderHome();
     setActiveScreen("home");
 });

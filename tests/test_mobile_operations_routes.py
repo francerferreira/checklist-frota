@@ -4,6 +4,7 @@ import os
 import sys
 import tempfile
 import unittest
+from datetime import date, timedelta
 from pathlib import Path
 
 
@@ -19,7 +20,17 @@ os.environ["WASH_CONTROL_FILE"] = ""
 
 from app import create_app
 from app.extensions import db
-from app.models import EquipmentFamily, EquipmentProfile, HourmeterReading, MobileSyncOperation, User, Vehicle
+from app.models import (
+    Employee,
+    EmployeeAttendanceRecord,
+    EmployeeTraining,
+    EquipmentFamily,
+    EquipmentProfile,
+    HourmeterReading,
+    MobileSyncOperation,
+    User,
+    Vehicle,
+)
 from app.services.auth_service import generate_token
 
 
@@ -44,6 +55,33 @@ class MobileOperationsRoutesTests(unittest.TestCase):
             db.session.add_all([mechanic, vehicle])
             db.session.flush()
             db.session.add(EquipmentProfile(vehicle_id=vehicle.id, family_id=family.id))
+            employee = Employee(
+                user_id=mechanic.id,
+                registration="MOB-001",
+                full_name="Mecanico Mobile",
+                function_name="Mecanico",
+                team_name="Manutencao",
+                shift_name="A",
+                status="ATIVO",
+            )
+            db.session.add(employee)
+            db.session.flush()
+            db.session.add_all([
+                EmployeeAttendanceRecord(
+                    employee_id=employee.id,
+                    occurrence_date=date.today(),
+                    occurrence_type="PRESENTE",
+                    created_by_user_id=admin.id,
+                ),
+                EmployeeTraining(
+                    employee_id=employee.id,
+                    course_name="Seguranca operacional",
+                    training_type="Obrigatorio",
+                    ends_on=date.today(),
+                    expires_on=date.today() + timedelta(days=10),
+                    created_by_user_id=admin.id,
+                ),
+            ])
             db.session.commit()
             cls.vehicle_id = vehicle.id
             cls.access_code = vehicle.to_dict()["mobile_access_code"]
@@ -64,6 +102,15 @@ class MobileOperationsRoutesTests(unittest.TestCase):
         data = response.get_json()["data"]
         self.assertEqual(data["access_code"], self.access_code)
         self.assertEqual(data["vehicle"]["id"], self.vehicle_id)
+
+    def test_my_journey_returns_only_the_linked_employee_mobile_projection(self):
+        response = self.client.get("/operacao-mobile/minha-jornada", headers=self.mechanic_headers)
+        self.assertEqual(response.status_code, 200, response.get_json())
+        data = response.get_json()["data"]
+        self.assertEqual(data["employee"]["registration"], "MOB-001")
+        self.assertNotIn("notes", data["employee"])
+        self.assertEqual(data["attendance"][0]["occurrence_type"], "PRESENTE")
+        self.assertEqual(data["training_alerts"][0]["status"], "VENCENDO")
 
     def test_hourmeter_sync_is_idempotent_and_conflicts_are_retained(self):
         operation_id = "mobile-hourmeter-0001"
