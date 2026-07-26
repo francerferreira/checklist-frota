@@ -845,7 +845,7 @@ textarea {
 .reset-request-row { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; padding: 8px 0; border-bottom: 1px solid #dbe6f2; }
 .reset-request-row input { max-width: 180px; }
 
-.first-access-card { max-width: 620px; }
+.first-access-card { width: min(100%, 620px); max-height: calc(100dvh - 24px); overflow-y: auto; overscroll-behavior: contain; -webkit-overflow-scrolling: touch; }
 .profile-photo-capture { display: grid; gap: 10px; }
 .camera-capture-button { display: grid; grid-template-columns: 54px 1fr; grid-template-rows: auto auto; align-items: center; gap: 2px 12px; width: 100%; padding: 14px 16px; border: 1px solid #b9cee9; border-radius: 16px; background: linear-gradient(135deg, #fafdff, #edf6ff); color: #0756b5; text-align: left; cursor: pointer; }
 .camera-capture-button svg { grid-row: span 2; width: 42px; height: 42px; padding: 9px; border-radius: 13px; background: #dcecff; fill: none; stroke: #0756b5; stroke-width: 1.7; }
@@ -872,6 +872,30 @@ textarea {
 .welcome-divider { width: 74px; height: 4px; margin: 22px auto 18px; border-radius: 99px; background: #69e1cf; }
 .welcome-caption { max-width: 420px; margin: 0 auto 24px !important; color: rgba(255,255,255,.76) !important; font-size: .86rem !important; }
 .welcome-card .primary-button { border-color: rgba(255,255,255,.16); background: #fff; color: #0756b5; box-shadow: 0 16px 30px rgba(0,0,0,.2); }
+
+@media (min-width: 900px) {
+    #first-access-modal { padding: 18px 28px; }
+    #first-access-modal .first-access-card { width: min(92vw, 900px); max-width: 900px; max-height: calc(100dvh - 36px); grid-template-columns: minmax(0, .9fr) minmax(0, 1.1fr); align-items: start; column-gap: 26px; row-gap: 10px; padding: 22px 26px; }
+    #first-access-modal .first-access-card > .app-modal-header,
+    #first-access-modal .first-access-card > .modal-help,
+    #first-access-modal .first-access-card > .first-access-actions,
+    #first-access-modal .first-access-card > #first-access-status { grid-column: 1 / -1; }
+    #first-access-modal .first-access-card > .modal-help { margin: 0; }
+    #first-access-modal .profile-photo-field { grid-column: 1; }
+    #first-access-modal .first-access-card > .modal-field:not(.profile-photo-field) { grid-column: 2; }
+    #first-access-modal .camera-capture-button { min-height: 86px; }
+    #first-access-modal .first-access-photo-preview img { width: 170px; }
+    #first-access-modal .first-access-camera-panel video { max-height: 180px; }
+    #first-access-modal #first-access-signature { height: 128px; }
+    #first-access-modal .first-access-actions { margin-top: 2px; }
+}
+
+@media (max-width: 899px) {
+    #first-access-modal { align-items: start; padding: 12px; overflow-y: auto; }
+    #first-access-modal .first-access-card { margin: auto 0; }
+    #first-access-modal .first-access-photo-preview img { width: min(42vw, 190px); }
+    #first-access-modal #first-access-signature { height: 140px; }
+}
 
 .menu-card {
     display: grid;
