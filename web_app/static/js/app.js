@@ -1791,7 +1791,7 @@ function renderAbsenteeism() {
         const employee = row.employee || {}, nextArea = absenteeismCategory(employee);
         const heading = nextArea !== area ? (area = nextArea, `<tr class="absenteeism-area-row"><th colspan="6">${escapeHtml(nextArea)}</th></tr>`) : "";
         const options = ABSENTEEISM_STATUSES.map((status) => `<option value="${status}" ${row.occurrence_type === status ? "selected" : ""}>${status.replaceAll("_", " ")}</option>`).join("");
-        return `${heading}<tr class="absenteeism-row status-${String(row.occurrence_type).toLowerCase()}" data-employee-id="${Number(employee.id)}" data-vacation="${row.automatic_vacation}" data-status="${row.occurrence_type}" data-awaiting-atestado="false"><td class="absenteeism-area-cell">${escapeHtml(nextArea)}</td><td class="absenteeism-employee-cell"><strong>${escapeHtml(employee.full_name || "-")}</strong></td><td>${escapeHtml(employee.registration || "-")}</td><td><strong>${escapeHtml(employee.function_name || "-")}</strong><span>${escapeHtml(employee.shift_name || "-")}</span></td><td><select class="absenteeism-status" ${row.automatic_vacation ? "disabled" : ""}>${options}</select></td><td><input class="absenteeism-notes" value="${escapeHtml(row.notes || "")}" placeholder="Observação" ${row.automatic_vacation ? "disabled" : ""}></td></tr>`;
+        return `${heading}<tr class="absenteeism-row status-${String(row.occurrence_type).toLowerCase()}" data-employee-id="${Number(employee.id)}" data-vacation="${row.automatic_vacation}" data-status="${row.occurrence_type}" data-awaiting-atestado="false"><td class="absenteeism-area-cell">${escapeHtml(nextArea)}</td><td class="absenteeism-employee-cell"><strong>${escapeHtml(employee.full_name || "-")}</strong></td><td>${escapeHtml(employee.registration || "-")}</td><td><strong>${escapeHtml(employee.function_name || "-")}</strong><span>${escapeHtml(employee.shift_name || "-")}</span></td><td><select class="absenteeism-status status-${String(row.occurrence_type).toLowerCase()}" ${row.automatic_vacation ? "disabled" : ""}>${options}</select></td><td><input class="absenteeism-notes" value="${escapeHtml(row.notes || "")}" placeholder="Observação" ${row.automatic_vacation ? "disabled" : ""}></td></tr>`;
     }).join("");
     elements.absenteeismList.innerHTML = tableRows ? `<div class="absenteeism-table-wrap"><table class="absenteeism-table"><thead><tr><th>ÁREA</th><th>COLABORADOR</th><th>MATRÍCULA</th><th>FUNÇÃO / TURNO</th><th>STATUS DO DIA</th><th>OBSERVAÇÃO</th></tr></thead><tbody>${tableRows}</tbody></table></div>` : "<div class=\"empty-state\"><strong>SEM COLABORADORES.</strong><span>AJUSTE OS FILTROS.</span></div>";
 }
@@ -6695,6 +6695,7 @@ on(elements.absenteeismList, "change", (event) => {
         const row = target.closest(".absenteeism-row");
         const previousStatus = row.dataset.status || "PRESENTE";
         row.dataset.status = target.value;
+        target.className = `absenteeism-status status-${target.value.toLowerCase()}`;
         if (target.value === "ATESTADO") {
             row.dataset.awaitingAtestado = "true";
             openAbsenteeismAtestadoModal(row, target, previousStatus);
