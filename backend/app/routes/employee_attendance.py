@@ -1,14 +1,18 @@
 from __future__ import annotations
 
 from datetime import date, datetime, time, timedelta
+from io import BytesIO
+from pathlib import Path
+import tempfile
 
-from flask import Blueprint, g, request
+from flask import Blueprint, g, request, send_file
 from sqlalchemy.exc import IntegrityError
 
 from app.extensions import db
-from app.models import Employee, EmployeeAttendanceRecord, EmployeeVacation
+from app.models import Employee, EmployeeAttendanceRecord, EmployeeSpecialSchedule, EmployeeVacation
 from app.models.employee import ATTENDANCE_TYPES
 from app.services.auth_service import auth_required, user_has_management_access
+from app.services.employee_attendance_pdf_export_service import export_employee_attendance_pdf
 from app.utils.responses import api_response
 from app.utils.timezone import now_manaus_naive
 
@@ -107,28 +111,23 @@ def _absenteeism_summary(rows: list[dict]) -> dict:
     return {"total": len(rows), "by_type": totals}
 
 
-@bp.get("/rh/absenteismo-mobile")
-@auth_required
-def mobile_absenteeism():
-    denied = _guard_hr_management()
-    if denied:
-        return denied
-    try:
-        reference_date = _parse_date(request.args.get("data") or date.today().isoformat(), "a data")
-    except ValueError as exc:
-        return api_response(False, error=str(exc), status_code=400)
+def _absenteeism_employee_query(args):
     query = Employee.query.filter_by(status="ATIVO")
-    if shift := _clean(request.args.get("turno")):
+    if shift := _clean(args.get("turno")):
         query = query.filter_by(shift_name=shift)
-    if sector := _clean(request.args.get("setor")):
+    if sector := _clean(args.get("setor")):
         query = query.filter_by(team_name=sector)
-    if function_name := _clean(request.args.get("funcao")):
+    if function_name := _clean(args.get("funcao")):
         query = query.filter_by(function_name=function_name)
-    if name := _clean(request.args.get("nome")):
+    if name := _clean(args.get("nome")):
         query = query.filter(Employee.full_name.ilike(f"%{name}%"))
-    if registration := _clean(request.args.get("matricula")):
+    if registration := _clean(args.get("matricula")):
         query = query.filter(Employee.registration.ilike(f"%{registration}%"))
-    employees = query.order_by(Employee.team_name.asc(), Employee.full_name.asc()).all()
+    return query.order_by(Employee.team_name.asc(), Employee.full_name.asc())
+
+
+def _build_absenteeism_rows(reference_date: date, query):
+    employees = query.all()
     employee_ids = [employee.id for employee in employees]
     records = EmployeeAttendanceRecord.query.filter(
         EmployeeAttendanceRecord.employee_id.in_(employee_ids or [-1]),
@@ -144,11 +143,18 @@ def mobile_absenteeism():
             EmployeeVacation.ends_on >= reference_date,
         ).all()
     }
+    dsr_ids = {
+        row.employee_id for row in EmployeeSpecialSchedule.query.filter(
+            EmployeeSpecialSchedule.employee_id.in_(employee_ids or [-1]),
+            EmployeeSpecialSchedule.dsr_date == reference_date,
+            EmployeeSpecialSchedule.status.in_(("ESCALADO", "COMPARECEU")),
+        ).all()
+    }
     rows = []
     for employee in employees:
         record = records_by_employee.get(employee.id)
         automatic_vacation = employee.id in vacation_ids
-        occurrence_type = "FERIAS" if automatic_vacation else (record.occurrence_type if record else "PRESENTE")
+        occurrence_type = "FERIAS" if automatic_vacation else (record.occurrence_type if record else ("DSR" if employee.id in dsr_ids else "PRESENTE"))
         rows.append({
             "employee": employee.to_dict(), "record_id": record.id if record else None,
             "occurrence_type": occurrence_type, "notes": record.notes if record else "",
@@ -156,9 +162,74 @@ def mobile_absenteeism():
             "updated_at": record.updated_at.isoformat() if record and record.updated_at else None,
             "updated_by_user_id": record.updated_by_user_id if record else None,
         })
+    return rows
+
+
+@bp.get("/rh/absenteismo-mobile")
+@auth_required
+def mobile_absenteeism():
+    denied = _guard_hr_management()
+    if denied:
+        return denied
+    try:
+        reference_date = _parse_date(request.args.get("data") or date.today().isoformat(), "a data")
+    except ValueError as exc:
+        return api_response(False, error=str(exc), status_code=400)
+    rows = _build_absenteeism_rows(reference_date, _absenteeism_employee_query(request.args))
+    employees = [row["employee"] for row in rows]
     if status := _clean(request.args.get("status")):
         rows = [row for row in rows if row["occurrence_type"] == status.upper()]
     return api_response(True, data={"date": reference_date.isoformat(), "rows": rows, "summary": _absenteeism_summary(rows)})
+
+
+@bp.get("/rh/absenteismo-mobile/pdf")
+@auth_required
+def mobile_absenteeism_pdf():
+    denied = _guard_hr_management()
+    if denied:
+        return denied
+    try:
+        reference_date = _parse_date(request.args.get("data") or date.today().isoformat(), "a data")
+    except ValueError as exc:
+        return api_response(False, error=str(exc), status_code=400)
+    rows = _build_absenteeism_rows(reference_date, _absenteeism_employee_query(request.args))
+    if status := _clean(request.args.get("status")):
+        rows = [row for row in rows if row["occurrence_type"] == status.upper()]
+    export_rows = []
+    for row in rows:
+        employee = row["employee"] or {}
+        export_rows.append({
+            "area": employee.get("notes") or employee.get("team_name") or "-",
+            "colaborador": employee.get("full_name") or "-",
+            "matricula": employee.get("registration") or "-",
+            "funcao": employee.get("function_name") or "-",
+            "turno": employee.get("shift_name") or "-",
+            "status": row["occurrence_type"].replace("_", " "),
+            "observacao": row.get("notes") or "-",
+        })
+    subtitle = " | ".join(filter(None, [
+        f"Data: {reference_date.strftime('%d/%m/%Y')}",
+        f"Turno: {_clean(request.args.get('turno')) or 'Todos'}",
+        f"Área: {_clean(request.args.get('setor')) or 'Todas'}",
+        f"Status: {_clean(request.args.get('status')) or 'Todos'}",
+    ]))
+    filename = f"absenteismo_{reference_date.isoformat()}.pdf"
+    tmp = tempfile.NamedTemporaryFile(prefix="absenteismo_", suffix=".pdf", delete=False)
+    tmp_path = Path(tmp.name)
+    tmp.close()
+    export_employee_attendance_pdf(
+        "Absenteísmo diário",
+        subtitle,
+        [("Área", "area"), ("Colaborador", "colaborador"), ("Matrícula", "matricula"), ("Função", "funcao"), ("Turno", "turno"), ("Status", "status"), ("Observação", "observacao")],
+        export_rows,
+        tmp_path,
+        generated_by=g.current_user.nome or g.current_user.login,
+        period_label=reference_date.strftime("%d/%m/%Y"),
+    )
+    pdf_buffer = BytesIO(tmp_path.read_bytes())
+    tmp_path.unlink(missing_ok=True)
+    pdf_buffer.seek(0)
+    return send_file(pdf_buffer, mimetype="application/pdf", as_attachment=True, download_name=filename)
 
 
 @bp.post("/rh/absenteismo-mobile")

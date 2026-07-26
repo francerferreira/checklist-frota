@@ -235,6 +235,7 @@ const state = {
     weeklyDsr: { employees: [], overview: null },
     specialSchedule: { employees: [], rows: [] },
     absenteeism: { rows: [], summary: {} },
+    pendingAbsenteeismAtestado: null,
     availabilityOverview: null,
     technicalInspectionTemplates: [],
     emergencies: [],
@@ -466,7 +467,7 @@ const elements = {
     specialScheduleList: document.getElementById("special-schedule-list"),
     specialScheduleSaveButton: document.getElementById("special-schedule-save-button"),
     specialScheduleSearch: document.getElementById("special-schedule-search"), specialScheduleHistoryButton: document.getElementById("special-schedule-history-button"), specialSchedulePdfButton: document.getElementById("special-schedule-pdf-button"),
-    absenteeismBackButton: document.getElementById("absenteeism-back-button"), absenteeismDate: document.getElementById("absenteeism-date"), absenteeismName: document.getElementById("absenteeism-name"), absenteeismRegistration: document.getElementById("absenteeism-registration"), absenteeismShift: document.getElementById("absenteeism-shift"), absenteeismSector: document.getElementById("absenteeism-sector"), absenteeismFunction: document.getElementById("absenteeism-function"), absenteeismStatus: document.getElementById("absenteeism-status"), absenteeismRefreshButton: document.getElementById("absenteeism-refresh-button"), absenteeismCounter: document.getElementById("absenteeism-counter"), absenteeismSummary: document.getElementById("absenteeism-summary"), absenteeismList: document.getElementById("absenteeism-list"), absenteeismSaveButton: document.getElementById("absenteeism-save-button"),
+    absenteeismBackButton: document.getElementById("absenteeism-back-button"), absenteeismDate: document.getElementById("absenteeism-date"), absenteeismName: document.getElementById("absenteeism-name"), absenteeismRegistration: document.getElementById("absenteeism-registration"), absenteeismShift: document.getElementById("absenteeism-shift"), absenteeismSector: document.getElementById("absenteeism-sector"), absenteeismFunction: document.getElementById("absenteeism-function"), absenteeismStatus: document.getElementById("absenteeism-status"), absenteeismRefreshButton: document.getElementById("absenteeism-refresh-button"), absenteeismPdfButton: document.getElementById("absenteeism-pdf-button"), absenteeismCounter: document.getElementById("absenteeism-counter"), absenteeismSummary: document.getElementById("absenteeism-summary"), absenteeismList: document.getElementById("absenteeism-list"), absenteeismSaveButton: document.getElementById("absenteeism-save-button"), absenteeismAtestadoModal: document.getElementById("absenteeism-atestado-modal"), absenteeismAtestadoForm: document.getElementById("absenteeism-atestado-form"), absenteeismAtestadoEmployee: document.getElementById("absenteeism-atestado-employee"), absenteeismAtestadoStart: document.getElementById("absenteeism-atestado-start"), absenteeismAtestadoDays: document.getElementById("absenteeism-atestado-days"), absenteeismAtestadoEnd: document.getElementById("absenteeism-atestado-end"), absenteeismAtestadoNotes: document.getElementById("absenteeism-atestado-notes"), absenteeismAtestadoCancel: document.getElementById("absenteeism-atestado-cancel"),
     availabilityBackButton: document.getElementById("availability-back-button"),
     availabilityCounter: document.getElementById("availability-counter"),
     availabilitySummary: document.getElementById("availability-summary"),
@@ -511,6 +512,7 @@ const elements = {
 let passwordModalFocusOrigin = null;
 let photoViewerFocusOrigin = null;
 let checklistHistoryFilterTimer = null;
+let absenteeismFilterTimer = null;
 const pullRefresh = {
     active: false,
     armed: false,
@@ -1677,7 +1679,7 @@ async function openAbsenteeismMenu() {
 }
 
 async function refreshAbsenteeism() {
-    const params = new URLSearchParams({ data: elements.absenteeismDate.value, nome: elements.absenteeismName.value.trim(), matricula: elements.absenteeismRegistration.value.trim(), turno: elements.absenteeismShift.value, setor: elements.absenteeismSector.value, funcao: elements.absenteeismFunction.value, status: elements.absenteeismStatus.value });
+    const params = absenteeismQueryParams();
     [...params.keys()].forEach((key) => !params.get(key) && params.delete(key));
     elements.absenteeismCounter.textContent = "CARREGANDO...";
     try {
@@ -1689,6 +1691,95 @@ async function refreshAbsenteeism() {
         fillAbsenteeismFilter(elements.absenteeismFunction, employees.map((row) => row.function_name), "TODAS AS FUNÇÕES");
         renderAbsenteeism();
     } catch (error) { showToast(error.message || "NÃO FOI POSSÍVEL CARREGAR O ABSENTEÍSMO.", true); }
+}
+
+function absenteeismQueryParams() {
+    return new URLSearchParams({ data: elements.absenteeismDate.value, nome: elements.absenteeismName.value.trim(), matricula: elements.absenteeismRegistration.value.trim(), turno: elements.absenteeismShift.value, setor: elements.absenteeismSector.value, funcao: elements.absenteeismFunction.value, status: elements.absenteeismStatus.value });
+}
+
+function scheduleAbsenteeismRefresh() {
+    window.clearTimeout(absenteeismFilterTimer);
+    absenteeismFilterTimer = window.setTimeout(() => refreshAbsenteeism(), 220);
+}
+
+function addDaysToDateInput(value, days) {
+    if (!value) return "";
+    const date = new Date(`${value}T12:00:00`);
+    date.setDate(date.getDate() + Math.max(0, Number(days || 1) - 1));
+    return formatDateInputValue(date);
+}
+
+function closeAbsenteeismAtestadoModal(restore = true) {
+    const pending = state.pendingAbsenteeismAtestado;
+    if (restore && pending?.row && pending.target) {
+        pending.target.value = pending.previousStatus;
+        pending.row.dataset.status = pending.previousStatus;
+        pending.row.dataset.awaitingAtestado = "false";
+        pending.row.className = `absenteeism-row status-${pending.previousStatus.toLowerCase()}`;
+        updateAbsenteeismPreview();
+    }
+    elements.absenteeismAtestadoModal?.classList.add("hidden");
+    state.pendingAbsenteeismAtestado = null;
+}
+
+function openAbsenteeismAtestadoModal(row, target, previousStatus) {
+    const employee = state.absenteeism.rows.find((item) => Number(item.employee?.id) === Number(row.dataset.employeeId))?.employee || {};
+    state.pendingAbsenteeismAtestado = { row, target, previousStatus };
+    elements.absenteeismAtestadoEmployee.textContent = `${employee.full_name || "Colaborador"} | Matrícula: ${employee.registration || "-"}`;
+    elements.absenteeismAtestadoStart.value = elements.absenteeismDate.value;
+    elements.absenteeismAtestadoDays.value = "1";
+    elements.absenteeismAtestadoEnd.value = elements.absenteeismDate.value;
+    elements.absenteeismAtestadoNotes.value = "";
+    elements.absenteeismAtestadoModal.classList.remove("hidden");
+    elements.absenteeismAtestadoDays.focus();
+}
+
+async function saveAbsenteeismAtestado(event) {
+    event.preventDefault();
+    const pending = state.pendingAbsenteeismAtestado;
+    if (!pending) return;
+    const start = elements.absenteeismAtestadoStart.value;
+    const days = Math.min(366, Math.max(1, Number(elements.absenteeismAtestadoDays.value || 1)));
+    try {
+        await apiFetch("/rh/frequencia", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ employee_id: Number(pending.row.dataset.employeeId), occurrence_date: start, end_date: addDaysToDateInput(start, days), occurrence_type: "ATESTADO", notes: elements.absenteeismAtestadoNotes.value.trim() }) });
+        closeAbsenteeismAtestadoModal(false);
+        showToast(`ATESTADO REGISTRADO POR ${days} DIA(S).`);
+        await refreshAbsenteeism();
+    } catch (error) {
+        showToast(error.message || "NÃO FOI POSSÍVEL REGISTRAR O ATESTADO.", true);
+    }
+}
+
+async function exportAbsenteeismPdf() {
+    const params = absenteeismQueryParams();
+    [...params.keys()].forEach((key) => !params.get(key) && params.delete(key));
+    const date = elements.absenteeismDate.value || formatDateInputValue(new Date());
+    const filename = `absenteismo_${date}.pdf`;
+    try {
+        elements.absenteeismPdfButton.disabled = true;
+        const response = await fetch(`${state.apiBaseUrl}/rh/absenteismo-mobile/pdf?${params}`, { headers: optionsLikeHeaders({ Accept: "application/pdf" }) });
+        if (!response.ok) throw new Error("NÃO FOI POSSÍVEL GERAR O PDF.");
+        const blob = await response.blob();
+        const file = new File([blob], filename, { type: "application/pdf" });
+        const message = `Absenteísmo diário - ${formatDate(date)}. Filtros: turno ${elements.absenteeismShift.value || "todos"}, área ${elements.absenteeismSector.value || "todas"}.`;
+        if (navigator.share && navigator.canShare?.({ files: [file] })) {
+            await navigator.share({ title: "Absenteísmo diário", text: message, files: [file] });
+            return;
+        }
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement("a");
+        link.href = url;
+        link.download = filename;
+        document.body.appendChild(link);
+        link.click();
+        link.remove();
+        URL.revokeObjectURL(url);
+        await shareText("Absenteísmo diário", `${message} O PDF foi baixado neste dispositivo para anexar no WhatsApp.`);
+    } catch (error) {
+        if (error.name !== "AbortError") showToast(error.message || "NÃO FOI POSSÍVEL EXPORTAR O PDF.", true);
+    } finally {
+        elements.absenteeismPdfButton.disabled = false;
+    }
 }
 
 function renderAbsenteeism() {
@@ -1705,7 +1796,7 @@ function renderAbsenteeism() {
         const employee = row.employee || {}, nextArea = absenteeismCategory(employee);
         const heading = nextArea !== area ? (area = nextArea, `<tr class="absenteeism-area-row"><th colspan="6">${escapeHtml(nextArea)}</th></tr>`) : "";
         const options = ABSENTEEISM_STATUSES.map((status) => `<option value="${status}" ${row.occurrence_type === status ? "selected" : ""}>${status.replaceAll("_", " ")}</option>`).join("");
-        return `${heading}<tr class="absenteeism-row status-${String(row.occurrence_type).toLowerCase()}" data-employee-id="${Number(employee.id)}" data-vacation="${row.automatic_vacation}"><td class="absenteeism-area-cell">${escapeHtml(nextArea)}</td><td class="absenteeism-employee-cell"><strong>${escapeHtml(employee.full_name || "-")}</strong></td><td>${escapeHtml(employee.registration || "-")}</td><td><strong>${escapeHtml(employee.function_name || "-")}</strong><span>${escapeHtml(employee.shift_name || "-")}</span></td><td><select class="absenteeism-status" ${row.automatic_vacation ? "disabled" : ""}>${options}</select></td><td><input class="absenteeism-notes" value="${escapeHtml(row.notes || "")}" placeholder="Observação" ${row.automatic_vacation ? "disabled" : ""}></td></tr>`;
+        return `${heading}<tr class="absenteeism-row status-${String(row.occurrence_type).toLowerCase()}" data-employee-id="${Number(employee.id)}" data-vacation="${row.automatic_vacation}" data-status="${row.occurrence_type}" data-awaiting-atestado="false"><td class="absenteeism-area-cell">${escapeHtml(nextArea)}</td><td class="absenteeism-employee-cell"><strong>${escapeHtml(employee.full_name || "-")}</strong></td><td>${escapeHtml(employee.registration || "-")}</td><td><strong>${escapeHtml(employee.function_name || "-")}</strong><span>${escapeHtml(employee.shift_name || "-")}</span></td><td><select class="absenteeism-status" ${row.automatic_vacation ? "disabled" : ""}>${options}</select></td><td><input class="absenteeism-notes" value="${escapeHtml(row.notes || "")}" placeholder="Observação" ${row.automatic_vacation ? "disabled" : ""}></td></tr>`;
     }).join("");
     elements.absenteeismList.innerHTML = tableRows ? `<div class="absenteeism-table-wrap"><table class="absenteeism-table"><thead><tr><th>ÁREA</th><th>COLABORADOR</th><th>MATRÍCULA</th><th>FUNÇÃO / TURNO</th><th>STATUS DO DIA</th><th>OBSERVAÇÃO</th></tr></thead><tbody>${tableRows}</tbody></table></div>` : "<div class=\"empty-state\"><strong>SEM COLABORADORES.</strong><span>AJUSTE OS FILTROS.</span></div>";
 }
@@ -1720,7 +1811,7 @@ function updateAbsenteeismPreview() {
 }
 
 async function saveAbsenteeism() {
-    const entries = Array.from(document.querySelectorAll(".absenteeism-row")).filter((row) => row.dataset.vacation !== "true").map((row) => ({ employee_id: Number(row.dataset.employeeId), occurrence_type: row.querySelector(".absenteeism-status").value, notes: row.querySelector(".absenteeism-notes").value.trim() }));
+    const entries = Array.from(document.querySelectorAll(".absenteeism-row")).filter((row) => row.dataset.vacation !== "true" && row.dataset.awaitingAtestado !== "true").map((row) => ({ employee_id: Number(row.dataset.employeeId), occurrence_type: row.querySelector(".absenteeism-status").value, notes: row.querySelector(".absenteeism-notes").value.trim() }));
     if (!entries.length) return showToast("NÃO HÁ REGISTROS MANUAIS PARA SALVAR.", true);
     elements.absenteeismSaveButton.disabled = true;
     try { const result = await apiFetch("/rh/absenteismo-mobile", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ date: elements.absenteeismDate.value, entries }) }); showToast(`${result.saved} REGISTRO(S) SALVO(S).`); await refreshAbsenteeism(); }
@@ -6594,16 +6685,36 @@ on(elements.specialScheduleSearch, "input", renderSpecialSchedule);
 on(elements.specialScheduleHistoryButton, "click", () => { elements.specialScheduleDate.min = ""; elements.specialScheduleDate.max = ""; showToast("HISTÓRICO: ESCOLHA UMA DATA ANTERIOR E CLIQUE EM CARREGAR."); });
 on(elements.specialSchedulePdfButton, "click", () => window.print());
 on(elements.absenteeismBackButton, "click", () => { renderHome(); setActiveScreen("home"); });
-on(elements.absenteeismRefreshButton, "click", refreshAbsenteeism);
+on(elements.absenteeismDate, "change", refreshAbsenteeism);
+on(elements.absenteeismName, "input", scheduleAbsenteeismRefresh);
+on(elements.absenteeismRegistration, "input", scheduleAbsenteeismRefresh);
+on(elements.absenteeismShift, "change", refreshAbsenteeism);
+on(elements.absenteeismSector, "change", refreshAbsenteeism);
+on(elements.absenteeismFunction, "change", refreshAbsenteeism);
+on(elements.absenteeismStatus, "change", refreshAbsenteeism);
+on(elements.absenteeismPdfButton, "click", exportAbsenteeismPdf);
 on(elements.absenteeismSaveButton, "click", saveAbsenteeism);
 on(elements.absenteeismList, "change", (event) => {
     const target = event.target;
     if (target instanceof HTMLSelectElement && target.classList.contains("absenteeism-status")) {
         const row = target.closest(".absenteeism-row");
+        const previousStatus = row.dataset.status || "PRESENTE";
+        row.dataset.status = target.value;
+        if (target.value === "ATESTADO") {
+            row.dataset.awaitingAtestado = "true";
+            openAbsenteeismAtestadoModal(row, target, previousStatus);
+            return;
+        }
         row.className = `absenteeism-row status-${target.value.toLowerCase()}`;
+        row.dataset.awaitingAtestado = "false";
         updateAbsenteeismPreview();
     }
 });
+on(elements.absenteeismAtestadoForm, "submit", saveAbsenteeismAtestado);
+on(elements.absenteeismAtestadoCancel, "click", () => closeAbsenteeismAtestadoModal(true));
+on(elements.absenteeismAtestadoStart, "change", () => { elements.absenteeismAtestadoEnd.value = addDaysToDateInput(elements.absenteeismAtestadoStart.value, elements.absenteeismAtestadoDays.value); });
+on(elements.absenteeismAtestadoDays, "input", () => { elements.absenteeismAtestadoEnd.value = addDaysToDateInput(elements.absenteeismAtestadoStart.value, elements.absenteeismAtestadoDays.value); });
+on(elements.absenteeismAtestadoModal, "click", (event) => { if (event.target instanceof HTMLElement && event.target.dataset.closeAbsenteeismAtestado === "true") closeAbsenteeismAtestadoModal(true); });
 on(elements.specialScheduleList, "change", (event) => {
     const target = event.target;
     if (!(target instanceof HTMLInputElement) || !target.classList.contains("special-schedule-dsr-date")) {
