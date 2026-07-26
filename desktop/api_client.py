@@ -305,6 +305,28 @@ class APIClient:
     def register_hr_export(self, payload: dict):
         return self._request("POST", "/rh/gestao/exportacoes", json=payload)
 
+    def get_employee_vacations(
+        self,
+        *,
+        employee_id: int | None = None,
+        date_from: str | None = None,
+        date_to: str | None = None,
+        status: str | None = None,
+    ):
+        params = {
+            "colaborador_id": employee_id,
+            "data_inicial": date_from,
+            "data_final": date_to,
+            "situacao": status,
+        }
+        return self._request("GET", "/rh/ferias", params={key: value for key, value in params.items() if value})
+
+    def create_employee_vacation(self, payload: dict):
+        return self._request("POST", "/rh/ferias", json=payload)
+
+    def cancel_employee_vacation(self, vacation_id: int, reason: str):
+        return self._request("POST", f"/rh/ferias/{vacation_id}/cancelar", json={"reason": reason})
+
     def get_wash_overview(self, year: int | None = None, month: int | None = None):
         params = {}
         if year:

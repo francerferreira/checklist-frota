@@ -319,6 +319,76 @@ textarea {
     opacity: 0.62;
 }
 
+.weekly-dsr-filter {
+    padding: 14px;
+    border: 1px solid rgba(122, 140, 166, 0.18);
+    border-radius: 17px;
+    background: #ffffff;
+    box-shadow: 0 6px 16px rgba(15, 23, 42, 0.035);
+}
+
+.weekly-dsr-filter > label {
+    color: var(--muted);
+    font-size: 0.72rem;
+    font-weight: 900;
+}
+
+.weekly-dsr-actions {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: 10px;
+}
+
+.weekly-dsr-actions input,
+.weekly-dsr-actions button {
+    min-height: 46px;
+    border-radius: 12px;
+}
+
+.weekly-dsr-actions input {
+    min-width: 0;
+    padding: 0 12px;
+    border: 1px solid #cbd5e1;
+    color: var(--ink);
+    font: inherit;
+    font-weight: 800;
+}
+
+.secondary-button {
+    padding: 0 14px;
+    border: 1px solid #0b74e8;
+    background: #ffffff;
+    color: #0756b0;
+    font: inherit;
+    font-size: 0.78rem;
+    font-weight: 900;
+    cursor: pointer;
+}
+
+.weekly-dsr-choice {
+    display: flex;
+    align-items: center;
+    gap: 9px;
+    color: var(--muted);
+    font-size: 0.76rem;
+    font-weight: 800;
+}
+
+.weekly-dsr-choice input {
+    width: 19px;
+    height: 19px;
+    accent-color: #0b74e8;
+}
+
+.weekly-dsr-card.is-blocked {
+    opacity: 0.65;
+    background: #f8fafc;
+}
+
+.weekly-dsr-save {
+    margin-top: 14px;
+}
+
 .login-status {
     min-height: 22px;
     color: var(--muted);

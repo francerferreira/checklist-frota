@@ -12,6 +12,7 @@ from theme import configure_table, make_table_item, style_table_card
 
 class HRManagementPage(QFrame):
     data_changed = Signal()
+    open_page_requested = Signal(str)
 
     def __init__(self, api_client, current_user: dict | None = None, parent=None):
         super().__init__(parent)
@@ -25,9 +26,9 @@ class HRManagementPage(QFrame):
 
         header = QHBoxLayout()
         text = QVBoxLayout()
-        title = QLabel("Painel de RH")
+        title = QLabel("Central de RH")
         title.setObjectName("PageTitle")
-        subtitle = QLabel("Acompanhe efetivo, frequencia e vencimentos. E como o painel de um veiculo: ele mostra onde agir antes de parar a operacao.")
+        subtitle = QLabel("Acesse colaboradores, frequência, férias e documentos em um único módulo de RH.")
         subtitle.setObjectName("PageSubtitle")
         subtitle.setWordWrap(True)
         text.addWidget(title)
@@ -42,6 +43,19 @@ class HRManagementPage(QFrame):
         header.addWidget(self.export_csv_button)
         header.addWidget(self.export_xlsx_button)
         layout.addLayout(header)
+
+        shortcuts = QHBoxLayout()
+        for caption, page_key in (
+            ("Colaboradores", "employees"),
+            ("Frequência", "attendance"),
+            ("Férias", "vacations"),
+            ("Documentos", "employee_records"),
+        ):
+            button = QPushButton(caption)
+            button.clicked.connect(lambda checked=False, key=page_key: self.open_page_requested.emit(key))
+            shortcuts.addWidget(button)
+        shortcuts.addStretch()
+        layout.addLayout(shortcuts)
 
         filters = QHBoxLayout()
         month_start = date.today().replace(day=1).isoformat()

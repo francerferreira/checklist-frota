@@ -134,6 +134,11 @@
                         <strong>MINHA JORNADA</strong>
                         <em>Consultar vínculo, frequência recente e treinamentos próximos do vencimento.</em>
                     </button>
+                    <button id="open-weekly-dsr-menu" class="menu-card hidden" type="button">
+                        <span>13</span>
+                        <strong>DSR SEMANAL</strong>
+                        <em>Gestor registra a DSR da semana para os colaboradores ativos.</em>
+                    </button>
                 </div>
             </section>
 
@@ -421,6 +426,27 @@
                 </div>
                 <div id="hr-journey-summary" class="progress-card"></div>
                 <div id="hr-journey-list" class="activity-list"></div>
+            </section>
+
+            <section id="weekly-dsr-screen" class="screen hidden">
+                <div class="screen-heading compact">
+                    <button id="weekly-dsr-back-button" class="icon-button" type="button">MENU</button>
+                    <div><h2>DSR SEMANAL</h2></div>
+                </div>
+                <div class="list-toolbar">
+                    <strong id="weekly-dsr-counter">SELECIONE A SEMANA</strong>
+                    <span>A DSR É GRAVADA NO DOMINGO DA SEMANA ESCOLHIDA.</span>
+                </div>
+                <section class="module-section weekly-dsr-filter">
+                    <label for="weekly-dsr-week">SEMANA (SEGUNDA A DOMINGO)</label>
+                    <div class="weekly-dsr-actions">
+                        <input id="weekly-dsr-week" type="week">
+                        <button id="weekly-dsr-refresh-button" class="secondary-button" type="button">ATUALIZAR</button>
+                    </div>
+                </section>
+                <div id="weekly-dsr-summary" class="progress-card"></div>
+                <div id="weekly-dsr-list" class="activity-list"></div>
+                <button id="weekly-dsr-save-button" class="primary-button weekly-dsr-save" type="button">SALVAR DSR DA SEMANA</button>
             </section>
 
             <section id="availability-screen" class="screen hidden">

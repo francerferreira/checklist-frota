@@ -26,6 +26,8 @@ if str(BACKEND_ROOT) not in sys.path:
 
 TEST_DB_PATH = Path(tempfile.gettempdir()) / "checklist_frota_web_mobile_playwright.db"
 os.environ["DATABASE_URL"] = f"sqlite:///{TEST_DB_PATH}"
+os.environ["CHECKLIST_ALLOW_SQLITE"] = "1"
+os.environ["CHECKLIST_LEGACY_LOCAL_BOOTSTRAP"] = "1"
 os.environ["INVENTORY_FILE"] = str(Path(tempfile.gettempdir()) / "checklist_frota_no_inventory.xlsx")
 os.environ["WASH_CONTROL_FILE"] = str(Path(tempfile.gettempdir()) / "checklist_frota_no_wash.xlsx")
 

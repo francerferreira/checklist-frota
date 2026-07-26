@@ -226,6 +226,7 @@ const state = {
     maintenanceOverview: null,
     pendingMaintenanceItemIds: new Set(),
     hrJourney: null,
+    weeklyDsr: { employees: [], overview: null },
     availabilityOverview: null,
     technicalInspectionTemplates: [],
     emergencies: [],
@@ -271,6 +272,7 @@ const screens = {
     nonConformities: document.getElementById("non-conformities-screen"),
     maintenance: document.getElementById("maintenance-screen"),
     hrJourney: document.getElementById("hr-journey-screen"),
+    weeklyDsr: document.getElementById("weekly-dsr-screen"),
     availability: document.getElementById("availability-screen"),
     technicalInspections: document.getElementById("technical-inspections-screen"),
     emergencies: document.getElementById("emergencies-screen"),
@@ -335,6 +337,7 @@ const elements = {
     openTechnicalLibraryMenu: document.getElementById("open-technical-library-menu"),
     openMaintenanceDashboardMenu: document.getElementById("open-maintenance-dashboard-menu"),
     openHrJourneyMenu: document.getElementById("open-hr-journey-menu"),
+    openWeeklyDsrMenu: document.getElementById("open-weekly-dsr-menu"),
     vehiclesBackButton: document.getElementById("vehicles-back-button"),
     activitiesBackButton: document.getElementById("activities-back-button"),
     activityCounter: document.getElementById("activity-counter"),
@@ -388,6 +391,13 @@ const elements = {
     hrJourneyCounter: document.getElementById("hr-journey-counter"),
     hrJourneySummary: document.getElementById("hr-journey-summary"),
     hrJourneyList: document.getElementById("hr-journey-list"),
+    weeklyDsrBackButton: document.getElementById("weekly-dsr-back-button"),
+    weeklyDsrWeek: document.getElementById("weekly-dsr-week"),
+    weeklyDsrRefreshButton: document.getElementById("weekly-dsr-refresh-button"),
+    weeklyDsrCounter: document.getElementById("weekly-dsr-counter"),
+    weeklyDsrSummary: document.getElementById("weekly-dsr-summary"),
+    weeklyDsrList: document.getElementById("weekly-dsr-list"),
+    weeklyDsrSaveButton: document.getElementById("weekly-dsr-save-button"),
     availabilityBackButton: document.getElementById("availability-back-button"),
     availabilityCounter: document.getElementById("availability-counter"),
     availabilitySummary: document.getElementById("availability-summary"),
@@ -769,6 +779,7 @@ async function loadWashOverview() {
 function renderHome() {
     const canViewMaintenanceDashboard = ["admin", "gestor"].includes(String(state.user?.tipo || "").toLowerCase());
     elements.openMaintenanceDashboardMenu?.classList.toggle("hidden", !canViewMaintenanceDashboard);
+    elements.openWeeklyDsrMenu?.classList.toggle("hidden", !canViewMaintenanceDashboard);
     const openActivitiesCount = state.activities.filter((activity) => activity.status === "ABERTA").length;
     const programmedWashesCount = getWashScheduleItems().filter((item) => item.status_execucao !== "LAVADO").length;
     const canAccessMechanicModule = hasMechanicWorkspaceAccess();
@@ -1222,6 +1233,125 @@ function renderHrJourney() {
         <section class="module-section"><div class="module-header"><div><span>FREQUÊNCIA</span><strong>ÚLTIMOS LANÇAMENTOS</strong></div><em>${attendance.length}</em></div>${attendanceRows}</section>
         <section class="module-section"><div class="module-header"><div><span>TREINAMENTOS</span><strong>ALERTAS DE VALIDADE</strong></div><em>${trainingAlerts.length}</em></div>${trainingRows || "<article class=\"empty-state\"><strong>NENHUM ALERTA PRÓXIMO.</strong><span>NÃO HÁ TREINAMENTO VENCIDO OU VENCENDO EM 30 DIAS.</span></article>"}</section>
     `;
+}
+
+function currentIsoWeekInput() {
+    const reference = new Date();
+    const utc = new Date(Date.UTC(reference.getFullYear(), reference.getMonth(), reference.getDate()));
+    const day = utc.getUTCDay() || 7;
+    utc.setUTCDate(utc.getUTCDate() + 4 - day);
+    const yearStart = new Date(Date.UTC(utc.getUTCFullYear(), 0, 1));
+    const week = Math.ceil((((utc - yearStart) / 86400000) + 1) / 7);
+    return `${utc.getUTCFullYear()}-W${String(week).padStart(2, "0")}`;
+}
+
+function isoWeekToMonday(value) {
+    const match = /^(\d{4})-W(\d{2})$/.exec(String(value || ""));
+    if (!match) return "";
+    const year = Number(match[1]);
+    const week = Number(match[2]);
+    const januaryFourth = new Date(Date.UTC(year, 0, 4));
+    const weekday = januaryFourth.getUTCDay() || 7;
+    januaryFourth.setUTCDate(januaryFourth.getUTCDate() - weekday + 1 + ((week - 1) * 7));
+    return januaryFourth.toISOString().slice(0, 10);
+}
+
+async function openWeeklyDsrMenu() {
+    if (!hasWashReportAccess()) {
+        showToast("APENAS ADMIN OU GESTOR PODE LANÇAR DSR.", true);
+        return;
+    }
+    if (!elements.weeklyDsrWeek.value) {
+        elements.weeklyDsrWeek.value = currentIsoWeekInput();
+    }
+    setActiveScreen("weeklyDsr");
+    await refreshWeeklyDsr();
+}
+
+async function refreshWeeklyDsr() {
+    const weekStart = isoWeekToMonday(elements.weeklyDsrWeek?.value);
+    if (!weekStart) {
+        showToast("SELECIONE UMA SEMANA VÁLIDA.", true);
+        return;
+    }
+    elements.weeklyDsrCounter.textContent = "CARREGANDO...";
+    renderStateCard(elements.weeklyDsrList, {
+        title: "CARREGANDO DSR",
+        message: "Buscando os colaboradores ativos e os registros desta semana.",
+        tone: "loading",
+    });
+    try {
+        const [employees, overview] = await Promise.all([
+            apiFetch("/rh/colaboradores?situacao=ATIVO"),
+            apiFetch(`/rh/dsr-semanal?semana=${weekStart}`),
+        ]);
+        state.weeklyDsr = { employees: employees || [], overview: overview || null };
+        renderWeeklyDsr();
+    } catch (error) {
+        elements.weeklyDsrCounter.textContent = "INDISPONÍVEL";
+        renderStateCard(elements.weeklyDsrList, {
+            title: "DSR NÃO DISPONÍVEL",
+            message: error.message || "Não foi possível carregar a semana.",
+            tone: "error",
+        });
+        showToast(error.message || "NÃO FOI POSSÍVEL CARREGAR A DSR.", true);
+    }
+}
+
+function renderWeeklyDsr() {
+    const overview = state.weeklyDsr.overview || {};
+    const employees = state.weeklyDsr.employees || [];
+    const registeredIds = new Set((overview.records || []).map((row) => Number(row.employee_id)));
+    const vacationIds = new Set((overview.vacation_employee_ids || []).map(Number));
+    const eligible = employees.filter((employee) => !vacationIds.has(Number(employee.id)));
+    elements.weeklyDsrCounter.textContent = `${eligible.length} ELEGÍVEIS | ${registeredIds.size} JÁ REGISTRADOS`;
+    elements.weeklyDsrSummary.innerHTML = `
+        <div><strong>SEMANA DE ${escapeHtml(formatDate(overview.week_start))} A ${escapeHtml(formatDate(overview.week_end))}</strong><span>DSR SERÁ REGISTRADA NO DOMINGO: ${escapeHtml(formatDate(overview.dsr_date))}</span></div>
+        <div class="progress-track" aria-hidden="true"><span style="width: 100%"></span></div>
+        <span>FÉRIAS NO DOMINGO: ${vacationIds.size}. Estes colaboradores ficam bloqueados nesta semana.</span>
+    `;
+    elements.weeklyDsrList.innerHTML = employees.length ? employees.map((employee) => {
+        const id = Number(employee.id);
+        const onVacation = vacationIds.has(id);
+        const registered = registeredIds.has(id);
+        const detail = onVacation
+            ? "EM FÉRIAS NO DOMINGO — DSR BLOQUEADA"
+            : registered
+                ? "DSR JÁ REGISTRADA — MANTER SE APLICÁVEL"
+                : "SELECIONE PARA LANÇAR A DSR";
+        return `
+            <label class="checklist-card weekly-dsr-card ${onVacation ? "is-blocked" : ""}">
+                <div class="item-topline"><span>DSR</span><h3>${escapeHtml(String(employee.full_name || "COLABORADOR").toUpperCase())}</h3></div>
+                <div class="activity-meta"><strong>${escapeHtml(String(employee.registration || "SEM MATRÍCULA"))}</strong><span>${escapeHtml(String(employee.team_name || employee.function_name || "-"))}</span></div>
+                <div class="weekly-dsr-choice"><input class="weekly-dsr-employee" type="checkbox" value="${id}" ${onVacation ? "disabled" : "checked"}><span>${detail}</span></div>
+            </label>
+        `;
+    }).join("") : "<article class=\"empty-state\"><strong>NENHUM COLABORADOR ATIVO.</strong><span>CADASTRE OU ATIVE OS COLABORADORES NO RH.</span></article>";
+}
+
+async function submitWeeklyDsr() {
+    const weekStart = isoWeekToMonday(elements.weeklyDsrWeek?.value);
+    const employeeIds = Array.from(document.querySelectorAll(".weekly-dsr-employee:checked")).map((input) => Number(input.value));
+    if (!weekStart || !employeeIds.length) {
+        showToast("SELECIONE A SEMANA E AO MENOS UM COLABORADOR.", true);
+        return;
+    }
+    elements.weeklyDsrSaveButton.disabled = true;
+    elements.weeklyDsrSaveButton.textContent = "SALVANDO...";
+    try {
+        const result = await apiFetch("/rh/dsr-semanal", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ week_start: weekStart, employee_ids: employeeIds }),
+        });
+        showToast(`${Number(result.created?.length || 0)} DSR LANÇADA(S). ${Number(result.already_registered || 0)} JÁ EXISTIA(M).`);
+        await refreshWeeklyDsr();
+    } catch (error) {
+        showToast(error.message || "NÃO FOI POSSÍVEL SALVAR A DSR.", true);
+    } finally {
+        elements.weeklyDsrSaveButton.disabled = false;
+        elements.weeklyDsrSaveButton.textContent = "SALVAR DSR DA SEMANA";
+    }
 }
 
 const OPERATIONAL_STATUS_LABELS = {
@@ -5695,6 +5825,7 @@ on(elements.openMaintenanceDashboardMenu, "click", () => {
     window.location.href = "./dashboard-manutencao/";
 });
 on(elements.openHrJourneyMenu, "click", openHrJourneyMenu);
+on(elements.openWeeklyDsrMenu, "click", openWeeklyDsrMenu);
 on(elements.emergencyCreateForm, "submit", submitEmergency);
 on(elements.washPrevMonth, "click", () => changeWashMonth(-1));
 on(elements.washNextMonth, "click", () => changeWashMonth(1));
@@ -5757,6 +5888,12 @@ on(elements.hrJourneyBackButton, "click", () => {
     renderHome();
     setActiveScreen("home");
 });
+on(elements.weeklyDsrBackButton, "click", () => {
+    renderHome();
+    setActiveScreen("home");
+});
+on(elements.weeklyDsrRefreshButton, "click", refreshWeeklyDsr);
+on(elements.weeklyDsrSaveButton, "click", submitWeeklyDsr);
 on(elements.availabilityBackButton, "click", () => {
     renderHome();
     setActiveScreen("home");

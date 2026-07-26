@@ -15,6 +15,8 @@ EMPLOYEE_STATUSES = {
     "INATIVO",
 }
 
+VACATION_STATUSES = {"PROGRAMADA", "APROVADA", "CANCELADA"}
+
 ATTENDANCE_TYPES = {
     "PRESENTE",
     "FALTA",
@@ -51,6 +53,12 @@ class Employee(db.Model):
     documents = db.relationship("EmployeeDocument", back_populates="employee", lazy="select")
     trainings = db.relationship("EmployeeTraining", back_populates="employee", lazy="select")
     history_events = db.relationship("EmployeeHistoryEvent", back_populates="employee", lazy="select")
+    vacations = db.relationship(
+        "EmployeeVacation",
+        back_populates="employee",
+        cascade="all, delete-orphan",
+        lazy="select",
+    )
 
     __table_args__ = (
         db.CheckConstraint(
@@ -73,6 +81,48 @@ class Employee(db.Model):
             "hired_on": self.hired_on.isoformat() if isinstance(self.hired_on, date) else None,
             "notes": self.notes,
             "linked_user": self.user.to_dict() if self.user else None,
+        }
+
+
+class EmployeeVacation(db.Model):
+    __tablename__ = "employee_vacations"
+
+    id = db.Column(db.Integer, primary_key=True)
+    employee_id = db.Column(db.Integer, db.ForeignKey("employees.id"), nullable=False, index=True)
+    starts_on = db.Column(db.Date, nullable=False, index=True)
+    ends_on = db.Column(db.Date, nullable=False, index=True)
+    status = db.Column(db.String(20), nullable=False, default="PROGRAMADA", index=True)
+    notes = db.Column(db.Text, nullable=True)
+    created_by_user_id = db.Column(db.Integer, db.ForeignKey("users.id"), nullable=False, index=True)
+    cancelled_by_user_id = db.Column(db.Integer, db.ForeignKey("users.id"), nullable=True, index=True)
+    cancelled_at = db.Column(db.DateTime, nullable=True)
+    created_at = db.Column(db.DateTime, nullable=False, default=now_manaus_naive)
+    updated_at = db.Column(db.DateTime, nullable=False, default=now_manaus_naive, onupdate=now_manaus_naive)
+
+    employee = db.relationship("Employee", back_populates="vacations", lazy="joined")
+    created_by = db.relationship("User", foreign_keys=[created_by_user_id], lazy="joined")
+    cancelled_by = db.relationship("User", foreign_keys=[cancelled_by_user_id], lazy="joined")
+
+    __table_args__ = (
+        db.CheckConstraint("starts_on <= ends_on", name="ck_employee_vacation_period"),
+        db.CheckConstraint(
+            "status IN ('PROGRAMADA', 'APROVADA', 'CANCELADA')",
+            name="ck_employee_vacation_status",
+        ),
+    )
+
+    def to_dict(self) -> dict:
+        return {
+            "id": self.id,
+            "employee_id": self.employee_id,
+            "starts_on": self.starts_on.isoformat(),
+            "ends_on": self.ends_on.isoformat(),
+            "status": self.status,
+            "notes": self.notes,
+            "created_by_user_id": self.created_by_user_id,
+            "cancelled_by_user_id": self.cancelled_by_user_id,
+            "cancelled_at": self.cancelled_at.isoformat() if self.cancelled_at else None,
+            "employee": self.employee.to_dict() if self.employee else None,
         }
 
 

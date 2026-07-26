@@ -400,6 +400,8 @@ class DesktopNavigationTests(unittest.TestCase):
             self.assertIn("resources", gestor_window.page_map)
             self.assertIn("purchases", gestor_window.page_map)
             self.assertIn("supply_library", gestor_window.page_map)
+            self.assertIn("hr_management", gestor_window.page_map)
+            self.assertIn("vacations", gestor_window.page_map)
 
             self.assertEqual(set(motorista_window.page_map.keys()), {"dashboard"})
         finally:
@@ -410,6 +412,7 @@ class DesktopNavigationTests(unittest.TestCase):
     def test_central_access_map_controls_pages_and_actions(self):
         self.assertEqual(allowed_pages_for_role("motorista"), {"dashboard"})
         self.assertNotIn("users", allowed_pages_for_role("gestor"))
+        self.assertIn("vacations", allowed_pages_for_role("gestor"))
         self.assertTrue(user_can({"tipo": "admin"}, "manage_users"))
         self.assertFalse(user_can({"tipo": "gestor"}, "manage_users"))
         self.assertTrue(user_can({"tipo": "gestor"}, "manage_activity_materials"))

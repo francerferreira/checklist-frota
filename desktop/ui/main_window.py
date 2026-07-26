@@ -44,6 +44,7 @@ from ui.employees_page import EmployeesPage
 from ui.attendance_page import AttendancePage
 from ui.employee_records_page import EmployeeRecordsPage
 from ui.hr_management_page import HRManagementPage
+from ui.vacations_page import VacationsPage
 from ui.global_search_dialog import GlobalSearchDialog
 from ui.inspection_templates_page import InspectionTemplatesPage
 from ui.materials_page import MaterialsPage
@@ -308,6 +309,7 @@ class MainWindow(QMainWindow):
         self.attendance_page = AttendancePage(self.api_client, self.user)
         self.employee_records_page = EmployeeRecordsPage(self.api_client, self.user)
         self.hr_management_page = HRManagementPage(self.api_client, self.user)
+        self.vacations_page = VacationsPage(self.api_client)
         self.supply_library_page = SupplyLibraryPage(self.api_client)
         self.reports_page = ReportsPage(self.api_client)
         self.users_page = UsersPage(self.api_client, self.user)
@@ -339,6 +341,7 @@ class MainWindow(QMainWindow):
             "attendance": self.attendance_page,
             "employee_records": self.employee_records_page,
             "hr_management": self.hr_management_page,
+            "vacations": self.vacations_page,
             "supply_library": self.supply_library_page,
             "users": self.users_page,
             "cloud_backup": self.cloud_backup_page,
@@ -367,7 +370,8 @@ class MainWindow(QMainWindow):
             "employees": "Recursos Humanos",
             "attendance": "Frequência e ocorrências",
             "employee_records": "Documentos e treinamentos",
-            "hr_management": "Painel de RH",
+            "hr_management": "Central de RH",
+            "vacations": "Férias",
             "supply_library": "Suprimentos e Biblioteca",
             "reports": "Relatórios",
             "checklist_history": "Histórico Checklist",
@@ -413,6 +417,9 @@ class MainWindow(QMainWindow):
             self.employee_records_page.data_changed.connect(lambda: self.handle_data_changed("employee_records"))
         if "hr_management" in self.page_map:
             self.hr_management_page.data_changed.connect(lambda: self.handle_data_changed("hr_management"))
+            self.hr_management_page.open_page_requested.connect(self.switch_page)
+        if "vacations" in self.page_map:
+            self.vacations_page.data_changed.connect(lambda: self.handle_data_changed("vacations"))
 
     def _build_menu_bar(self):
         menubar = self.menuBar()
@@ -422,7 +429,8 @@ class MainWindow(QMainWindow):
             "Operação": ["dashboard", "operations_center", "availability", "emergencies"],
             "Manutenção": ["maintenance", "pcm", "resources", "activities", "washes", "inspection_templates"],
             "Ativos e suprimentos": ["equipment", "spreader_history", "checklist_items", "materials", "supply_library", "purchases"],
-            "Gestão": ["nc", "reports", "productivity", "checklist_history", "employees", "attendance", "employee_records", "hr_management"],
+            "Gestão": ["nc", "reports", "productivity", "checklist_history"],
+            "RH": ["hr_management", "employees", "attendance", "vacations", "employee_records"],
             "Administração": ["users", "cloud_backup", "audit_logs", "admin_rules"],
         }
 
@@ -522,8 +530,9 @@ class MainWindow(QMainWindow):
             ("1 - Operação", ["dashboard", "operations_center", "availability", "emergencies"]),
             ("2 - Manutenção e PCM", ["maintenance", "pcm", "resources", "activities", "washes", "inspection_templates"]),
             ("3 - Ativos e suprimentos", ["equipment", "spreader_history", "checklist_items", "materials", "supply_library", "purchases"]),
-            ("4 - Gestão e histórico", ["nc", "reports", "productivity", "checklist_history", "employees", "attendance", "employee_records", "hr_management"]),
-            ("5 - Administração", ["users", "cloud_backup", "audit_logs", "admin_rules"]),
+            ("4 - Gestão e histórico", ["nc", "reports", "productivity", "checklist_history"]),
+            ("5 - Recursos Humanos", ["hr_management", "employees", "attendance", "vacations", "employee_records"]),
+            ("6 - Administração", ["users", "cloud_backup", "audit_logs", "admin_rules"]),
         ]
 
         for section_label, keys in sections:
@@ -919,6 +928,8 @@ class MainWindow(QMainWindow):
                 self.employee_records_page.refresh()
             elif page_key == "hr_management":
                 self.hr_management_page.refresh()
+            elif page_key == "vacations":
+                self.vacations_page.refresh()
             elif page_key == "cloud_backup":
                 self.cloud_backup_page.refresh()
             elif page_key == "audit_logs":
@@ -975,6 +986,7 @@ class MainWindow(QMainWindow):
             "supply_library": ("Carregando suprimentos", "Montando depósitos, reservas e biblioteca técnica."),
             "reports": ("Montando relatórios", "Consolidando dados macro, micro e exportações."),
             "checklist_history": ("Carregando histórico", "Montando matriz de checklists por frota e data."),
+            "vacations": ("Carregando férias", "Montando o calendário e os períodos programados."),
             "spreader_history": ("Carregando histórico", "Montando conferências diárias, vínculos e evidências dos Spreaders."),
             "users": ("Carregando acessos", "Atualizando perfis, logins e permissões disponíveis."),
             "cloud_backup": ("Verificando nuvem", "Consultando uso de banco, fotos e status do backup."),

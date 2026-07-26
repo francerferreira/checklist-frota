@@ -4,7 +4,7 @@ from app.models.audit_log import AuditLog
 from app.models.checklist import Checklist, ChecklistItem
 from app.models.checklist_catalog_item import ChecklistCatalogItem
 from app.models.dashboard_tv_access import DashboardTvAccessToken
-from app.models.employee import Employee, EmployeeAttendanceRecord, EmployeeDocument, EmployeeHistoryEvent, EmployeeTraining
+from app.models.employee import Employee, EmployeeAttendanceRecord, EmployeeDocument, EmployeeHistoryEvent, EmployeeTraining, EmployeeVacation
 from app.models.equipment_structure import (
     EquipmentFamily,
     EquipmentLink,
@@ -46,6 +46,7 @@ __all__ = [
     "EmployeeDocument",
     "EmployeeHistoryEvent",
     "EmployeeTraining",
+    "EmployeeVacation",
     "EquipmentFamily",
     "EquipmentLink",
     "EquipmentLocationMovement",
