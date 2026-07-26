@@ -466,6 +466,51 @@ textarea {
 .special-schedule-filter { background: transparent; border-color: rgba(255,255,255,.35); box-shadow:none; }
 @media print { body * { visibility:hidden; } #special-schedule-screen, #special-schedule-screen * { visibility:visible; } #special-schedule-screen { position:absolute; inset:0; background:#fff; color:#000; } .icon-button,.primary-button,.special-schedule-tools,.special-schedule-filter,.list-toolbar { display:none !important; } }
 
+/* Escala: contraste sobre o fundo azul e organização da grade. */
+#special-schedule-screen .special-schedule-filter > label,
+#special-schedule-screen .special-schedule-filter > label.hidden + input,
+#special-schedule-screen .special-schedule-filter > label:not(.hidden),
+#special-schedule-screen .special-schedule-filter > .weekly-dsr-actions + label {
+    color: #ffffff !important;
+    opacity: 1 !important;
+    text-shadow: 0 1px 3px rgba(0, 0, 0, 0.42);
+}
+
+#special-schedule-screen #special-schedule-list {
+    gap: 24px !important;
+    padding: 8px 0 26px;
+}
+
+#special-schedule-screen .special-schedule-card {
+    margin: 0 !important;
+    min-height: 278px;
+    border: 1px solid rgba(255, 255, 255, 0.9);
+    border-radius: 20px;
+    box-shadow: 0 16px 34px rgba(15, 23, 42, 0.16);
+}
+
+#special-schedule-screen .special-schedule-tools {
+    grid-template-columns: minmax(260px, 1fr) auto auto;
+    align-items: center;
+    padding: 12px;
+    border-radius: 16px;
+    background: rgba(255, 255, 255, 0.96);
+    box-shadow: 0 10px 24px rgba(15, 23, 42, 0.12);
+}
+
+#special-schedule-screen .special-schedule-tools .secondary-button {
+    min-height: 44px;
+    white-space: nowrap;
+    border-radius: 11px;
+    background: #0756b5;
+    color: #ffffff;
+}
+
+@media (max-width: 700px) {
+    #special-schedule-screen .special-schedule-tools { grid-template-columns: 1fr; }
+    #special-schedule-screen .special-schedule-tools .secondary-button { width: 100%; }
+}
+
 .absenteeism-filters { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
 .absenteeism-filters input, .absenteeism-filters select { min-width: 0; min-height: 42px; padding: 0 9px; border: 1px solid #cbd5e1; border-radius: 10px; font: inherit; }
 .absenteeism-table-head, .absenteeism-row { display: grid; grid-template-columns: minmax(190px, 1.5fr) minmax(130px, .8fr) minmax(150px, 1fr); gap: 8px; align-items: center; }
