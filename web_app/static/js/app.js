@@ -1648,6 +1648,20 @@ async function resolveSpecialSchedule(scheduleId, action) {
 
 const ABSENTEEISM_STATUSES = ["PRESENTE", "FALTA", "ATESTADO", "DSR", "FERIAS", "FOLGA", "AFASTADO", "CURSO", "SERVICO_EXTERNO"];
 
+function absenteeismCategory(employee) {
+    const notes = normalizeText(employee?.notes || "");
+    const areaMatch = notes.match(/area de atuacao:\s*([a-z]+)/i);
+    const area = areaMatch?.[1] || "";
+    if (area === "pcm" || area === "adm") return "ADM";
+    if (area === "rtg") return "RTG";
+    if (area === "lbs") return "LBS";
+    const team = normalizeText(employee?.team_name || "");
+    if (team.includes("adm")) return "ADM";
+    if (team.includes("rtg")) return "RTG";
+    if (team.includes("lbs")) return "LBS";
+    return "OUTROS";
+}
+
 function fillAbsenteeismFilter(element, values, label) {
     const selected = element.value;
     element.innerHTML = `<option value="">${label}</option>${[...new Set(values.filter(Boolean))].sort().map((value) => `<option value="${escapeHtml(value)}">${escapeHtml(value)}</option>`).join("")}`;
@@ -1682,8 +1696,13 @@ function renderAbsenteeism() {
     elements.absenteeismCounter.textContent = `${summary.total || 0} COLABORADORES`;
     elements.absenteeismSummary.innerHTML = ABSENTEEISM_STATUSES.map((status) => `<div><strong>${summary.by_type?.[status] || 0}</strong><span>${status.replaceAll("_", " ")}</span></div>`).join("");
     let area = "";
-    const tableRows = rows.map((row) => {
-        const employee = row.employee || {}, nextArea = employee.team_name || "SEM ÁREA";
+    const categoryOrder = { ADM: 1, RTG: 2, LBS: 3, OUTROS: 4 };
+    const orderedRows = [...rows].sort((left, right) => {
+        const leftCategory = absenteeismCategory(left.employee || {}), rightCategory = absenteeismCategory(right.employee || {});
+        return (categoryOrder[leftCategory] || 9) - (categoryOrder[rightCategory] || 9) || String(left.employee?.full_name || "").localeCompare(String(right.employee?.full_name || ""), "pt-BR");
+    });
+    const tableRows = orderedRows.map((row) => {
+        const employee = row.employee || {}, nextArea = absenteeismCategory(employee);
         const heading = nextArea !== area ? (area = nextArea, `<tr class="absenteeism-area-row"><th colspan="6">${escapeHtml(nextArea)}</th></tr>`) : "";
         const options = ABSENTEEISM_STATUSES.map((status) => `<option value="${status}" ${row.occurrence_type === status ? "selected" : ""}>${status.replaceAll("_", " ")}</option>`).join("");
         return `${heading}<tr class="absenteeism-row status-${String(row.occurrence_type).toLowerCase()}" data-employee-id="${Number(employee.id)}" data-vacation="${row.automatic_vacation}"><td class="absenteeism-area-cell">${escapeHtml(nextArea)}</td><td class="absenteeism-employee-cell"><strong>${escapeHtml(employee.full_name || "-")}</strong></td><td>${escapeHtml(employee.registration || "-")}</td><td><strong>${escapeHtml(employee.function_name || "-")}</strong><span>${escapeHtml(employee.shift_name || "-")}</span></td><td><select class="absenteeism-status" ${row.automatic_vacation ? "disabled" : ""}>${options}</select></td><td><input class="absenteeism-notes" value="${escapeHtml(row.notes || "")}" placeholder="Observação" ${row.automatic_vacation ? "disabled" : ""}></td></tr>`;
