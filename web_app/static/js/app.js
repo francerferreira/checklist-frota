@@ -4196,10 +4196,13 @@ function renderVehicles() {
         const familyName = vehicle.family?.name || "";
         const locationName = vehicle.operational_location?.full_name || vehicle.local || "";
         const searchable = normalizeText(
-            `${vehicle.frota} ${vehicle.placa} ${vehicle.modelo} ${vehicle.tipo} ${familyName} ${vehicle.serial_number || ""} ${vehicle.manufacturer || ""} ${locationName}`
+            `${vehicle.frota} ${vehicle.nome || ""} ${vehicle.referencia || ""} ${vehicle.reference || ""} ${vehicle.placa} ${vehicle.modelo} ${vehicle.tipo} ${familyName} ${vehicle.serial_number || ""} ${vehicle.manufacturer || ""} ${vehicle.descricao || ""} ${locationName}`
         );
         return matchesFamily && (!query || searchable.includes(query));
     });
+
+    elements.vehiclesList.classList.toggle("hidden", !query);
+    elements.vehiclesList.setAttribute("aria-hidden", String(!query));
 
     elements.userSummary.innerHTML = `
         <div>
@@ -6158,7 +6161,12 @@ async function handleLoginSubmit() {
 }
 
 on(elements.loginButton, "click", handleLoginSubmit);
-on(elements.vehicleSearch, "input", renderVehicles);
+on(elements.vehicleSearch, "input", () => {
+    if (normalizeText(elements.vehicleSearch.value)) {
+        state.vehicleFamilyFilter = "";
+    }
+    renderVehicles();
+});
 on(elements.assetAccessToggle, "click", () => toggleAssetAccessPanel());
 elements.vehicleFamilyCards.forEach((card) => {
     on(card, "click", () => {

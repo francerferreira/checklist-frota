@@ -16,8 +16,8 @@ class WebMobileShellContractTests(unittest.TestCase):
         cls.legacy_readme = LEGACY_README_PATH.read_text(encoding="utf-8")
 
     def test_index_uses_canonical_frontend_bundle(self):
-        self.assertIn('./static/js/app.js?v=20260726-06', self.index_html)
-        self.assertIn('./static/css/styles.css?v=20260726-06', self.index_html)
+        self.assertIn('./static/js/app.js?v=20260726-07', self.index_html)
+        self.assertIn('./static/css/styles.css?v=20260726-07', self.index_html)
         self.assertNotIn("app-20260419-", self.index_html)
 
     def test_frontend_uses_manaus_timezone_for_dates(self):
@@ -129,6 +129,13 @@ class WebMobileShellContractTests(unittest.TestCase):
         self.assertIn("getVehicleFamilyKey", app_js)
         self.assertIn("renderVehicleFamilyScreen", app_js)
         self.assertIn("toggleAssetAccessPanel", app_js)
+
+    def test_vehicle_search_reveals_matching_equipment_on_family_screen(self):
+        app_js = (PROJECT_ROOT / "web_app" / "static" / "js" / "app.js").read_text(encoding="utf-8")
+        self.assertIn('elements.vehiclesList.classList.toggle("hidden", !query)', app_js)
+        self.assertIn("vehicle.nome", app_js)
+        self.assertIn("vehicle.referencia", app_js)
+        self.assertIn('color: #ffffff;', (PROJECT_ROOT / "web_app" / "static" / "css" / "styles.css").read_text(encoding="utf-8"))
 
     def test_preventive_services_remain_available_in_mobile_maintenance_flow(self):
         app_js = (PROJECT_ROOT / "web_app" / "static" / "js" / "app.js").read_text(encoding="utf-8")
