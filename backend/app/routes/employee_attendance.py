@@ -12,7 +12,7 @@ from app.extensions import db
 from app.models import Employee, EmployeeAttendanceRecord, EmployeeSpecialSchedule, EmployeeVacation
 from app.models.employee import ATTENDANCE_TYPES
 from app.services.auth_service import auth_required, user_has_management_access
-from app.services.employee_attendance_pdf_export_service import export_employee_attendance_pdf
+from app.services.employee_attendance_pdf_export_service import export_executive_employee_attendance_pdf
 from app.utils.responses import api_response
 from app.utils.timezone import now_manaus_naive
 
@@ -165,6 +165,16 @@ def _build_absenteeism_rows(reference_date: date, query):
     return rows
 
 
+def _attendance_area_label(employee: dict) -> str:
+    text = str(employee.get("notes") or "").upper()
+    marker = "AREA DE ATUACAO:"
+    if marker in text:
+        value = text.split(marker, 1)[1].split(".", 1)[0].strip()
+        if value in {"ADM", "PCM", "RTG", "LBS"}:
+            return value
+    return str(employee.get("team_name") or "OUTROS").upper()
+
+
 @bp.get("/rh/absenteismo-mobile")
 @auth_required
 def mobile_absenteeism():
@@ -199,7 +209,7 @@ def mobile_absenteeism_pdf():
     for row in rows:
         employee = row["employee"] or {}
         export_rows.append({
-            "area": employee.get("notes") or employee.get("team_name") or "-",
+            "area": _attendance_area_label(employee),
             "colaborador": employee.get("full_name") or "-",
             "matricula": employee.get("registration") or "-",
             "funcao": employee.get("function_name") or "-",
@@ -207,30 +217,22 @@ def mobile_absenteeism_pdf():
             "status": row["occurrence_type"].replace("_", " "),
             "observacao": row.get("notes") or "-",
         })
-    subtitle = " | ".join(filter(None, [
-        f"Data: {reference_date.strftime('%d/%m/%Y')}",
-        f"Turno: {_clean(request.args.get('turno')) or 'Todos'}",
-        f"Área: {_clean(request.args.get('setor')) or 'Todas'}",
-        f"Status: {_clean(request.args.get('status')) or 'Todos'}",
-    ]))
     filename = f"absenteismo_{reference_date.isoformat()}.pdf"
     tmp = tempfile.NamedTemporaryFile(prefix="absenteismo_", suffix=".pdf", delete=False)
     tmp_path = Path(tmp.name)
     tmp.close()
-    export_employee_attendance_pdf(
-        "Absenteísmo diário",
-        subtitle,
-        [("Área", "area"), ("Colaborador", "colaborador"), ("Matrícula", "matricula"), ("Função", "funcao"), ("Turno", "turno"), ("Status", "status"), ("Observação", "observacao")],
+    export_executive_employee_attendance_pdf(
         export_rows,
         tmp_path,
+        report_date=reference_date.strftime("%d/%m/%Y"),
+        shift_label=_clean(request.args.get("turno")) or "Todos",
+        area_label=_clean(request.args.get("setor")) or "Todas",
         generated_by=g.current_user.nome or g.current_user.login,
-        period_label=reference_date.strftime("%d/%m/%Y"),
     )
     pdf_buffer = BytesIO(tmp_path.read_bytes())
     tmp_path.unlink(missing_ok=True)
     pdf_buffer.seek(0)
     return send_file(pdf_buffer, mimetype="application/pdf", as_attachment=True, download_name=filename)
-
 
 @bp.post("/rh/absenteismo-mobile")
 @auth_required
