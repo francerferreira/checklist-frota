@@ -55,7 +55,7 @@ def _employee_payload(payload: dict) -> dict:
     team_name = _clean(payload.get("team_name"))
     shift_name = _clean(payload.get("shift_name"))
     if not all((registration, full_name, function_name, team_name, shift_name)):
-        raise ValueError("Informe matricula, nome, funcao, equipe e turno.")
+        raise ValueError("Informe matricula, nome, funcao, atividade e turno.")
     status = str(payload.get("status") or "PRE_CADASTRO").strip().upper()
     if status not in EMPLOYEE_STATUSES:
         raise ValueError("Situacao do colaborador invalida.")

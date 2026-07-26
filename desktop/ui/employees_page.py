@@ -121,7 +121,7 @@ class EmployeeDialog(QDialog):
         add_field(0, 0, "Matrícula *", self.registration_input)
         add_field(0, 1, "Nome completo *", self.full_name_input)
         add_field(1, 0, "Função *", self.function_input)
-        add_field(1, 1, "Equipe *", self.team_input)
+        add_field(1, 1, "Atividade *", self.team_input)
         add_field(2, 0, "Turno *", self.shift_input)
         add_field(2, 1, "Situação", self.status_combo)
         add_field(3, 0, "Data de admissão", self.hired_on_input)
@@ -169,7 +169,7 @@ class EmployeeDialog(QDialog):
             "photo_path": self.employee.get("photo_path") or None,
         }
         if not all((payload["registration"], payload["full_name"], payload["function_name"], payload["team_name"], payload["shift_name"])):
-            show_notice(self, "Campos obrigatórios", "Informe matrícula, nome, função, equipe e turno.", icon_name="warning")
+            show_notice(self, "Campos obrigatórios", "Informe matrícula, nome, função, atividade e turno.", icon_name="warning")
             return
         self.result_payload = payload
         self.accept()
@@ -194,7 +194,7 @@ class EmployeesPage(QFrame):
         text = QVBoxLayout()
         title = QLabel("Recursos Humanos")
         title.setObjectName("PageTitle")
-        subtitle = QLabel("Cadastre colaboradores, função, equipe, turno, situação, foto e vínculo opcional com login.")
+        subtitle = QLabel("Cadastre colaboradores, função, atividade, turno, situação, foto e vínculo opcional com login.")
         subtitle.setObjectName("PageSubtitle")
         subtitle.setWordWrap(True)
         text.addWidget(title)
@@ -235,7 +235,7 @@ class EmployeesPage(QFrame):
         table_title = QLabel("Colaboradores cadastrados")
         table_title.setObjectName("SectionTitle")
         self.table = QTableWidget(0, 7)
-        self.table.setHorizontalHeaderLabels(["Matrícula", "Nome", "Função", "Equipe", "Turno", "Situação", "Login"])
+        self.table.setHorizontalHeaderLabels(["Matrícula", "Nome", "Função", "Atividade", "Turno", "Situação", "Login"])
         configure_table(self.table)
         self.table.setMinimumHeight(500)
         self.table.itemSelectionChanged.connect(self._selection_changed)
