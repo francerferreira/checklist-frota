@@ -4174,7 +4174,7 @@ function isOfflineError(error) {
 
 function renderVehicles() {
     const query = normalizeText(elements.vehicleSearch.value);
-    const familyFilter = normalizeText(state.vehicleFamilyFilter);
+    const familyFilter = normalizeText(state.vehicleFamilyFilter).toUpperCase();
     const familyCounts = { LBS: 0, RTG: 0, SPREADER: 0 };
     state.vehicles.forEach((vehicle) => {
         const familyKey = getVehicleFamilyKey(vehicle);
@@ -4185,7 +4185,7 @@ function renderVehicles() {
         if (countElement) countElement.textContent = String(count);
     });
     elements.vehicleFamilyCards.forEach((card) => {
-        const isActive = normalizeText(card.dataset.vehicleFamily) === familyFilter;
+        const isActive = normalizeText(card.dataset.vehicleFamily).toUpperCase() === familyFilter;
         card.classList.toggle("is-active", isActive);
         card.setAttribute("aria-pressed", String(isActive));
     });
@@ -4261,7 +4261,7 @@ function makeVehicleCard(vehicle) {
 }
 
 function renderVehicleFamilyScreen() {
-    const familyFilter = normalizeText(state.vehicleFamilyFilter);
+    const familyFilter = normalizeText(state.vehicleFamilyFilter).toUpperCase();
     const familyLabel = familyFilter === "SPREADER" ? "SPREADERS" : familyFilter || "FAMÍLIA";
     const filteredVehicles = state.vehicles.filter((vehicle) => getVehicleFamilyKey(vehicle) === familyFilter);
     elements.vehicleFamilyTitle.textContent = familyLabel;

@@ -16,7 +16,7 @@ class WebMobileShellContractTests(unittest.TestCase):
         cls.legacy_readme = LEGACY_README_PATH.read_text(encoding="utf-8")
 
     def test_index_uses_canonical_frontend_bundle(self):
-        self.assertIn('./static/js/app.js?v=20260726-04', self.index_html)
+        self.assertIn('./static/js/app.js?v=20260726-05', self.index_html)
         self.assertIn('./static/css/styles.css?v=20260726-03', self.index_html)
         self.assertNotIn("app-20260419-", self.index_html)
 
@@ -119,6 +119,7 @@ class WebMobileShellContractTests(unittest.TestCase):
             'id="vehicle-family-count-spreader"',
             'id="vehicle-family-screen"',
             'id="vehicle-family-screen-list"',
+            'id="vehicles-list" class="vehicle-list hidden"',
         ]:
             with self.subTest(fragment=fragment):
                 self.assertIn(fragment, self.index_html)
