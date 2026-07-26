@@ -307,6 +307,7 @@ const elements = {
     firstAccessPhoto: document.getElementById("first-access-photo"),
     firstAccessSignature: document.getElementById("first-access-signature"),
     firstAccessClear: document.getElementById("first-access-clear"),
+    firstAccessBack: document.getElementById("first-access-back"),
     firstAccessSubmit: document.getElementById("first-access-submit"),
     firstAccessStatus: document.getElementById("first-access-status"),
     welcomeModal: document.getElementById("welcome-modal"),
@@ -6222,6 +6223,19 @@ function closeWelcomeModal() {
     document.body.classList.remove("modal-open");
 }
 
+function backToLoginFromFirstAccess() {
+    elements.firstAccessModal?.classList.add("hidden");
+    document.body.classList.remove("first-access-only", "modal-open");
+    state.token = "";
+    state.user = null;
+    state.firstAccessRequired = false;
+    state.justCompletedFirstAccess = false;
+    clearSession();
+    resetLoginControls();
+    setActiveScreen("login");
+    setLoginStatus("Acesso cancelado. Informe o usuário e a senha para entrar novamente.", true);
+}
+
 async function submitPasswordReset(event) {
     event.preventDefault();
 
@@ -6340,6 +6354,7 @@ on(elements.resetRequestModal, "click", (event) => {
     if (event.target?.dataset?.closeResetRequest === "true") closeResetRequestModal();
 });
 on(elements.firstAccessClear, "click", clearFirstAccessSignature);
+on(elements.firstAccessBack, "click", backToLoginFromFirstAccess);
 on(elements.firstAccessSubmit, "click", submitFirstAccess);
 on(elements.welcomeStart, "click", closeWelcomeModal);
 
