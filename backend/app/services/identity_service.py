@@ -67,6 +67,8 @@ def provision_employee_users() -> dict:
             if legacy_francer and not legacy_francer.employee:
                 legacy_francer.tipo = "admin"
                 legacy_francer.ativo = True
+                if not employee.first_access_completed_at:
+                    legacy_francer.set_password(str(employee.registration).strip())
                 employee.user_id = legacy_francer.id
                 generated_francer = User.query.filter_by(login=f"francer_{normalize_login(employee.registration)}").first()
                 if generated_francer and generated_francer.id != legacy_francer.id:
@@ -75,6 +77,8 @@ def provision_employee_users() -> dict:
                 linked += 1
                 continue
         if employee.user_id and employee.user:
+            if first_name == "francer" and employee.user.login == "francer" and not employee.first_access_completed_at:
+                employee.user.set_password(str(employee.registration).strip())
             used.add(normalize_login(employee.user.login))
             continue
         login = _first_name_login(employee.full_name, employee.registration, used)
