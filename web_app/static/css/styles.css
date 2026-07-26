@@ -873,7 +873,7 @@ textarea {
 .welcome-caption { max-width: 420px; margin: 0 auto 24px !important; color: rgba(255,255,255,.76) !important; font-size: .86rem !important; }
 .welcome-card .primary-button { border-color: rgba(255,255,255,.16); background: #fff; color: #0756b5; box-shadow: 0 16px 30px rgba(0,0,0,.2); }
 
-@media (min-width: 900px) {
+@media (min-width: 700px) and (hover: hover) {
     #first-access-modal { padding: 18px 28px; }
     #first-access-modal .first-access-card { width: min(92vw, 900px); max-width: 900px; max-height: calc(100dvh - 36px); grid-template-columns: minmax(0, .9fr) minmax(0, 1.1fr); align-items: start; column-gap: 26px; row-gap: 10px; padding: 22px 26px; }
     #first-access-modal .first-access-card > .app-modal-header,
@@ -890,7 +890,7 @@ textarea {
     #first-access-modal .first-access-actions { margin-top: 2px; }
 }
 
-@media (max-width: 899px) {
+@media (max-width: 699px), (hover: none) {
     #first-access-modal { align-items: start; padding: 12px; overflow-y: auto; }
     #first-access-modal .first-access-card { margin: auto 0; }
     #first-access-modal .first-access-photo-preview img { width: min(42vw, 190px); }
@@ -2710,6 +2710,8 @@ textarea {
     display: grid;
     place-items: center;
     padding: 18px;
+    overflow-y: auto;
+    align-items: start;
 }
 
 .app-modal-backdrop {
