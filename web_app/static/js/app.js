@@ -217,6 +217,8 @@ const state = {
     firstAccessRequired: false,
     justCompletedFirstAccess: false,
     welcomePhotoData: "",
+    firstAccessPhotoFile: null,
+    firstAccessCameraStream: null,
     vehicles: [],
     catalog: {},
     activities: [],
@@ -305,6 +307,14 @@ const elements = {
     resetRequestClose: document.getElementById("reset-request-close"),
     firstAccessModal: document.getElementById("first-access-modal"),
     firstAccessPhoto: document.getElementById("first-access-photo"),
+    firstAccessCameraOpen: document.getElementById("first-access-camera-open"),
+    firstAccessPhotoFile: document.getElementById("first-access-photo-file"),
+    firstAccessCameraPanel: document.getElementById("first-access-camera-panel"),
+    firstAccessCameraVideo: document.getElementById("first-access-camera-video"),
+    firstAccessCameraCapture: document.getElementById("first-access-camera-capture"),
+    firstAccessPhotoPreview: document.getElementById("first-access-photo-preview"),
+    firstAccessPhotoPreviewImage: document.getElementById("first-access-photo-preview-image"),
+    firstAccessPhotoRetake: document.getElementById("first-access-photo-retake"),
     firstAccessSignature: document.getElementById("first-access-signature"),
     firstAccessClear: document.getElementById("first-access-clear"),
     firstAccessBack: document.getElementById("first-access-back"),
@@ -6142,7 +6152,73 @@ function openFirstAccessModal() {
     document.body.classList.add("modal-open");
     document.body.classList.add("first-access-only");
     elements.firstAccessStatus.textContent = "";
+    resetFirstAccessPhoto();
     clearFirstAccessSignature();
+}
+
+function stopFirstAccessCamera() {
+    state.firstAccessCameraStream?.getTracks().forEach((track) => track.stop());
+    state.firstAccessCameraStream = null;
+    if (elements.firstAccessCameraVideo) elements.firstAccessCameraVideo.srcObject = null;
+    elements.firstAccessCameraPanel?.classList.add("hidden");
+    elements.firstAccessCameraOpen?.classList.remove("hidden");
+}
+
+function resetFirstAccessPhoto() {
+    stopFirstAccessCamera();
+    state.firstAccessPhotoFile = null;
+    if (elements.firstAccessPhoto) elements.firstAccessPhoto.value = "";
+    elements.firstAccessPhotoPreview?.classList.add("hidden");
+    elements.firstAccessPhotoFile?.classList.remove("hidden");
+    if (elements.firstAccessPhotoPreviewImage) {
+        if (elements.firstAccessPhotoPreviewImage.dataset.previewUrl) URL.revokeObjectURL(elements.firstAccessPhotoPreviewImage.dataset.previewUrl);
+        delete elements.firstAccessPhotoPreviewImage.dataset.previewUrl;
+        elements.firstAccessPhotoPreviewImage.removeAttribute("src");
+    }
+}
+
+function showFirstAccessPhoto(file) {
+    if (!file) return;
+    state.firstAccessPhotoFile = file;
+    const previewUrl = URL.createObjectURL(file);
+    if (elements.firstAccessPhotoPreviewImage.dataset.previewUrl) URL.revokeObjectURL(elements.firstAccessPhotoPreviewImage.dataset.previewUrl);
+    elements.firstAccessPhotoPreviewImage.dataset.previewUrl = previewUrl;
+    elements.firstAccessPhotoPreviewImage.src = previewUrl;
+    elements.firstAccessPhotoPreview?.classList.remove("hidden");
+    elements.firstAccessCameraOpen?.classList.add("hidden");
+    elements.firstAccessPhotoFile?.classList.add("hidden");
+}
+
+async function openFirstAccessCamera() {
+    if (!navigator.mediaDevices?.getUserMedia) {
+        elements.firstAccessPhoto?.click();
+        return;
+    }
+    try {
+        stopFirstAccessCamera();
+        state.firstAccessCameraStream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: { ideal: "user" }, width: { ideal: 1280 }, height: { ideal: 1280 } }, audio: false });
+        elements.firstAccessCameraVideo.srcObject = state.firstAccessCameraStream;
+        elements.firstAccessCameraPanel?.classList.remove("hidden");
+        elements.firstAccessCameraOpen?.classList.add("hidden");
+    } catch (error) {
+        elements.firstAccessPhoto?.click();
+        showToast("A câmera não foi liberada. Escolha ou tire a foto pelo recurso do aparelho.", true);
+    }
+}
+
+async function captureFirstAccessPhoto() {
+    const video = elements.firstAccessCameraVideo;
+    if (!video?.videoWidth || !video.videoHeight) return;
+    const canvas = document.createElement("canvas");
+    canvas.width = video.videoWidth;
+    canvas.height = video.videoHeight;
+    const context = canvas.getContext("2d");
+    context.translate(canvas.width, 0);
+    context.scale(-1, 1);
+    context.drawImage(video, 0, 0, canvas.width, canvas.height);
+    const blob = await new Promise((resolve) => canvas.toBlob(resolve, "image/jpeg", 0.9));
+    if (blob) showFirstAccessPhoto(new File([blob], "foto-perfil.jpg", { type: "image/jpeg" }));
+    stopFirstAccessCamera();
 }
 
 function clearFirstAccessSignature() {
@@ -6178,7 +6254,7 @@ function readFileAsDataUrl(file) {
 }
 
 async function submitFirstAccess() {
-    const photo = elements.firstAccessPhoto?.files?.[0];
+    const photo = state.firstAccessPhotoFile || elements.firstAccessPhoto?.files?.[0];
     const signature = signatureDataUrl();
     if (!photo) { elements.firstAccessStatus.textContent = "Tire uma foto para continuar."; return; }
     if (!signature) { elements.firstAccessStatus.textContent = "Faça sua assinatura no quadro."; return; }
@@ -6192,6 +6268,7 @@ async function submitFirstAccess() {
         });
         state.welcomePhotoData = photoDataUrl;
         state.justCompletedFirstAccess = true;
+        stopFirstAccessCamera();
         state.firstAccessRequired = false;
         if (state.user) { state.user.first_access_required = false; saveSession(state.token, state.user); }
         elements.firstAccessModal.classList.add("hidden");
@@ -6224,6 +6301,7 @@ function closeWelcomeModal() {
 }
 
 function backToLoginFromFirstAccess() {
+    stopFirstAccessCamera();
     elements.firstAccessModal?.classList.add("hidden");
     document.body.classList.remove("first-access-only", "modal-open");
     state.token = "";
@@ -6355,6 +6433,11 @@ on(elements.resetRequestModal, "click", (event) => {
 });
 on(elements.firstAccessClear, "click", clearFirstAccessSignature);
 on(elements.firstAccessBack, "click", backToLoginFromFirstAccess);
+on(elements.firstAccessCameraOpen, "click", openFirstAccessCamera);
+on(elements.firstAccessCameraCapture, "click", captureFirstAccessPhoto);
+on(elements.firstAccessPhotoFile, "click", () => elements.firstAccessPhoto?.click());
+on(elements.firstAccessPhoto, "change", () => showFirstAccessPhoto(elements.firstAccessPhoto.files?.[0]));
+on(elements.firstAccessPhotoRetake, "click", resetFirstAccessPhoto);
 on(elements.firstAccessSubmit, "click", submitFirstAccess);
 on(elements.welcomeStart, "click", closeWelcomeModal);
 
