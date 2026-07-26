@@ -228,6 +228,7 @@ const state = {
     hrJourney: null,
     weeklyDsr: { employees: [], overview: null },
     specialSchedule: { employees: [], rows: [] },
+    absenteeism: { rows: [], summary: {} },
     availabilityOverview: null,
     technicalInspectionTemplates: [],
     emergencies: [],
@@ -275,6 +276,7 @@ const screens = {
     hrJourney: document.getElementById("hr-journey-screen"),
     weeklyDsr: document.getElementById("weekly-dsr-screen"),
     specialSchedule: document.getElementById("special-schedule-screen"),
+    absenteeism: document.getElementById("absenteeism-screen"),
     availability: document.getElementById("availability-screen"),
     technicalInspections: document.getElementById("technical-inspections-screen"),
     emergencies: document.getElementById("emergencies-screen"),
@@ -341,6 +343,7 @@ const elements = {
     openHrJourneyMenu: document.getElementById("open-hr-journey-menu"),
     openWeeklyDsrMenu: document.getElementById("open-weekly-dsr-menu"),
     openSpecialScheduleMenu: document.getElementById("open-special-schedule-menu"),
+    openAbsenteeismMenu: document.getElementById("open-absenteeism-menu"),
     vehiclesBackButton: document.getElementById("vehicles-back-button"),
     activitiesBackButton: document.getElementById("activities-back-button"),
     activityCounter: document.getElementById("activity-counter"),
@@ -414,6 +417,7 @@ const elements = {
     specialScheduleSummary: document.getElementById("special-schedule-summary"),
     specialScheduleList: document.getElementById("special-schedule-list"),
     specialScheduleSaveButton: document.getElementById("special-schedule-save-button"),
+    absenteeismBackButton: document.getElementById("absenteeism-back-button"), absenteeismDate: document.getElementById("absenteeism-date"), absenteeismName: document.getElementById("absenteeism-name"), absenteeismRegistration: document.getElementById("absenteeism-registration"), absenteeismShift: document.getElementById("absenteeism-shift"), absenteeismSector: document.getElementById("absenteeism-sector"), absenteeismFunction: document.getElementById("absenteeism-function"), absenteeismStatus: document.getElementById("absenteeism-status"), absenteeismRefreshButton: document.getElementById("absenteeism-refresh-button"), absenteeismCounter: document.getElementById("absenteeism-counter"), absenteeismSummary: document.getElementById("absenteeism-summary"), absenteeismList: document.getElementById("absenteeism-list"), absenteeismSaveButton: document.getElementById("absenteeism-save-button"),
     availabilityBackButton: document.getElementById("availability-back-button"),
     availabilityCounter: document.getElementById("availability-counter"),
     availabilitySummary: document.getElementById("availability-summary"),
@@ -797,6 +801,7 @@ function renderHome() {
     elements.openMaintenanceDashboardMenu?.classList.toggle("hidden", !canViewMaintenanceDashboard);
     elements.openWeeklyDsrMenu?.classList.toggle("hidden", !canViewMaintenanceDashboard);
     elements.openSpecialScheduleMenu?.classList.toggle("hidden", !canViewMaintenanceDashboard);
+    elements.openAbsenteeismMenu?.classList.toggle("hidden", !canViewMaintenanceDashboard);
     const openActivitiesCount = state.activities.filter((activity) => activity.status === "ABERTA").length;
     const programmedWashesCount = getWashScheduleItems().filter((item) => item.status_execucao !== "LAVADO").length;
     const canAccessMechanicModule = hasMechanicWorkspaceAccess();
@@ -1557,6 +1562,59 @@ async function resolveSpecialSchedule(scheduleId, action) {
     } catch (error) {
         showToast(error.message || "NÃO FOI POSSÍVEL ATUALIZAR A ESCALA.", true);
     }
+}
+
+const ABSENTEEISM_STATUSES = ["PRESENTE", "FALTA", "ATESTADO", "DSR", "FERIAS", "FOLGA", "AFASTADO", "CURSO", "SERVICO_EXTERNO"];
+
+function fillAbsenteeismFilter(element, values, label) {
+    const selected = element.value;
+    element.innerHTML = `<option value="">${label}</option>${[...new Set(values.filter(Boolean))].sort().map((value) => `<option value="${escapeHtml(value)}">${escapeHtml(value)}</option>`).join("")}`;
+    element.value = selected;
+}
+
+async function openAbsenteeismMenu() {
+    if (!hasWashReportAccess()) return showToast("APENAS ADMIN OU GESTOR PODE APURAR ABSENTEÍSMO.", true);
+    if (!elements.absenteeismDate.value) elements.absenteeismDate.value = formatDateInputValue(new Date());
+    fillAbsenteeismFilter(elements.absenteeismStatus, ABSENTEEISM_STATUSES, "TODOS OS STATUS");
+    setActiveScreen("absenteeism");
+    await refreshAbsenteeism();
+}
+
+async function refreshAbsenteeism() {
+    const params = new URLSearchParams({ data: elements.absenteeismDate.value, nome: elements.absenteeismName.value.trim(), matricula: elements.absenteeismRegistration.value.trim(), turno: elements.absenteeismShift.value, setor: elements.absenteeismSector.value, funcao: elements.absenteeismFunction.value, status: elements.absenteeismStatus.value });
+    [...params.keys()].forEach((key) => !params.get(key) && params.delete(key));
+    elements.absenteeismCounter.textContent = "CARREGANDO...";
+    try {
+        const data = await apiFetch(`/rh/absenteismo-mobile?${params}`);
+        state.absenteeism = data;
+        const employees = data.rows.map((row) => row.employee || {});
+        fillAbsenteeismFilter(elements.absenteeismShift, employees.map((row) => row.shift_name), "TODOS OS TURNOS");
+        fillAbsenteeismFilter(elements.absenteeismSector, employees.map((row) => row.team_name), "TODAS AS ÁREAS");
+        fillAbsenteeismFilter(elements.absenteeismFunction, employees.map((row) => row.function_name), "TODAS AS FUNÇÕES");
+        renderAbsenteeism();
+    } catch (error) { showToast(error.message || "NÃO FOI POSSÍVEL CARREGAR O ABSENTEÍSMO.", true); }
+}
+
+function renderAbsenteeism() {
+    const rows = state.absenteeism.rows || [], summary = state.absenteeism.summary || { by_type: {} };
+    elements.absenteeismCounter.textContent = `${summary.total || 0} COLABORADORES`;
+    elements.absenteeismSummary.innerHTML = ABSENTEEISM_STATUSES.map((status) => `<div><strong>${summary.by_type?.[status] || 0}</strong><span>${status.replaceAll("_", " ")}</span></div>`).join("");
+    let area = "";
+    elements.absenteeismList.innerHTML = rows.map((row) => {
+        const employee = row.employee || {}, nextArea = employee.team_name || "SEM ÁREA";
+        const heading = nextArea !== area ? (area = nextArea, `<div class="absenteeism-area">${escapeHtml(nextArea)}</div>`) : "";
+        const options = ABSENTEEISM_STATUSES.map((status) => `<option value="${status}" ${row.occurrence_type === status ? "selected" : ""}>${status.replaceAll("_", " ")}</option>`).join("");
+        return `${heading}<article class="absenteeism-row status-${String(row.occurrence_type).toLowerCase()}" data-employee-id="${Number(employee.id)}" data-vacation="${row.automatic_vacation}"><div><strong>${escapeHtml(employee.full_name || "-")}</strong><span>${escapeHtml(employee.registration || "-")} | ${escapeHtml(employee.function_name || "-")} | ${escapeHtml(employee.shift_name || "-")}</span></div><select class="absenteeism-status" ${row.automatic_vacation ? "disabled" : ""}>${options}</select><input class="absenteeism-notes" value="${escapeHtml(row.notes || "")}" placeholder="Observação" ${row.automatic_vacation ? "disabled" : ""}></article>`;
+    }).join("") || "<article class=\"empty-state\"><strong>SEM COLABORADORES.</strong><span>AJUSTE OS FILTROS.</span></article>";
+}
+
+async function saveAbsenteeism() {
+    const entries = Array.from(document.querySelectorAll(".absenteeism-row")).filter((row) => row.dataset.vacation !== "true").map((row) => ({ employee_id: Number(row.dataset.employeeId), occurrence_type: row.querySelector(".absenteeism-status").value, notes: row.querySelector(".absenteeism-notes").value.trim() }));
+    if (!entries.length) return showToast("NÃO HÁ REGISTROS MANUAIS PARA SALVAR.", true);
+    elements.absenteeismSaveButton.disabled = true;
+    try { const result = await apiFetch("/rh/absenteismo-mobile", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ date: elements.absenteeismDate.value, entries }) }); showToast(`${result.saved} REGISTRO(S) SALVO(S).`); await refreshAbsenteeism(); }
+    catch (error) { showToast(error.message || "NÃO FOI POSSÍVEL SALVAR.", true); }
+    finally { elements.absenteeismSaveButton.disabled = false; }
 }
 
 const OPERATIONAL_STATUS_LABELS = {
@@ -6032,6 +6090,7 @@ on(elements.openMaintenanceDashboardMenu, "click", () => {
 on(elements.openHrJourneyMenu, "click", openHrJourneyMenu);
 on(elements.openWeeklyDsrMenu, "click", openWeeklyDsrMenu);
 on(elements.openSpecialScheduleMenu, "click", openSpecialScheduleMenu);
+on(elements.openAbsenteeismMenu, "click", openAbsenteeismMenu);
 on(elements.emergencyCreateForm, "submit", submitEmergency);
 on(elements.washPrevMonth, "click", () => changeWashMonth(-1));
 on(elements.washNextMonth, "click", () => changeWashMonth(1));
@@ -6117,6 +6176,9 @@ on(elements.specialScheduleDate, "change", () => {
 });
 on(elements.specialScheduleRefreshButton, "click", refreshSpecialSchedule);
 on(elements.specialScheduleSaveButton, "click", submitSpecialSchedule);
+on(elements.absenteeismBackButton, "click", () => { renderHome(); setActiveScreen("home"); });
+on(elements.absenteeismRefreshButton, "click", refreshAbsenteeism);
+on(elements.absenteeismSaveButton, "click", saveAbsenteeism);
 on(elements.specialScheduleList, "change", (event) => {
     const target = event.target;
     if (!(target instanceof HTMLInputElement) || !target.classList.contains("special-schedule-dsr-date")) {

@@ -144,6 +144,7 @@
                         <strong>ESCALA DOMINGO E FERIADO</strong>
                         <em>Escalar colaboradores e já definir o dia e a semana da DSR.</em>
                     </button>
+                    <button id="open-absenteeism-menu" class="menu-card hidden" type="button"><span>15</span><strong>ABSENTEÍSMO</strong><em>Apuração diária por área, colaborador e status.</em></button>
                 </div>
             </section>
 
@@ -482,6 +483,20 @@
                 <div id="special-schedule-summary" class="progress-card"></div>
                 <div id="special-schedule-list" class="activity-list"></div>
                 <button id="special-schedule-save-button" class="primary-button weekly-dsr-save" type="button">SALVAR ESCALA E DSR</button>
+            </section>
+
+            <section id="absenteeism-screen" class="screen hidden">
+                <div class="screen-heading compact"><button id="absenteeism-back-button" class="icon-button" type="button">MENU</button><div><h2>ABSENTEÍSMO DIÁRIO</h2></div></div>
+                <div class="list-toolbar"><strong id="absenteeism-counter">APURAÇÃO DIÁRIA</strong><span>FÉRIAS SÃO PREENCHIDAS AUTOMATICAMENTE.</span></div>
+                <section class="module-section absenteeism-filters">
+                    <input id="absenteeism-date" type="date"><input id="absenteeism-name" placeholder="Nome"><input id="absenteeism-registration" placeholder="Matrícula">
+                    <select id="absenteeism-shift"><option value="">TODOS OS TURNOS</option></select><select id="absenteeism-sector"><option value="">TODAS AS ÁREAS</option></select><select id="absenteeism-function"><option value="">TODAS AS FUNÇÕES</option></select><select id="absenteeism-status"><option value="">TODOS OS STATUS</option></select>
+                    <button id="absenteeism-refresh-button" class="secondary-button" type="button">ATUALIZAR</button>
+                </section>
+                <div id="absenteeism-summary" class="progress-card"></div>
+                <div class="absenteeism-table-head"><span>COLABORADOR</span><span>STATUS</span><span>OBSERVAÇÃO</span></div>
+                <div id="absenteeism-list" class="activity-list"></div>
+                <button id="absenteeism-save-button" class="primary-button weekly-dsr-save" type="button">SALVAR ABSENTEÍSMO</button>
             </section>
 
             <section id="availability-screen" class="screen hidden">

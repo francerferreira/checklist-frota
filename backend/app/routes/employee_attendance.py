@@ -6,7 +6,7 @@ from flask import Blueprint, g, request
 from sqlalchemy.exc import IntegrityError
 
 from app.extensions import db
-from app.models import Employee, EmployeeAttendanceRecord
+from app.models import Employee, EmployeeAttendanceRecord, EmployeeVacation
 from app.models.employee import ATTENDANCE_TYPES
 from app.services.auth_service import auth_required, user_has_management_access
 from app.utils.responses import api_response
@@ -15,6 +15,7 @@ from app.utils.timezone import now_manaus_naive
 
 bp = Blueprint("employee_attendance", __name__)
 PERIOD_TYPES = {"ATESTADO", "FERIAS", "AFASTADO"}
+ABSENTEEISM_TYPES = ("PRESENTE", "FALTA", "ATESTADO", "DSR", "FERIAS", "FOLGA", "AFASTADO", "CURSO", "SERVICO_EXTERNO")
 
 
 def _guard_hr_management():
@@ -95,6 +96,119 @@ def _record_payload(payload: dict) -> dict:
 def _dates_in_period(start_date: date, end_date: date):
     for offset in range((end_date - start_date).days + 1):
         yield start_date + timedelta(days=offset)
+
+
+def _absenteeism_summary(rows: list[dict]) -> dict:
+    totals = {kind: 0 for kind in ABSENTEEISM_TYPES}
+    for row in rows:
+        kind = row["occurrence_type"]
+        if kind in totals:
+            totals[kind] += 1
+    return {"total": len(rows), "by_type": totals}
+
+
+@bp.get("/rh/absenteismo-mobile")
+@auth_required
+def mobile_absenteeism():
+    denied = _guard_hr_management()
+    if denied:
+        return denied
+    try:
+        reference_date = _parse_date(request.args.get("data") or date.today().isoformat(), "a data")
+    except ValueError as exc:
+        return api_response(False, error=str(exc), status_code=400)
+    query = Employee.query.filter_by(status="ATIVO")
+    if shift := _clean(request.args.get("turno")):
+        query = query.filter_by(shift_name=shift)
+    if sector := _clean(request.args.get("setor")):
+        query = query.filter_by(team_name=sector)
+    if function_name := _clean(request.args.get("funcao")):
+        query = query.filter_by(function_name=function_name)
+    if name := _clean(request.args.get("nome")):
+        query = query.filter(Employee.full_name.ilike(f"%{name}%"))
+    if registration := _clean(request.args.get("matricula")):
+        query = query.filter(Employee.registration.ilike(f"%{registration}%"))
+    employees = query.order_by(Employee.team_name.asc(), Employee.full_name.asc()).all()
+    employee_ids = [employee.id for employee in employees]
+    records = EmployeeAttendanceRecord.query.filter(
+        EmployeeAttendanceRecord.employee_id.in_(employee_ids or [-1]),
+        EmployeeAttendanceRecord.occurrence_date == reference_date,
+        EmployeeAttendanceRecord.record_status == "ATIVO",
+    ).all()
+    records_by_employee = {record.employee_id: record for record in records}
+    vacation_ids = {
+        row.employee_id for row in EmployeeVacation.query.filter(
+            EmployeeVacation.employee_id.in_(employee_ids or [-1]),
+            EmployeeVacation.status.in_(("PROGRAMADA", "APROVADA")),
+            EmployeeVacation.starts_on <= reference_date,
+            EmployeeVacation.ends_on >= reference_date,
+        ).all()
+    }
+    rows = []
+    for employee in employees:
+        record = records_by_employee.get(employee.id)
+        automatic_vacation = employee.id in vacation_ids
+        occurrence_type = "FERIAS" if automatic_vacation else (record.occurrence_type if record else "PRESENTE")
+        rows.append({
+            "employee": employee.to_dict(), "record_id": record.id if record else None,
+            "occurrence_type": occurrence_type, "notes": record.notes if record else "",
+            "automatic_vacation": automatic_vacation,
+            "updated_at": record.updated_at.isoformat() if record and record.updated_at else None,
+            "updated_by_user_id": record.updated_by_user_id if record else None,
+        })
+    if status := _clean(request.args.get("status")):
+        rows = [row for row in rows if row["occurrence_type"] == status.upper()]
+    return api_response(True, data={"date": reference_date.isoformat(), "rows": rows, "summary": _absenteeism_summary(rows)})
+
+
+@bp.post("/rh/absenteismo-mobile")
+@auth_required
+def save_mobile_absenteeism():
+    denied = _guard_hr_management()
+    if denied:
+        return denied
+    payload = request.get_json(silent=True) or {}
+    try:
+        reference_date = _parse_date(payload.get("date"), "a data")
+        entries = payload.get("entries") or []
+        if not isinstance(entries, list) or not entries:
+            raise ValueError("Informe ao menos um colaborador para salvar.")
+        if len(entries) > 300:
+            raise ValueError("O lançamento aceita no máximo 300 colaboradores por vez.")
+        updated = []
+        ids = set()
+        vacation_ids = {row.employee_id for row in EmployeeVacation.query.filter(
+            EmployeeVacation.status.in_(("PROGRAMADA", "APROVADA")), EmployeeVacation.starts_on <= reference_date, EmployeeVacation.ends_on >= reference_date,
+        ).all()}
+        for entry in entries:
+            employee_id = int((entry or {}).get("employee_id"))
+            if employee_id in ids:
+                raise ValueError("Há colaborador repetido no lançamento.")
+            ids.add(employee_id)
+            employee = db.session.get(Employee, employee_id)
+            if not employee or employee.status != "ATIVO":
+                raise ValueError("A apuração aceita apenas colaboradores ativos.")
+            if employee_id in vacation_ids:
+                continue
+            occurrence_type = str((entry or {}).get("occurrence_type") or "PRESENTE").upper()
+            if occurrence_type not in ABSENTEEISM_TYPES or occurrence_type == "FERIAS":
+                raise ValueError("Status de absenteísmo inválido.")
+            record = EmployeeAttendanceRecord.query.filter_by(employee_id=employee_id, occurrence_date=reference_date).first()
+            if not record:
+                record = EmployeeAttendanceRecord(employee_id=employee_id, occurrence_date=reference_date, occurrence_type=occurrence_type, record_status="ATIVO", notes=_clean((entry or {}).get("notes")), created_by_user_id=g.current_user.id)
+                db.session.add(record)
+            else:
+                record.occurrence_type = occurrence_type
+                record.record_status = "ATIVO"
+                record.notes = _clean((entry or {}).get("notes"))
+                record.change_reason = "Atualização pela apuração móvel de absenteísmo."
+                record.updated_by_user_id = g.current_user.id
+            updated.append(record)
+        db.session.commit()
+    except (TypeError, ValueError) as exc:
+        db.session.rollback()
+        return api_response(False, error=str(exc), status_code=400)
+    return api_response(True, data={"saved": len(updated), "date": reference_date.isoformat()})
 
 
 @bp.get("/rh/frequencia")

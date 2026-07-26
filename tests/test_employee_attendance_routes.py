@@ -4,6 +4,7 @@ import os
 import sys
 import tempfile
 import unittest
+from datetime import date
 from pathlib import Path
 
 
@@ -21,7 +22,7 @@ os.environ["WASH_CONTROL_FILE"] = ""
 
 from app import create_app
 from app.extensions import db
-from app.models import Employee, EmployeeAttendanceRecord, User
+from app.models import Employee, EmployeeAttendanceRecord, EmployeeVacation, User
 from app.services.auth_service import generate_token
 
 
@@ -135,6 +136,21 @@ class EmployeeAttendanceRouteTests(unittest.TestCase):
     def test_profile_without_hr_management_access_is_denied(self):
         response = self.client.get("/rh/frequencia", headers=self.driver_headers)
         self.assertEqual(response.status_code, 403, response.get_json())
+
+    def test_mobile_absenteeism_reuses_daily_attendance_and_vacation(self):
+        reference_date = "2026-08-03"
+        loaded = self.client.get(f"/rh/absenteismo-mobile?data={reference_date}", headers=self.manager_headers)
+        self.assertEqual(loaded.status_code, 200, loaded.get_json())
+        self.assertEqual(loaded.get_json()["data"]["rows"][0]["occurrence_type"], "PRESENTE")
+        saved = self.client.post("/rh/absenteismo-mobile", headers=self.manager_headers, json={"date": reference_date, "entries": [{"employee_id": self.employee_id, "occurrence_type": "FALTA", "notes": "Sem aviso"}]})
+        self.assertEqual(saved.status_code, 200, saved.get_json())
+        with self.app.app_context():
+            db.session.add(EmployeeVacation(employee_id=self.employee_id, starts_on=date(2026, 8, 4), ends_on=date(2026, 8, 5), status="APROVADA", created_by_user_id=self.manager.id))
+            db.session.commit()
+        vacation = self.client.get("/rh/absenteismo-mobile?data=2026-08-04", headers=self.manager_headers)
+        row = vacation.get_json()["data"]["rows"][0]
+        self.assertEqual(row["occurrence_type"], "FERIAS")
+        self.assertTrue(row["automatic_vacation"])
 
 
 if __name__ == "__main__":
