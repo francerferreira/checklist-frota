@@ -640,7 +640,6 @@ class MainWindow(QMainWindow):
         status.addPermanentWidget(
             make_cell(((current_user.get("nome") or current_user.get("login") or "-").upper()), 160)
         )
-        status.addPermanentWidget(make_cell("CHIBATAO NAVEGACAO E COMERCIO LTDA", 360), 1)
         status.addPermanentWidget(make_cell("Manual ISO", 120))
 
     def open_access_dialog(self):

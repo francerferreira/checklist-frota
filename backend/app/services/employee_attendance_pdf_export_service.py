@@ -100,8 +100,6 @@ def export_executive_employee_attendance_pdf(
     pdf.drawString(margin + 66, header_y + 38, "RELATÓRIO EXECUTIVO DE ABSENTEÍSMO")
     pdf.setFont("Helvetica", 8.5)
     pdf.drawString(margin + 66, header_y + 22, "Sistema de Gestão de Manutenção Portuária")
-    pdf.setFont("Helvetica-Bold", 8)
-    pdf.drawRightString(page_width - margin - 12, header_y + 22, "PORTO CHIBATÃO")
 
     # Metadados do filtro utilizado.
     y = header_y - 25
@@ -215,7 +213,7 @@ def export_executive_employee_attendance_pdf(
     pdf.line(margin, footer_y + 13, page_width - margin, footer_y + 13)
     pdf.setFillColor(colors.HexColor("#64748B"))
     pdf.setFont("Helvetica", 6.5)
-    pdf.drawString(margin, footer_y + 3, "Sistema PCM | Porto Chibatão | Documento gerado automaticamente")
+    pdf.drawString(margin, footer_y + 3, "Sistema PCM | Documento gerado automaticamente")
     pdf.drawRightString(page_width - margin, footer_y + 3, "Página 1/1")
     pdf.save()
     return path
