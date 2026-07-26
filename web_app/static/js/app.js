@@ -780,6 +780,16 @@ async function enterAuthenticatedApp() {
             syncPendingMobileOperations();
             return;
         }
+        const requestedModule = new URLSearchParams(window.location.search).get("modulo");
+        if (requestedModule === "escala" && ["admin", "gestor"].includes(String(state.user?.tipo || "").toLowerCase())) {
+            await openSpecialScheduleMenu();
+            maybeOpenWelcomeModal();
+            setLoginStatus("");
+            syncPendingChecklists({ silent: true });
+            syncPendingTechnicalInspections();
+            syncPendingMobileOperations();
+            return;
+        }
         if (await restoreActiveChecklistDraft()) {
             maybeOpenWelcomeModal();
             setLoginStatus("");

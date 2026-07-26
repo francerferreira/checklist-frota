@@ -231,6 +231,7 @@ class MainWindow(QMainWindow):
         self.pending_refreshes: set[str] = set()
         self.page_subwindows: dict[str, QWidget] = {}
         self.tree_items: dict[str, QWidget] = {}
+        self.tree_action_items: dict[str, QTreeWidgetItem] = {}
         self.section_items: list[QTreeWidgetItem] = []
         self.favorite_page_keys: set[str] = set()
         self.recent_page_keys: list[str] = []
@@ -368,7 +369,7 @@ class MainWindow(QMainWindow):
             "resources": "Recursos e ferramentas",
             "purchases": "Compras e fornecedores",
             "employees": "Recursos Humanos",
-            "attendance": "Frequência e ocorrências",
+            "attendance": "Absenteísmo Diário",
             "employee_records": "Documentos e treinamentos",
             "hr_management": "Central de RH",
             "vacations": "Férias",
@@ -426,12 +427,15 @@ class MainWindow(QMainWindow):
         menubar.clear()
 
         menu_groups = {
-            "Operação": ["dashboard", "operations_center", "availability", "emergencies"],
-            "Manutenção": ["maintenance", "pcm", "resources", "activities", "washes", "inspection_templates"],
-            "Ativos e suprimentos": ["equipment", "spreader_history", "checklist_items", "materials", "supply_library", "purchases"],
-            "Gestão": ["nc", "reports", "productivity", "checklist_history"],
-            "RH": ["hr_management", "employees", "attendance", "vacations", "employee_records"],
-            "Administração": ["users", "cloud_backup", "audit_logs", "admin_rules"],
+            "Dashboard": ["dashboard"],
+            "Equipamentos": ["equipment", "availability", "spreader_history", "checklist_items", "inspection_templates"],
+            "RH": ["hr_management", "employees", "vacations", "employee_records"],
+            "Absenteísmo": ["attendance"],
+            "Relatórios": ["reports", "productivity", "checklist_history"],
+            "Usuários": ["users"],
+            "Configurações": ["admin_rules", "cloud_backup", "audit_logs"],
+            "Operação e Manutenção": ["operations_center", "nc", "emergencies", "maintenance", "pcm", "resources", "activities", "washes"],
+            "Materiais e Compras": ["materials", "supply_library", "purchases"],
         }
 
         for menu_title, keys in menu_groups.items():
@@ -442,6 +446,11 @@ class MainWindow(QMainWindow):
             for key in available_keys:
                 action = menu.addAction(self.page_titles.get(key, key))
                 action.triggered.connect(lambda checked=False, page_key=key: self.switch_page(page_key))
+
+        if self.can_manage:
+            scale_menu = menubar.addMenu("Escala e DSR")
+            scale_action = scale_menu.addAction("Abrir gestão de domingo e feriado")
+            scale_action.triggered.connect(self.open_scale_dsr)
 
         web_panels_menu = menubar.addMenu("Painéis Web")
         web_mobile_action = web_panels_menu.addAction("Abrir Web Mobile")
@@ -461,9 +470,12 @@ class MainWindow(QMainWindow):
         exit_action = account_menu.addAction("Encerrar sessão")
         exit_action.triggered.connect(self.close)
 
-    def _web_panel_url(self, relative_path: str) -> str:
+    def _web_panel_url(self, relative_path: str, *, module: str | None = None) -> str:
         api_url = quote(str(self.api_client.base_url or "").rstrip("/"), safe="")
-        return f"http://127.0.0.1:5500/{relative_path.lstrip('/')}?api={api_url}"
+        url = f"http://127.0.0.1:5500/{relative_path.lstrip('/')}?api={api_url}"
+        if module:
+            url += f"&modulo={quote(module, safe='')}"
+        return url
 
     def _open_web_panel(self, label: str, relative_path: str) -> None:
         url = self._web_panel_url(relative_path)
@@ -478,6 +490,16 @@ class MainWindow(QMainWindow):
     def open_web_mobile(self) -> None:
         self._open_web_panel("o Web Mobile", "")
 
+    def open_scale_dsr(self) -> None:
+        url = self._web_panel_url("", module="escala")
+        if not QDesktopServices.openUrl(QUrl(url)):
+            show_notice(
+                self,
+                "Não foi possível abrir a Escala e DSR",
+                "Inicie o atalho ABRIR_WEB_MOBILE_E_DESKTOP_LOCAL.bat e tente novamente.",
+                icon_name="warning",
+            )
+
     def open_tv_dashboard(self) -> None:
         self._open_web_panel("o Dashboard TV", "dashboard-manutencao/tv/")
 
@@ -490,9 +512,14 @@ class MainWindow(QMainWindow):
         panel_layout.setContentsMargins(6, 6, 6, 6)
         panel_layout.setSpacing(6)
 
-        title = QLabel("Gestão de Manutenção")
+        title = QLabel("Central de Controle")
         title.setObjectName("SectionTitle")
         panel_layout.addWidget(title)
+
+        subtitle = QLabel("Desktop gerencial • operações de campo no Web Mobile")
+        subtitle.setObjectName("MutedText")
+        subtitle.setWordWrap(True)
+        panel_layout.addWidget(subtitle)
 
         self.navigation_search = QLineEdit()
         self.navigation_search.setObjectName("NavigationSearch")
@@ -513,9 +540,10 @@ class MainWindow(QMainWindow):
     def _populate_tree(self):
         self.nav_tree.clear()
         self.tree_items = {}
+        self.tree_action_items = {}
         self.section_items = []
 
-        root = self._make_tree_item(self.nav_tree, "Sistema de Manutenção de Frota", icon_name="dashboard")
+        root = self._make_tree_item(self.nav_tree, "Central de Controle", icon_name="dashboard")
         favorite_keys = [key for key in self.page_titles if key in self.favorite_page_keys and key in self.page_map]
         recent_keys = [key for key in self.recent_page_keys if key in self.page_map]
         for section_label, keys in (("Favoritos", favorite_keys), ("Recentes", recent_keys)):
@@ -527,12 +555,15 @@ class MainWindow(QMainWindow):
                 item = self._make_tree_item(section_item, self.page_titles.get(key, key), page_key=key, icon_name="dashboard")
                 self.tree_items[key] = item
         sections = [
-            ("1 - Operação", ["dashboard", "operations_center", "availability", "emergencies"]),
-            ("2 - Manutenção e PCM", ["maintenance", "pcm", "resources", "activities", "washes", "inspection_templates"]),
-            ("3 - Ativos e suprimentos", ["equipment", "spreader_history", "checklist_items", "materials", "supply_library", "purchases"]),
-            ("4 - Gestão e histórico", ["nc", "reports", "productivity", "checklist_history"]),
-            ("5 - Recursos Humanos", ["hr_management", "employees", "attendance", "vacations", "employee_records"]),
-            ("6 - Administração", ["users", "cloud_backup", "audit_logs", "admin_rules"]),
+            ("Dashboard", ["dashboard"]),
+            ("Equipamentos", ["equipment", "availability", "spreader_history", "checklist_items", "inspection_templates"]),
+            ("RH", ["hr_management", "employees", "vacations", "employee_records"]),
+            ("Absenteísmo", ["attendance"]),
+            ("Relatórios", ["reports", "productivity", "checklist_history"]),
+            ("Usuários", ["users"]),
+            ("Configurações", ["admin_rules", "cloud_backup", "audit_logs"]),
+            ("Operação e Manutenção", ["operations_center", "nc", "emergencies", "maintenance", "pcm", "resources", "activities", "washes"]),
+            ("Materiais e Compras", ["materials", "supply_library", "purchases"]),
         ]
 
         for section_label, keys in sections:
@@ -543,6 +574,16 @@ class MainWindow(QMainWindow):
                     continue
                 item = self._make_tree_item(section_item, self.page_titles.get(key, key), page_key=key, icon_name="dashboard")
                 self.tree_items[key] = item
+            if section_label == "Absenteísmo" and self.can_manage:
+                scale_section = self._make_tree_item(root, "Escala e DSR", icon_name="activities")
+                self.section_items.append(scale_section)
+                action_item = self._make_tree_item(
+                    scale_section,
+                    "Abrir escala de domingo e feriado",
+                    action_key="scale_dsr",
+                    icon_name="activities",
+                )
+                self.tree_action_items["scale_dsr"] = action_item
 
         self.nav_tree.expandAll()
         if self.current_page_key:
@@ -550,7 +591,7 @@ class MainWindow(QMainWindow):
 
     def _filter_navigation(self, search_text: str):
         query = search_text.strip().casefold()
-        for item in self.tree_items.values():
+        for item in [*self.tree_items.values(), *self.tree_action_items.values()]:
             item.setHidden(bool(query) and query not in item.text(0).casefold())
 
         for section_item in self.section_items:
@@ -563,11 +604,21 @@ class MainWindow(QMainWindow):
             root.setHidden(bool(query) and not has_visible_section)
         self.nav_tree.expandAll()
 
-    def _make_tree_item(self, parent, label: str, *, page_key: str | None = None, icon_name: str = "dashboard"):
+    def _make_tree_item(
+        self,
+        parent,
+        label: str,
+        *,
+        page_key: str | None = None,
+        action_key: str | None = None,
+        icon_name: str = "dashboard",
+    ):
         item = QTreeWidgetItem(parent, [label])
         item.setIcon(0, make_icon(icon_name, "#DDEBFA", "#1E5E98", 14))
         if page_key:
             item.setData(0, Qt.UserRole, page_key)
+        if action_key:
+            item.setData(0, Qt.UserRole + 1, action_key)
         return item
 
     def _on_tree_item_activated(self, item):
@@ -576,6 +627,10 @@ class MainWindow(QMainWindow):
         page_key = item.data(0, Qt.UserRole)
         if page_key:
             self.switch_page(page_key)
+            return
+        action_key = item.data(0, Qt.UserRole + 1)
+        if action_key == "scale_dsr":
+            self.open_scale_dsr()
 
     def _build_mdi_area(self):
         mdi = QMdiArea()
@@ -728,15 +783,23 @@ class MainWindow(QMainWindow):
 
     @staticmethod
     def _navigation_section(page_key: str) -> str:
-        if page_key in {"dashboard", "operations_center", "availability", "emergencies"}:
-            return "OPERAÇÃO"
-        if page_key in {"maintenance", "pcm", "resources", "activities", "washes", "inspection_templates"}:
-            return "MANUTENÇÃO"
-        if page_key in {"equipment", "checklist_items", "materials", "supply_library", "purchases"}:
-            return "ATIVOS"
-        if page_key in {"users", "cloud_backup", "audit_logs", "admin_rules"}:
-            return "ADMINISTRAÇÃO"
-        return "GESTÃO"
+        if page_key == "dashboard":
+            return "DASHBOARD"
+        if page_key in {"equipment", "availability", "spreader_history", "checklist_items", "inspection_templates"}:
+            return "EQUIPAMENTOS"
+        if page_key in {"hr_management", "employees", "vacations", "employee_records"}:
+            return "RH"
+        if page_key == "attendance":
+            return "ABSENTEÍSMO"
+        if page_key in {"reports", "productivity", "checklist_history"}:
+            return "RELATÓRIOS"
+        if page_key == "users":
+            return "USUÁRIOS"
+        if page_key in {"cloud_backup", "audit_logs", "admin_rules"}:
+            return "CONFIGURAÇÕES"
+        if page_key in {"operations_center", "nc", "emergencies", "maintenance", "pcm", "resources", "activities", "washes"}:
+            return "OPERAÇÃO E MANUTENÇÃO"
+        return "MATERIAIS E COMPRAS"
 
     def _load_navigation_preferences(self):
         try:
