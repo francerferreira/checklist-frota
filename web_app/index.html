@@ -14,7 +14,7 @@
     <title>CHECKLIST DE FROTA</title>
     <link rel="icon" type="image/png" sizes="192x192" href="./static/icons/icon-192.png?v=20260421-02">
     <link rel="apple-touch-icon" href="./static/icons/icon-192.png?v=20260421-02">
-    <link rel="stylesheet" href="./static/css/styles.css?v=20260726-02">
+    <link rel="stylesheet" href="./static/css/styles.css?v=20260726-03">
 </head>
 <body>
     <div class="mobile-shell">
@@ -228,6 +228,27 @@
                     <strong id="vehicle-counter">0 ATIVOS</strong>
                     <span>SOMENTE EQUIPAMENTOS ATIVOS APARECEM AQUI.</span>
                 </div>
+
+                <section class="vehicle-family-cards" aria-label="Equipamentos por família">
+                    <button class="vehicle-family-card" type="button" data-vehicle-family="LBS" aria-pressed="false">
+                        <span class="vehicle-family-card-label">FAMÍLIA</span>
+                        <strong>LBS</strong>
+                        <b id="vehicle-family-count-lbs">0</b>
+                        <span class="vehicle-family-card-caption">equipamentos ativos</span>
+                    </button>
+                    <button class="vehicle-family-card" type="button" data-vehicle-family="RTG" aria-pressed="false">
+                        <span class="vehicle-family-card-label">FAMÍLIA</span>
+                        <strong>RTG</strong>
+                        <b id="vehicle-family-count-rtg">0</b>
+                        <span class="vehicle-family-card-caption">equipamentos ativos</span>
+                    </button>
+                    <button class="vehicle-family-card" type="button" data-vehicle-family="SPREADER" aria-pressed="false">
+                        <span class="vehicle-family-card-label">FAMÍLIA</span>
+                        <strong>SPREADERS</strong>
+                        <b id="vehicle-family-count-spreader">0</b>
+                        <span class="vehicle-family-card-caption">equipamentos ativos</span>
+                    </button>
+                </section>
 
                 <div id="vehicles-list" class="vehicle-list"></div>
             </section>
@@ -647,7 +668,7 @@
 
     <div id="toast" class="toast hidden"></div>
     <script src="./static/js/config.js?v=20260719-01"></script>
-    <script src="./static/js/app.js?v=20260726-02"></script>
+    <script src="./static/js/app.js?v=20260726-03"></script>
 </body>
 </html>
 

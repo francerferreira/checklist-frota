@@ -1629,6 +1629,82 @@ textarea {
     -webkit-overflow-scrolling: touch;
 }
 
+.vehicle-family-cards {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 16px;
+    margin: 16px 0 22px;
+}
+
+.vehicle-family-card {
+    display: grid;
+    grid-template-columns: 1fr auto;
+    grid-template-areas:
+        "label count"
+        "name count"
+        "caption count";
+    align-items: center;
+    gap: 3px 12px;
+    min-height: 116px;
+    padding: 18px 20px;
+    border: 1px solid rgba(122, 140, 166, 0.18);
+    border-radius: 18px;
+    background: linear-gradient(145deg, #ffffff 0%, #f1f7ff 100%);
+    box-shadow: var(--shadow-soft);
+    color: var(--text);
+    text-align: left;
+    cursor: pointer;
+    transition: transform 160ms ease, box-shadow 160ms ease, border-color 160ms ease;
+}
+
+.vehicle-family-card:hover,
+.vehicle-family-card:focus-visible {
+    border-color: rgba(7, 86, 181, 0.5);
+    box-shadow: 0 10px 24px rgba(7, 86, 181, 0.16);
+    transform: translateY(-2px);
+}
+
+.vehicle-family-card.is-active {
+    border-color: var(--blue);
+    background: linear-gradient(145deg, #e7f1ff 0%, #ffffff 100%);
+    box-shadow: 0 0 0 2px rgba(7, 86, 181, 0.16), var(--shadow-soft);
+}
+
+.vehicle-family-card-label {
+    grid-area: label;
+    color: var(--muted-strong);
+    font-size: 0.68rem;
+    font-weight: 850;
+    letter-spacing: 0.08em;
+}
+
+.vehicle-family-card strong {
+    grid-area: name;
+    color: var(--blue);
+    font-size: 1.16rem;
+    letter-spacing: 0.02em;
+}
+
+.vehicle-family-card b {
+    grid-area: count;
+    color: var(--text);
+    font-size: clamp(2rem, 4vw, 2.7rem);
+    line-height: 1;
+}
+
+.vehicle-family-card-caption {
+    grid-area: caption;
+    color: var(--muted);
+    font-size: 0.78rem;
+}
+
+@media (max-width: 520px) {
+    .vehicle-family-cards {
+        grid-template-columns: 1fr;
+        gap: 12px;
+    }
+}
+
 .asset-access-panel {
     display: grid;
     gap: 12px;

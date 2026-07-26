@@ -247,6 +247,7 @@ const state = {
     selectedVehicle: null,
     focusedAvailabilityVehicleId: null,
     currentModule: "TODOS",
+    vehicleFamilyFilter: "",
     currentChecklistDraftUpdatedAt: "",
     currentChecklistDraftRestored: false,
     checklistHistory: {
@@ -293,6 +294,12 @@ const elements = {
     vehiclesList: document.getElementById("vehicles-list"),
     vehicleSearch: document.getElementById("vehicle-search"),
     vehicleCounter: document.getElementById("vehicle-counter"),
+    vehicleFamilyCards: Array.from(document.querySelectorAll("[data-vehicle-family]")),
+    vehicleFamilyCounts: {
+        LBS: document.getElementById("vehicle-family-count-lbs"),
+        RTG: document.getElementById("vehicle-family-count-rtg"),
+        SPREADER: document.getElementById("vehicle-family-count-spreader"),
+    },
     assetAccessCode: document.getElementById("asset-access-code"),
     openAssetCodeButton: document.getElementById("open-asset-code-button"),
     scanAssetQrButton: document.getElementById("scan-asset-qr-button"),
@@ -4162,13 +4169,29 @@ function isOfflineError(error) {
 
 function renderVehicles() {
     const query = normalizeText(elements.vehicleSearch.value);
+    const familyFilter = normalizeText(state.vehicleFamilyFilter);
+    const familyCounts = { LBS: 0, RTG: 0, SPREADER: 0 };
+    state.vehicles.forEach((vehicle) => {
+        const familyKey = getVehicleFamilyKey(vehicle);
+        if (familyKey) familyCounts[familyKey] += 1;
+    });
+    Object.entries(familyCounts).forEach(([familyKey, count]) => {
+        const countElement = elements.vehicleFamilyCounts[familyKey];
+        if (countElement) countElement.textContent = String(count);
+    });
+    elements.vehicleFamilyCards.forEach((card) => {
+        const isActive = normalizeText(card.dataset.vehicleFamily) === familyFilter;
+        card.classList.toggle("is-active", isActive);
+        card.setAttribute("aria-pressed", String(isActive));
+    });
     const filteredVehicles = state.vehicles.filter((vehicle) => {
+        const matchesFamily = !familyFilter || getVehicleFamilyKey(vehicle) === familyFilter;
         const familyName = vehicle.family?.name || "";
         const locationName = vehicle.operational_location?.full_name || vehicle.local || "";
         const searchable = normalizeText(
             `${vehicle.frota} ${vehicle.placa} ${vehicle.modelo} ${vehicle.tipo} ${familyName} ${vehicle.serial_number || ""} ${vehicle.manufacturer || ""} ${locationName}`
         );
-        return !query || searchable.includes(query);
+        return matchesFamily && (!query || searchable.includes(query));
     });
 
     elements.userSummary.innerHTML = `
@@ -4218,6 +4241,14 @@ function renderVehicles() {
         card.addEventListener("click", () => selectVehicle(vehicle));
         elements.vehiclesList.appendChild(card);
     });
+}
+
+function getVehicleFamilyKey(vehicle) {
+    const familyName = normalizeText(vehicle?.family?.name || vehicle?.tipo || vehicle?.family_name || "");
+    if (familyName.includes("spreader")) return "SPREADER";
+    if (familyName.includes("rtg")) return "RTG";
+    if (familyName.includes("lbs")) return "LBS";
+    return "";
 }
 
 async function openMobileAssetByCode(rawCode) {
@@ -6086,6 +6117,13 @@ async function handleLoginSubmit() {
 
 on(elements.loginButton, "click", handleLoginSubmit);
 on(elements.vehicleSearch, "input", renderVehicles);
+elements.vehicleFamilyCards.forEach((card) => {
+    on(card, "click", () => {
+        const family = String(card.dataset.vehicleFamily || "").toUpperCase();
+        state.vehicleFamilyFilter = state.vehicleFamilyFilter === family ? "" : family;
+        renderVehicles();
+    });
+});
 on(elements.openChecklistMenu, "click", openChecklistMenu);
 on(elements.openChecklistHistoryMenu, "click", openChecklistHistoryMenu);
 on(elements.openActivitiesMenu, "click", openActivitiesMenu);
