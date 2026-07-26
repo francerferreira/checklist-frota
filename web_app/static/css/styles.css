@@ -753,16 +753,42 @@ textarea {
     #absenteeism-screen .absenteeism-table th:nth-child(4),
     #absenteeism-screen .absenteeism-table td:nth-child(4) { display: none; }
     #absenteeism-screen .absenteeism-table th:nth-child(2),
-    #absenteeism-screen .absenteeism-table td:nth-child(2) { width: 42%; min-width: 0; }
+    #absenteeism-screen .absenteeism-table td:nth-child(2) { width: 46%; min-width: 0; }
     #absenteeism-screen .absenteeism-table th:nth-child(5),
-    #absenteeism-screen .absenteeism-table td:nth-child(5) { width: 26%; min-width: 0; }
+    #absenteeism-screen .absenteeism-table td:nth-child(5) { width: 25%; min-width: 0; }
     #absenteeism-screen .absenteeism-table th:nth-child(6),
-    #absenteeism-screen .absenteeism-table td:nth-child(6) { width: 32%; min-width: 0; }
+    #absenteeism-screen .absenteeism-table td:nth-child(6) { width: 29%; min-width: 0; }
+    #absenteeism-screen .absenteeism-table th,
+    #absenteeism-screen .absenteeism-table td { padding: 7px 5px; font-size: .66rem; line-height: 1.15; }
+    #absenteeism-screen .absenteeism-table thead th { font-size: .58rem; letter-spacing: .02em; }
     #absenteeism-screen .absenteeism-table td:nth-child(2) { overflow-wrap: anywhere; }
+    #absenteeism-screen .absenteeism-employee-cell { font-size: .68rem; font-weight: 800; }
+    #absenteeism-screen .absenteeism-table td span { margin-top: 1px; font-size: .58rem; }
     #absenteeism-screen .absenteeism-table td:nth-child(5),
-    #absenteeism-screen .absenteeism-table td:nth-child(6) { padding-left: 6px; padding-right: 6px; }
+    #absenteeism-screen .absenteeism-table td:nth-child(6) { padding-left: 4px; padding-right: 4px; }
+    #absenteeism-screen .absenteeism-row select,
+    #absenteeism-screen .absenteeism-row input { min-height: 31px; padding: 0 5px; border-radius: 7px; font-size: .62rem; }
     #absenteeism-screen .absenteeism-table thead th:first-child,
     #absenteeism-screen .absenteeism-table td:first-child { position: static; }
+
+    #weekly-dsr-screen .schedule-table { min-width: 0; table-layout: fixed; }
+    #weekly-dsr-screen .schedule-table th,
+    #weekly-dsr-screen .schedule-table td { padding: 7px 5px; font-size: .66rem; line-height: 1.15; }
+    #weekly-dsr-screen .schedule-table thead th { font-size: .58rem; letter-spacing: .02em; }
+    #weekly-dsr-screen .schedule-table th:nth-child(1),
+    #weekly-dsr-screen .schedule-table td:nth-child(1),
+    #weekly-dsr-screen .schedule-table th:nth-child(3),
+    #weekly-dsr-screen .schedule-table td:nth-child(3),
+    #weekly-dsr-screen .schedule-table th:nth-child(4),
+    #weekly-dsr-screen .schedule-table td:nth-child(4) { display: none; }
+    #weekly-dsr-screen .schedule-table th:nth-child(2),
+    #weekly-dsr-screen .schedule-table td:nth-child(2) { width: 52%; overflow-wrap: anywhere; }
+    #weekly-dsr-screen .schedule-table th:nth-child(5),
+    #weekly-dsr-screen .schedule-table td:nth-child(5) { width: 34%; }
+    #weekly-dsr-screen .schedule-table th:nth-child(6),
+    #weekly-dsr-screen .schedule-table td:nth-child(6) { width: 14%; text-align: center; }
+    #weekly-dsr-screen .schedule-table td:nth-child(6) input { width: 17px; height: 17px; }
+    #weekly-dsr-screen .schedule-table .schedule-status { max-width: 100%; overflow: hidden; padding: 4px 5px; font-size: .58rem; text-overflow: ellipsis; }
 }
 
 .login-status {
