@@ -16,7 +16,7 @@ class WebMobileShellContractTests(unittest.TestCase):
         cls.legacy_readme = LEGACY_README_PATH.read_text(encoding="utf-8")
 
     def test_index_uses_canonical_frontend_bundle(self):
-        self.assertIn('./static/js/app.js?v=20260726-03', self.index_html)
+        self.assertIn('./static/js/app.js?v=20260726-04', self.index_html)
         self.assertIn('./static/css/styles.css?v=20260726-03', self.index_html)
         self.assertNotIn("app-20260419-", self.index_html)
 
@@ -117,11 +117,14 @@ class WebMobileShellContractTests(unittest.TestCase):
             'id="vehicle-family-count-lbs"',
             'id="vehicle-family-count-rtg"',
             'id="vehicle-family-count-spreader"',
+            'id="vehicle-family-screen"',
+            'id="vehicle-family-screen-list"',
         ]:
             with self.subTest(fragment=fragment):
                 self.assertIn(fragment, self.index_html)
         self.assertIn("vehicleFamilyFilter", app_js)
         self.assertIn("getVehicleFamilyKey", app_js)
+        self.assertIn("renderVehicleFamilyScreen", app_js)
 
     def test_preventive_services_remain_available_in_mobile_maintenance_flow(self):
         app_js = (PROJECT_ROOT / "web_app" / "static" / "js" / "app.js").read_text(encoding="utf-8")

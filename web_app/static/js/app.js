@@ -267,6 +267,7 @@ const screens = {
     login: document.getElementById("login-screen"),
     home: document.getElementById("home-screen"),
     vehicles: document.getElementById("vehicles-screen"),
+    vehicleFamily: document.getElementById("vehicle-family-screen"),
     checklist: document.getElementById("checklist-screen"),
     activities: document.getElementById("activities-screen"),
     activityDetail: document.getElementById("activity-detail-screen"),
@@ -294,6 +295,10 @@ const elements = {
     vehiclesList: document.getElementById("vehicles-list"),
     vehicleSearch: document.getElementById("vehicle-search"),
     vehicleCounter: document.getElementById("vehicle-counter"),
+    vehicleFamilyBackButton: document.getElementById("vehicle-family-back-button"),
+    vehicleFamilyTitle: document.getElementById("vehicle-family-title"),
+    vehicleFamilyScreenCounter: document.getElementById("vehicle-family-screen-counter"),
+    vehicleFamilyScreenList: document.getElementById("vehicle-family-screen-list"),
     vehicleFamilyCards: Array.from(document.querySelectorAll("[data-vehicle-family]")),
     vehicleFamilyCounts: {
         LBS: document.getElementById("vehicle-family-count-lbs"),
@@ -4224,22 +4229,7 @@ function renderVehicles() {
     }
 
     filteredVehicles.forEach((vehicle) => {
-        const familyName = vehicle.family?.name || vehicle.tipo || "-";
-        const locationName = vehicle.operational_location?.full_name || vehicle.local || "SEM LOCAL";
-        const parentEquipment = vehicle.active_link?.parent_equipment;
-        const card = document.createElement("button");
-        card.type = "button";
-        card.className = "vehicle-card";
-        card.innerHTML = `
-            <span class="vehicle-type">${escapeHtml(String(familyName).toUpperCase())}</span>
-            <strong>${escapeHtml(vehicle.frota || "-")}</strong>
-            <span>${escapeHtml(String(vehicle.modelo || "MODELO NÃO INFORMADO").toUpperCase())}</span>
-            <small>SÉRIE ${escapeHtml(vehicle.serial_number || "-")} | ${escapeHtml(String(locationName).toUpperCase())}</small>
-            <small>CRITICIDADE ${escapeHtml(vehicle.criticality || "MEDIA")}${parentEquipment ? ` | ${escapeHtml(vehicle.active_link.link_type || "VÍNCULO")} ${escapeHtml(parentEquipment.frota || "-")}` : ""}</small>
-            <small>ETIQUETA MOBILE ${escapeHtml(vehicle.mobile_access_code || `CF-ATIVO-${String(vehicle.id || "").padStart(6, "0")}`)}</small>
-        `;
-        card.addEventListener("click", () => selectVehicle(vehicle));
-        elements.vehiclesList.appendChild(card);
+        elements.vehiclesList.appendChild(makeVehicleCard(vehicle));
     });
 }
 
@@ -4249,6 +4239,46 @@ function getVehicleFamilyKey(vehicle) {
     if (familyName.includes("rtg")) return "RTG";
     if (familyName.includes("lbs")) return "LBS";
     return "";
+}
+
+function makeVehicleCard(vehicle) {
+    const familyName = vehicle.family?.name || vehicle.tipo || "-";
+    const locationName = vehicle.operational_location?.full_name || vehicle.local || "SEM LOCAL";
+    const parentEquipment = vehicle.active_link?.parent_equipment;
+    const card = document.createElement("button");
+    card.type = "button";
+    card.className = "vehicle-card";
+    card.innerHTML = `
+        <span class="vehicle-type">${escapeHtml(String(familyName).toUpperCase())}</span>
+        <strong>${escapeHtml(vehicle.frota || "-")}</strong>
+        <span>${escapeHtml(String(vehicle.modelo || "MODELO NÃO INFORMADO").toUpperCase())}</span>
+        <small>SÉRIE ${escapeHtml(vehicle.serial_number || "-")} | ${escapeHtml(String(locationName).toUpperCase())}</small>
+        <small>CRITICIDADE ${escapeHtml(vehicle.criticality || "MEDIA")}${parentEquipment ? ` | ${escapeHtml(vehicle.active_link.link_type || "VÍNCULO")} ${escapeHtml(parentEquipment.frota || "-")}` : ""}</small>
+        <small>ETIQUETA MOBILE ${escapeHtml(vehicle.mobile_access_code || `CF-ATIVO-${String(vehicle.id || "").padStart(6, "0")}`)}</small>
+    `;
+    card.addEventListener("click", () => selectVehicle(vehicle));
+    return card;
+}
+
+function renderVehicleFamilyScreen() {
+    const familyFilter = normalizeText(state.vehicleFamilyFilter);
+    const familyLabel = familyFilter === "SPREADER" ? "SPREADERS" : familyFilter || "FAMÍLIA";
+    const filteredVehicles = state.vehicles.filter((vehicle) => getVehicleFamilyKey(vehicle) === familyFilter);
+    elements.vehicleFamilyTitle.textContent = familyLabel;
+    elements.vehicleFamilyScreenCounter.textContent = `${filteredVehicles.length} EQUIPAMENTO${filteredVehicles.length === 1 ? "" : "S"}`;
+    elements.vehicleFamilyScreenList.innerHTML = "";
+    if (!filteredVehicles.length) {
+        elements.vehicleFamilyScreenList.innerHTML = `
+            <article class="empty-state">
+                <strong>NENHUM EQUIPAMENTO ATIVO NESTA FAMÍLIA.</strong>
+                <span>ATUALIZE O CADASTRO OU VOLTE PARA ESCOLHER OUTRA FAMÍLIA.</span>
+            </article>
+        `;
+        return;
+    }
+    filteredVehicles.forEach((vehicle) => {
+        elements.vehicleFamilyScreenList.appendChild(makeVehicleCard(vehicle));
+    });
 }
 
 async function openMobileAssetByCode(rawCode) {
@@ -6121,7 +6151,8 @@ elements.vehicleFamilyCards.forEach((card) => {
     on(card, "click", () => {
         const family = String(card.dataset.vehicleFamily || "").toUpperCase();
         state.vehicleFamilyFilter = state.vehicleFamilyFilter === family ? "" : family;
-        renderVehicles();
+        renderVehicleFamilyScreen();
+        setActiveScreen("vehicleFamily");
     });
 });
 on(elements.openChecklistMenu, "click", openChecklistMenu);
@@ -6293,7 +6324,18 @@ on(elements.nonConformitiesBackButton, "click", () => {
 on(elements.activityDetailBackButton, "click", openActivitiesMenu);
 on(elements.resetChecklist, "click", resetChecklist);
 on(elements.submitChecklist, "click", submitChecklist);
-on(elements.backButton, "click", () => setActiveScreen("vehicles"));
+on(elements.backButton, "click", () => {
+    if (state.vehicleFamilyFilter) {
+        renderVehicleFamilyScreen();
+        setActiveScreen("vehicleFamily");
+        return;
+    }
+    setActiveScreen("vehicles");
+});
+on(elements.vehicleFamilyBackButton, "click", () => {
+    renderVehicles();
+    setActiveScreen("vehicles");
+});
 on(elements.newChecklistButton, "click", () => {
     state.selectedVehicle = null;
     renderHome();
