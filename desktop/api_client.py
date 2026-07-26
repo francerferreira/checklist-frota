@@ -124,6 +124,28 @@ class APIClient:
     def get_equipment_status_history(self, vehicle_id: int):
         return self._request("GET", f"/equipamentos/{vehicle_id}/status-historico")
 
+    def get_spreader_daily_history(
+        self,
+        *,
+        date_from: str | None = None,
+        date_to: str | None = None,
+        spreader_id: int | None = None,
+        lbs_id: int | None = None,
+        status: str | None = None,
+    ):
+        params = {}
+        if date_from:
+            params["data_inicial"] = date_from
+        if date_to:
+            params["data_final"] = date_to
+        if spreader_id:
+            params["spreader_id"] = spreader_id
+        if lbs_id:
+            params["lbs_id"] = lbs_id
+        if status:
+            params["status"] = status
+        return self._request("GET", "/equipamentos/spreaders/historico", params=params or None)
+
     def record_equipment_hourmeter(self, vehicle_id: int, payload: dict):
         return self._request("POST", f"/equipamentos/{vehicle_id}/horimetros", json=payload)
 

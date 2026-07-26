@@ -4,6 +4,7 @@ import os
 import sys
 import tempfile
 import unittest
+from datetime import timedelta
 from pathlib import Path
 
 
@@ -25,11 +26,13 @@ from app.models import (
     EquipmentLink,
     EquipmentLocationMovement,
     EquipmentProfile,
+    EquipmentStatusEvent,
     OperationalLocation,
     User,
     Vehicle,
 )
 from app.services.auth_service import generate_token
+from app.utils.timezone import now_manaus_naive
 
 
 class EquipmentStructureRoutesTests(unittest.TestCase):
@@ -59,6 +62,7 @@ class EquipmentStructureRoutesTests(unittest.TestCase):
 
     def setUp(self):
         with self.app.app_context():
+            EquipmentStatusEvent.query.delete()
             EquipmentLocationMovement.query.delete()
             EquipmentLink.query.delete()
             EquipmentProfile.query.delete()
@@ -161,6 +165,59 @@ class EquipmentStructureRoutesTests(unittest.TestCase):
         )
         self.assertEqual(response.status_code, 400, response.get_json())
         self.assertIn("Spreader", response.get_json()["error"])
+
+    def test_spreader_daily_history_combines_status_and_link_at_the_event_time(self):
+        location_response = self.client.post(
+            "/equipamentos/locais",
+            json={"code": "BERCO-02", "name": "Berco 02", "location_type": "BERCO"},
+            headers=self.headers,
+        )
+        self.assertEqual(location_response.status_code, 201, location_response.get_json())
+        location = location_response.get_json()["data"]
+        lbs = self._create_vehicle(
+            frota="LBS 03",
+            family=self._family("lbs"),
+            model="LBS 600",
+            serial_number="141714",
+            operational_location_id=location["id"],
+        )
+        spreader = self._create_vehicle(
+            frota="SPREADER 02",
+            family=self._family("spreader"),
+            model="EH5U",
+            serial_number="34960",
+            parent_equipment_id=lbs["id"],
+            link_type="TITULAR",
+        )
+        event_at = now_manaus_naive() + timedelta(minutes=1)
+        with self.app.app_context():
+            admin = User.query.filter_by(login="admin").first()
+            db.session.add(
+                EquipmentStatusEvent(
+                    vehicle_id=spreader["id"],
+                    status="INDISPONIVEL",
+                    reason="Inspeção apontou falha hidráulica",
+                    observation="Aguardando avaliação da manutenção.",
+                    evidence_path="/uploads/spreader-02.jpg",
+                    started_at=event_at,
+                    created_by_user_id=admin.id,
+                )
+            )
+            db.session.commit()
+
+        response = self.client.get(
+            "/equipamentos/spreaders/historico",
+            query_string={"data_inicial": event_at.date().isoformat(), "data_final": event_at.date().isoformat()},
+            headers=self.headers,
+        )
+        self.assertEqual(response.status_code, 200, response.get_json())
+        rows = response.get_json()["data"]
+        self.assertEqual(len(rows), 1)
+        self.assertEqual(rows[0]["spreader"]["frota"], "SPREADER 02")
+        self.assertEqual(rows[0]["lbs"]["frota"], "LBS 03")
+        self.assertEqual(rows[0]["lbs"]["location"], "Berco 02")
+        self.assertEqual(rows[0]["link_type"], "TITULAR")
+        self.assertEqual(rows[0]["evidence_path"], "/uploads/spreader-02.jpg")
 
     def test_location_movement_updates_current_location_and_keeps_audit_history(self):
         origin_response = self.client.post(

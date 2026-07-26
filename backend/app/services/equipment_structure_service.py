@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from datetime import datetime
+from datetime import date, datetime, time, timedelta
 
 from app.extensions import db
 from app.models.equipment_structure import (
@@ -10,6 +10,7 @@ from app.models.equipment_structure import (
     EquipmentProfile,
     OperationalLocation,
 )
+from app.models.operational_availability import EquipmentStatusEvent
 from app.models.vehicle import Vehicle
 from app.services.audit_service import record_event
 from app.utils.timezone import MANAUS_TZ, now_manaus_naive
@@ -247,6 +248,100 @@ def build_equipment_location_history(vehicle_id: int) -> dict:
         "current_location": profile.location.to_dict() if profile and profile.location else None,
         "movements": [movement.to_dict() for movement in movements],
     }
+
+
+def _history_date(value, field_name: str) -> date | None:
+    if value in (None, ""):
+        return None
+    try:
+        return date.fromisoformat(str(value).strip())
+    except ValueError as exc:
+        raise ValueError(f"{field_name} invalida.") from exc
+
+
+def _link_at(links: list[EquipmentLink], event_at: datetime) -> EquipmentLink | None:
+    matches = [
+        link for link in links
+        if link.started_at <= event_at and (link.ended_at is None or link.ended_at >= event_at)
+    ]
+    return max(matches, key=lambda link: link.started_at) if matches else None
+
+
+def build_spreader_daily_history(
+    *,
+    date_from: str | None = None,
+    date_to: str | None = None,
+    spreader_id: int | None = None,
+    lbs_id: int | None = None,
+    status: str | None = None,
+) -> list[dict]:
+    start_date = _history_date(date_from, "Data inicial")
+    end_date = _history_date(date_to, "Data final")
+    if start_date and end_date and end_date < start_date:
+        raise ValueError("A data final deve ser maior ou igual a data inicial.")
+
+    query = (
+        EquipmentStatusEvent.query
+        .join(Vehicle, Vehicle.id == EquipmentStatusEvent.vehicle_id)
+        .join(EquipmentProfile, EquipmentProfile.vehicle_id == Vehicle.id)
+        .join(EquipmentFamily, EquipmentFamily.id == EquipmentProfile.family_id)
+        .filter(EquipmentFamily.code == "spreader")
+    )
+    if spreader_id:
+        query = query.filter(EquipmentStatusEvent.vehicle_id == spreader_id)
+    if status:
+        query = query.filter(EquipmentStatusEvent.status == status)
+    if start_date:
+        query = query.filter(EquipmentStatusEvent.started_at >= datetime.combine(start_date, time.min))
+    if end_date:
+        query = query.filter(EquipmentStatusEvent.started_at < datetime.combine(end_date + timedelta(days=1), time.min))
+    events = query.order_by(EquipmentStatusEvent.started_at.desc(), EquipmentStatusEvent.id.desc()).all()
+    if not events:
+        return []
+
+    spreader_ids = {event.vehicle_id for event in events}
+    links = (
+        EquipmentLink.query
+        .filter(EquipmentLink.child_vehicle_id.in_(spreader_ids))
+        .order_by(EquipmentLink.started_at.desc())
+        .all()
+    )
+    links_by_spreader: dict[int, list[EquipmentLink]] = {}
+    for link in links:
+        links_by_spreader.setdefault(link.child_vehicle_id, []).append(link)
+
+    rows = []
+    for event in events:
+        link = _link_at(links_by_spreader.get(event.vehicle_id, []), event.started_at)
+        if lbs_id and (not link or link.parent_vehicle_id != lbs_id):
+            continue
+        spreader = event.vehicle
+        spreader_profile = spreader.equipment_profile
+        lbs = link.parent if link else None
+        lbs_profile = lbs.equipment_profile if lbs else None
+        location = lbs_profile.location if lbs_profile else None
+        rows.append({
+            "id": event.id,
+            "started_at": event.started_at.isoformat() if event.started_at else None,
+            "ended_at": event.ended_at.isoformat() if event.ended_at else None,
+            "status": event.status,
+            "reason": event.reason,
+            "observation": event.observation,
+            "evidence_path": event.evidence_path,
+            "created_by": event.created_by.to_dict() if event.created_by else None,
+            "spreader": {
+                "id": spreader.id,
+                "frota": spreader.frota,
+                "serial_number": spreader_profile.serial_number if spreader_profile else None,
+            },
+            "lbs": {
+                "id": lbs.id,
+                "frota": lbs.frota,
+                "location": location.full_name() if location else (lbs.local or None),
+            } if lbs else None,
+            "link_type": link.link_type if link else None,
+        })
+    return rows
 
 
 def sync_active_equipment_link(

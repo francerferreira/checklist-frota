@@ -7,6 +7,7 @@ from app.extensions import db
 from app.models import EquipmentFamily, EquipmentLink, OperationalLocation, Vehicle
 from app.services.auth_service import auth_required, user_has_management_access
 from app.services.equipment_structure_service import (
+    build_spreader_daily_history,
     build_equipment_location_history,
     move_equipment_location,
     sync_active_equipment_link,
@@ -191,6 +192,22 @@ def equipment_location_history(vehicle_id: int):
         data = build_equipment_location_history(vehicle_id)
     except LookupError as exc:
         return api_response(False, error=str(exc), status_code=404)
+    return api_response(True, data=data)
+
+
+@bp.get("/equipamentos/spreaders/historico")
+@auth_required
+def spreader_daily_history():
+    try:
+        data = build_spreader_daily_history(
+            date_from=request.args.get("data_inicial"),
+            date_to=request.args.get("data_final"),
+            spreader_id=request.args.get("spreader_id", type=int),
+            lbs_id=request.args.get("lbs_id", type=int),
+            status=request.args.get("status"),
+        )
+    except ValueError as exc:
+        return api_response(False, error=str(exc), status_code=400)
     return api_response(True, data=data)
 
 

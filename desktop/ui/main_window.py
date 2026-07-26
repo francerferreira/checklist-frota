@@ -35,6 +35,7 @@ from ui.admin_rules_page import AdminRulesPage
 from ui.audit_logs_page import AuditLogsPage
 from ui.checklist_items_page import ChecklistItemsPage
 from ui.checklist_history_page import ChecklistHistoryPage
+from ui.spreader_history_page import SpreaderHistoryPage
 from ui.cloud_backup_page import CloudBackupPage
 from ui.dashboard_page import DashboardPage
 from ui.equipment_page import EquipmentPage
@@ -293,6 +294,7 @@ class MainWindow(QMainWindow):
         self.checklist_items_page = ChecklistItemsPage(self.api_client)
         self.inspection_templates_page = InspectionTemplatesPage(self.api_client)
         self.checklist_history_page = ChecklistHistoryPage(self.api_client)
+        self.spreader_history_page = SpreaderHistoryPage(self.api_client)
         self.materials_page = MaterialsPage(self.api_client)
         self.washes_page = WashesPage(self.api_client)
         self.activities_page = ActivitiesPage(self.api_client)
@@ -319,6 +321,7 @@ class MainWindow(QMainWindow):
             "productivity": self.productivity_page,
             "operations_center": self.operational_center_page,
             "checklist_history": self.checklist_history_page,
+            "spreader_history": self.spreader_history_page,
             "reports": self.reports_page,
             "equipment": self.equipment_page,
             "checklist_items": self.checklist_items_page,
@@ -368,6 +371,7 @@ class MainWindow(QMainWindow):
             "supply_library": "Suprimentos e Biblioteca",
             "reports": "Relatórios",
             "checklist_history": "Histórico Checklist",
+            "spreader_history": "Histórico Spreaders",
             "users": "Logins",
             "cloud_backup": "Backup",
             "audit_logs": "Logs de Auditoria",
@@ -417,7 +421,7 @@ class MainWindow(QMainWindow):
         menu_groups = {
             "Operação": ["dashboard", "operations_center", "availability", "emergencies"],
             "Manutenção": ["maintenance", "pcm", "resources", "activities", "washes", "inspection_templates"],
-            "Ativos e suprimentos": ["equipment", "checklist_items", "materials", "supply_library", "purchases"],
+            "Ativos e suprimentos": ["equipment", "spreader_history", "checklist_items", "materials", "supply_library", "purchases"],
             "Gestão": ["nc", "reports", "productivity", "checklist_history", "employees", "attendance", "employee_records", "hr_management"],
             "Administração": ["users", "cloud_backup", "audit_logs", "admin_rules"],
         }
@@ -517,7 +521,7 @@ class MainWindow(QMainWindow):
         sections = [
             ("1 - Operação", ["dashboard", "operations_center", "availability", "emergencies"]),
             ("2 - Manutenção e PCM", ["maintenance", "pcm", "resources", "activities", "washes", "inspection_templates"]),
-            ("3 - Ativos e suprimentos", ["equipment", "checklist_items", "materials", "supply_library", "purchases"]),
+            ("3 - Ativos e suprimentos", ["equipment", "spreader_history", "checklist_items", "materials", "supply_library", "purchases"]),
             ("4 - Gestão e histórico", ["nc", "reports", "productivity", "checklist_history", "employees", "attendance", "employee_records", "hr_management"]),
             ("5 - Administração", ["users", "cloud_backup", "audit_logs", "admin_rules"]),
         ]
@@ -903,6 +907,8 @@ class MainWindow(QMainWindow):
                 self.reports_page.refresh()
             elif page_key == "checklist_history":
                 self.checklist_history_page.refresh()
+            elif page_key == "spreader_history":
+                self.spreader_history_page.refresh()
             elif page_key == "users":
                 self.users_page.refresh()
             elif page_key == "employees":
@@ -933,7 +939,7 @@ class MainWindow(QMainWindow):
 
         # Se equipamentos foram alterados, forcar refresh de tudo que usa frota
         if source_page_key == "equipment":
-            self.dirty_pages.update(["activities", "maintenance", "washes", "nc", "reports"])
+            self.dirty_pages.update(["activities", "maintenance", "washes", "nc", "reports", "spreader_history"])
 
         if source_page_key != "dashboard" and self.current_page_key != source_page_key:
             self._refresh_page("dashboard")
@@ -969,6 +975,7 @@ class MainWindow(QMainWindow):
             "supply_library": ("Carregando suprimentos", "Montando depósitos, reservas e biblioteca técnica."),
             "reports": ("Montando relatórios", "Consolidando dados macro, micro e exportações."),
             "checklist_history": ("Carregando histórico", "Montando matriz de checklists por frota e data."),
+            "spreader_history": ("Carregando histórico", "Montando conferências diárias, vínculos e evidências dos Spreaders."),
             "users": ("Carregando acessos", "Atualizando perfis, logins e permissões disponíveis."),
             "cloud_backup": ("Verificando nuvem", "Consultando uso de banco, fotos e status do backup."),
             "audit_logs": ("Carregando auditoria", "Montando histórico completo de acessos e alterações."),
