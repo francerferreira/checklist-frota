@@ -1608,6 +1608,15 @@ function renderAbsenteeism() {
     }).join("") || "<article class=\"empty-state\"><strong>SEM COLABORADORES.</strong><span>AJUSTE OS FILTROS.</span></article>";
 }
 
+function updateAbsenteeismPreview() {
+    const totals = Object.fromEntries(ABSENTEEISM_STATUSES.map((status) => [status, 0]));
+    document.querySelectorAll(".absenteeism-row").forEach((row) => {
+        const status = row.querySelector(".absenteeism-status")?.value;
+        if (status in totals) totals[status] += 1;
+    });
+    elements.absenteeismSummary.innerHTML = ABSENTEEISM_STATUSES.map((status) => `<div><strong>${totals[status]}</strong><span>${status.replaceAll("_", " ")}</span></div>`).join("");
+}
+
 async function saveAbsenteeism() {
     const entries = Array.from(document.querySelectorAll(".absenteeism-row")).filter((row) => row.dataset.vacation !== "true").map((row) => ({ employee_id: Number(row.dataset.employeeId), occurrence_type: row.querySelector(".absenteeism-status").value, notes: row.querySelector(".absenteeism-notes").value.trim() }));
     if (!entries.length) return showToast("NÃO HÁ REGISTROS MANUAIS PARA SALVAR.", true);
@@ -6179,6 +6188,14 @@ on(elements.specialScheduleSaveButton, "click", submitSpecialSchedule);
 on(elements.absenteeismBackButton, "click", () => { renderHome(); setActiveScreen("home"); });
 on(elements.absenteeismRefreshButton, "click", refreshAbsenteeism);
 on(elements.absenteeismSaveButton, "click", saveAbsenteeism);
+on(elements.absenteeismList, "change", (event) => {
+    const target = event.target;
+    if (target instanceof HTMLSelectElement && target.classList.contains("absenteeism-status")) {
+        const row = target.closest(".absenteeism-row");
+        row.className = `absenteeism-row status-${target.value.toLowerCase()}`;
+        updateAbsenteeismPreview();
+    }
+});
 on(elements.specialScheduleList, "change", (event) => {
     const target = event.target;
     if (!(target instanceof HTMLInputElement) || !target.classList.contains("special-schedule-dsr-date")) {
