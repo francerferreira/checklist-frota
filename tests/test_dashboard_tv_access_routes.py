@@ -105,15 +105,31 @@ class DashboardTvAccessRoutesTests(unittest.TestCase):
         self.assertEqual(invalid_duration.status_code, 400, invalid_duration.get_json())
 
     def test_public_tv_route_is_allowed_for_configured_web_origin(self):
-        response = self.client.options(
+        for origin in (
+            "https://checklist-web-uej3.onrender.com",
+            "http://192.168.1.53:5500",
+            "http://10.0.0.21:5500",
+            "http://172.20.0.10:5500",
+        ):
+            with self.subTest(origin=origin):
+                response = self.client.options(
+                    "/dashboard-manutencao/tv/dados",
+                    headers={
+                        "Origin": origin,
+                        "Access-Control-Request-Method": "GET",
+                    },
+                )
+                self.assertEqual(response.status_code, 200)
+                self.assertEqual(response.headers.get("Access-Control-Allow-Origin"), origin)
+
+        external = self.client.options(
             "/dashboard-manutencao/tv/dados",
             headers={
-                "Origin": "https://checklist-web-uej3.onrender.com",
+                "Origin": "http://203.0.113.10:5500",
                 "Access-Control-Request-Method": "GET",
             },
         )
-        self.assertEqual(response.status_code, 200)
-        self.assertEqual(response.headers.get("Access-Control-Allow-Origin"), "https://checklist-web-uej3.onrender.com")
+        self.assertNotEqual(external.headers.get("Access-Control-Allow-Origin"), "http://203.0.113.10:5500")
 
 
 if __name__ == "__main__":

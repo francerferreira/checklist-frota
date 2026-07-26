@@ -86,6 +86,9 @@ class Config:
                 "https://checklist-web-uej3.onrender.com",
                 "http://127.0.0.1:5500",
                 "http://localhost:5500",
+                # Permite o Web Mobile aberto em celular/tablet na mesma rede
+                # privada do computador, sem liberar origens externas.
+                r"^http://(?:10(?:\.\d{1,3}){3}|192\.168(?:\.\d{1,3}){2}|172\.(?:1[6-9]|2\d|3[0-1])(?:\.\d{1,3}){2}):5500$",
             )
         )
     )
