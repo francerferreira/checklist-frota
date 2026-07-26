@@ -25,6 +25,7 @@ from app.models.resource import MaintenanceResource, MaintenanceResourceReservat
 from app.models.technical_inspection import InspectionExecution, InspectionExecutionItem, InspectionTemplate, InspectionTemplateItem
 from app.models.resolution_package import ResolutionPackage, ResolutionPackageLink
 from app.models.revoked_token import RevokedToken
+from app.models.password_reset_request import PasswordResetRequest
 from app.models.supply_library import MaterialFamilyApplication, TechnicalDocument, Warehouse, WarehouseReservation, WarehouseStock
 from app.models.system_setting import SystemSetting
 from app.models.user import User
@@ -82,6 +83,7 @@ __all__ = [
     "ResolutionPackage",
     "ResolutionPackageLink",
     "RevokedToken",
+    "PasswordResetRequest",
     "SystemSetting",
     "TechnicalDocument",
     "User",

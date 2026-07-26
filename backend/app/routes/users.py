@@ -1,13 +1,21 @@
-from flask import Blueprint, g, request
+import base64
+import binascii
+import re
+import uuid
+from pathlib import Path
+
+from flask import Blueprint, current_app, g, request
 from sqlalchemy.exc import IntegrityError
 
 from app.extensions import db
-from app.models import User
+from app.models import Employee, User
 from app.services.auth_service import auth_required, user_has_management_access
+from app.services.identity_service import normalize_login
 from app.utils.responses import api_response
+from app.utils.timezone import now_manaus_naive
 
 bp = Blueprint("users", __name__)
-VALID_USER_TYPES = {"admin", "gestor", "motorista", "mecanico"}
+VALID_USER_TYPES = {"admin", "gestor", "motorista", "mecanico", "operacional"}
 
 
 def _guard_management_access():
@@ -54,6 +62,43 @@ def update_own_password():
     return api_response(True, data={"message": "Senha atualizada com sucesso."})
 
 
+def _save_data_url(data_url: str, prefix: str) -> str:
+    match = re.match(r"^data:(image/(?:png|jpeg|jpg|webp));base64,(.+)$", str(data_url or ""), re.I | re.S)
+    if not match:
+        raise ValueError("Imagem inválida. Envie PNG, JPG ou WEBP.")
+    try:
+        content = base64.b64decode(match.group(2), validate=True)
+    except (binascii.Error, ValueError) as exc:
+        raise ValueError("Imagem inválida.") from exc
+    if not content or len(content) > 5 * 1024 * 1024:
+        raise ValueError("A imagem deve ter até 5 MB.")
+    extension = "jpg" if match.group(1).lower() in {"image/jpeg", "image/jpg"} else match.group(1).split("/")[-1].lower()
+    folder = Path(current_app.config["UPLOAD_FOLDER"]) / "identidade"
+    folder.mkdir(parents=True, exist_ok=True)
+    filename = f"{prefix}_{uuid.uuid4().hex}.{extension}"
+    (folder / filename).write_bytes(content)
+    return f"/uploads/identidade/{filename}"
+
+
+@bp.post("/usuarios/me/primeiro-acesso")
+@auth_required
+def complete_first_access():
+    employee = Employee.query.filter_by(user_id=g.current_user.id).first()
+    if not employee:
+        return api_response(False, error="Este login não está vinculado a um colaborador.", status_code=404)
+    payload = request.get_json(silent=True) or {}
+    try:
+        photo_path = _save_data_url(payload.get("foto_data_url"), f"foto_{employee.registration}")
+        signature_path = _save_data_url(payload.get("assinatura_data_url"), f"assinatura_{employee.registration}")
+    except ValueError as exc:
+        return api_response(False, error=str(exc), status_code=400)
+    employee.photo_path = photo_path
+    employee.signature_path = signature_path
+    employee.first_access_completed_at = now_manaus_naive()
+    db.session.commit()
+    return api_response(True, data={"message": "Primeiro acesso concluído.", "employee": employee.to_dict()})
+
+
 @bp.post("/usuarios")
 @auth_required
 def create_user():
@@ -69,7 +114,7 @@ def create_user():
 
     user = User(
         nome=payload["nome"].strip(),
-        login=payload["login"].strip().lower(),
+        login=normalize_login(payload["login"]),
         tipo=payload["tipo"].strip().lower(),
         ativo=bool(payload.get("ativo", True)),
     )
@@ -98,7 +143,7 @@ def update_user(user_id: int):
     if payload.get("nome"):
         user.nome = payload["nome"].strip()
     if payload.get("login"):
-        user.login = payload["login"].strip().lower()
+        user.login = normalize_login(payload["login"])
     if payload.get("tipo"):
         tipo = payload["tipo"].strip().lower()
         if tipo not in VALID_USER_TYPES:

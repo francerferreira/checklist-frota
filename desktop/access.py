@@ -73,6 +73,16 @@ PAGE_ACCESS_BY_ROLE = {
         "availability",
         "emergencies",
     },
+    "operacional": {
+        "dashboard",
+        "operations_center",
+        "nc",
+        "productivity",
+        "activities",
+        "maintenance",
+        "availability",
+        "emergencies",
+    },
     "motorista": {
         "dashboard",
     },

@@ -62,11 +62,11 @@ def user_has_management_access(user: User) -> bool:
 
 
 def user_can_resolve_non_conformity(user: User) -> bool:
-    return user.tipo in {"admin", "gestor", "mecanico"}
+    return user.tipo in {"admin", "gestor", "mecanico", "operacional"}
 
 
 def user_has_mechanic_workspace_access(user: User) -> bool:
-    return user.tipo in {"admin", "gestor", "mecanico"}
+    return user.tipo in {"admin", "gestor", "mecanico", "operacional"}
 
 
 def auth_required(view):

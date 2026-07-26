@@ -20,6 +20,7 @@ class User(db.Model):
     created_at = db.Column(db.DateTime, nullable=False, default=now_manaus_naive)
 
     checklists = db.relationship("Checklist", back_populates="user", lazy="dynamic")
+    employee = db.relationship("Employee", back_populates="user", uselist=False, foreign_keys="Employee.user_id", lazy="joined")
 
     def set_password(self, password: str) -> None:
         self.senha_hash = generate_password_hash(password)

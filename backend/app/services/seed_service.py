@@ -9,6 +9,7 @@ from app.services.availability_service import seed_operational_states
 from app.services.equipment_structure_service import seed_equipment_structure
 from app.services.inventory_import_service import discover_inventory_file, import_inventory_data
 from app.services.wash_service import discover_wash_file, ensure_auxiliary_vehicles, sync_wash_queue
+from app.services.identity_service import provision_employee_users
 
 
 def seed_reference_data() -> None:
@@ -32,6 +33,7 @@ def seed_reference_data() -> None:
         if WashQueueItem.query.count() == 0:
             sync_wash_queue(wash_file)
     seed_operational_states()
+    provision_employee_users()
 
 
 def _seed_initial_admin() -> None:

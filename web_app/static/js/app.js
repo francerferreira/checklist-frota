@@ -213,6 +213,7 @@ const state = {
     apiBaseUrl: resolveApiBaseUrl(),
     token: "",
     user: null,
+    firstAccessRequired: false,
     vehicles: [],
     catalog: {},
     activities: [],
@@ -292,6 +293,19 @@ const elements = {
     apiBaseUrl: document.getElementById("api-base-url"),
     loginForm: document.getElementById("login-form"),
     loginButton: document.getElementById("login-button"),
+    forgotPasswordButton: document.getElementById("forgot-password-button"),
+    adminResetPanel: document.getElementById("admin-reset-panel"),
+    adminResetList: document.getElementById("admin-reset-list"),
+    resetRequestModal: document.getElementById("reset-request-modal"),
+    resetRequestForm: document.getElementById("reset-request-form"),
+    resetRequestLogin: document.getElementById("reset-request-login"),
+    resetRequestClose: document.getElementById("reset-request-close"),
+    firstAccessModal: document.getElementById("first-access-modal"),
+    firstAccessPhoto: document.getElementById("first-access-photo"),
+    firstAccessSignature: document.getElementById("first-access-signature"),
+    firstAccessClear: document.getElementById("first-access-clear"),
+    firstAccessSubmit: document.getElementById("first-access-submit"),
+    firstAccessStatus: document.getElementById("first-access-status"),
     vehiclesList: document.getElementById("vehicles-list"),
     vehicleSearch: document.getElementById("vehicle-search"),
     vehicleCounter: document.getElementById("vehicle-counter"),
@@ -682,6 +696,8 @@ async function login(credentials) {
     const payload = Object.prototype.hasOwnProperty.call(body, "data") ? body.data : body;
     state.token = payload.token;
     state.user = payload.user;
+    state.firstAccessRequired = Boolean(payload.first_access_required);
+    state.user.first_access_required = state.firstAccessRequired;
     saveSession(payload.token, payload.user);
 }
 
@@ -706,6 +722,11 @@ async function bootstrap() {
 
 async function enterAuthenticatedApp() {
     try {
+        if (state.firstAccessRequired || state.user?.first_access_required) {
+            setActiveScreen("home");
+            openFirstAccessModal();
+            return;
+        }
         setLoginStatus("Carregando dados do sistema...");
         await loadVehiclesAndCatalog();
         scheduleSessionInactivityCheck();
@@ -846,6 +867,27 @@ function renderHome() {
     }
     refreshSyncQueuePanel();
     refreshCloudAdminPanel();
+    refreshAdminResetPanel();
+}
+
+async function refreshAdminResetPanel() {
+    if (!elements.adminResetPanel) return;
+    if (!hasAdminAccess()) { elements.adminResetPanel.classList.add("hidden"); return; }
+    elements.adminResetPanel.classList.remove("hidden");
+    try {
+        const rows = await apiFetch("/auth/reset-solicitacoes");
+        const pending = (rows || []).filter((row) => row.status === "PENDENTE");
+        elements.adminResetList.innerHTML = pending.length ? pending.map((row) => `
+            <div class="reset-request-row"><strong>${escapeHtml(row.requested_login)}</strong><input data-reset-password="${row.id}" type="password" placeholder="Nova senha (6+)" minlength="6"><button class="icon-button" data-reset-request="${row.id}" type="button">ATENDER</button></div>
+        `).join("") : "<span>Nenhuma solicitação pendente.</span>";
+        elements.adminResetList.querySelectorAll("[data-reset-request]").forEach((button) => button.addEventListener("click", async () => {
+            const id = button.dataset.resetRequest;
+            const password = elements.adminResetList.querySelector(`[data-reset-password=\"${id}\"]`)?.value || "";
+            if (password.length < 6) { showToast("Informe uma senha com pelo menos 6 caracteres.", true); return; }
+            try { await apiFetch(`/auth/reset-solicitacoes/${id}/atender`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ nova_senha: password }) }); showToast("RESET ATENDIDO."); refreshAdminResetPanel(); }
+            catch (error) { showToast(error.message, true); }
+        }));
+    } catch (error) { elements.adminResetList.innerHTML = `<span>${escapeHtml(error.message || "Não foi possível carregar os resets.")}</span>`; }
 }
 
 function hasAdminAccess() {
@@ -859,7 +901,7 @@ function hasWashReportAccess() {
 
 function hasMechanicWorkspaceAccess() {
     const userType = String(state.user?.tipo || "").toLowerCase();
-    return userType === "admin" || userType === "gestor" || userType === "mecanico";
+    return userType === "admin" || userType === "gestor" || userType === "mecanico" || userType === "operacional";
 }
 
 function hasMaintenanceAccess() {
@@ -6050,6 +6092,99 @@ function requestPasswordReset() {
     openPasswordResetModal();
 }
 
+function openResetRequestModal() {
+    elements.resetRequestLogin.value = document.getElementById("login")?.value || "";
+    elements.resetRequestModal?.classList.remove("hidden");
+    document.body.classList.add("modal-open");
+    elements.resetRequestLogin?.focus();
+}
+
+function closeResetRequestModal() {
+    elements.resetRequestModal?.classList.add("hidden");
+    if (elements.firstAccessModal?.classList.contains("hidden") && elements.passwordModal?.classList.contains("hidden")) {
+        document.body.classList.remove("modal-open");
+    }
+}
+
+async function submitResetRequest(event) {
+    event.preventDefault();
+    const loginValue = elements.resetRequestLogin?.value?.trim() || "";
+    if (!loginValue) return;
+    try {
+        await fetchWithTimeout(`${state.apiBaseUrl}/auth/reset-solicitacoes`, {
+            method: "POST", headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ login: loginValue }),
+        }, 15000);
+        closeResetRequestModal();
+        setLoginStatus("Solicitação enviada ao administrador.");
+        showToast("SOLICITAÇÃO ENVIADA.");
+    } catch (error) {
+        setLoginStatus(error.message || "Não foi possível solicitar o reset.", true);
+    }
+}
+
+function openFirstAccessModal() {
+    if (!elements.firstAccessModal) return;
+    elements.firstAccessModal.classList.remove("hidden");
+    document.body.classList.add("modal-open");
+    elements.firstAccessStatus.textContent = "";
+    clearFirstAccessSignature();
+}
+
+function clearFirstAccessSignature() {
+    const canvas = elements.firstAccessSignature;
+    if (!canvas) return;
+    const context = canvas.getContext("2d");
+    context.clearRect(0, 0, canvas.width, canvas.height);
+    context.fillStyle = "#ffffff";
+    context.fillRect(0, 0, canvas.width, canvas.height);
+    context.strokeStyle = "#0b56b5";
+    context.lineWidth = 3;
+    context.lineCap = "round";
+}
+
+function signatureDataUrl() {
+    const canvas = elements.firstAccessSignature;
+    if (!canvas) return "";
+    const pixels = canvas.getContext("2d").getImageData(0, 0, canvas.width, canvas.height).data;
+    let ink = false;
+    for (let index = 0; index < pixels.length; index += 4) {
+        if (pixels[index] < 240 || pixels[index + 1] < 240 || pixels[index + 2] < 240) { ink = true; break; }
+    }
+    return ink ? canvas.toDataURL("image/png") : "";
+}
+
+function readFileAsDataUrl(file) {
+    return new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => resolve(reader.result);
+        reader.onerror = reject;
+        reader.readAsDataURL(file);
+    });
+}
+
+async function submitFirstAccess() {
+    const photo = elements.firstAccessPhoto?.files?.[0];
+    const signature = signatureDataUrl();
+    if (!photo) { elements.firstAccessStatus.textContent = "Tire uma foto para continuar."; return; }
+    if (!signature) { elements.firstAccessStatus.textContent = "Faça sua assinatura no quadro."; return; }
+    elements.firstAccessSubmit.disabled = true;
+    elements.firstAccessStatus.textContent = "SALVANDO...";
+    try {
+        await apiFetch("/usuarios/me/primeiro-acesso", {
+            method: "POST", headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ foto_data_url: await readFileAsDataUrl(photo), assinatura_data_url: signature }),
+        });
+        state.firstAccessRequired = false;
+        if (state.user) { state.user.first_access_required = false; saveSession(state.token, state.user); }
+        elements.firstAccessModal.classList.add("hidden");
+        document.body.classList.remove("modal-open");
+        await enterAuthenticatedApp();
+    } catch (error) {
+        elements.firstAccessStatus.textContent = error.message || "Não foi possível concluir o primeiro acesso.";
+    } finally { elements.firstAccessSubmit.disabled = false; }
+}
+
 async function submitPasswordReset(event) {
     event.preventDefault();
 
@@ -6161,6 +6296,27 @@ async function handleLoginSubmit() {
 }
 
 on(elements.loginButton, "click", handleLoginSubmit);
+on(elements.forgotPasswordButton, "click", openResetRequestModal);
+on(elements.resetRequestForm, "submit", submitResetRequest);
+on(elements.resetRequestClose, "click", closeResetRequestModal);
+on(elements.resetRequestModal, "click", (event) => {
+    if (event.target?.dataset?.closeResetRequest === "true") closeResetRequestModal();
+});
+on(elements.firstAccessClear, "click", clearFirstAccessSignature);
+on(elements.firstAccessSubmit, "click", submitFirstAccess);
+
+if (elements.firstAccessSignature) {
+    const canvas = elements.firstAccessSignature;
+    let drawing = false;
+    const point = (event) => {
+        const rect = canvas.getBoundingClientRect();
+        return { x: (event.clientX - rect.left) * canvas.width / rect.width, y: (event.clientY - rect.top) * canvas.height / rect.height };
+    };
+    canvas.addEventListener("pointerdown", (event) => { drawing = true; canvas.setPointerCapture(event.pointerId); const p = point(event); canvas.getContext("2d").beginPath(); canvas.getContext("2d").moveTo(p.x, p.y); });
+    canvas.addEventListener("pointermove", (event) => { if (!drawing) return; const p = point(event); const context = canvas.getContext("2d"); context.lineTo(p.x, p.y); context.stroke(); });
+    ["pointerup", "pointercancel", "pointerleave"].forEach((name) => canvas.addEventListener(name, () => { drawing = false; }));
+    clearFirstAccessSignature();
+}
 on(elements.vehicleSearch, "input", () => {
     if (normalizeText(elements.vehicleSearch.value)) {
         state.vehicleFamilyFilter = "";

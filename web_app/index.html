@@ -39,6 +39,7 @@
                     </div>
 
                     <button id="login-button" type="button" class="primary-button">ENTRAR</button>
+                    <button id="forgot-password-button" type="button" class="text-button">ESQUECI A SENHA</button>
                     <div id="login-status" class="login-status" aria-live="polite"></div>
                 </form>
             </section>
@@ -55,6 +56,10 @@
                 </div>
 
                 <div id="home-summary" class="summary-card"></div>
+                <section id="admin-reset-panel" class="sync-panel hidden">
+                    <div><span>ADMINISTRAÇÃO</span><strong>SOLICITAÇÕES DE RESET</strong></div>
+                    <div id="admin-reset-list" class="sync-list"></div>
+                </section>
                 <section id="sync-panel" class="sync-panel hidden">
                     <div>
                         <span>FILA OFFLINE</span>
@@ -670,6 +675,29 @@
                     <button id="password-change-submit" class="primary-button" type="submit">Salvar senha</button>
                 </div>
             </form>
+        </div>
+    </div>
+
+    <div id="reset-request-modal" class="app-modal hidden" role="dialog" aria-modal="true" aria-labelledby="reset-request-title">
+        <div class="app-modal-backdrop" data-close-reset-request="true"></div>
+        <div class="app-modal-card" role="document">
+            <div class="app-modal-header"><h3 id="reset-request-title">Solicitar reset ao administrador</h3><button id="reset-request-close" class="icon-button" type="button">FECHAR</button></div>
+            <form id="reset-request-form" class="password-change-form">
+                <label class="modal-field"><span>USUÁRIO</span><input id="reset-request-login" type="text" autocomplete="username" required></label>
+                <p class="modal-help">O administrador verá a solicitação e definirá uma nova senha.</p>
+                <div class="password-change-actions"><button id="reset-request-submit" class="primary-button" type="submit">ENVIAR SOLICITAÇÃO</button></div>
+            </form>
+        </div>
+    </div>
+
+    <div id="first-access-modal" class="app-modal hidden" role="dialog" aria-modal="true" aria-labelledby="first-access-title">
+        <div class="app-modal-card first-access-card" role="document">
+            <div class="app-modal-header"><h3 id="first-access-title">Primeiro acesso obrigatório</h3></div>
+            <p class="modal-help">Para liberar o sistema, registre uma foto atual e sua assinatura eletrônica. É como cadastrar seu crachá digital.</p>
+            <label class="modal-field"><span>FOTO DO COLABORADOR</span><input id="first-access-photo" type="file" accept="image/*" capture="user" required></label>
+            <label class="modal-field"><span>ASSINATURA ELETRÔNICA</span><canvas id="first-access-signature" width="600" height="180"></canvas></label>
+            <div class="first-access-actions"><button id="first-access-clear" class="icon-button" type="button">LIMPAR ASSINATURA</button><button id="first-access-submit" class="primary-button" type="button">SALVAR E ENTRAR</button></div>
+            <div id="first-access-status" class="login-status" aria-live="polite"></div>
         </div>
     </div>
 

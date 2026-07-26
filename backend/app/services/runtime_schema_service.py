@@ -9,6 +9,7 @@ from app.models.dashboard_tv_access import DashboardTvAccessToken
 from app.models.resolution_package import ResolutionPackage, ResolutionPackageLink
 from app.models.maintenance import MaintenanceWorkOrder, MaintenanceWorkOrderCost
 from app.models.system_setting import SystemSetting
+from app.models.password_reset_request import PasswordResetRequest
 from app.services.checklist_catalog import classify_catalog_item_group
 
 
@@ -186,6 +187,11 @@ def ensure_runtime_schema() -> None:
         )
     inspector = inspect(db.engine)
 
+    if "employees" in inspector.get_table_names():
+        columns = {column["name"] for column in inspector.get_columns("employees")}
+        _ensure_column("employees", columns, "signature_path", "VARCHAR(500)")
+        _ensure_column("employees", columns, "first_access_completed_at", "DATETIME")
+
     if "wash_records" in inspector.get_table_names():
         columns = {column["name"] for column in inspector.get_columns("wash_records")}
         if "turno" not in columns:
@@ -262,3 +268,4 @@ def ensure_runtime_schema() -> None:
     MaintenanceWorkOrder.__table__.create(bind=db.engine, checkfirst=True)
     MaintenanceWorkOrderCost.__table__.create(bind=db.engine, checkfirst=True)
     SystemSetting.__table__.create(bind=db.engine, checkfirst=True)
+    PasswordResetRequest.__table__.create(bind=db.engine, checkfirst=True)

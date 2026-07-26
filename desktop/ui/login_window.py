@@ -530,6 +530,16 @@ class LoginWindow(QDialog):
         self._login_payload = None
         self._set_login_busy(False)
         if payload:
+            if payload.get("first_access_required"):
+                show_notice(
+                    self,
+                    "Primeiro acesso obrigatório",
+                    "Abra o Web Mobile para registrar a foto e a assinatura eletrônica. "
+                    "Depois desse cadastro, o acesso Desktop será liberado.",
+                    icon_name="warning",
+                )
+                self.api_client.clear_session()
+                return
             self._save_login_prefs()
             self.user = payload["user"]
             self.accept()
