@@ -453,6 +453,11 @@ const elements = {
     weeklyDsrSummary: document.getElementById("weekly-dsr-summary"),
     weeklyDsrList: document.getElementById("weekly-dsr-list"),
     weeklyDsrSaveButton: document.getElementById("weekly-dsr-save-button"),
+    weeklyDsrSearch: document.getElementById("weekly-dsr-search"),
+    weeklyDsrArea: document.getElementById("weekly-dsr-area"),
+    weeklyDsrTeam: document.getElementById("weekly-dsr-team"),
+    weeklyDsrShift: document.getElementById("weekly-dsr-shift"),
+    weeklyDsrFunction: document.getElementById("weekly-dsr-function"),
     specialScheduleBackButton: document.getElementById("special-schedule-back-button"),
     specialScheduleDate: document.getElementById("special-schedule-date"),
     specialScheduleType: document.getElementById("special-schedule-type"),
@@ -466,7 +471,13 @@ const elements = {
     specialScheduleSummary: document.getElementById("special-schedule-summary"),
     specialScheduleList: document.getElementById("special-schedule-list"),
     specialScheduleSaveButton: document.getElementById("special-schedule-save-button"),
-    specialScheduleSearch: document.getElementById("special-schedule-search"), specialScheduleHistoryButton: document.getElementById("special-schedule-history-button"), specialSchedulePdfButton: document.getElementById("special-schedule-pdf-button"),
+    specialScheduleSearch: document.getElementById("special-schedule-search"),
+    specialScheduleArea: document.getElementById("special-schedule-area"),
+    specialScheduleTeam: document.getElementById("special-schedule-team"),
+    specialScheduleShift: document.getElementById("special-schedule-shift"),
+    specialScheduleFunction: document.getElementById("special-schedule-function"),
+    specialScheduleHistoryButton: document.getElementById("special-schedule-history-button"),
+    specialSchedulePdfButton: document.getElementById("special-schedule-pdf-button"),
     absenteeismBackButton: document.getElementById("absenteeism-back-button"), absenteeismDate: document.getElementById("absenteeism-date"), absenteeismName: document.getElementById("absenteeism-name"), absenteeismRegistration: document.getElementById("absenteeism-registration"), absenteeismShift: document.getElementById("absenteeism-shift"), absenteeismSector: document.getElementById("absenteeism-sector"), absenteeismFunction: document.getElementById("absenteeism-function"), absenteeismStatus: document.getElementById("absenteeism-status"), absenteeismRefreshButton: document.getElementById("absenteeism-refresh-button"), absenteeismPdfButton: document.getElementById("absenteeism-pdf-button"), absenteeismCounter: document.getElementById("absenteeism-counter"), absenteeismSummary: document.getElementById("absenteeism-summary"), absenteeismList: document.getElementById("absenteeism-list"), absenteeismSaveButton: document.getElementById("absenteeism-save-button"), absenteeismAtestadoModal: document.getElementById("absenteeism-atestado-modal"), absenteeismAtestadoForm: document.getElementById("absenteeism-atestado-form"), absenteeismAtestadoEmployee: document.getElementById("absenteeism-atestado-employee"), absenteeismAtestadoStart: document.getElementById("absenteeism-atestado-start"), absenteeismAtestadoDays: document.getElementById("absenteeism-atestado-days"), absenteeismAtestadoEnd: document.getElementById("absenteeism-atestado-end"), absenteeismAtestadoNotes: document.getElementById("absenteeism-atestado-notes"), absenteeismAtestadoCancel: document.getElementById("absenteeism-atestado-cancel"),
     availabilityBackButton: document.getElementById("availability-back-button"),
     availabilityCounter: document.getElementById("availability-counter"),
@@ -1402,35 +1413,83 @@ async function refreshWeeklyDsr() {
     }
 }
 
+function openScheduleTab(tab) {
+    if (tab === "special") {
+        openSpecialScheduleMenu();
+        return;
+    }
+    openWeeklyDsrMenu();
+}
+
+function fillScheduleFilter(element, values, label) {
+    if (!element) return;
+    const selected = element.value;
+    const options = [...new Set(values.map((value) => String(value || "").trim()).filter(Boolean))].sort((left, right) => left.localeCompare(right, "pt-BR"));
+    element.innerHTML = `<option value="">${label}</option>${options.map((value) => `<option value="${escapeHtml(value)}">${escapeHtml(value)}</option>`).join("")}`;
+    element.value = options.includes(selected) ? selected : "";
+}
+
+function prepareScheduleFilters(prefix, employees) {
+    const elementsByPrefix = {
+        weekly: { team: elements.weeklyDsrTeam, shift: elements.weeklyDsrShift, functionName: elements.weeklyDsrFunction },
+        special: { team: elements.specialScheduleTeam, shift: elements.specialScheduleShift, functionName: elements.specialScheduleFunction },
+    }[prefix];
+    if (!elementsByPrefix) return;
+    fillScheduleFilter(elementsByPrefix.team, employees.map((employee) => employee.team_name), "TODOS OS TIMES");
+    fillScheduleFilter(elementsByPrefix.shift, employees.map((employee) => employee.shift_name), "TODOS OS TURNOS");
+    fillScheduleFilter(elementsByPrefix.functionName, employees.map((employee) => employee.function_name), "TODAS AS FUNÇÕES");
+}
+
+function scheduleEmployeeMatches(employee, prefix) {
+    const filters = {
+        weekly: { search: elements.weeklyDsrSearch, area: elements.weeklyDsrArea, team: elements.weeklyDsrTeam, shift: elements.weeklyDsrShift, functionName: elements.weeklyDsrFunction },
+        special: { search: elements.specialScheduleSearch, area: elements.specialScheduleArea, team: elements.specialScheduleTeam, shift: elements.specialScheduleShift, functionName: elements.specialScheduleFunction },
+    }[prefix];
+    if (!filters) return true;
+    const search = normalizeText(filters.search?.value);
+    const area = absenteeismCategory(employee);
+    return (!search || normalizeText(`${employee.full_name || ""} ${employee.registration || ""}`).includes(search))
+        && (!filters.area?.value || filters.area.value === area)
+        && (!filters.team?.value || filters.team.value === String(employee.team_name || ""))
+        && (!filters.shift?.value || filters.shift.value === String(employee.shift_name || ""))
+        && (!filters.functionName?.value || filters.functionName.value === String(employee.function_name || ""));
+}
+
+function sortScheduleEmployees(employees) {
+    const categoryOrder = { ADM: 1, RTG: 2, LBS: 3, OUTROS: 4 };
+    return [...employees].sort((left, right) => (categoryOrder[absenteeismCategory(left)] || 9) - (categoryOrder[absenteeismCategory(right)] || 9)
+        || String(left.full_name || "").localeCompare(String(right.full_name || ""), "pt-BR"));
+}
+
 function renderWeeklyDsr() {
     const overview = state.weeklyDsr.overview || {};
     const employees = state.weeklyDsr.employees || [];
     const registeredIds = new Set((overview.records || []).map((row) => Number(row.employee_id)));
     const vacationIds = new Set((overview.vacation_employee_ids || []).map(Number));
-    const eligible = employees.filter((employee) => !vacationIds.has(Number(employee.id)));
+    prepareScheduleFilters("weekly", employees);
+    const filteredEmployees = sortScheduleEmployees(employees.filter((employee) => scheduleEmployeeMatches(employee, "weekly")));
+    const eligible = filteredEmployees.filter((employee) => !vacationIds.has(Number(employee.id)));
     elements.weeklyDsrCounter.textContent = `${eligible.length} ELEGÍVEIS | ${registeredIds.size} JÁ REGISTRADOS`;
     elements.weeklyDsrSummary.innerHTML = `
         <div><strong>SEMANA DE ${escapeHtml(formatDate(overview.week_start))} A ${escapeHtml(formatDate(overview.week_end))}</strong><span>DSR SERÁ REGISTRADA NO DOMINGO: ${escapeHtml(formatDate(overview.dsr_date))}</span></div>
         <div class="progress-track" aria-hidden="true"><span style="width: 100%"></span></div>
         <span>FÉRIAS NO DOMINGO: ${vacationIds.size}. Estes colaboradores ficam bloqueados nesta semana.</span>
     `;
-    elements.weeklyDsrList.innerHTML = employees.length ? employees.map((employee) => {
+    const rows = filteredEmployees.map((employee) => {
         const id = Number(employee.id);
         const onVacation = vacationIds.has(id);
         const registered = registeredIds.has(id);
-        const detail = onVacation
-            ? "EM FÉRIAS NO DOMINGO — DSR BLOQUEADA"
-            : registered
-                ? "DSR JÁ REGISTRADA — MANTER SE APLICÁVEL"
-                : "SELECIONE PARA LANÇAR A DSR";
-        return `
-            <label class="checklist-card weekly-dsr-card ${onVacation ? "is-blocked" : ""}">
-                <div class="item-topline"><span>DSR</span><h3>${escapeHtml(String(employee.full_name || "COLABORADOR").toUpperCase())}</h3></div>
-                <div class="activity-meta"><strong>${escapeHtml(String(employee.registration || "SEM MATRÍCULA"))}</strong><span>${escapeHtml(String(employee.team_name || employee.function_name || "-"))}</span></div>
-                <div class="weekly-dsr-choice"><input class="weekly-dsr-employee" type="checkbox" value="${id}" ${onVacation ? "disabled" : "checked"}><span>${detail}</span></div>
-            </label>
-        `;
-    }).join("") : "<article class=\"empty-state\"><strong>NENHUM COLABORADOR ATIVO.</strong><span>CADASTRE OU ATIVE OS COLABORADORES NO RH.</span></article>";
+        const detail = onVacation ? "FÉRIAS — BLOQUEADO" : registered ? "DSR JÁ REGISTRADA" : "LANÇAR DSR";
+        return `<tr class="schedule-table-row ${onVacation ? "is-blocked" : ""}">
+            <td>${escapeHtml(absenteeismCategory(employee))}</td>
+            <td><strong>${escapeHtml(String(employee.full_name || "COLABORADOR").toUpperCase())}</strong></td>
+            <td>${escapeHtml(String(employee.registration || "SEM MATRÍCULA"))}</td>
+            <td><strong>${escapeHtml(String(employee.function_name || "-"))}</strong><span>${escapeHtml(String(employee.shift_name || "-"))}</span></td>
+            <td><span class="schedule-status ${onVacation ? "is-vacation" : registered ? "is-registered" : "is-open"}">${detail}</span></td>
+            <td><input class="weekly-dsr-employee" type="checkbox" value="${id}" ${onVacation ? "disabled" : "checked"} aria-label="${escapeHtml(detail)}"></td>
+        </tr>`;
+    }).join("");
+    elements.weeklyDsrList.innerHTML = rows ? `<div class="absenteeism-table-wrap schedule-table-wrap"><table class="absenteeism-table schedule-table"><thead><tr><th>ÁREA</th><th>COLABORADOR</th><th>MATRÍCULA</th><th>FUNÇÃO / TURNO</th><th>SITUAÇÃO DSR</th><th>LANÇAR</th></tr></thead><tbody>${rows}</tbody></table></div>` : "<article class=\"empty-state\"><strong>NENHUM COLABORADOR ENCONTRADO.</strong><span>AJUSTE OS FILTROS.</span></article>";
 }
 
 async function submitWeeklyDsr() {
@@ -1544,8 +1603,9 @@ async function refreshSpecialSchedule() {
 }
 
 function renderSpecialSchedule() {
-    const query = String(elements.specialScheduleSearch?.value || "").trim().toLowerCase();
-    const employees = (state.specialSchedule.employees || []).filter((employee) => !query || `${employee.full_name || ""} ${employee.registration || ""}`.toLowerCase().includes(query));
+    const allEmployees = state.specialSchedule.employees || [];
+    prepareScheduleFilters("special", allEmployees);
+    const employees = sortScheduleEmployees(allEmployees.filter((employee) => scheduleEmployeeMatches(employee, "special")));
     const rows = state.specialSchedule.rows || [];
     const scheduleDate = elements.specialScheduleDate.value;
     const isSunday = elements.specialScheduleType.value === "DOMINGO";
@@ -1560,35 +1620,26 @@ function renderSpecialSchedule() {
         <div class="progress-track" aria-hidden="true"><span style="width: 100%"></span></div>
         <span>${isSunday ? `SEMANA DA DSR PREVISTA: ${escapeHtml(formatDate(isoWeekStartForDate(defaultDsrDate)))}.` : "CONFIRME COMPARECIMENTO OU NÃO COMPARECIMENTO APÓS A ESCALA."}</span>
     `;
-    elements.specialScheduleList.innerHTML = employees.length ? employees.map((employee) => {
+    const rowsHtml = employees.map((employee) => {
         const id = Number(employee.id);
         const schedule = scheduledByEmployee.get(id);
         const dsrDate = schedule?.dsr_date || defaultDsrDate || "";
         const weekStart = isoWeekStartForDate(dsrDate);
         const scheduled = Boolean(schedule);
         const status = String(schedule?.status || "").replaceAll("_", " ");
-        const attendanceActions = scheduled && schedule.status === "ESCALADO" ? `
-            <div class="special-schedule-result-actions">
-                <button class="secondary-button" type="button" data-special-schedule-action="confirmar" data-schedule-id="${Number(schedule.id)}">COMPARECEU</button>
-                <button class="secondary-button" type="button" data-special-schedule-action="ausente" data-schedule-id="${Number(schedule.id)}">NÃO COMPARECEU</button>
-            </div>
-        ` : "";
-        const dsrField = isSunday ? `
-            <label class="special-schedule-dsr-field">DATA PREVISTA DA DSR
-                <input class="special-schedule-dsr-date" type="date" value="${escapeHtml(dsrDate)}" ${scheduled ? "disabled" : ""}>
-                <small>SEMANA DSR: <span class="special-schedule-week">${escapeHtml(formatDate(weekStart))}</span></small>
-            </label>
-        ` : "";
-        return `
-            <article class="checklist-card special-schedule-card ${scheduled ? "is-blocked" : ""}" data-employee-id="${id}">
-                <div class="item-topline special-schedule-name"><h3>${escapeHtml(String(employee.full_name || "COLABORADOR").toUpperCase())}</h3></div>
-                <div class="activity-meta"><strong>MATRÍCULA: ${escapeHtml(String(employee.registration || "-"))}</strong><span>CARGO: ${escapeHtml(String(employee.function_name || "-"))} | ÁREA: ${escapeHtml(String(employee.team_name || "-"))}</span></div>
-                <div class="special-schedule-choice"><input class="special-schedule-employee" type="checkbox" ${scheduled ? "disabled" : "checked"}><span>${scheduled ? `ESCALA ${escapeHtml(status)}${isSunday ? ` | DSR: ${escapeHtml(formatDate(dsrDate))}` : ""}` : "INCLUIR NA ESCALA"}</span></div>
-                ${dsrField}
-                ${attendanceActions}
-            </article>
-        `;
-    }).join("") : "<article class=\"empty-state\"><strong>NENHUM COLABORADOR ATIVO.</strong><span>CADASTRE OU ATIVE COLABORADORES NO RH.</span></article>";
+        const attendanceActions = scheduled && schedule.status === "ESCALADO" ? `<div class="special-schedule-result-actions"><button class="secondary-button" type="button" data-special-schedule-action="confirmar" data-schedule-id="${Number(schedule.id)}">COMPARECEU</button><button class="secondary-button" type="button" data-special-schedule-action="ausente" data-schedule-id="${Number(schedule.id)}">NÃO COMPARECEU</button></div>` : "";
+        const choice = scheduled ? `ESCALA ${escapeHtml(status)}${isSunday ? ` | DSR: ${escapeHtml(formatDate(dsrDate))}` : ""}` : "INCLUIR NA ESCALA";
+        return `<tr class="special-schedule-card schedule-table-row ${scheduled ? "is-blocked" : ""}" data-employee-id="${id}">
+            <td>${escapeHtml(absenteeismCategory(employee))}</td>
+            <td><strong>${escapeHtml(String(employee.full_name || "COLABORADOR").toUpperCase())}</strong></td>
+            <td>${escapeHtml(String(employee.registration || "-"))}</td>
+            <td><strong>${escapeHtml(String(employee.function_name || "-"))}</strong><span>${escapeHtml(String(employee.shift_name || employee.team_name || "-"))}</span></td>
+            <td><span class="schedule-status ${scheduled ? "is-registered" : "is-open"}">${choice}</span></td>
+            <td>${isSunday ? `<label class="schedule-dsr-inline">DSR <input class="special-schedule-dsr-date" type="date" value="${escapeHtml(dsrDate)}" ${scheduled ? "disabled" : ""}><small>SEMANA: <span class="special-schedule-week">${escapeHtml(formatDate(weekStart))}</span></small></label>` : "NÃO SE APLICA"}</td>
+            <td>${scheduled ? attendanceActions : `<input class="special-schedule-employee" type="checkbox" checked aria-label="Incluir ${escapeHtml(String(employee.full_name || "colaborador"))}">`}</td>
+        </tr>`;
+    }).join("");
+    elements.specialScheduleList.innerHTML = rowsHtml ? `<div class="absenteeism-table-wrap schedule-table-wrap"><table class="absenteeism-table schedule-table special-schedule-table"><thead><tr><th>ÁREA</th><th>COLABORADOR</th><th>MATRÍCULA</th><th>FUNÇÃO / TURNO</th><th>SITUAÇÃO</th><th>DSR PREVISTA</th><th>AÇÃO</th></tr></thead><tbody>${rowsHtml}</tbody></table></div>` : "<article class=\"empty-state\"><strong>NENHUM COLABORADOR ENCONTRADO.</strong><span>AJUSTE OS FILTROS.</span></article>";
 }
 
 async function submitSpecialSchedule() {
@@ -6659,6 +6710,11 @@ on(elements.weeklyDsrBackButton, "click", () => {
 });
 on(elements.weeklyDsrRefreshButton, "click", refreshWeeklyDsr);
 on(elements.weeklyDsrSaveButton, "click", submitWeeklyDsr);
+on(elements.weeklyDsrSearch, "input", renderWeeklyDsr);
+on(elements.weeklyDsrArea, "change", renderWeeklyDsr);
+on(elements.weeklyDsrTeam, "change", renderWeeklyDsr);
+on(elements.weeklyDsrShift, "change", renderWeeklyDsr);
+on(elements.weeklyDsrFunction, "change", renderWeeklyDsr);
 on(elements.specialScheduleBackButton, "click", () => {
     renderHome();
     setActiveScreen("home");
@@ -6677,8 +6733,13 @@ on(elements.specialScheduleDate, "change", () => {
 on(elements.specialScheduleRefreshButton, "click", refreshSpecialSchedule);
 on(elements.specialScheduleSaveButton, "click", submitSpecialSchedule);
 on(elements.specialScheduleSearch, "input", renderSpecialSchedule);
+on(elements.specialScheduleArea, "change", renderSpecialSchedule);
+on(elements.specialScheduleTeam, "change", renderSpecialSchedule);
+on(elements.specialScheduleShift, "change", renderSpecialSchedule);
+on(elements.specialScheduleFunction, "change", renderSpecialSchedule);
 on(elements.specialScheduleHistoryButton, "click", () => { elements.specialScheduleDate.min = ""; elements.specialScheduleDate.max = ""; showToast("HISTÓRICO: ESCOLHA UMA DATA ANTERIOR E CLIQUE EM CARREGAR."); });
 on(elements.specialSchedulePdfButton, "click", () => window.print());
+document.querySelectorAll(".schedule-tab").forEach((tab) => on(tab, "click", () => openScheduleTab(tab.dataset.scheduleTab)));
 on(elements.absenteeismBackButton, "click", () => { renderHome(); setActiveScreen("home"); });
 on(elements.absenteeismDate, "change", refreshAbsenteeism);
 on(elements.absenteeismName, "input", scheduleAbsenteeismRefresh);

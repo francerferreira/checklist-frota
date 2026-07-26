@@ -14,7 +14,7 @@
     <title>CHECKLIST DE FROTA</title>
     <link rel="icon" type="image/png" sizes="192x192" href="./static/icons/icon-192.png?v=20260421-02">
     <link rel="apple-touch-icon" href="./static/icons/icon-192.png?v=20260421-02">
-    <link rel="stylesheet" href="./static/css/styles.css?v=20260726-19">
+    <link rel="stylesheet" href="./static/css/styles.css?v=20260726-20">
 </head>
 <body>
     <div class="mobile-shell">
@@ -139,10 +139,10 @@
                         <strong>MINHA JORNADA</strong>
                         <em>Consultar vínculo, frequência recente e treinamentos próximos do vencimento.</em>
                     </button>
-                    <button id="open-weekly-dsr-menu" class="menu-card hidden" type="button">
+                    <button id="open-weekly-dsr-menu" class="menu-card" type="button">
                         <span>13</span>
-                        <strong>DSR SEMANAL</strong>
-                        <em>Gestor registra a DSR da semana para os colaboradores ativos.</em>
+                        <strong>ESCALA E DSR</strong>
+                        <em>Registrar DSR semanal e escala de domingo/feriado em uma única tela.</em>
                     </button>
                     <button id="open-special-schedule-menu" class="menu-card hidden" type="button">
                         <span>14</span>
@@ -481,11 +481,15 @@
             <section id="weekly-dsr-screen" class="screen hidden">
                 <div class="screen-heading compact">
                     <button id="weekly-dsr-back-button" class="icon-button" type="button">MENU</button>
-                    <div><h2>DSR SEMANAL</h2></div>
+                    <div><h2>ESCALA E DSR</h2></div>
                 </div>
                 <div class="list-toolbar">
                     <strong id="weekly-dsr-counter">SELECIONE A SEMANA</strong>
-                    <span>A DSR É GRAVADA NO DOMINGO DA SEMANA ESCOLHIDA.</span>
+                    <span>DSR semanal e escala de domingo/feriado em uma única tela.</span>
+                </div>
+                <div class="schedule-tabs" role="tablist" aria-label="Escala e DSR">
+                    <button class="schedule-tab is-active" type="button" data-schedule-tab="weekly">DSR SEMANAL</button>
+                    <button class="schedule-tab" type="button" data-schedule-tab="special">ESCALA DOMINGO / FERIADO</button>
                 </div>
                 <section class="module-section weekly-dsr-filter">
                     <label for="weekly-dsr-week">SEMANA (SEGUNDA A DOMINGO)</label>
@@ -495,6 +499,13 @@
                     </div>
                 </section>
                 <div id="weekly-dsr-summary" class="progress-card"></div>
+                <section class="module-section schedule-table-filters">
+                    <input id="weekly-dsr-search" type="search" placeholder="Pesquisar colaborador ou matrícula">
+                    <select id="weekly-dsr-area"><option value="">TODAS AS ÁREAS</option><option value="ADM">ADM</option><option value="RTG">RTG</option><option value="LBS">LBS</option></select>
+                    <select id="weekly-dsr-team"><option value="">TODOS OS TIMES</option></select>
+                    <select id="weekly-dsr-shift"><option value="">TODOS OS TURNOS</option></select>
+                    <select id="weekly-dsr-function"><option value="">TODAS AS FUNÇÕES</option></select>
+                </section>
                 <div id="weekly-dsr-list" class="activity-list"></div>
                 <button id="weekly-dsr-save-button" class="primary-button weekly-dsr-save" type="button">SALVAR DSR DA SEMANA</button>
             </section>
@@ -502,11 +513,15 @@
             <section id="special-schedule-screen" class="screen hidden">
                 <div class="screen-heading compact">
                     <button id="special-schedule-back-button" class="icon-button" type="button">MENU</button>
-                    <div><h2>ESCALA ESPECIAL</h2></div>
+                    <div><h2>ESCALA E DSR</h2></div>
                 </div>
                 <div class="list-toolbar">
                     <strong id="special-schedule-counter">ESCALA DE DOMINGO OU FERIADO</strong>
-                    <span>AO ESCALAR, INFORME A DATA DA DSR DE CADA COLABORADOR.</span>
+                    <span>DSR semanal e escala de domingo/feriado em uma única tela.</span>
+                </div>
+                <div class="schedule-tabs" role="tablist" aria-label="Escala e DSR">
+                    <button class="schedule-tab" type="button" data-schedule-tab="weekly">DSR SEMANAL</button>
+                    <button class="schedule-tab is-active" type="button" data-schedule-tab="special">ESCALA DOMINGO / FERIADO</button>
                 </div>
                 <section class="module-section special-schedule-filter">
                     <label for="special-schedule-date">DATA DA ESCALA</label>
@@ -525,7 +540,14 @@
                     </div>
                 </section>
                     <div id="special-schedule-summary" class="progress-card"></div>
-                    <div class="special-schedule-tools"><input id="special-schedule-search" type="search" placeholder="Pesquisar colaborador ou matrícula"><button id="special-schedule-history-button" class="secondary-button" type="button">HISTÓRICO</button><button id="special-schedule-pdf-button" class="secondary-button" type="button">EXPORTAR PDF</button></div>
+                    <section class="module-section schedule-table-filters">
+                        <input id="special-schedule-search" type="search" placeholder="Pesquisar colaborador ou matrícula">
+                        <select id="special-schedule-area"><option value="">TODAS AS ÁREAS</option><option value="ADM">ADM</option><option value="RTG">RTG</option><option value="LBS">LBS</option></select>
+                        <select id="special-schedule-team"><option value="">TODOS OS TIMES</option></select>
+                        <select id="special-schedule-shift"><option value="">TODOS OS TURNOS</option></select>
+                        <select id="special-schedule-function"><option value="">TODAS AS FUNÇÕES</option></select>
+                        <div class="schedule-table-actions"><button id="special-schedule-history-button" class="secondary-button" type="button">HISTÓRICO</button><button id="special-schedule-pdf-button" class="secondary-button" type="button">EXPORTAR PDF</button></div>
+                    </section>
                     <div id="special-schedule-list" class="activity-list"></div>
                 <button id="special-schedule-save-button" class="primary-button weekly-dsr-save" type="button">SALVAR ESCALA E DSR</button>
             </section>
@@ -757,7 +779,7 @@
 
     <div id="toast" class="toast hidden"></div>
     <script src="./static/js/config.js?v=20260719-01"></script>
-    <script src="./static/js/app.js?v=20260726-19"></script>
+    <script src="./static/js/app.js?v=20260726-20"></script>
 </body>
 </html>
 
