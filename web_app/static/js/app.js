@@ -1500,7 +1500,7 @@ function renderSpecialSchedule() {
         ` : "";
         return `
             <article class="checklist-card special-schedule-card ${scheduled ? "is-blocked" : ""}" data-employee-id="${id}">
-                <div class="item-topline"><span>ESCALA</span><h3>${escapeHtml(String(employee.full_name || "COLABORADOR").toUpperCase())}</h3></div>
+                <div class="item-topline special-schedule-name"><h3>${escapeHtml(String(employee.full_name || "COLABORADOR").toUpperCase())}</h3></div>
                 <div class="activity-meta"><strong>MATRÍCULA: ${escapeHtml(String(employee.registration || "-"))}</strong><span>CARGO: ${escapeHtml(String(employee.function_name || "-"))} | ÁREA: ${escapeHtml(String(employee.team_name || "-"))}</span></div>
                 <div class="special-schedule-choice"><input class="special-schedule-employee" type="checkbox" ${scheduled ? "disabled" : "checked"}><span>${scheduled ? `ESCALA ${escapeHtml(status)}${isSunday ? ` | DSR: ${escapeHtml(formatDate(dsrDate))}` : ""}` : "INCLUIR NA ESCALA"}</span></div>
                 ${dsrField}

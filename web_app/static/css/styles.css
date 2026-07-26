@@ -477,9 +477,16 @@ textarea {
 }
 
 #special-schedule-screen #special-schedule-list {
-    gap: 24px !important;
-    padding: 8px 0 26px;
+    display: grid !important;
+    column-gap: 24px !important;
+    row-gap: 32px !important;
+    padding: 16px 0 32px;
 }
+
+#special-schedule-screen .progress-card { margin: 18px 0 22px !important; }
+#special-schedule-screen .special-schedule-tools { margin: 0 0 26px !important; }
+#special-schedule-screen .special-schedule-name { display: block; padding: 2px 0 8px; }
+#special-schedule-screen .special-schedule-name h3 { margin: 0; }
 
 #special-schedule-screen .special-schedule-card {
     margin: 0 !important;
