@@ -14,7 +14,7 @@
     <title>CHECKLIST DE FROTA</title>
     <link rel="icon" type="image/png" sizes="192x192" href="./static/icons/icon-192.png?v=20260421-02">
     <link rel="apple-touch-icon" href="./static/icons/icon-192.png?v=20260421-02">
-    <link rel="stylesheet" href="./static/css/styles.css?v=20260726-24">
+    <link rel="stylesheet" href="./static/css/styles.css?v=20260726-25">
 </head>
 <body>
     <div class="mobile-shell">
@@ -482,10 +482,6 @@
                     <strong id="weekly-dsr-counter">SELECIONE A SEMANA</strong>
                     <span>DSR semanal e escala de domingo/feriado em uma única tela.</span>
                 </div>
-                <div class="schedule-tabs" role="tablist" aria-label="Escala e DSR">
-                    <button class="schedule-tab is-active" type="button" data-schedule-tab="weekly">DSR NORMAL DA SEMANA</button>
-                    <button class="schedule-tab" type="button" data-schedule-tab="special">ESCALA DE DOMINGO E FERIADO</button>
-                </div>
                 <section class="module-section weekly-dsr-filter">
                     <label for="weekly-dsr-week">SEMANA (SEGUNDA A DOMINGO)</label>
                     <div class="weekly-dsr-actions">
@@ -508,15 +504,11 @@
             <section id="special-schedule-screen" class="screen hidden">
                 <div class="screen-heading compact">
                     <button id="special-schedule-back-button" class="icon-button" type="button">MENU</button>
-                    <div><h2>ESCALA E DSR</h2></div>
+                    <div><h2>ESCALA DE DOMINGO E FERIADO</h2></div>
                 </div>
                 <div class="list-toolbar">
                     <strong id="special-schedule-counter">ESCALA DE DOMINGO OU FERIADO</strong>
-                    <span>DSR semanal e escala de domingo/feriado em uma única tela.</span>
-                </div>
-                <div class="schedule-tabs" role="tablist" aria-label="Escala e DSR">
-                    <button class="schedule-tab" type="button" data-schedule-tab="weekly">DSR NORMAL DA SEMANA</button>
-                    <button class="schedule-tab is-active" type="button" data-schedule-tab="special">ESCALA DE DOMINGO E FERIADO</button>
+                    <span>Selecione quem trabalhará no domingo ou feriado. A DSR será registrada após a confirmação do domingo.</span>
                 </div>
                 <section class="module-section special-schedule-filter">
                     <label for="special-schedule-date">DATA DA ESCALA</label>
@@ -774,7 +766,7 @@
 
     <div id="toast" class="toast hidden"></div>
     <script src="./static/js/config.js?v=20260719-01"></script>
-    <script src="./static/js/app.js?v=20260726-24"></script>
+    <script src="./static/js/app.js?v=20260726-25"></script>
 </body>
 </html>
 
