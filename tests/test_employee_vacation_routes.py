@@ -22,7 +22,7 @@ os.environ["WASH_CONTROL_FILE"] = ""
 
 from app import create_app
 from app.extensions import db
-from app.models import Employee, User
+from app.models import Employee, EmployeeAttendanceRecord, EmployeeSpecialSchedule, User
 from app.services.auth_service import generate_token
 
 
@@ -123,6 +123,49 @@ class EmployeeVacationRouteTests(unittest.TestCase):
         self.assertEqual(repeated.status_code, 201, repeated.get_json())
         self.assertEqual(len(repeated.get_json()["data"]["created"]), 0)
         self.assertEqual(repeated.get_json()["data"]["already_registered"], 1)
+
+    def test_special_sunday_schedule_creates_linked_dsr_and_week(self):
+        response = self.client.post(
+            "/rh/escalas-especiais",
+            headers=self.headers,
+            json={
+                "schedule_date": "2026-07-26",
+                "schedule_type": "DOMINGO",
+                "entries": [{"employee_id": self.employee_id, "dsr_date": "2026-07-28"}],
+            },
+        )
+        self.assertEqual(response.status_code, 201, response.get_json())
+        row = response.get_json()["data"][0]
+        self.assertEqual(row["schedule_type"], "DOMINGO")
+        self.assertEqual(row["dsr_date"], "2026-07-28")
+        self.assertEqual(row["dsr_week_start"], "2026-07-27")
+        with self.app.app_context():
+            self.assertEqual(EmployeeSpecialSchedule.query.count(), 1)
+            record = db.session.get(EmployeeAttendanceRecord, row["dsr_attendance_record_id"])
+            self.assertEqual(record.occurrence_type, "DSR")
+            self.assertEqual(record.occurrence_date.isoformat(), "2026-07-28")
+
+    def test_holiday_requires_name_and_sunday_requires_sunday_date(self):
+        holiday = self.client.post(
+            "/rh/escalas-especiais",
+            headers=self.headers,
+            json={
+                "schedule_date": "2026-09-07",
+                "schedule_type": "FERIADO",
+                "entries": [{"employee_id": self.employee_two_id, "dsr_date": "2026-09-08"}],
+            },
+        )
+        self.assertEqual(holiday.status_code, 400)
+        invalid_sunday = self.client.post(
+            "/rh/escalas-especiais",
+            headers=self.headers,
+            json={
+                "schedule_date": "2026-07-27",
+                "schedule_type": "DOMINGO",
+                "entries": [{"employee_id": self.employee_two_id, "dsr_date": "2026-07-28"}],
+            },
+        )
+        self.assertEqual(invalid_sunday.status_code, 400)
 
 
 if __name__ == "__main__":

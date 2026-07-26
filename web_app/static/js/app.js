@@ -227,6 +227,7 @@ const state = {
     pendingMaintenanceItemIds: new Set(),
     hrJourney: null,
     weeklyDsr: { employees: [], overview: null },
+    specialSchedule: { employees: [], rows: [] },
     availabilityOverview: null,
     technicalInspectionTemplates: [],
     emergencies: [],
@@ -273,6 +274,7 @@ const screens = {
     maintenance: document.getElementById("maintenance-screen"),
     hrJourney: document.getElementById("hr-journey-screen"),
     weeklyDsr: document.getElementById("weekly-dsr-screen"),
+    specialSchedule: document.getElementById("special-schedule-screen"),
     availability: document.getElementById("availability-screen"),
     technicalInspections: document.getElementById("technical-inspections-screen"),
     emergencies: document.getElementById("emergencies-screen"),
@@ -338,6 +340,7 @@ const elements = {
     openMaintenanceDashboardMenu: document.getElementById("open-maintenance-dashboard-menu"),
     openHrJourneyMenu: document.getElementById("open-hr-journey-menu"),
     openWeeklyDsrMenu: document.getElementById("open-weekly-dsr-menu"),
+    openSpecialScheduleMenu: document.getElementById("open-special-schedule-menu"),
     vehiclesBackButton: document.getElementById("vehicles-back-button"),
     activitiesBackButton: document.getElementById("activities-back-button"),
     activityCounter: document.getElementById("activity-counter"),
@@ -398,6 +401,17 @@ const elements = {
     weeklyDsrSummary: document.getElementById("weekly-dsr-summary"),
     weeklyDsrList: document.getElementById("weekly-dsr-list"),
     weeklyDsrSaveButton: document.getElementById("weekly-dsr-save-button"),
+    specialScheduleBackButton: document.getElementById("special-schedule-back-button"),
+    specialScheduleDate: document.getElementById("special-schedule-date"),
+    specialScheduleType: document.getElementById("special-schedule-type"),
+    specialScheduleHolidayLabel: document.getElementById("special-schedule-holiday-label"),
+    specialScheduleHolidayName: document.getElementById("special-schedule-holiday-name"),
+    specialScheduleDefaultDsr: document.getElementById("special-schedule-default-dsr"),
+    specialScheduleRefreshButton: document.getElementById("special-schedule-refresh-button"),
+    specialScheduleCounter: document.getElementById("special-schedule-counter"),
+    specialScheduleSummary: document.getElementById("special-schedule-summary"),
+    specialScheduleList: document.getElementById("special-schedule-list"),
+    specialScheduleSaveButton: document.getElementById("special-schedule-save-button"),
     availabilityBackButton: document.getElementById("availability-back-button"),
     availabilityCounter: document.getElementById("availability-counter"),
     availabilitySummary: document.getElementById("availability-summary"),
@@ -780,6 +794,7 @@ function renderHome() {
     const canViewMaintenanceDashboard = ["admin", "gestor"].includes(String(state.user?.tipo || "").toLowerCase());
     elements.openMaintenanceDashboardMenu?.classList.toggle("hidden", !canViewMaintenanceDashboard);
     elements.openWeeklyDsrMenu?.classList.toggle("hidden", !canViewMaintenanceDashboard);
+    elements.openSpecialScheduleMenu?.classList.toggle("hidden", !canViewMaintenanceDashboard);
     const openActivitiesCount = state.activities.filter((activity) => activity.status === "ABERTA").length;
     const programmedWashesCount = getWashScheduleItems().filter((item) => item.status_execucao !== "LAVADO").length;
     const canAccessMechanicModule = hasMechanicWorkspaceAccess();
@@ -1351,6 +1366,163 @@ async function submitWeeklyDsr() {
     } finally {
         elements.weeklyDsrSaveButton.disabled = false;
         elements.weeklyDsrSaveButton.textContent = "SALVAR DSR DA SEMANA";
+    }
+}
+
+function nextSundayInput() {
+    const reference = new Date();
+    const remainingDays = (7 - reference.getDay()) % 7;
+    reference.setDate(reference.getDate() + remainingDays);
+    return formatDateInputValue(reference);
+}
+
+function isoWeekStartForDate(value) {
+    if (!value) return "";
+    const reference = new Date(`${value}T12:00:00`);
+    if (Number.isNaN(reference.getTime())) return "";
+    const mondayOffset = (reference.getDay() + 6) % 7;
+    reference.setDate(reference.getDate() - mondayOffset);
+    return formatDateInputValue(reference);
+}
+
+function defaultDsrInputForSchedule(scheduleDate) {
+    const reference = new Date(`${scheduleDate}T12:00:00`);
+    if (Number.isNaN(reference.getTime())) return "";
+    reference.setDate(reference.getDate() + 1);
+    return formatDateInputValue(reference);
+}
+
+function toggleSpecialHolidayName() {
+    const isHoliday = elements.specialScheduleType?.value === "FERIADO";
+    elements.specialScheduleHolidayLabel?.classList.toggle("hidden", !isHoliday);
+    elements.specialScheduleHolidayName?.classList.toggle("hidden", !isHoliday);
+    if (!isHoliday && elements.specialScheduleHolidayName) {
+        elements.specialScheduleHolidayName.value = "";
+    }
+}
+
+async function openSpecialScheduleMenu() {
+    if (!hasWashReportAccess()) {
+        showToast("APENAS ADMIN OU GESTOR PODE LANÇAR ESCALA.", true);
+        return;
+    }
+    if (!elements.specialScheduleDate.value) {
+        elements.specialScheduleDate.value = nextSundayInput();
+    }
+    if (!elements.specialScheduleDefaultDsr.value) {
+        elements.specialScheduleDefaultDsr.value = defaultDsrInputForSchedule(elements.specialScheduleDate.value);
+    }
+    toggleSpecialHolidayName();
+    setActiveScreen("specialSchedule");
+    await refreshSpecialSchedule();
+}
+
+async function refreshSpecialSchedule() {
+    const scheduleDate = elements.specialScheduleDate?.value;
+    if (!scheduleDate) {
+        showToast("INFORME A DATA DA ESCALA.", true);
+        return;
+    }
+    if (!elements.specialScheduleDefaultDsr.value) {
+        elements.specialScheduleDefaultDsr.value = defaultDsrInputForSchedule(scheduleDate);
+    }
+    elements.specialScheduleCounter.textContent = "CARREGANDO...";
+    renderStateCard(elements.specialScheduleList, {
+        title: "CARREGANDO ESCALA",
+        message: "Buscando colaboradores ativos e a escala já registrada nesta data.",
+        tone: "loading",
+    });
+    try {
+        const [employees, rows] = await Promise.all([
+            apiFetch("/rh/colaboradores?situacao=ATIVO"),
+            apiFetch(`/rh/escalas-especiais?data=${scheduleDate}`),
+        ]);
+        state.specialSchedule = { employees: employees || [], rows: rows || [] };
+        renderSpecialSchedule();
+    } catch (error) {
+        elements.specialScheduleCounter.textContent = "INDISPONÍVEL";
+        renderStateCard(elements.specialScheduleList, {
+            title: "ESCALA NÃO DISPONÍVEL",
+            message: error.message || "Não foi possível carregar a escala.",
+            tone: "error",
+        });
+        showToast(error.message || "NÃO FOI POSSÍVEL CARREGAR A ESCALA.", true);
+    }
+}
+
+function renderSpecialSchedule() {
+    const employees = state.specialSchedule.employees || [];
+    const rows = state.specialSchedule.rows || [];
+    const scheduleDate = elements.specialScheduleDate.value;
+    const defaultDsrDate = elements.specialScheduleDefaultDsr.value;
+    const scheduledByEmployee = new Map(rows.map((row) => [Number(row.employee_id), row]));
+    elements.specialScheduleCounter.textContent = `${employees.length} ATIVOS | ${rows.length} JÁ ESCALADOS`;
+    elements.specialScheduleSummary.innerHTML = `
+        <div><strong>ESCALA: ${escapeHtml(formatDate(scheduleDate))} | ${escapeHtml(String(elements.specialScheduleType.value || "-").toUpperCase())}</strong><span>A DSR padrão é ${escapeHtml(formatDate(defaultDsrDate))}. Ajuste por pessoa quando necessário.</span></div>
+        <div class="progress-track" aria-hidden="true"><span style="width: 100%"></span></div>
+        <span>SEMANA DA DSR PADRÃO: ${escapeHtml(formatDate(isoWeekStartForDate(defaultDsrDate)))}.</span>
+    `;
+    elements.specialScheduleList.innerHTML = employees.length ? employees.map((employee) => {
+        const id = Number(employee.id);
+        const schedule = scheduledByEmployee.get(id);
+        const dsrDate = schedule?.dsr_date || defaultDsrDate;
+        const weekStart = isoWeekStartForDate(dsrDate);
+        const scheduled = Boolean(schedule);
+        return `
+            <article class="checklist-card special-schedule-card ${scheduled ? "is-blocked" : ""}" data-employee-id="${id}">
+                <div class="item-topline"><span>ESCALA</span><h3>${escapeHtml(String(employee.full_name || "COLABORADOR").toUpperCase())}</h3></div>
+                <div class="activity-meta"><strong>${escapeHtml(String(employee.registration || "SEM MATRÍCULA"))}</strong><span>${escapeHtml(String(employee.team_name || employee.function_name || "-"))}</span></div>
+                <div class="special-schedule-choice"><input class="special-schedule-employee" type="checkbox" ${scheduled ? "disabled" : "checked"}><span>${scheduled ? `JÁ ESCALADO | DSR: ${escapeHtml(formatDate(dsrDate))}` : "INCLUIR NA ESCALA"}</span></div>
+                <label class="special-schedule-dsr-field">DATA DA DSR
+                    <input class="special-schedule-dsr-date" type="date" value="${escapeHtml(dsrDate)}" ${scheduled ? "disabled" : ""}>
+                    <small>SEMANA DSR: <span class="special-schedule-week">${escapeHtml(formatDate(weekStart))}</span></small>
+                </label>
+            </article>
+        `;
+    }).join("") : "<article class=\"empty-state\"><strong>NENHUM COLABORADOR ATIVO.</strong><span>CADASTRE OU ATIVE COLABORADORES NO RH.</span></article>";
+}
+
+async function submitSpecialSchedule() {
+    const scheduleDate = elements.specialScheduleDate?.value;
+    const scheduleType = elements.specialScheduleType?.value;
+    const holidayName = elements.specialScheduleHolidayName?.value.trim() || "";
+    const entries = Array.from(document.querySelectorAll(".special-schedule-card")).flatMap((card) => {
+        const checkbox = card.querySelector(".special-schedule-employee");
+        const dsrDate = card.querySelector(".special-schedule-dsr-date")?.value;
+        return checkbox?.checked ? [{ employee_id: Number(card.dataset.employeeId), dsr_date: dsrDate }] : [];
+    });
+    if (!scheduleDate || !entries.length) {
+        showToast("INFORME A DATA E SELECIONE AO MENOS UM COLABORADOR.", true);
+        return;
+    }
+    if (scheduleType === "FERIADO" && !holidayName) {
+        showToast("INFORME O NOME DO FERIADO.", true);
+        return;
+    }
+    if (entries.some((entry) => !entry.dsr_date)) {
+        showToast("INFORME A DATA DA DSR PARA TODOS OS COLABORADORES SELECIONADOS.", true);
+        return;
+    }
+    elements.specialScheduleSaveButton.disabled = true;
+    elements.specialScheduleSaveButton.textContent = "SALVANDO...";
+    try {
+        const result = await apiFetch("/rh/escalas-especiais", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+                schedule_date: scheduleDate,
+                schedule_type: scheduleType,
+                holiday_name: holidayName || null,
+                entries,
+            }),
+        });
+        showToast(`${Number(result.length || 0)} COLABORADOR(ES) ESCALADO(S) COM DSR REGISTRADA.`);
+        await refreshSpecialSchedule();
+    } catch (error) {
+        showToast(error.message || "NÃO FOI POSSÍVEL SALVAR A ESCALA.", true);
+    } finally {
+        elements.specialScheduleSaveButton.disabled = false;
+        elements.specialScheduleSaveButton.textContent = "SALVAR ESCALA E DSR";
     }
 }
 
@@ -5826,6 +5998,7 @@ on(elements.openMaintenanceDashboardMenu, "click", () => {
 });
 on(elements.openHrJourneyMenu, "click", openHrJourneyMenu);
 on(elements.openWeeklyDsrMenu, "click", openWeeklyDsrMenu);
+on(elements.openSpecialScheduleMenu, "click", openSpecialScheduleMenu);
 on(elements.emergencyCreateForm, "submit", submitEmergency);
 on(elements.washPrevMonth, "click", () => changeWashMonth(-1));
 on(elements.washNextMonth, "click", () => changeWashMonth(1));
@@ -5894,6 +6067,26 @@ on(elements.weeklyDsrBackButton, "click", () => {
 });
 on(elements.weeklyDsrRefreshButton, "click", refreshWeeklyDsr);
 on(elements.weeklyDsrSaveButton, "click", submitWeeklyDsr);
+on(elements.specialScheduleBackButton, "click", () => {
+    renderHome();
+    setActiveScreen("home");
+});
+on(elements.specialScheduleType, "change", toggleSpecialHolidayName);
+on(elements.specialScheduleDate, "change", () => {
+    elements.specialScheduleDefaultDsr.value = defaultDsrInputForSchedule(elements.specialScheduleDate.value);
+});
+on(elements.specialScheduleRefreshButton, "click", refreshSpecialSchedule);
+on(elements.specialScheduleSaveButton, "click", submitSpecialSchedule);
+on(elements.specialScheduleList, "change", (event) => {
+    const target = event.target;
+    if (!(target instanceof HTMLInputElement) || !target.classList.contains("special-schedule-dsr-date")) {
+        return;
+    }
+    const week = target.closest(".special-schedule-card")?.querySelector(".special-schedule-week");
+    if (week) {
+        week.textContent = formatDate(isoWeekStartForDate(target.value));
+    }
+});
 on(elements.availabilityBackButton, "click", () => {
     renderHome();
     setActiveScreen("home");

@@ -16,6 +16,7 @@ EMPLOYEE_STATUSES = {
 }
 
 VACATION_STATUSES = {"PROGRAMADA", "APROVADA", "CANCELADA"}
+SPECIAL_SCHEDULE_TYPES = {"DOMINGO", "FERIADO"}
 
 ATTENDANCE_TYPES = {
     "PRESENTE",
@@ -59,6 +60,7 @@ class Employee(db.Model):
         cascade="all, delete-orphan",
         lazy="select",
     )
+    special_schedules = db.relationship("EmployeeSpecialSchedule", back_populates="employee", lazy="select")
 
     __table_args__ = (
         db.CheckConstraint(
@@ -122,6 +124,45 @@ class EmployeeVacation(db.Model):
             "created_by_user_id": self.created_by_user_id,
             "cancelled_by_user_id": self.cancelled_by_user_id,
             "cancelled_at": self.cancelled_at.isoformat() if self.cancelled_at else None,
+            "employee": self.employee.to_dict() if self.employee else None,
+        }
+
+
+class EmployeeSpecialSchedule(db.Model):
+    __tablename__ = "employee_special_schedules"
+
+    id = db.Column(db.Integer, primary_key=True)
+    employee_id = db.Column(db.Integer, db.ForeignKey("employees.id"), nullable=False, index=True)
+    schedule_date = db.Column(db.Date, nullable=False, index=True)
+    schedule_type = db.Column(db.String(20), nullable=False, index=True)
+    holiday_name = db.Column(db.String(160), nullable=True)
+    dsr_date = db.Column(db.Date, nullable=False, index=True)
+    dsr_week_start = db.Column(db.Date, nullable=False, index=True)
+    dsr_attendance_record_id = db.Column(db.Integer, db.ForeignKey("employee_attendance_records.id"), nullable=False, unique=True)
+    notes = db.Column(db.Text, nullable=True)
+    created_by_user_id = db.Column(db.Integer, db.ForeignKey("users.id"), nullable=False, index=True)
+    created_at = db.Column(db.DateTime, nullable=False, default=now_manaus_naive)
+
+    employee = db.relationship("Employee", back_populates="special_schedules", lazy="joined")
+    dsr_attendance_record = db.relationship("EmployeeAttendanceRecord", foreign_keys=[dsr_attendance_record_id], lazy="joined")
+    created_by = db.relationship("User", foreign_keys=[created_by_user_id], lazy="joined")
+
+    __table_args__ = (
+        db.UniqueConstraint("employee_id", "schedule_date", name="uq_employee_special_schedule_day"),
+        db.CheckConstraint("schedule_type IN ('DOMINGO', 'FERIADO')", name="ck_employee_special_schedule_type"),
+    )
+
+    def to_dict(self) -> dict:
+        return {
+            "id": self.id,
+            "employee_id": self.employee_id,
+            "schedule_date": self.schedule_date.isoformat(),
+            "schedule_type": self.schedule_type,
+            "holiday_name": self.holiday_name,
+            "dsr_date": self.dsr_date.isoformat(),
+            "dsr_week_start": self.dsr_week_start.isoformat(),
+            "dsr_attendance_record_id": self.dsr_attendance_record_id,
+            "notes": self.notes,
             "employee": self.employee.to_dict() if self.employee else None,
         }
 

@@ -132,6 +132,14 @@ class WebMobileShellContractTests(unittest.TestCase):
         self.assertIn("/rh/dsr-semanal", app_js)
         self.assertIn("isoWeekToMonday", app_js)
 
+    def test_mobile_special_schedule_registers_dsr_by_employee(self):
+        app_js = (PROJECT_ROOT / "web_app" / "static" / "js" / "app.js").read_text(encoding="utf-8")
+        self.assertIn('id="open-special-schedule-menu"', self.index_html)
+        self.assertIn('id="special-schedule-screen"', self.index_html)
+        self.assertIn("openSpecialScheduleMenu", app_js)
+        self.assertIn("/rh/escalas-especiais", app_js)
+        self.assertIn("isoWeekStartForDate", app_js)
+
     def test_technical_library_is_available_for_field_consultation(self):
         app_js = (PROJECT_ROOT / "web_app" / "static" / "js" / "app.js").read_text(encoding="utf-8")
         self.assertIn("openTechnicalLibraryMenu", app_js)

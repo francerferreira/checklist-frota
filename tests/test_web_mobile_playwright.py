@@ -37,6 +37,7 @@ from app.models import (
     Checklist, ChecklistItem, EquipmentFamily, EquipmentOperationalState,
     EquipmentProfile, EquipmentStatusEvent, HourmeterReading, User, Vehicle,
     InspectionExecution, InspectionExecutionItem, InspectionTemplate, InspectionTemplateItem,
+    Employee,
 )
 from app.utils.timezone import now_manaus_naive
 from playwright.sync_api import expect, sync_playwright
@@ -143,6 +144,15 @@ class WebMobilePlaywrightTests(unittest.TestCase):
                 response_type="STATUS", required=True, evidence_on_nc=True,
             )]
             db.session.add(template)
+            employee = Employee(
+                registration=f"ESC-{suffix}",
+                full_name="Colaborador Escala E2E",
+                function_name="Mecanico",
+                team_name="MANUTENCAO",
+                shift_name="1 TURNO",
+                status="ATIVO",
+            )
+            db.session.add(employee)
 
             for created_at in (
                 now_manaus_naive() - timedelta(hours=2),
@@ -273,6 +283,17 @@ class WebMobilePlaywrightTests(unittest.TestCase):
                 )
                 self.assertGreaterEqual(layout["shellWidth"], layout["viewportWidth"] - 1)
                 self.assertEqual(layout["menuColumns"], expected_columns)
+
+    def test_admin_can_create_special_sunday_schedule_with_dsr(self):
+        self._login()
+        self.page.locator("#open-special-schedule-menu").tap()
+        self._wait_for_screen("special-schedule-screen")
+        self.page.locator("#special-schedule-date").fill("2026-07-26")
+        self.page.locator("#special-schedule-default-dsr").fill("2026-07-28")
+        self.page.locator("#special-schedule-refresh-button").tap()
+        expect(self.page.locator(".special-schedule-card")).to_have_count(1)
+        self.page.locator("#special-schedule-save-button").tap()
+        expect(self.page.locator("#toast")).to_contain_text("ESCALADO")
 
     def test_admin_can_open_critical_mobile_modules(self):
         self._login()

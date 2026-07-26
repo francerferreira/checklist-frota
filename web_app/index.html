@@ -139,6 +139,11 @@
                         <strong>DSR SEMANAL</strong>
                         <em>Gestor registra a DSR da semana para os colaboradores ativos.</em>
                     </button>
+                    <button id="open-special-schedule-menu" class="menu-card hidden" type="button">
+                        <span>14</span>
+                        <strong>ESCALA DOMINGO E FERIADO</strong>
+                        <em>Escalar colaboradores e já definir o dia e a semana da DSR.</em>
+                    </button>
                 </div>
             </section>
 
@@ -447,6 +452,36 @@
                 <div id="weekly-dsr-summary" class="progress-card"></div>
                 <div id="weekly-dsr-list" class="activity-list"></div>
                 <button id="weekly-dsr-save-button" class="primary-button weekly-dsr-save" type="button">SALVAR DSR DA SEMANA</button>
+            </section>
+
+            <section id="special-schedule-screen" class="screen hidden">
+                <div class="screen-heading compact">
+                    <button id="special-schedule-back-button" class="icon-button" type="button">MENU</button>
+                    <div><h2>ESCALA ESPECIAL</h2></div>
+                </div>
+                <div class="list-toolbar">
+                    <strong id="special-schedule-counter">ESCALA DE DOMINGO OU FERIADO</strong>
+                    <span>AO ESCALAR, INFORME A DATA DA DSR DE CADA COLABORADOR.</span>
+                </div>
+                <section class="module-section special-schedule-filter">
+                    <label for="special-schedule-date">DATA DA ESCALA</label>
+                    <input id="special-schedule-date" type="date">
+                    <label for="special-schedule-type">TIPO</label>
+                    <select id="special-schedule-type">
+                        <option value="DOMINGO">DOMINGO</option>
+                        <option value="FERIADO">FERIADO</option>
+                    </select>
+                    <label id="special-schedule-holiday-label" class="hidden" for="special-schedule-holiday-name">NOME DO FERIADO</label>
+                    <input id="special-schedule-holiday-name" class="hidden" type="text" maxlength="160" placeholder="Ex.: Dia da Independência">
+                    <label for="special-schedule-default-dsr">DATA PADRÃO DA DSR</label>
+                    <div class="weekly-dsr-actions">
+                        <input id="special-schedule-default-dsr" type="date">
+                        <button id="special-schedule-refresh-button" class="secondary-button" type="button">CARREGAR</button>
+                    </div>
+                </section>
+                <div id="special-schedule-summary" class="progress-card"></div>
+                <div id="special-schedule-list" class="activity-list"></div>
+                <button id="special-schedule-save-button" class="primary-button weekly-dsr-save" type="button">SALVAR ESCALA E DSR</button>
             </section>
 
             <section id="availability-screen" class="screen hidden">
