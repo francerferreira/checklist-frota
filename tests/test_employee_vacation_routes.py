@@ -124,7 +124,7 @@ class EmployeeVacationRouteTests(unittest.TestCase):
         self.assertEqual(len(repeated.get_json()["data"]["created"]), 0)
         self.assertEqual(repeated.get_json()["data"]["already_registered"], 1)
 
-    def test_special_sunday_schedule_creates_linked_dsr_and_week(self):
+    def test_special_sunday_schedule_creates_dsr_only_after_presence_confirmation(self):
         response = self.client.post(
             "/rh/escalas-especiais",
             headers=self.headers,
@@ -137,11 +137,23 @@ class EmployeeVacationRouteTests(unittest.TestCase):
         self.assertEqual(response.status_code, 201, response.get_json())
         row = response.get_json()["data"][0]
         self.assertEqual(row["schedule_type"], "DOMINGO")
+        self.assertEqual(row["status"], "ESCALADO")
         self.assertEqual(row["dsr_date"], "2026-07-28")
         self.assertEqual(row["dsr_week_start"], "2026-07-27")
+        self.assertIsNone(row["dsr_attendance_record_id"])
         with self.app.app_context():
-            self.assertEqual(EmployeeSpecialSchedule.query.count(), 1)
-            record = db.session.get(EmployeeAttendanceRecord, row["dsr_attendance_record_id"])
+            self.assertEqual(EmployeeSpecialSchedule.query.filter_by(employee_id=self.employee_id).count(), 1)
+            self.assertEqual(EmployeeAttendanceRecord.query.filter_by(employee_id=self.employee_id, occurrence_date=date(2026, 7, 28)).count(), 0)
+
+        confirmed = self.client.post(
+            f"/rh/escalas-especiais/{row['id']}/confirmar-presenca",
+            headers=self.headers,
+        )
+        self.assertEqual(confirmed.status_code, 200, confirmed.get_json())
+        data = confirmed.get_json()["data"]
+        self.assertEqual(data["status"], "COMPARECEU")
+        with self.app.app_context():
+            record = db.session.get(EmployeeAttendanceRecord, data["dsr_attendance_record_id"])
             self.assertEqual(record.occurrence_type, "DSR")
             self.assertEqual(record.occurrence_date.isoformat(), "2026-07-28")
 
@@ -166,6 +178,50 @@ class EmployeeVacationRouteTests(unittest.TestCase):
             },
         )
         self.assertEqual(invalid_sunday.status_code, 400)
+
+    def test_holiday_confirmation_does_not_create_dsr(self):
+        created = self.client.post(
+            "/rh/escalas-especiais",
+            headers=self.headers,
+            json={
+                "schedule_date": "2026-09-07",
+                "schedule_type": "FERIADO",
+                "holiday_name": "Independência do Brasil",
+                "entries": [{"employee_id": self.employee_two_id}],
+            },
+        )
+        self.assertEqual(created.status_code, 201, created.get_json())
+        row = created.get_json()["data"][0]
+        self.assertIsNone(row["dsr_date"])
+        confirmed = self.client.post(
+            f"/rh/escalas-especiais/{row['id']}/confirmar-presenca",
+            headers=self.headers,
+        )
+        self.assertEqual(confirmed.status_code, 200, confirmed.get_json())
+        self.assertEqual(confirmed.get_json()["data"]["status"], "COMPARECEU")
+        with self.app.app_context():
+            self.assertEqual(EmployeeAttendanceRecord.query.filter_by(employee_id=self.employee_two_id, occurrence_type="DSR").count(), 0)
+
+    def test_sunday_absence_does_not_create_dsr(self):
+        created = self.client.post(
+            "/rh/escalas-especiais",
+            headers=self.headers,
+            json={
+                "schedule_date": "2026-08-02",
+                "schedule_type": "DOMINGO",
+                "entries": [{"employee_id": self.employee_two_id, "dsr_date": "2026-08-04"}],
+            },
+        )
+        self.assertEqual(created.status_code, 201, created.get_json())
+        row = created.get_json()["data"][0]
+        absent = self.client.post(
+            f"/rh/escalas-especiais/{row['id']}/nao-compareceu",
+            headers=self.headers,
+        )
+        self.assertEqual(absent.status_code, 200, absent.get_json())
+        self.assertEqual(absent.get_json()["data"]["status"], "NAO_COMPARECEU")
+        with self.app.app_context():
+            self.assertEqual(EmployeeAttendanceRecord.query.filter_by(employee_id=self.employee_two_id, occurrence_date=date(2026, 8, 4)).count(), 0)
 
 
 if __name__ == "__main__":

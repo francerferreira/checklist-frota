@@ -294,6 +294,8 @@ class WebMobilePlaywrightTests(unittest.TestCase):
         expect(self.page.locator(".special-schedule-card")).to_have_count(1)
         self.page.locator("#special-schedule-save-button").tap()
         expect(self.page.locator("#toast")).to_contain_text("ESCALADO")
+        self.page.locator('[data-special-schedule-action="confirmar"]').tap()
+        expect(self.page.locator("#toast")).to_contain_text("DSR REGISTRADA")
 
     def test_admin_can_open_critical_mobile_modules(self):
         self._login()

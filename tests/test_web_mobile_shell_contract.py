@@ -138,6 +138,8 @@ class WebMobileShellContractTests(unittest.TestCase):
         self.assertIn('id="special-schedule-screen"', self.index_html)
         self.assertIn("openSpecialScheduleMenu", app_js)
         self.assertIn("/rh/escalas-especiais", app_js)
+        self.assertIn("confirmar-presenca", app_js)
+        self.assertIn("nao-compareceu", app_js)
         self.assertIn("isoWeekStartForDate", app_js)
 
     def test_technical_library_is_available_for_field_consultation(self):

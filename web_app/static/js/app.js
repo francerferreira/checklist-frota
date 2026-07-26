@@ -406,6 +406,8 @@ const elements = {
     specialScheduleType: document.getElementById("special-schedule-type"),
     specialScheduleHolidayLabel: document.getElementById("special-schedule-holiday-label"),
     specialScheduleHolidayName: document.getElementById("special-schedule-holiday-name"),
+    specialScheduleDsrLabel: document.getElementById("special-schedule-dsr-label"),
+    specialScheduleDsrActions: document.getElementById("special-schedule-dsr-actions"),
     specialScheduleDefaultDsr: document.getElementById("special-schedule-default-dsr"),
     specialScheduleRefreshButton: document.getElementById("special-schedule-refresh-button"),
     specialScheduleCounter: document.getElementById("special-schedule-counter"),
@@ -1394,8 +1396,11 @@ function defaultDsrInputForSchedule(scheduleDate) {
 
 function toggleSpecialHolidayName() {
     const isHoliday = elements.specialScheduleType?.value === "FERIADO";
+    const isSunday = !isHoliday;
     elements.specialScheduleHolidayLabel?.classList.toggle("hidden", !isHoliday);
     elements.specialScheduleHolidayName?.classList.toggle("hidden", !isHoliday);
+    elements.specialScheduleDsrLabel?.classList.toggle("hidden", !isSunday);
+    elements.specialScheduleDsrActions?.classList.toggle("hidden", !isSunday);
     if (!isHoliday && elements.specialScheduleHolidayName) {
         elements.specialScheduleHolidayName.value = "";
     }
@@ -1409,7 +1414,7 @@ async function openSpecialScheduleMenu() {
     if (!elements.specialScheduleDate.value) {
         elements.specialScheduleDate.value = nextSundayInput();
     }
-    if (!elements.specialScheduleDefaultDsr.value) {
+    if (elements.specialScheduleType.value === "DOMINGO" && !elements.specialScheduleDefaultDsr.value) {
         elements.specialScheduleDefaultDsr.value = defaultDsrInputForSchedule(elements.specialScheduleDate.value);
     }
     toggleSpecialHolidayName();
@@ -1423,7 +1428,7 @@ async function refreshSpecialSchedule() {
         showToast("INFORME A DATA DA ESCALA.", true);
         return;
     }
-    if (!elements.specialScheduleDefaultDsr.value) {
+    if (elements.specialScheduleType.value === "DOMINGO" && !elements.specialScheduleDefaultDsr.value) {
         elements.specialScheduleDefaultDsr.value = defaultDsrInputForSchedule(scheduleDate);
     }
     elements.specialScheduleCounter.textContent = "CARREGANDO...";
@@ -1454,29 +1459,44 @@ function renderSpecialSchedule() {
     const employees = state.specialSchedule.employees || [];
     const rows = state.specialSchedule.rows || [];
     const scheduleDate = elements.specialScheduleDate.value;
+    const isSunday = elements.specialScheduleType.value === "DOMINGO";
     const defaultDsrDate = elements.specialScheduleDefaultDsr.value;
     const scheduledByEmployee = new Map(rows.map((row) => [Number(row.employee_id), row]));
     elements.specialScheduleCounter.textContent = `${employees.length} ATIVOS | ${rows.length} JÁ ESCALADOS`;
+    const dsrSummary = isSunday
+        ? `A DSR só será criada após confirmar a presença no domingo. Data prevista: ${escapeHtml(formatDate(defaultDsrDate))}.`
+        : "Feriado não gera DSR neste fluxo. A escala ficará aguardando a confirmação de presença.";
     elements.specialScheduleSummary.innerHTML = `
-        <div><strong>ESCALA: ${escapeHtml(formatDate(scheduleDate))} | ${escapeHtml(String(elements.specialScheduleType.value || "-").toUpperCase())}</strong><span>A DSR padrão é ${escapeHtml(formatDate(defaultDsrDate))}. Ajuste por pessoa quando necessário.</span></div>
+        <div><strong>ESCALA: ${escapeHtml(formatDate(scheduleDate))} | ${escapeHtml(String(elements.specialScheduleType.value || "-").toUpperCase())}</strong><span>${dsrSummary}</span></div>
         <div class="progress-track" aria-hidden="true"><span style="width: 100%"></span></div>
-        <span>SEMANA DA DSR PADRÃO: ${escapeHtml(formatDate(isoWeekStartForDate(defaultDsrDate)))}.</span>
+        <span>${isSunday ? `SEMANA DA DSR PREVISTA: ${escapeHtml(formatDate(isoWeekStartForDate(defaultDsrDate)))}.` : "CONFIRME COMPARECIMENTO OU NÃO COMPARECIMENTO APÓS A ESCALA."}</span>
     `;
     elements.specialScheduleList.innerHTML = employees.length ? employees.map((employee) => {
         const id = Number(employee.id);
         const schedule = scheduledByEmployee.get(id);
-        const dsrDate = schedule?.dsr_date || defaultDsrDate;
+        const dsrDate = schedule?.dsr_date || defaultDsrDate || "";
         const weekStart = isoWeekStartForDate(dsrDate);
         const scheduled = Boolean(schedule);
+        const status = String(schedule?.status || "").replaceAll("_", " ");
+        const attendanceActions = scheduled && schedule.status === "ESCALADO" ? `
+            <div class="special-schedule-result-actions">
+                <button class="secondary-button" type="button" data-special-schedule-action="confirmar" data-schedule-id="${Number(schedule.id)}">COMPARECEU</button>
+                <button class="secondary-button" type="button" data-special-schedule-action="ausente" data-schedule-id="${Number(schedule.id)}">NÃO COMPARECEU</button>
+            </div>
+        ` : "";
+        const dsrField = isSunday ? `
+            <label class="special-schedule-dsr-field">DATA PREVISTA DA DSR
+                <input class="special-schedule-dsr-date" type="date" value="${escapeHtml(dsrDate)}" ${scheduled ? "disabled" : ""}>
+                <small>SEMANA DSR: <span class="special-schedule-week">${escapeHtml(formatDate(weekStart))}</span></small>
+            </label>
+        ` : "";
         return `
             <article class="checklist-card special-schedule-card ${scheduled ? "is-blocked" : ""}" data-employee-id="${id}">
                 <div class="item-topline"><span>ESCALA</span><h3>${escapeHtml(String(employee.full_name || "COLABORADOR").toUpperCase())}</h3></div>
                 <div class="activity-meta"><strong>${escapeHtml(String(employee.registration || "SEM MATRÍCULA"))}</strong><span>${escapeHtml(String(employee.team_name || employee.function_name || "-"))}</span></div>
-                <div class="special-schedule-choice"><input class="special-schedule-employee" type="checkbox" ${scheduled ? "disabled" : "checked"}><span>${scheduled ? `JÁ ESCALADO | DSR: ${escapeHtml(formatDate(dsrDate))}` : "INCLUIR NA ESCALA"}</span></div>
-                <label class="special-schedule-dsr-field">DATA DA DSR
-                    <input class="special-schedule-dsr-date" type="date" value="${escapeHtml(dsrDate)}" ${scheduled ? "disabled" : ""}>
-                    <small>SEMANA DSR: <span class="special-schedule-week">${escapeHtml(formatDate(weekStart))}</span></small>
-                </label>
+                <div class="special-schedule-choice"><input class="special-schedule-employee" type="checkbox" ${scheduled ? "disabled" : "checked"}><span>${scheduled ? `ESCALA ${escapeHtml(status)}${isSunday ? ` | DSR: ${escapeHtml(formatDate(dsrDate))}` : ""}` : "INCLUIR NA ESCALA"}</span></div>
+                ${dsrField}
+                ${attendanceActions}
             </article>
         `;
     }).join("") : "<article class=\"empty-state\"><strong>NENHUM COLABORADOR ATIVO.</strong><span>CADASTRE OU ATIVE COLABORADORES NO RH.</span></article>";
@@ -1486,10 +1506,11 @@ async function submitSpecialSchedule() {
     const scheduleDate = elements.specialScheduleDate?.value;
     const scheduleType = elements.specialScheduleType?.value;
     const holidayName = elements.specialScheduleHolidayName?.value.trim() || "";
+    const isSunday = scheduleType === "DOMINGO";
     const entries = Array.from(document.querySelectorAll(".special-schedule-card")).flatMap((card) => {
         const checkbox = card.querySelector(".special-schedule-employee");
         const dsrDate = card.querySelector(".special-schedule-dsr-date")?.value;
-        return checkbox?.checked ? [{ employee_id: Number(card.dataset.employeeId), dsr_date: dsrDate }] : [];
+        return checkbox?.checked ? [{ employee_id: Number(card.dataset.employeeId), ...(isSunday ? { dsr_date: dsrDate } : {}) }] : [];
     });
     if (!scheduleDate || !entries.length) {
         showToast("INFORME A DATA E SELECIONE AO MENOS UM COLABORADOR.", true);
@@ -1499,7 +1520,7 @@ async function submitSpecialSchedule() {
         showToast("INFORME O NOME DO FERIADO.", true);
         return;
     }
-    if (entries.some((entry) => !entry.dsr_date)) {
+    if (isSunday && entries.some((entry) => !entry.dsr_date)) {
         showToast("INFORME A DATA DA DSR PARA TODOS OS COLABORADORES SELECIONADOS.", true);
         return;
     }
@@ -1516,13 +1537,25 @@ async function submitSpecialSchedule() {
                 entries,
             }),
         });
-        showToast(`${Number(result.length || 0)} COLABORADOR(ES) ESCALADO(S) COM DSR REGISTRADA.`);
+        showToast(`${Number(result.length || 0)} COLABORADOR(ES) ESCALADO(S). ${isSunday ? "A DSR SERÁ CRIADA APÓS CONFIRMAR PRESENÇA." : "FERIADO SEM DSR."}`);
         await refreshSpecialSchedule();
     } catch (error) {
         showToast(error.message || "NÃO FOI POSSÍVEL SALVAR A ESCALA.", true);
     } finally {
         elements.specialScheduleSaveButton.disabled = false;
         elements.specialScheduleSaveButton.textContent = "SALVAR ESCALA E DSR";
+    }
+}
+
+async function resolveSpecialSchedule(scheduleId, action) {
+    const endpoint = action === "confirmar" ? "confirmar-presenca" : "nao-compareceu";
+    try {
+        const result = await apiFetch(`/rh/escalas-especiais/${scheduleId}/${endpoint}`, { method: "POST" });
+        const status = String(result.status || "").replaceAll("_", " ");
+        showToast(`ESCALA ATUALIZADA: ${status}.${result.dsr_attendance_record_id ? " DSR REGISTRADA." : ""}`);
+        await refreshSpecialSchedule();
+    } catch (error) {
+        showToast(error.message || "NÃO FOI POSSÍVEL ATUALIZAR A ESCALA.", true);
     }
 }
 
@@ -6071,9 +6104,16 @@ on(elements.specialScheduleBackButton, "click", () => {
     renderHome();
     setActiveScreen("home");
 });
-on(elements.specialScheduleType, "change", toggleSpecialHolidayName);
+on(elements.specialScheduleType, "change", () => {
+    toggleSpecialHolidayName();
+    if (state.specialSchedule.employees.length) {
+        renderSpecialSchedule();
+    }
+});
 on(elements.specialScheduleDate, "change", () => {
-    elements.specialScheduleDefaultDsr.value = defaultDsrInputForSchedule(elements.specialScheduleDate.value);
+    if (elements.specialScheduleType.value === "DOMINGO") {
+        elements.specialScheduleDefaultDsr.value = defaultDsrInputForSchedule(elements.specialScheduleDate.value);
+    }
 });
 on(elements.specialScheduleRefreshButton, "click", refreshSpecialSchedule);
 on(elements.specialScheduleSaveButton, "click", submitSpecialSchedule);
@@ -6085,6 +6125,17 @@ on(elements.specialScheduleList, "change", (event) => {
     const week = target.closest(".special-schedule-card")?.querySelector(".special-schedule-week");
     if (week) {
         week.textContent = formatDate(isoWeekStartForDate(target.value));
+    }
+});
+on(elements.specialScheduleList, "click", (event) => {
+    const target = event.target;
+    if (!(target instanceof HTMLElement)) {
+        return;
+    }
+    const action = target.dataset.specialScheduleAction;
+    const scheduleId = Number(target.dataset.scheduleId || 0);
+    if (action && scheduleId) {
+        resolveSpecialSchedule(scheduleId, action);
     }
 });
 on(elements.availabilityBackButton, "click", () => {

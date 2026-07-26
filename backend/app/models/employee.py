@@ -129,16 +129,19 @@ class EmployeeVacation(db.Model):
 
 
 class EmployeeSpecialSchedule(db.Model):
-    __tablename__ = "employee_special_schedules"
+    __tablename__ = "employee_work_schedules"
 
     id = db.Column(db.Integer, primary_key=True)
     employee_id = db.Column(db.Integer, db.ForeignKey("employees.id"), nullable=False, index=True)
     schedule_date = db.Column(db.Date, nullable=False, index=True)
     schedule_type = db.Column(db.String(20), nullable=False, index=True)
     holiday_name = db.Column(db.String(160), nullable=True)
-    dsr_date = db.Column(db.Date, nullable=False, index=True)
-    dsr_week_start = db.Column(db.Date, nullable=False, index=True)
-    dsr_attendance_record_id = db.Column(db.Integer, db.ForeignKey("employee_attendance_records.id"), nullable=False, unique=True)
+    status = db.Column(db.String(20), nullable=False, default="ESCALADO", index=True)
+    dsr_date = db.Column(db.Date, nullable=True, index=True)
+    dsr_week_start = db.Column(db.Date, nullable=True, index=True)
+    dsr_attendance_record_id = db.Column(db.Integer, db.ForeignKey("employee_attendance_records.id"), nullable=True, unique=True)
+    attendance_confirmed_by_user_id = db.Column(db.Integer, db.ForeignKey("users.id"), nullable=True, index=True)
+    attendance_confirmed_at = db.Column(db.DateTime(), nullable=True)
     notes = db.Column(db.Text, nullable=True)
     created_by_user_id = db.Column(db.Integer, db.ForeignKey("users.id"), nullable=False, index=True)
     created_at = db.Column(db.DateTime, nullable=False, default=now_manaus_naive)
@@ -146,10 +149,12 @@ class EmployeeSpecialSchedule(db.Model):
     employee = db.relationship("Employee", back_populates="special_schedules", lazy="joined")
     dsr_attendance_record = db.relationship("EmployeeAttendanceRecord", foreign_keys=[dsr_attendance_record_id], lazy="joined")
     created_by = db.relationship("User", foreign_keys=[created_by_user_id], lazy="joined")
+    attendance_confirmed_by = db.relationship("User", foreign_keys=[attendance_confirmed_by_user_id], lazy="joined")
 
     __table_args__ = (
-        db.UniqueConstraint("employee_id", "schedule_date", name="uq_employee_special_schedule_day"),
-        db.CheckConstraint("schedule_type IN ('DOMINGO', 'FERIADO')", name="ck_employee_special_schedule_type"),
+        db.UniqueConstraint("employee_id", "schedule_date", name="uq_employee_work_schedule_day"),
+        db.CheckConstraint("schedule_type IN ('DOMINGO', 'FERIADO')", name="ck_employee_work_schedule_type"),
+        db.CheckConstraint("status IN ('ESCALADO', 'COMPARECEU', 'NAO_COMPARECEU')", name="ck_employee_work_schedule_status"),
     )
 
     def to_dict(self) -> dict:
@@ -159,9 +164,11 @@ class EmployeeSpecialSchedule(db.Model):
             "schedule_date": self.schedule_date.isoformat(),
             "schedule_type": self.schedule_type,
             "holiday_name": self.holiday_name,
-            "dsr_date": self.dsr_date.isoformat(),
-            "dsr_week_start": self.dsr_week_start.isoformat(),
+            "status": self.status,
+            "dsr_date": self.dsr_date.isoformat() if self.dsr_date else None,
+            "dsr_week_start": self.dsr_week_start.isoformat() if self.dsr_week_start else None,
             "dsr_attendance_record_id": self.dsr_attendance_record_id,
+            "attendance_confirmed_at": self.attendance_confirmed_at.isoformat() if self.attendance_confirmed_at else None,
             "notes": self.notes,
             "employee": self.employee.to_dict() if self.employee else None,
         }
