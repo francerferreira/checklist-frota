@@ -476,6 +476,8 @@ const elements = {
     specialScheduleTeam: document.getElementById("special-schedule-team"),
     specialScheduleShift: document.getElementById("special-schedule-shift"),
     specialScheduleFunction: document.getElementById("special-schedule-function"),
+    specialScheduleSelectAll: document.getElementById("special-schedule-select-all"),
+    specialScheduleSelectedCount: document.getElementById("special-schedule-selected-count"),
     specialScheduleHistoryButton: document.getElementById("special-schedule-history-button"),
     specialSchedulePdfButton: document.getElementById("special-schedule-pdf-button"),
     absenteeismBackButton: document.getElementById("absenteeism-back-button"), absenteeismDate: document.getElementById("absenteeism-date"), absenteeismName: document.getElementById("absenteeism-name"), absenteeismRegistration: document.getElementById("absenteeism-registration"), absenteeismShift: document.getElementById("absenteeism-shift"), absenteeismSector: document.getElementById("absenteeism-sector"), absenteeismFunction: document.getElementById("absenteeism-function"), absenteeismStatus: document.getElementById("absenteeism-status"), absenteeismRefreshButton: document.getElementById("absenteeism-refresh-button"), absenteeismPdfButton: document.getElementById("absenteeism-pdf-button"), absenteeismCounter: document.getElementById("absenteeism-counter"), absenteeismSummary: document.getElementById("absenteeism-summary"), absenteeismList: document.getElementById("absenteeism-list"), absenteeismSaveButton: document.getElementById("absenteeism-save-button"), absenteeismAtestadoModal: document.getElementById("absenteeism-atestado-modal"), absenteeismAtestadoForm: document.getElementById("absenteeism-atestado-form"), absenteeismAtestadoEmployee: document.getElementById("absenteeism-atestado-employee"), absenteeismAtestadoStart: document.getElementById("absenteeism-atestado-start"), absenteeismAtestadoDays: document.getElementById("absenteeism-atestado-days"), absenteeismAtestadoEnd: document.getElementById("absenteeism-atestado-end"), absenteeismAtestadoNotes: document.getElementById("absenteeism-atestado-notes"), absenteeismAtestadoCancel: document.getElementById("absenteeism-atestado-cancel"),
@@ -1636,10 +1638,24 @@ function renderSpecialSchedule() {
             <td><strong>${escapeHtml(String(employee.function_name || "-"))}</strong><span>${escapeHtml(String(employee.shift_name || employee.team_name || "-"))}</span></td>
             <td><span class="schedule-status ${scheduled ? "is-registered" : "is-open"}">${choice}</span></td>
             <td>${isSunday ? `<label class="schedule-dsr-inline">DSR <input class="special-schedule-dsr-date" type="date" value="${escapeHtml(dsrDate)}" ${scheduled ? "disabled" : ""}><small>SEMANA: <span class="special-schedule-week">${escapeHtml(formatDate(weekStart))}</span></small></label>` : "NÃO SE APLICA"}</td>
-            <td>${scheduled ? attendanceActions : `<input class="special-schedule-employee" type="checkbox" checked aria-label="Incluir ${escapeHtml(String(employee.full_name || "colaborador"))}">`}</td>
+            <td>${scheduled ? attendanceActions : `<label class="schedule-select-row"><input class="special-schedule-employee" type="checkbox" aria-label="Selecionar ${escapeHtml(String(employee.full_name || "colaborador"))}"><span>SELECIONAR</span></label>`}</td>
         </tr>`;
     }).join("");
     elements.specialScheduleList.innerHTML = rowsHtml ? `<div class="absenteeism-table-wrap schedule-table-wrap"><table class="absenteeism-table schedule-table special-schedule-table"><thead><tr><th>ÁREA</th><th>COLABORADOR</th><th>MATRÍCULA</th><th>FUNÇÃO / TURNO</th><th>SITUAÇÃO</th><th>DSR PREVISTA</th><th>AÇÃO</th></tr></thead><tbody>${rowsHtml}</tbody></table></div>` : "<article class=\"empty-state\"><strong>NENHUM COLABORADOR ENCONTRADO.</strong><span>AJUSTE OS FILTROS.</span></article>";
+    updateSpecialScheduleSelectionSummary();
+}
+
+function updateSpecialScheduleSelectionSummary() {
+    const checkboxes = Array.from(document.querySelectorAll(".special-schedule-employee"));
+    const selected = checkboxes.filter((checkbox) => checkbox.checked).length;
+    if (elements.specialScheduleSelectedCount) {
+        elements.specialScheduleSelectedCount.textContent = `${selected} SELECIONADO${selected === 1 ? "" : "S"}`;
+    }
+    if (elements.specialScheduleSelectAll) {
+        elements.specialScheduleSelectAll.disabled = !checkboxes.length;
+        elements.specialScheduleSelectAll.checked = checkboxes.length > 0 && selected === checkboxes.length;
+        elements.specialScheduleSelectAll.indeterminate = selected > 0 && selected < checkboxes.length;
+    }
 }
 
 async function submitSpecialSchedule() {
@@ -6739,6 +6755,15 @@ on(elements.specialScheduleShift, "change", renderSpecialSchedule);
 on(elements.specialScheduleFunction, "change", renderSpecialSchedule);
 on(elements.specialScheduleHistoryButton, "click", () => { elements.specialScheduleDate.min = ""; elements.specialScheduleDate.max = ""; showToast("HISTÓRICO: ESCOLHA UMA DATA ANTERIOR E CLIQUE EM CARREGAR."); });
 on(elements.specialSchedulePdfButton, "click", () => window.print());
+on(elements.specialScheduleSelectAll, "change", (event) => {
+    document.querySelectorAll(".special-schedule-employee").forEach((checkbox) => { checkbox.checked = event.target.checked; });
+    updateSpecialScheduleSelectionSummary();
+});
+on(elements.specialScheduleList, "change", (event) => {
+    if (event.target instanceof HTMLInputElement && event.target.classList.contains("special-schedule-employee")) {
+        updateSpecialScheduleSelectionSummary();
+    }
+});
 document.querySelectorAll(".schedule-tab").forEach((tab) => on(tab, "click", () => openScheduleTab(tab.dataset.scheduleTab)));
 on(elements.absenteeismBackButton, "click", () => { renderHome(); setActiveScreen("home"); });
 on(elements.absenteeismDate, "change", refreshAbsenteeism);

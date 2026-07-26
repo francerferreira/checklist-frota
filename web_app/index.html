@@ -14,7 +14,7 @@
     <title>CHECKLIST DE FROTA</title>
     <link rel="icon" type="image/png" sizes="192x192" href="./static/icons/icon-192.png?v=20260421-02">
     <link rel="apple-touch-icon" href="./static/icons/icon-192.png?v=20260421-02">
-    <link rel="stylesheet" href="./static/css/styles.css?v=20260726-25">
+    <link rel="stylesheet" href="./static/css/styles.css?v=20260726-26">
 </head>
 <body>
     <div class="mobile-shell">
@@ -535,6 +535,10 @@
                         <select id="special-schedule-function"><option value="">TODAS AS FUNÇÕES</option></select>
                         <div class="schedule-table-actions"><button id="special-schedule-history-button" class="secondary-button" type="button">HISTÓRICO</button><button id="special-schedule-pdf-button" class="secondary-button" type="button">EXPORTAR PDF</button></div>
                     </section>
+                    <div class="schedule-selection-bar">
+                        <label><input id="special-schedule-select-all" type="checkbox"> <span>SELECIONAR TODOS</span></label>
+                        <strong id="special-schedule-selected-count">0 SELECIONADOS</strong>
+                    </div>
                     <div id="special-schedule-list" class="activity-list"></div>
                 <button id="special-schedule-save-button" class="primary-button weekly-dsr-save" type="button">SALVAR ESCALA E DSR</button>
             </section>
@@ -766,7 +770,7 @@
 
     <div id="toast" class="toast hidden"></div>
     <script src="./static/js/config.js?v=20260719-01"></script>
-    <script src="./static/js/app.js?v=20260726-25"></script>
+    <script src="./static/js/app.js?v=20260726-26"></script>
 </body>
 </html>
 

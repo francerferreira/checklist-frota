@@ -581,6 +581,26 @@ textarea {
     background: #0756b5;
     color: #fff;
 }
+.schedule-selection-bar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    margin: 0 0 10px;
+    padding: 9px 12px;
+    border: 1px solid rgba(255,255,255,.72);
+    border-radius: 12px;
+    background: rgba(255,255,255,.92);
+    color: #0756b0;
+    font-size: .72rem;
+    font-weight: 900;
+}
+.schedule-selection-bar label,
+.schedule-select-row { display: inline-flex; align-items: center; gap: 7px; }
+.schedule-selection-bar input,
+.schedule-select-row input { width: 18px; height: 18px; accent-color: #0b74e8; }
+.schedule-select-row { color: #0756b0; font-size: .68rem; font-weight: 900; white-space: nowrap; }
+.schedule-select-row span { display: inline !important; margin: 0 !important; color: inherit !important; font-size: inherit !important; }
 .schedule-table-wrap { margin: 0; }
 .schedule-table { min-width: 980px; }
 #weekly-dsr-screen #weekly-dsr-list,
