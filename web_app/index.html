@@ -14,7 +14,7 @@
     <title>CHECKLIST DE FROTA</title>
     <link rel="icon" type="image/png" sizes="192x192" href="./static/icons/icon-192.png?v=20260421-02">
     <link rel="apple-touch-icon" href="./static/icons/icon-192.png?v=20260421-02">
-    <link rel="stylesheet" href="./static/css/styles.css?v=20260726-03">
+    <link rel="stylesheet" href="./static/css/styles.css?v=20260726-06">
 </head>
 <body>
     <div class="mobile-shell">
@@ -209,7 +209,9 @@
                     <input type="search" id="vehicle-search" placeholder="FROTA, PLACA OU MODELO">
                 </label>
 
-                <section class="asset-access-panel" aria-label="Acesso móvel por ativo">
+                <button id="asset-access-toggle" class="asset-access-toggle primary-button" type="button" aria-expanded="false" aria-controls="asset-access-panel">ACESSAR POR QR/NFC</button>
+
+                <section id="asset-access-panel" class="asset-access-panel hidden" aria-label="Acesso móvel por ativo">
                     <div>
                         <span>ACESSO POR ATIVO</span>
                         <strong>QR CODE OU NFC</strong>
@@ -684,7 +686,7 @@
 
     <div id="toast" class="toast hidden"></div>
     <script src="./static/js/config.js?v=20260719-01"></script>
-    <script src="./static/js/app.js?v=20260726-05"></script>
+    <script src="./static/js/app.js?v=20260726-06"></script>
 </body>
 </html>
 

@@ -299,6 +299,8 @@ const elements = {
     vehicleFamilyTitle: document.getElementById("vehicle-family-title"),
     vehicleFamilyScreenCounter: document.getElementById("vehicle-family-screen-counter"),
     vehicleFamilyScreenList: document.getElementById("vehicle-family-screen-list"),
+    assetAccessToggle: document.getElementById("asset-access-toggle"),
+    assetAccessPanel: document.getElementById("asset-access-panel"),
     vehicleFamilyCards: Array.from(document.querySelectorAll("[data-vehicle-family]")),
     vehicleFamilyCounts: {
         LBS: document.getElementById("vehicle-family-count-lbs"),
@@ -4241,6 +4243,16 @@ function getVehicleFamilyKey(vehicle) {
     return "";
 }
 
+function toggleAssetAccessPanel(forceOpen = null) {
+    if (!elements.assetAccessPanel || !elements.assetAccessToggle) return;
+    const isOpen = forceOpen === null
+        ? elements.assetAccessPanel.classList.contains("hidden")
+        : Boolean(forceOpen);
+    elements.assetAccessPanel.classList.toggle("hidden", !isOpen);
+    elements.assetAccessToggle.setAttribute("aria-expanded", String(isOpen));
+    elements.assetAccessToggle.textContent = isOpen ? "FECHAR ACESSO POR QR/NFC" : "ACESSAR POR QR/NFC";
+}
+
 function makeVehicleCard(vehicle) {
     const familyName = vehicle.family?.name || vehicle.tipo || "-";
     const locationName = vehicle.operational_location?.full_name || vehicle.local || "SEM LOCAL";
@@ -6147,6 +6159,7 @@ async function handleLoginSubmit() {
 
 on(elements.loginButton, "click", handleLoginSubmit);
 on(elements.vehicleSearch, "input", renderVehicles);
+on(elements.assetAccessToggle, "click", () => toggleAssetAccessPanel());
 elements.vehicleFamilyCards.forEach((card) => {
     on(card, "click", () => {
         const family = String(card.dataset.vehicleFamily || "").toUpperCase();
