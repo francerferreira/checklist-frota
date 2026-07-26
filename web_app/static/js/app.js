@@ -417,6 +417,7 @@ const elements = {
     specialScheduleSummary: document.getElementById("special-schedule-summary"),
     specialScheduleList: document.getElementById("special-schedule-list"),
     specialScheduleSaveButton: document.getElementById("special-schedule-save-button"),
+    specialScheduleSearch: document.getElementById("special-schedule-search"), specialScheduleHistoryButton: document.getElementById("special-schedule-history-button"), specialSchedulePdfButton: document.getElementById("special-schedule-pdf-button"),
     absenteeismBackButton: document.getElementById("absenteeism-back-button"), absenteeismDate: document.getElementById("absenteeism-date"), absenteeismName: document.getElementById("absenteeism-name"), absenteeismRegistration: document.getElementById("absenteeism-registration"), absenteeismShift: document.getElementById("absenteeism-shift"), absenteeismSector: document.getElementById("absenteeism-sector"), absenteeismFunction: document.getElementById("absenteeism-function"), absenteeismStatus: document.getElementById("absenteeism-status"), absenteeismRefreshButton: document.getElementById("absenteeism-refresh-button"), absenteeismCounter: document.getElementById("absenteeism-counter"), absenteeismSummary: document.getElementById("absenteeism-summary"), absenteeismList: document.getElementById("absenteeism-list"), absenteeismSaveButton: document.getElementById("absenteeism-save-button"),
     availabilityBackButton: document.getElementById("availability-back-button"),
     availabilityCounter: document.getElementById("availability-counter"),
@@ -1378,7 +1379,7 @@ async function submitWeeklyDsr() {
 
 function nextSundayInput() {
     const reference = new Date();
-    const remainingDays = (7 - reference.getDay()) % 7;
+    const remainingDays = (7 - reference.getDay()) % 7 || 7;
     reference.setDate(reference.getDate() + remainingDays);
     return formatDateInputValue(reference);
 }
@@ -1419,6 +1420,7 @@ async function openSpecialScheduleMenu() {
     if (!elements.specialScheduleDate.value) {
         elements.specialScheduleDate.value = nextSundayInput();
     }
+    if (elements.specialScheduleType.value === "DOMINGO") elements.specialScheduleDate.min = elements.specialScheduleDate.max = nextSundayInput();
     if (elements.specialScheduleType.value === "DOMINGO" && !elements.specialScheduleDefaultDsr.value) {
         elements.specialScheduleDefaultDsr.value = defaultDsrInputForSchedule(elements.specialScheduleDate.value);
     }
@@ -1461,7 +1463,8 @@ async function refreshSpecialSchedule() {
 }
 
 function renderSpecialSchedule() {
-    const employees = state.specialSchedule.employees || [];
+    const query = String(elements.specialScheduleSearch?.value || "").trim().toLowerCase();
+    const employees = (state.specialSchedule.employees || []).filter((employee) => !query || `${employee.full_name || ""} ${employee.registration || ""}`.toLowerCase().includes(query));
     const rows = state.specialSchedule.rows || [];
     const scheduleDate = elements.specialScheduleDate.value;
     const isSunday = elements.specialScheduleType.value === "DOMINGO";
@@ -1498,7 +1501,7 @@ function renderSpecialSchedule() {
         return `
             <article class="checklist-card special-schedule-card ${scheduled ? "is-blocked" : ""}" data-employee-id="${id}">
                 <div class="item-topline"><span>ESCALA</span><h3>${escapeHtml(String(employee.full_name || "COLABORADOR").toUpperCase())}</h3></div>
-                <div class="activity-meta"><strong>${escapeHtml(String(employee.registration || "SEM MATRÍCULA"))}</strong><span>${escapeHtml(String(employee.team_name || employee.function_name || "-"))}</span></div>
+                <div class="activity-meta"><strong>MATRÍCULA: ${escapeHtml(String(employee.registration || "-"))}</strong><span>CARGO: ${escapeHtml(String(employee.function_name || "-"))} | ÁREA: ${escapeHtml(String(employee.team_name || "-"))}</span></div>
                 <div class="special-schedule-choice"><input class="special-schedule-employee" type="checkbox" ${scheduled ? "disabled" : "checked"}><span>${scheduled ? `ESCALA ${escapeHtml(status)}${isSunday ? ` | DSR: ${escapeHtml(formatDate(dsrDate))}` : ""}` : "INCLUIR NA ESCALA"}</span></div>
                 ${dsrField}
                 ${attendanceActions}
@@ -6185,6 +6188,9 @@ on(elements.specialScheduleDate, "change", () => {
 });
 on(elements.specialScheduleRefreshButton, "click", refreshSpecialSchedule);
 on(elements.specialScheduleSaveButton, "click", submitSpecialSchedule);
+on(elements.specialScheduleSearch, "input", renderSpecialSchedule);
+on(elements.specialScheduleHistoryButton, "click", () => { showToast("HISTÓRICO: ESCOLHA UMA DATA ANTERIOR E CLIQUE EM CARREGAR."); });
+on(elements.specialSchedulePdfButton, "click", () => window.print());
 on(elements.absenteeismBackButton, "click", () => { renderHome(); setActiveScreen("home"); });
 on(elements.absenteeismRefreshButton, "click", refreshAbsenteeism);
 on(elements.absenteeismSaveButton, "click", saveAbsenteeism);

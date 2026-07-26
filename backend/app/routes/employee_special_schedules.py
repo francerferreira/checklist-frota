@@ -38,6 +38,11 @@ def _week_start(value: date) -> date:
     return value - timedelta(days=value.weekday())
 
 
+def _next_sunday(reference: date) -> date:
+    remaining_days = (6 - reference.weekday()) % 7 or 7
+    return reference + timedelta(days=remaining_days)
+
+
 def _active_employee(employee_id) -> Employee:
     try:
         employee = db.session.get(Employee, int(employee_id))
@@ -87,6 +92,8 @@ def create_special_schedule():
             raise ValueError("Selecione DOMINGO ou FERIADO para a escala.")
         if schedule_type == "DOMINGO" and schedule_date.weekday() != 6:
             raise ValueError("A data informada precisa ser um domingo.")
+        if schedule_type == "DOMINGO" and schedule_date != _next_sunday(now_manaus_naive().date()):
+            raise ValueError("A escala de domingo fica aberta do domingo atual até sábado, sempre para o próximo domingo.")
         holiday_name = _clean(payload.get("holiday_name"))
         if schedule_type == "FERIADO" and not holiday_name:
             raise ValueError("Informe o nome do feriado.")
