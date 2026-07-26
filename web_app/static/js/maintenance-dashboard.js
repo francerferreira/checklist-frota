@@ -121,6 +121,16 @@ function refreshSessionActivity() {
     localStorage.setItem("sessionLastActivityAt", String(Date.now()));
 }
 
+function redirectToDashboardLogin() {
+    localStorage.removeItem("token");
+    localStorage.removeItem("user");
+    localStorage.removeItem("sessionLastActivityAt");
+    const query = dashboardState.apiBaseUrl
+        ? `?api=${encodeURIComponent(dashboardState.apiBaseUrl)}`
+        : "";
+    window.location.replace(`../${query}`);
+}
+
 async function apiFetch(path, options = {}) {
     const controller = new AbortController();
     const timeout = window.setTimeout(() => controller.abort(), 20000);
@@ -519,9 +529,7 @@ async function loadDashboard() {
         dashboardElements.lastUpdate.textContent = `ATUALIZADO EM ${DASHBOARD_CLOCK_FORMAT.format(new Date())}`;
     } catch (error) {
         if (error.status === 401) {
-            localStorage.removeItem("token");
-            localStorage.removeItem("user");
-            window.location.href = "../";
+            redirectToDashboardLogin();
             return;
         }
         const accessError = error.status === 403;
@@ -551,6 +559,10 @@ async function bootstrapDashboard() {
         renderFilterOptions(await apiFetch("/dashboard-manutencao/filtros"));
         await loadDashboard();
     } catch (error) {
+        if (error.status === 401) {
+            redirectToDashboardLogin();
+            return;
+        }
         setDashboardState("Falha ao preparar o dashboard", error.message, true);
     }
 }
