@@ -583,6 +583,16 @@ textarea {
 }
 .schedule-table-wrap { margin: 0; }
 .schedule-table { min-width: 980px; }
+#weekly-dsr-screen #weekly-dsr-list,
+#special-schedule-screen #special-schedule-list {
+    display: block !important;
+    width: 100%;
+    padding: 0 0 10px;
+}
+#weekly-dsr-screen .schedule-table-wrap,
+#special-schedule-screen .schedule-table-wrap {
+    width: 100%;
+}
 .schedule-table td > span,
 .schedule-table td > strong { display: block; }
 .schedule-table-row.is-blocked { opacity: .68; }
