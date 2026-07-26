@@ -25,6 +25,9 @@ class MaintenanceDashboardWebContractTests(unittest.TestCase):
         self.assertIn("dashboard-operational-status-chart", dashboard_html)
         self.assertIn("dashboard-operational-trend", dashboard_html)
         self.assertIn("dashboard-performance", dashboard_html)
+        self.assertIn('id="dashboard-access-state" class="dashboard-state-card hidden"', dashboard_html)
+        self.assertIn('class="dashboard-header-actions"', dashboard_html)
+        self.assertIn("dashboardElements.accessState.classList.add(\"hidden\")", dashboard_js)
 
     def test_mobile_menu_links_dashboard_only_after_authenticated_app_renders(self):
         index_html = INDEX_PATH.read_text(encoding="utf-8")

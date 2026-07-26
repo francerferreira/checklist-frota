@@ -84,6 +84,7 @@ function escapeHtml(value) {
 }
 
 function setDashboardState(title, message = "", isError = false) {
+    dashboardElements.accessState.classList.remove("hidden");
     dashboardElements.accessState.classList.toggle("error", isError);
     dashboardElements.accessState.innerHTML = `<strong>${escapeHtml(title)}</strong>${message ? `<span>${escapeHtml(message)}</span>` : ""}`;
 }
@@ -514,7 +515,7 @@ async function loadDashboard() {
         renderGovernanceOrderOptions(orders.items);
         if (dashboardElements.governanceWorkOrder.value) await loadGovernanceOrder();
         dashboardElements.content.classList.remove("hidden");
-        setDashboardState("Dados operacionais atualizados", "Indicadores sem histórico suficiente são exibidos como sem dados.");
+        dashboardElements.accessState.classList.add("hidden");
         dashboardElements.lastUpdate.textContent = `ATUALIZADO EM ${DASHBOARD_CLOCK_FORMAT.format(new Date())}`;
     } catch (error) {
         if (error.status === 401) {
