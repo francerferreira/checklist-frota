@@ -12,7 +12,7 @@ from app.extensions import db
 from app.models import Employee, EmployeeAttendanceRecord, EmployeeSpecialSchedule, EmployeeVacation
 from app.models.employee import SPECIAL_SCHEDULE_TYPES
 from app.services.auth_service import auth_required, user_has_management_access
-from app.services.employee_special_schedule_pdf_export_service import export_special_schedule_pdf
+from app.services.employee_special_schedule_pdf_export_service import export_executive_special_schedule_pdf
 from app.utils.responses import api_response
 from app.utils.timezone import now_manaus_naive
 
@@ -134,18 +134,15 @@ def special_schedules_pdf():
             "status": str(schedule.status or "-").replace("_", " "),
             "dsr_date": _date_with_weekday(schedule.dsr_date),
         })
-    if selected_date:
-        subtitle = f"Escala de {_date_with_weekday(selected_date)}"
-    else:
-        subtitle = "Todas as escalas registradas"
     tmp = tempfile.NamedTemporaryFile(prefix="escala_especial_", suffix=".pdf", delete=False)
     tmp_path = Path(tmp.name)
     tmp.close()
     try:
-        export_special_schedule_pdf(
+        export_executive_special_schedule_pdf(
             rows,
             tmp_path,
-            subtitle=subtitle,
+            report_date=_date_with_weekday(selected_date) if selected_date else "Todas as datas",
+            schedule_type=schedule_type or "DOMINGO E FERIADO",
             generated_by=g.current_user.nome or g.current_user.login,
         )
         pdf_buffer = BytesIO(tmp_path.read_bytes())
