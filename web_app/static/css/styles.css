@@ -73,6 +73,9 @@ body.modal-open .mobile-shell {
     overflow: hidden;
 }
 
+body.first-access-only #home-screen { visibility: hidden; }
+body.first-access-only .app-modal-backdrop { background: linear-gradient(135deg, rgba(4, 38, 89, 0.92), rgba(8, 124, 146, 0.88)); }
+
 button,
 input,
 textarea {
@@ -845,6 +848,18 @@ textarea {
 .first-access-card { max-width: 620px; }
 .first-access-card canvas { width: 100%; height: 180px; background: #fff; border: 2px dashed #9fb6d5; border-radius: 14px; touch-action: none; }
 .first-access-actions { display: flex; justify-content: flex-end; gap: 10px; margin-top: 14px; }
+
+.welcome-card { position: relative; z-index: 1; width: min(100%, 560px); overflow: hidden; padding: 36px 34px 30px; border: 1px solid rgba(255,255,255,.72); border-radius: 30px; background: radial-gradient(circle at 85% 5%, rgba(20,145,158,.38), transparent 32%), linear-gradient(145deg, #062e72 0%, #0756b5 55%, #087f89 125%); color: #fff; text-align: center; box-shadow: 0 34px 80px rgba(4, 32, 78, .38); }
+.welcome-photo-wrap { display: grid; place-items: center; width: 108px; height: 108px; margin: 0 auto 18px; overflow: hidden; border: 4px solid rgba(255,255,255,.9); border-radius: 50%; background: linear-gradient(145deg, #dceeff, #75b4da); color: #0756b5; font-size: 2rem; font-weight: 950; box-shadow: 0 12px 26px rgba(0,0,0,.2); }
+.welcome-photo-wrap img { display: none; width: 100%; height: 100%; object-fit: cover; }
+.welcome-photo-wrap.has-photo img { display: block; }
+.welcome-photo-wrap.has-photo span { display: none; }
+.welcome-kicker { display: inline-block; padding: 7px 12px; border: 1px solid rgba(255,255,255,.28); border-radius: 999px; color: #d9f8ff; font-size: .72rem; font-weight: 950; letter-spacing: .14em; }
+.welcome-card h2 { margin: 16px 0 8px; color: #fff; font-size: clamp(2rem, 5vw, 3.2rem); line-height: 1; letter-spacing: -.03em; }
+.welcome-card p { margin: 0; color: rgba(255,255,255,.9); font-size: 1rem; line-height: 1.5; }
+.welcome-divider { width: 74px; height: 4px; margin: 22px auto 18px; border-radius: 99px; background: #69e1cf; }
+.welcome-caption { max-width: 420px; margin: 0 auto 24px !important; color: rgba(255,255,255,.76) !important; font-size: .86rem !important; }
+.welcome-card .primary-button { border-color: rgba(255,255,255,.16); background: #fff; color: #0756b5; box-shadow: 0 16px 30px rgba(0,0,0,.2); }
 
 .menu-card {
     display: grid;

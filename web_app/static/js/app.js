@@ -143,6 +143,7 @@ function clearSession() {
     localStorage.removeItem("user");
     localStorage.removeItem(SESSION_LAST_ACTIVITY_AT_KEY);
     localStorage.removeItem(SESSION_STARTED_AT_KEY);
+    document.body.classList.remove("first-access-only");
 }
 
 let sessionInactivityTimer = null;
@@ -214,6 +215,8 @@ const state = {
     token: "",
     user: null,
     firstAccessRequired: false,
+    justCompletedFirstAccess: false,
+    welcomePhotoData: "",
     vehicles: [],
     catalog: {},
     activities: [],
@@ -306,6 +309,12 @@ const elements = {
     firstAccessClear: document.getElementById("first-access-clear"),
     firstAccessSubmit: document.getElementById("first-access-submit"),
     firstAccessStatus: document.getElementById("first-access-status"),
+    welcomeModal: document.getElementById("welcome-modal"),
+    welcomePhotoWrap: document.getElementById("welcome-photo-wrap"),
+    welcomePhoto: document.getElementById("welcome-photo"),
+    welcomeInitials: document.getElementById("welcome-initials"),
+    welcomeMessage: document.getElementById("welcome-message"),
+    welcomeStart: document.getElementById("welcome-start"),
     vehiclesList: document.getElementById("vehicles-list"),
     vehicleSearch: document.getElementById("vehicle-search"),
     vehicleCounter: document.getElementById("vehicle-counter"),
@@ -733,6 +742,7 @@ async function enterAuthenticatedApp() {
         const requestedAssetCode = new URLSearchParams(window.location.search).get("ativo");
         if (requestedAssetCode) {
             await openMobileAssetByCode(requestedAssetCode);
+            maybeOpenWelcomeModal();
             setLoginStatus("");
             syncPendingChecklists({ silent: true });
             syncPendingTechnicalInspections();
@@ -740,6 +750,7 @@ async function enterAuthenticatedApp() {
             return;
         }
         if (await restoreActiveChecklistDraft()) {
+            maybeOpenWelcomeModal();
             setLoginStatus("");
             syncPendingChecklists({ silent: true });
             syncPendingTechnicalInspections();
@@ -748,6 +759,7 @@ async function enterAuthenticatedApp() {
         }
         renderHome();
         setActiveScreen("home");
+        maybeOpenWelcomeModal();
         setLoginStatus("");
         syncPendingChecklists({ silent: true });
         syncPendingTechnicalInspections();
@@ -6127,6 +6139,7 @@ function openFirstAccessModal() {
     if (!elements.firstAccessModal) return;
     elements.firstAccessModal.classList.remove("hidden");
     document.body.classList.add("modal-open");
+    document.body.classList.add("first-access-only");
     elements.firstAccessStatus.textContent = "";
     clearFirstAccessSignature();
 }
@@ -6171,18 +6184,42 @@ async function submitFirstAccess() {
     elements.firstAccessSubmit.disabled = true;
     elements.firstAccessStatus.textContent = "SALVANDO...";
     try {
+        const photoDataUrl = await readFileAsDataUrl(photo);
         await apiFetch("/usuarios/me/primeiro-acesso", {
             method: "POST", headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ foto_data_url: await readFileAsDataUrl(photo), assinatura_data_url: signature }),
+            body: JSON.stringify({ foto_data_url: photoDataUrl, assinatura_data_url: signature }),
         });
+        state.welcomePhotoData = photoDataUrl;
+        state.justCompletedFirstAccess = true;
         state.firstAccessRequired = false;
         if (state.user) { state.user.first_access_required = false; saveSession(state.token, state.user); }
         elements.firstAccessModal.classList.add("hidden");
+        document.body.classList.remove("first-access-only");
         document.body.classList.remove("modal-open");
         await enterAuthenticatedApp();
     } catch (error) {
         elements.firstAccessStatus.textContent = error.message || "Não foi possível concluir o primeiro acesso.";
     } finally { elements.firstAccessSubmit.disabled = false; }
+}
+
+function maybeOpenWelcomeModal() {
+    if (!state.justCompletedFirstAccess || !elements.welcomeModal) return;
+    const name = String(state.user?.nome || "COLABORADOR").trim();
+    const firstName = name.split(/\s+/)[0] || "COLABORADOR";
+    elements.welcomeMessage.textContent = `${firstName}, seu acesso foi confirmado. Estamos felizes em ter você no sistema.`;
+    elements.welcomeInitials.textContent = firstName.slice(0, 2).toUpperCase();
+    if (state.welcomePhotoData) {
+        elements.welcomePhoto.src = state.welcomePhotoData;
+        elements.welcomePhotoWrap.classList.add("has-photo");
+    }
+    elements.welcomeModal.classList.remove("hidden");
+    document.body.classList.add("modal-open");
+    state.justCompletedFirstAccess = false;
+}
+
+function closeWelcomeModal() {
+    elements.welcomeModal?.classList.add("hidden");
+    document.body.classList.remove("modal-open");
 }
 
 async function submitPasswordReset(event) {
@@ -6304,6 +6341,7 @@ on(elements.resetRequestModal, "click", (event) => {
 });
 on(elements.firstAccessClear, "click", clearFirstAccessSignature);
 on(elements.firstAccessSubmit, "click", submitFirstAccess);
+on(elements.welcomeStart, "click", closeWelcomeModal);
 
 if (elements.firstAccessSignature) {
     const canvas = elements.firstAccessSignature;
