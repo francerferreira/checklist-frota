@@ -480,6 +480,11 @@ const elements = {
     specialScheduleSelectedCount: document.getElementById("special-schedule-selected-count"),
     specialScheduleHistoryButton: document.getElementById("special-schedule-history-button"),
     specialSchedulePdfButton: document.getElementById("special-schedule-pdf-button"),
+    specialScheduleHistoryModal: document.getElementById("special-schedule-history-modal"),
+    specialScheduleHistoryDate: document.getElementById("special-schedule-history-date"),
+    specialScheduleHistoryLoad: document.getElementById("special-schedule-history-load"),
+    specialScheduleHistoryClose: document.getElementById("special-schedule-history-close"),
+    specialScheduleHistoryList: document.getElementById("special-schedule-history-list"),
     absenteeismBackButton: document.getElementById("absenteeism-back-button"), absenteeismDate: document.getElementById("absenteeism-date"), absenteeismName: document.getElementById("absenteeism-name"), absenteeismRegistration: document.getElementById("absenteeism-registration"), absenteeismShift: document.getElementById("absenteeism-shift"), absenteeismSector: document.getElementById("absenteeism-sector"), absenteeismFunction: document.getElementById("absenteeism-function"), absenteeismStatus: document.getElementById("absenteeism-status"), absenteeismRefreshButton: document.getElementById("absenteeism-refresh-button"), absenteeismPdfButton: document.getElementById("absenteeism-pdf-button"), absenteeismCounter: document.getElementById("absenteeism-counter"), absenteeismSummary: document.getElementById("absenteeism-summary"), absenteeismList: document.getElementById("absenteeism-list"), absenteeismSaveButton: document.getElementById("absenteeism-save-button"), absenteeismAtestadoModal: document.getElementById("absenteeism-atestado-modal"), absenteeismAtestadoForm: document.getElementById("absenteeism-atestado-form"), absenteeismAtestadoEmployee: document.getElementById("absenteeism-atestado-employee"), absenteeismAtestadoStart: document.getElementById("absenteeism-atestado-start"), absenteeismAtestadoDays: document.getElementById("absenteeism-atestado-days"), absenteeismAtestadoEnd: document.getElementById("absenteeism-atestado-end"), absenteeismAtestadoNotes: document.getElementById("absenteeism-atestado-notes"), absenteeismAtestadoCancel: document.getElementById("absenteeism-atestado-cancel"),
     availabilityBackButton: document.getElementById("availability-back-button"),
     availabilityCounter: document.getElementById("availability-counter"),
@@ -1542,6 +1547,111 @@ function defaultDsrInputForSchedule(scheduleDate) {
     return formatDateInputValue(reference);
 }
 
+const WEEKDAY_NAMES_PT_BR = ["Domingo", "Segunda-feira", "Terça-feira", "Quarta-feira", "Quinta-feira", "Sexta-feira", "Sábado"];
+
+function formatDateWithWeekday(value) {
+    if (!value) return "-";
+    const [year, month, day] = String(value).split("-").map(Number);
+    if (![year, month, day].every(Number.isFinite)) return formatDate(value);
+    const reference = new Date(year, month - 1, day, 12, 0, 0);
+    return `${formatDate(value)} — ${WEEKDAY_NAMES_PT_BR[reference.getDay()]}`;
+}
+
+function closeSpecialScheduleHistory() {
+    elements.specialScheduleHistoryModal?.classList.add("hidden");
+    document.body.classList.remove("modal-open");
+}
+
+function renderSpecialScheduleHistory(rows) {
+    const historyRows = [...(rows || [])].sort((left, right) => {
+        const dateOrder = String(right.schedule_date || "").localeCompare(String(left.schedule_date || ""));
+        return dateOrder || Number(right.id || 0) - Number(left.id || 0);
+    });
+    if (!historyRows.length) {
+        renderStateCard(elements.specialScheduleHistoryList, {
+            title: "NENHUMA ESCALA REGISTRADA",
+            message: "Quando uma escala for salva, ela aparecerá aqui com a data e o dia da semana.",
+            tone: "neutral",
+            compact: true,
+        });
+        return;
+    }
+    const tableRows = historyRows.map((row) => {
+        const employee = row.employee || {};
+        const scheduleDate = row.schedule_date;
+        const dsrDate = row.dsr_date;
+        const status = String(row.status || "-").replaceAll("_", " ");
+        return `<tr>
+            <td><strong>${escapeHtml(formatDateWithWeekday(scheduleDate))}</strong></td>
+            <td>${escapeHtml(String(row.schedule_type || "-").toUpperCase())}${row.holiday_name ? `<span>${escapeHtml(row.holiday_name)}</span>` : ""}</td>
+            <td><strong>${escapeHtml(String(employee.full_name || "COLABORADOR").toUpperCase())}</strong><span>${escapeHtml(String(employee.registration || "-"))}</span></td>
+            <td>${escapeHtml(absenteeismCategory(employee))}</td>
+            <td><strong>${escapeHtml(String(status).toUpperCase())}</strong></td>
+            <td>${dsrDate ? escapeHtml(formatDateWithWeekday(dsrDate)) : "NÃO SE APLICA"}</td>
+        </tr>`;
+    }).join("");
+    elements.specialScheduleHistoryList.innerHTML = `<div class="absenteeism-table-wrap special-schedule-history-table-wrap"><table class="absenteeism-table special-schedule-history-table"><thead><tr><th>DATA DA ESCALA</th><th>TIPO</th><th>COLABORADOR</th><th>ÁREA</th><th>SITUAÇÃO</th><th>DSR PREVISTA</th></tr></thead><tbody>${tableRows}</tbody></table></div>`;
+}
+
+async function loadSpecialScheduleHistory() {
+    const selectedDate = elements.specialScheduleHistoryDate?.value || "";
+    const query = selectedDate ? `?data=${encodeURIComponent(selectedDate)}` : "";
+    elements.specialScheduleHistoryLoad.disabled = true;
+    elements.specialScheduleHistoryLoad.textContent = "CARREGANDO...";
+    renderStateCard(elements.specialScheduleHistoryList, { title: "CARREGANDO HISTÓRICO", message: "Consultando as escalas salvas.", tone: "loading", compact: true });
+    try {
+        const rows = await apiFetch(`/rh/escalas-especiais${query}`);
+        renderSpecialScheduleHistory(rows);
+    } catch (error) {
+        renderStateCard(elements.specialScheduleHistoryList, { title: "HISTÓRICO INDISPONÍVEL", message: error.message || "Não foi possível consultar o histórico.", tone: "error", compact: true });
+        showToast(error.message || "NÃO FOI POSSÍVEL CARREGAR O HISTÓRICO.", true);
+    } finally {
+        elements.specialScheduleHistoryLoad.disabled = false;
+        elements.specialScheduleHistoryLoad.textContent = "CARREGAR HISTÓRICO";
+    }
+}
+
+async function openSpecialScheduleHistory() {
+    elements.specialScheduleHistoryModal?.classList.remove("hidden");
+    document.body.classList.add("modal-open");
+    await loadSpecialScheduleHistory();
+}
+
+async function exportSpecialSchedulePdf() {
+    const date = elements.specialScheduleDate?.value || "";
+    const type = elements.specialScheduleType?.value || "";
+    const params = new URLSearchParams();
+    if (date) params.set("data", date);
+    if (type) params.set("tipo", type);
+    const filename = `escala_${String(type || "historico").toLowerCase()}_${date || "historico"}.pdf`;
+    elements.specialSchedulePdfButton.disabled = true;
+    elements.specialSchedulePdfButton.textContent = "GERANDO PDF...";
+    try {
+        const response = await fetch(`${state.apiBaseUrl}/rh/escalas-especiais/pdf?${params}`, { headers: optionsLikeHeaders({ Accept: "application/pdf" }) });
+        if (!response.ok) {
+            let payload = {};
+            try { payload = await response.json(); } catch { payload = {}; }
+            throw new Error(payload.error || "NÃO FOI POSSÍVEL GERAR O PDF.");
+        }
+        const blob = await response.blob();
+        const url = URL.createObjectURL(blob);
+        window.open(url, "_blank", "noopener");
+        const link = document.createElement("a");
+        link.href = url;
+        link.download = filename;
+        document.body.appendChild(link);
+        link.click();
+        link.remove();
+        window.setTimeout(() => URL.revokeObjectURL(url), 60000);
+        showToast("PDF DA ESCALA BAIXADO E ABERTO.");
+    } catch (error) {
+        showToast(error.message || "NÃO FOI POSSÍVEL EXPORTAR O PDF.", true);
+    } finally {
+        elements.specialSchedulePdfButton.disabled = false;
+        elements.specialSchedulePdfButton.textContent = "EXPORTAR PDF";
+    }
+}
+
 function toggleSpecialHolidayName() {
     const isHoliday = elements.specialScheduleType?.value === "FERIADO";
     const isSunday = !isHoliday;
@@ -1615,12 +1725,12 @@ function renderSpecialSchedule() {
     const scheduledByEmployee = new Map(rows.map((row) => [Number(row.employee_id), row]));
     elements.specialScheduleCounter.textContent = `${employees.length} ATIVOS | ${rows.length} JÁ ESCALADOS`;
     const dsrSummary = isSunday
-        ? `A DSR só será criada após confirmar a presença no domingo. Data prevista: ${escapeHtml(formatDate(defaultDsrDate))}.`
+        ? `A DSR só será criada após confirmar a presença no domingo. Data prevista: ${escapeHtml(formatDateWithWeekday(defaultDsrDate))}.`
         : "Feriado não gera DSR neste fluxo. A escala ficará aguardando a confirmação de presença.";
     elements.specialScheduleSummary.innerHTML = `
-        <div><strong>ESCALA: ${escapeHtml(formatDate(scheduleDate))} | ${escapeHtml(String(elements.specialScheduleType.value || "-").toUpperCase())}</strong><span>${dsrSummary}</span></div>
+        <div><strong>ESCALA: ${escapeHtml(formatDateWithWeekday(scheduleDate))} | ${escapeHtml(String(elements.specialScheduleType.value || "-").toUpperCase())}</strong><span>${dsrSummary}</span></div>
         <div class="progress-track" aria-hidden="true"><span style="width: 100%"></span></div>
-        <span>${isSunday ? `SEMANA DA DSR PREVISTA: ${escapeHtml(formatDate(isoWeekStartForDate(defaultDsrDate)))}.` : "CONFIRME COMPARECIMENTO OU NÃO COMPARECIMENTO APÓS A ESCALA."}</span>
+        <span>${isSunday ? `SEMANA DA DSR PREVISTA: ${escapeHtml(formatDateWithWeekday(isoWeekStartForDate(defaultDsrDate)))}.` : "CONFIRME COMPARECIMENTO OU NÃO COMPARECIMENTO APÓS A ESCALA."}</span>
     `;
     const rowsHtml = employees.map((employee) => {
         const id = Number(employee.id);
@@ -1630,14 +1740,14 @@ function renderSpecialSchedule() {
         const scheduled = Boolean(schedule);
         const status = String(schedule?.status || "").replaceAll("_", " ");
         const attendanceActions = scheduled && schedule.status === "ESCALADO" ? `<div class="special-schedule-result-actions"><button class="secondary-button" type="button" data-special-schedule-action="confirmar" data-schedule-id="${Number(schedule.id)}">COMPARECEU</button><button class="secondary-button" type="button" data-special-schedule-action="ausente" data-schedule-id="${Number(schedule.id)}">NÃO COMPARECEU</button></div>` : "";
-        const choice = scheduled ? `ESCALA ${escapeHtml(status)}${isSunday ? ` | DSR: ${escapeHtml(formatDate(dsrDate))}` : ""}` : "INCLUIR NA ESCALA";
+        const choice = scheduled ? `ESCALA ${escapeHtml(status)}${isSunday ? ` | DSR: ${escapeHtml(formatDateWithWeekday(dsrDate))}` : ""}` : "INCLUIR NA ESCALA";
         return `<tr class="special-schedule-card schedule-table-row ${scheduled ? "is-blocked" : ""}" data-employee-id="${id}">
             <td>${escapeHtml(absenteeismCategory(employee))}</td>
             <td><strong>${escapeHtml(String(employee.full_name || "COLABORADOR").toUpperCase())}</strong></td>
             <td>${escapeHtml(String(employee.registration || "-"))}</td>
             <td><strong>${escapeHtml(String(employee.function_name || "-"))}</strong><span>${escapeHtml(String(employee.shift_name || employee.team_name || "-"))}</span></td>
             <td><span class="schedule-status ${scheduled ? "is-registered" : "is-open"}">${choice}</span></td>
-            <td>${isSunday ? `<label class="schedule-dsr-inline">DSR <input class="special-schedule-dsr-date" type="date" value="${escapeHtml(dsrDate)}" ${scheduled ? "disabled" : ""}><small>SEMANA: <span class="special-schedule-week">${escapeHtml(formatDate(weekStart))}</span></small></label>` : "NÃO SE APLICA"}</td>
+            <td>${isSunday ? `<label class="schedule-dsr-inline">DSR <input class="special-schedule-dsr-date" type="date" value="${escapeHtml(dsrDate)}" ${scheduled ? "disabled" : ""}><small>SEMANA: <span class="special-schedule-week">${escapeHtml(formatDateWithWeekday(weekStart))}</span></small></label>` : "NÃO SE APLICA"}</td>
             <td>${scheduled ? attendanceActions : `<label class="schedule-select-row"><input class="special-schedule-employee" type="checkbox" aria-label="Selecionar ${escapeHtml(String(employee.full_name || "colaborador"))}"><span>SELECIONAR</span></label>`}</td>
         </tr>`;
     }).join("");
@@ -6732,6 +6842,7 @@ on(elements.weeklyDsrTeam, "change", renderWeeklyDsr);
 on(elements.weeklyDsrShift, "change", renderWeeklyDsr);
 on(elements.weeklyDsrFunction, "change", renderWeeklyDsr);
 on(elements.specialScheduleBackButton, "click", () => {
+    closeSpecialScheduleHistory();
     renderHome();
     setActiveScreen("home");
 });
@@ -6753,8 +6864,13 @@ on(elements.specialScheduleArea, "change", renderSpecialSchedule);
 on(elements.specialScheduleTeam, "change", renderSpecialSchedule);
 on(elements.specialScheduleShift, "change", renderSpecialSchedule);
 on(elements.specialScheduleFunction, "change", renderSpecialSchedule);
-on(elements.specialScheduleHistoryButton, "click", () => { elements.specialScheduleDate.min = ""; elements.specialScheduleDate.max = ""; showToast("HISTÓRICO: ESCOLHA UMA DATA ANTERIOR E CLIQUE EM CARREGAR."); });
-on(elements.specialSchedulePdfButton, "click", () => window.print());
+on(elements.specialScheduleHistoryButton, "click", openSpecialScheduleHistory);
+on(elements.specialSchedulePdfButton, "click", exportSpecialSchedulePdf);
+on(elements.specialScheduleHistoryLoad, "click", loadSpecialScheduleHistory);
+on(elements.specialScheduleHistoryClose, "click", closeSpecialScheduleHistory);
+on(elements.specialScheduleHistoryModal, "click", (event) => {
+    if (event.target instanceof HTMLElement && event.target.dataset.closeSpecialScheduleHistory === "true") closeSpecialScheduleHistory();
+});
 on(elements.specialScheduleSelectAll, "change", (event) => {
     document.querySelectorAll(".special-schedule-employee").forEach((checkbox) => { checkbox.checked = event.target.checked; });
     updateSpecialScheduleSelectionSummary();

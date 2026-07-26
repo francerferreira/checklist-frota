@@ -1,14 +1,18 @@
 from __future__ import annotations
 
 from datetime import date, timedelta
+from io import BytesIO
+from pathlib import Path
+import tempfile
 
-from flask import Blueprint, g, request
+from flask import Blueprint, g, request, send_file
 from sqlalchemy.exc import IntegrityError
 
 from app.extensions import db
 from app.models import Employee, EmployeeAttendanceRecord, EmployeeSpecialSchedule, EmployeeVacation
 from app.models.employee import SPECIAL_SCHEDULE_TYPES
 from app.services.auth_service import auth_required, user_has_management_access
+from app.services.employee_special_schedule_pdf_export_service import export_special_schedule_pdf
 from app.utils.responses import api_response
 from app.utils.timezone import now_manaus_naive
 
@@ -36,6 +40,23 @@ def _date(value, label: str) -> date:
 
 def _week_start(value: date) -> date:
     return value - timedelta(days=value.weekday())
+
+
+WEEKDAY_NAMES_PT_BR = (
+    "Segunda-feira",
+    "Terça-feira",
+    "Quarta-feira",
+    "Quinta-feira",
+    "Sexta-feira",
+    "Sábado",
+    "Domingo",
+)
+
+
+def _date_with_weekday(value: date | None) -> str:
+    if not value:
+        return "Não se aplica"
+    return f"{value.strftime('%d/%m/%Y')} — {WEEKDAY_NAMES_PT_BR[value.weekday()]}"
 
 
 def _next_sunday(reference: date) -> date:
@@ -76,6 +97,63 @@ def list_special_schedules():
             return api_response(False, error=str(exc), status_code=400)
     rows = query.order_by(EmployeeSpecialSchedule.schedule_date.desc(), EmployeeSpecialSchedule.id.desc()).all()
     return api_response(True, data=[row.to_dict() for row in rows])
+
+
+@bp.get("/rh/escalas-especiais/pdf")
+@auth_required
+def special_schedules_pdf():
+    denied = _guard_hr_management()
+    if denied:
+        return denied
+    query = EmployeeSpecialSchedule.query
+    schedule_date = _clean(request.args.get("data"))
+    schedule_type = _clean(request.args.get("tipo"))
+    try:
+        selected_date = _date(schedule_date, "a data da escala") if schedule_date else None
+    except ValueError as exc:
+        return api_response(False, error=str(exc), status_code=400)
+    if selected_date:
+        query = query.filter_by(schedule_date=selected_date)
+    if schedule_type:
+        schedule_type = schedule_type.upper()
+        if schedule_type not in SPECIAL_SCHEDULE_TYPES:
+            return api_response(False, error="Selecione DOMINGO ou FERIADO para o tipo da escala.", status_code=400)
+        query = query.filter_by(schedule_type=schedule_type)
+    schedules = query.order_by(EmployeeSpecialSchedule.schedule_date.desc(), EmployeeSpecialSchedule.id.desc()).all()
+    rows = []
+    for schedule in schedules:
+        employee = schedule.employee.to_dict() if schedule.employee else {}
+        rows.append({
+            "schedule_date": _date_with_weekday(schedule.schedule_date),
+            "schedule_weekday": WEEKDAY_NAMES_PT_BR[schedule.schedule_date.weekday()],
+            "schedule_type": schedule.schedule_type,
+            "area": _clean(employee.get("team_name")) or "-",
+            "employee": _clean(employee.get("full_name")) or "-",
+            "registration": _clean(employee.get("registration")) or "-",
+            "function_shift": " / ".join(value for value in (employee.get("function_name"), employee.get("shift_name")) if value) or "-",
+            "status": str(schedule.status or "-").replace("_", " "),
+            "dsr_date": _date_with_weekday(schedule.dsr_date),
+        })
+    if selected_date:
+        subtitle = f"Escala de {_date_with_weekday(selected_date)}"
+    else:
+        subtitle = "Todas as escalas registradas"
+    tmp = tempfile.NamedTemporaryFile(prefix="escala_especial_", suffix=".pdf", delete=False)
+    tmp_path = Path(tmp.name)
+    tmp.close()
+    try:
+        export_special_schedule_pdf(
+            rows,
+            tmp_path,
+            subtitle=subtitle,
+            generated_by=g.current_user.nome or g.current_user.login,
+        )
+        pdf_buffer = BytesIO(tmp_path.read_bytes())
+    finally:
+        tmp_path.unlink(missing_ok=True)
+    pdf_buffer.seek(0)
+    filename = f"escala_domingo_feriado_{selected_date.isoformat() if selected_date else 'historico'}.pdf"
+    return send_file(pdf_buffer, mimetype="application/pdf", as_attachment=True, download_name=filename)
 
 
 @bp.post("/rh/escalas-especiais")

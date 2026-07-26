@@ -638,6 +638,46 @@ textarea {
     .schedule-table-filters { grid-template-columns: repeat(2, minmax(0, 1fr)); }
     .schedule-table-filters input { grid-column: 1 / -1; }
 }
+.special-schedule-history-card {
+    width: min(96vw, 1180px);
+    max-height: calc(100dvh - 36px);
+    overflow: hidden;
+}
+.special-schedule-history-toolbar {
+    display: flex;
+    align-items: flex-end;
+    gap: 10px;
+    flex-wrap: wrap;
+}
+.special-schedule-history-toolbar .modal-field {
+    min-width: 220px;
+    flex: 1 1 240px;
+}
+.special-schedule-history-toolbar .secondary-button,
+.special-schedule-history-toolbar .icon-button {
+    min-height: 42px;
+    border-radius: 10px;
+}
+.special-schedule-history-list {
+    min-height: 90px;
+    overflow: auto;
+}
+.special-schedule-history-table-wrap {
+    max-height: min(58vh, 560px);
+    overflow: auto;
+}
+.special-schedule-history-table {
+    min-width: 980px;
+}
+.special-schedule-history-table td > span,
+.special-schedule-history-table td > strong {
+    display: block;
+}
+.special-schedule-history-table td > span {
+    margin-top: 3px;
+    color: #36577f;
+    font-size: .7rem;
+}
 @media (max-width: 640px) {
     .schedule-tabs { display: grid; grid-template-columns: 1fr; }
     .schedule-tab { width: 100%; }
@@ -645,6 +685,11 @@ textarea {
     .schedule-table-actions { display: grid; grid-template-columns: 1fr 1fr; }
     .schedule-table-actions .secondary-button { width: 100%; }
     .schedule-table { min-width: 820px; }
+    .special-schedule-history-card { width: min(96vw, 680px); padding: 14px; }
+    .special-schedule-history-toolbar { display: grid; grid-template-columns: 1fr; align-items: stretch; }
+    .special-schedule-history-toolbar .modal-field { min-width: 0; }
+    .special-schedule-history-toolbar .secondary-button,
+    .special-schedule-history-toolbar .icon-button { width: 100%; }
 }
 
 .absenteeism-filters { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); row-gap: 10px; column-gap: 12px; }
