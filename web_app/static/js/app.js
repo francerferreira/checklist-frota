@@ -1758,6 +1758,9 @@ function renderSpecialSchedule() {
 function updateSpecialScheduleSelectionSummary() {
     const checkboxes = Array.from(document.querySelectorAll(".special-schedule-employee"));
     const selected = checkboxes.filter((checkbox) => checkbox.checked).length;
+    checkboxes.forEach((checkbox) => {
+        checkbox.closest(".special-schedule-card")?.classList.toggle("is-selected", checkbox.checked);
+    });
     if (elements.specialScheduleSelectedCount) {
         elements.specialScheduleSelectedCount.textContent = `${selected} SELECIONADO${selected === 1 ? "" : "S"}`;
     }

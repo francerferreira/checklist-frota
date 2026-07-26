@@ -616,6 +616,13 @@ textarea {
 .schedule-table td > span,
 .schedule-table td > strong { display: block; }
 .schedule-table-row.is-blocked { opacity: .68; }
+.schedule-table-row.is-selected td {
+    background: #e0f2fe !important;
+    box-shadow: inset 0 2px 0 #38bdf8, inset 0 -2px 0 #38bdf8;
+}
+.schedule-table-row.is-selected td:first-child {
+    box-shadow: inset 3px 0 0 #0284c7, inset 0 2px 0 #38bdf8, inset 0 -2px 0 #38bdf8;
+}
 .schedule-table-row input[type="checkbox"] { width: 19px; height: 19px; accent-color: #0b74e8; }
 .schedule-status {
     display: inline-block !important;
