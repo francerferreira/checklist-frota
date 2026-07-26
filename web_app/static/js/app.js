@@ -1760,21 +1760,16 @@ async function exportAbsenteeismPdf() {
         const response = await fetch(`${state.apiBaseUrl}/rh/absenteismo-mobile/pdf?${params}`, { headers: optionsLikeHeaders({ Accept: "application/pdf" }) });
         if (!response.ok) throw new Error("NÃO FOI POSSÍVEL GERAR O PDF.");
         const blob = await response.blob();
-        const file = new File([blob], filename, { type: "application/pdf" });
-        const message = `Absenteísmo diário - ${formatDate(date)}. Filtros: turno ${elements.absenteeismShift.value || "todos"}, área ${elements.absenteeismSector.value || "todas"}.`;
-        if (navigator.share && navigator.canShare?.({ files: [file] })) {
-            await navigator.share({ title: "Absenteísmo diário", text: message, files: [file] });
-            return;
-        }
         const url = URL.createObjectURL(blob);
+        window.open(url, "_blank", "noopener");
         const link = document.createElement("a");
         link.href = url;
         link.download = filename;
         document.body.appendChild(link);
         link.click();
         link.remove();
-        URL.revokeObjectURL(url);
-        await shareText("Absenteísmo diário", `${message} O PDF foi baixado neste dispositivo para anexar no WhatsApp.`);
+        window.setTimeout(() => URL.revokeObjectURL(url), 60000);
+        showToast("RELATÓRIO DE ABSENTEÍSMO BAIXADO E ABERTO.");
     } catch (error) {
         if (error.name !== "AbortError") showToast(error.message || "NÃO FOI POSSÍVEL EXPORTAR O PDF.", true);
     } finally {
