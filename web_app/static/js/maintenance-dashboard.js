@@ -98,9 +98,24 @@ function getDefaultRange() {
 }
 
 function resolveApiBaseUrl() {
+    const requested = new URLSearchParams(window.location.search).get("api")?.trim();
     const saved = localStorage.getItem("apiBaseUrl") || "";
     const configured = window.CHECKLIST_CONFIG?.API_BASE_URL || "";
-    return (saved || configured).replace(/\/$/, "");
+    const currentHost = window.location.hostname || "127.0.0.1";
+    const currentProtocol = window.location.protocol === "https:" ? "https:" : "http:";
+    const currentLocalApi = `${currentProtocol}//${currentHost}:5000`;
+    const isLocalHost = currentHost === "127.0.0.1" || currentHost === "localhost";
+    if (requested && /^https?:\/\//i.test(requested)) {
+        localStorage.setItem("apiBaseUrl", requested.replace(/\/$/, ""));
+        return requested.replace(/\/$/, "");
+    }
+    if (isLocalHost) {
+        const savedIsRemote = /onrender\.com|vercel\.app/i.test(saved);
+        if (saved && !savedIsRemote) return saved.replace(/\/$/, "");
+        localStorage.setItem("apiBaseUrl", currentLocalApi);
+        return currentLocalApi;
+    }
+    return (saved || configured || currentLocalApi).replace(/\/$/, "");
 }
 
 function hasDashboardSession() {
@@ -125,8 +140,13 @@ function redirectToDashboardLogin() {
     localStorage.removeItem("token");
     localStorage.removeItem("user");
     localStorage.removeItem("sessionLastActivityAt");
-    const query = dashboardState.apiBaseUrl
-        ? `?api=${encodeURIComponent(dashboardState.apiBaseUrl)}`
+    const currentHost = window.location.hostname || "127.0.0.1";
+    const currentProtocol = window.location.protocol === "https:" ? "https:" : "http:";
+    const loginApiBaseUrl = currentHost === "127.0.0.1" || currentHost === "localhost"
+        ? `${currentProtocol}//${currentHost}:5000`
+        : dashboardState.apiBaseUrl;
+    const query = loginApiBaseUrl
+        ? `?api=${encodeURIComponent(loginApiBaseUrl)}`
         : "";
     window.location.replace(`../${query}`);
 }

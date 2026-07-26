@@ -30,6 +30,8 @@ class MaintenanceDashboardWebContractTests(unittest.TestCase):
         self.assertIn("dashboardElements.accessState.classList.add(\"hidden\")", dashboard_js)
         self.assertIn("redirectToDashboardLogin", dashboard_js)
         self.assertIn("localStorage.removeItem(\"sessionLastActivityAt\")", dashboard_js)
+        self.assertIn("currentLocalApi", dashboard_js)
+        self.assertIn("onrender\\.com|vercel\\.app", dashboard_js)
 
     def test_mobile_menu_links_dashboard_only_after_authenticated_app_renders(self):
         index_html = INDEX_PATH.read_text(encoding="utf-8")
