@@ -643,6 +643,10 @@ textarea {
     max-height: calc(100dvh - 36px);
     overflow: hidden;
 }
+#special-schedule-history-modal .app-modal-backdrop {
+    background: rgba(7, 86, 181, 0.24);
+    backdrop-filter: blur(2px);
+}
 .special-schedule-history-toolbar {
     display: flex;
     align-items: flex-end;
