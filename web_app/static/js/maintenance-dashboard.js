@@ -545,6 +545,11 @@ async function loadDashboard() {
         renderGovernanceOrderOptions(orders.items);
         if (dashboardElements.governanceWorkOrder.value) await loadGovernanceOrder();
         dashboardElements.content.classList.remove("hidden");
+        if (new URLSearchParams(window.location.search).get("modo") === "gestao-os") {
+            dashboardElements.governancePanel.classList.remove("hidden");
+            await loadGovernanceTargets();
+            await loadGovernanceOrder();
+        }
         dashboardElements.accessState.classList.add("hidden");
         dashboardElements.lastUpdate.textContent = `ATUALIZADO EM ${DASHBOARD_CLOCK_FORMAT.format(new Date())}`;
     } catch (error) {
@@ -564,9 +569,13 @@ async function loadDashboard() {
 async function bootstrapDashboard() {
     updateClock();
     window.setInterval(updateClock, 1000);
+    const governanceMode = new URLSearchParams(window.location.search).get("modo") === "gestao-os";
+    document.body.classList.toggle("governance-mode", governanceMode);
     dashboardState.apiBaseUrl = resolveApiBaseUrl();
     dashboardState.token = localStorage.getItem("token") || "";
     try { dashboardState.user = JSON.parse(localStorage.getItem("user") || "null"); } catch { dashboardState.user = null; }
+    const canManageOrders = ["admin", "gestor"].includes(String(dashboardState.user?.tipo || "").toLowerCase());
+    dashboardElements.governanceToggle.classList.toggle("hidden", !canManageOrders);
     if (!hasDashboardSession() || !dashboardState.apiBaseUrl) {
         setDashboardState("Sessão necessária", "Entre no sistema para acessar o Dashboard Operacional de Manutenção.", true);
         return;
@@ -589,17 +598,6 @@ async function bootstrapDashboard() {
 
 dashboardElements.refresh.addEventListener("click", loadDashboard);
 dashboardElements.applyFilters.addEventListener("click", loadDashboard);
-dashboardElements.governanceToggle.addEventListener("click", async () => {
-    const willOpen = dashboardElements.governancePanel.classList.contains("hidden");
-    dashboardElements.governancePanel.classList.toggle("hidden", !willOpen);
-    if (!willOpen) return;
-    try {
-        await loadGovernanceTargets();
-        await loadGovernanceOrder();
-    } catch (error) {
-        setDashboardState("Falha ao carregar governança", error.message, true);
-    }
-});
 dashboardElements.governanceWorkOrder.addEventListener("change", loadGovernanceOrder);
 dashboardElements.governanceTargetsForm.addEventListener("submit", saveGovernanceTargets);
 dashboardElements.governanceClassificationForm.addEventListener("submit", saveGovernanceClassification);

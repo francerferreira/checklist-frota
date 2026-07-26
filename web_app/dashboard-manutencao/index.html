@@ -8,7 +8,7 @@
     <title>Dashboard Operacional de Manutenção</title>
     <link rel="icon" type="image/png" sizes="192x192" href="../static/icons/icon-192.png?v=20260720-01">
     <link rel="stylesheet" href="../static/css/styles.css?v=20260720-01">
-    <link rel="stylesheet" href="../static/css/maintenance-dashboard.css?v=20260726-01">
+    <link rel="stylesheet" href="../static/css/maintenance-dashboard.css?v=20260726-02">
 </head>
 <body class="dashboard-page">
     <main class="maintenance-dashboard-shell">
@@ -25,7 +25,7 @@
                 <strong id="dashboard-clock">--/--/---- --:--</strong>
                 <span id="dashboard-last-update">AINDA NÃO ATUALIZADO</span>
                 <div class="dashboard-header-actions" aria-label="Ações do dashboard">
-                    <button id="dashboard-governance-toggle" class="dashboard-action secondary" type="button">GOVERNANÇA</button>
+                    <a id="dashboard-governance-toggle" class="dashboard-action secondary" href="./?modo=gestao-os">GESTÃO DE OS</a>
                     <a id="dashboard-open-tv" class="dashboard-action secondary" href="./tv/" target="_blank" rel="noopener">ABRIR TV</a>
                     <button id="dashboard-refresh" class="dashboard-action" type="button">ATUALIZAR</button>
                 </div>
@@ -53,11 +53,12 @@
                 </div>
             </section>
 
-            <section id="dashboard-governance-panel" class="dashboard-governance-panel hidden" aria-label="Governança de manutenção">
+            <section id="dashboard-governance-panel" class="dashboard-governance-panel hidden" aria-label="Gestão e auditoria de ordens de serviço">
                 <div class="dashboard-section-heading compact">
-                    <div><span>DADOS REAIS E AUDITÁVEIS</span><h2>Governança de OS</h2></div>
+                    <div><span>CONTROLE ADMINISTRATIVO</span><h2>Gestão de OS</h2></div>
                     <em id="dashboard-governance-state">SELECIONE UMA OS</em>
                 </div>
+                <a class="dashboard-mode-back" href="./">VOLTAR AO DASHBOARD</a>
                 <p>Registre custos, fornecedor, causa, componente e turno diretamente na ordem. Metas ficam vazias até serem definidas pela gestão.</p>
 
                 <div class="dashboard-governance-grid">
@@ -202,6 +203,6 @@
         </section>
     </main>
     <script src="../static/js/config.js?v=20260720-01"></script>
-    <script src="../static/js/maintenance-dashboard.js?v=20260726-03"></script>
+    <script src="../static/js/maintenance-dashboard.js?v=20260726-04"></script>
 </body>
 </html>
