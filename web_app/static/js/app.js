@@ -6189,7 +6189,7 @@ on(elements.specialScheduleDate, "change", () => {
 on(elements.specialScheduleRefreshButton, "click", refreshSpecialSchedule);
 on(elements.specialScheduleSaveButton, "click", submitSpecialSchedule);
 on(elements.specialScheduleSearch, "input", renderSpecialSchedule);
-on(elements.specialScheduleHistoryButton, "click", () => { showToast("HISTÓRICO: ESCOLHA UMA DATA ANTERIOR E CLIQUE EM CARREGAR."); });
+on(elements.specialScheduleHistoryButton, "click", () => { elements.specialScheduleDate.min = ""; elements.specialScheduleDate.max = ""; showToast("HISTÓRICO: ESCOLHA UMA DATA ANTERIOR E CLIQUE EM CARREGAR."); });
 on(elements.specialSchedulePdfButton, "click", () => window.print());
 on(elements.absenteeismBackButton, "click", () => { renderHome(); setActiveScreen("home"); });
 on(elements.absenteeismRefreshButton, "click", refreshAbsenteeism);
