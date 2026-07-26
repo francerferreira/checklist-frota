@@ -411,6 +411,165 @@ class EquipmentDialog(QDialog):
             show_notice(self, "Falha ao salvar", str(exc), icon_name="warning")
 
 
+class SpreaderTimelineDialog(QDialog):
+    """Consulta o histórico de acoplamentos e reservas dos Spreaders."""
+
+    def __init__(self, api_client, parent=None):
+        super().__init__(parent)
+        self.api_client = api_client
+        self.setWindowTitle("Linha do tempo de Spreaders")
+        configure_dialog_window(self, width=1180, height=760, min_width=940, min_height=620)
+        style_card(self)
+
+        layout = build_dialog_layout(self, max_content_width=1220)
+        title = QLabel("Linha do tempo de Spreaders")
+        title.setObjectName("DialogHeaderTitle")
+        subtitle = QLabel(
+            "Acompanhe quando cada Spreader foi acoplado a uma LBS, passou para reserva ou teve o vínculo encerrado."
+        )
+        subtitle.setObjectName("DialogHeaderSubtitle")
+        subtitle.setWordWrap(True)
+        layout.addWidget(title)
+        layout.addWidget(subtitle)
+
+        filter_card = QFrame()
+        style_filter_bar(filter_card)
+        filters = QHBoxLayout(filter_card)
+        filters.setContentsMargins(10, 8, 10, 8)
+        filters.setSpacing(8)
+
+        self.spreader_filter = QComboBox()
+        self.spreader_filter.setMinimumHeight(34)
+        self.lbs_filter = QComboBox()
+        self.lbs_filter.setMinimumHeight(34)
+        self.active_only = QCheckBox("Somente vínculos ativos")
+        self.refresh_button = QPushButton("Atualizar")
+        self.refresh_button.setMinimumHeight(34)
+        self.refresh_button.clicked.connect(self.refresh)
+        self.spreader_filter.currentIndexChanged.connect(self.refresh)
+        self.lbs_filter.currentIndexChanged.connect(self.refresh)
+        self.active_only.stateChanged.connect(self.refresh)
+
+        filters.addWidget(QLabel("Spreader"))
+        filters.addWidget(self.spreader_filter, 1)
+        filters.addWidget(QLabel("LBS"))
+        filters.addWidget(self.lbs_filter, 1)
+        filters.addWidget(self.active_only)
+        filters.addWidget(self.refresh_button)
+        layout.addWidget(filter_card)
+
+        table_card = QFrame()
+        style_table_card(table_card)
+        table_layout = QVBoxLayout(table_card)
+        table_layout.setContentsMargins(10, 10, 10, 10)
+        table_layout.setSpacing(8)
+
+        table_top = QHBoxLayout()
+        table_title = QLabel("Sequência de vínculos")
+        table_title.setObjectName("SectionTitle")
+        self.summary_badge = QLabel("Carregando histórico")
+        self.summary_badge.setObjectName("TopBarPill")
+        table_top.addWidget(table_title)
+        table_top.addStretch()
+        table_top.addWidget(self.summary_badge)
+
+        caption = QLabel(
+            "Cada linha representa um período: o início mostra a entrada na LBS ou reserva; o término mostra quando o vínculo foi substituído ou encerrado."
+        )
+        caption.setObjectName("SectionCaption")
+        caption.setWordWrap(True)
+
+        self.table = QTableWidget(0, 7)
+        self.table.setHorizontalHeaderLabels(
+            ["Início", "Fim / situação", "Spreader", "LBS", "Tipo", "Local da LBS", "Observação"]
+        )
+        configure_table(self.table, stretch_last=False)
+        self.table.setMinimumHeight(460)
+
+        table_layout.addLayout(table_top)
+        table_layout.addWidget(caption)
+        table_layout.addWidget(self.table)
+        layout.addWidget(table_card, 1)
+
+        actions = QHBoxLayout()
+        actions.addStretch()
+        close_button = QPushButton("Fechar")
+        close_button.clicked.connect(self.accept)
+        actions.addWidget(close_button)
+        layout.addLayout(actions)
+
+        self._load_filters()
+        self.refresh()
+
+    @staticmethod
+    def _format_datetime(value) -> str:
+        if not value:
+            return "-"
+        return str(value).replace("T", " ")[:16]
+
+    @staticmethod
+    def _restore_selection(combo: QComboBox, items: list[dict], label_key: str):
+        selected = combo.currentData()
+        combo.blockSignals(True)
+        combo.clear()
+        combo.addItem("Todos", None)
+        for item in items:
+            combo.addItem(item.get(label_key) or "-", item.get("id"))
+        index = combo.findData(selected)
+        combo.setCurrentIndex(index if index >= 0 else 0)
+        combo.blockSignals(False)
+
+    def _load_filters(self):
+        equipment = self.api_client.get_equipment(ativos=None) or []
+        spreaders = sorted(
+            (item for item in equipment if str(item.get("tipo") or "").lower() == "spreader"),
+            key=lambda item: str(item.get("frota") or ""),
+        )
+        lbs_rows = sorted(
+            (item for item in equipment if str(item.get("tipo") or "").lower() == "lbs"),
+            key=lambda item: str(item.get("frota") or ""),
+        )
+        self._restore_selection(self.spreader_filter, spreaders, "frota")
+        self._restore_selection(self.lbs_filter, lbs_rows, "frota")
+        self._locations_by_lbs_id = {
+            item.get("id"): ((item.get("operational_location") or {}).get("full_name") or item.get("local") or "-")
+            for item in lbs_rows
+        }
+
+    def refresh(self, *_args):
+        try:
+            child_id = self.spreader_filter.currentData()
+            parent_id = self.lbs_filter.currentData()
+            rows = self.api_client.get_equipment_links(
+                active=True if self.active_only.isChecked() else None,
+                parent_id=parent_id,
+                child_id=child_id,
+            ) or []
+            rows = [
+                row for row in rows
+                if str((row.get("child_equipment") or {}).get("tipo") or "").lower() == "spreader"
+            ]
+            self.table.setSortingEnabled(False)
+            self.table.setRowCount(len(rows))
+            for index, row in enumerate(rows):
+                child = row.get("child_equipment") or {}
+                parent = row.get("parent_equipment") or {}
+                active = bool(row.get("active"))
+                end_label = "EM USO" if active else self._format_datetime(row.get("ended_at"))
+                self.table.setItem(index, 0, make_table_item(self._format_datetime(row.get("started_at")), payload=row))
+                self.table.setItem(index, 1, make_table_item(end_label))
+                self.table.setItem(index, 2, make_table_item(child.get("frota") or "-"))
+                self.table.setItem(index, 3, make_table_item(parent.get("frota") or "-"))
+                self.table.setItem(index, 4, make_table_item(str(row.get("link_type") or "-").replace("_", " ")))
+                self.table.setItem(index, 5, make_table_item(self._locations_by_lbs_id.get(row.get("parent_vehicle_id"), "-")))
+                self.table.setItem(index, 6, make_table_item(row.get("notes") or "-"))
+            self.table.setSortingEnabled(True)
+            self.summary_badge.setText(f"{len(rows)} evento(s)")
+        except Exception as exc:
+            from components import show_notice
+            show_notice(self, "Falha ao carregar linha do tempo", str(exc), icon_name="warning")
+
+
 class EquipmentPage(QFrame):
     data_changed = Signal()
 
@@ -460,6 +619,10 @@ class EquipmentPage(QFrame):
         self.open_button.setMinimumHeight(34)
         self.open_button.clicked.connect(self.open_selected)
 
+        self.timeline_button = QPushButton("Linha do tempo")
+        self.timeline_button.setMinimumHeight(34)
+        self.timeline_button.clicked.connect(self.open_spreader_timeline)
+
         self.retire_button = QPushButton("Retirar")
         self.retire_button.setProperty("variant", "danger")
         self.retire_button.setMinimumHeight(34)
@@ -469,6 +632,7 @@ class EquipmentPage(QFrame):
         buttons.addWidget(self.add_button)
         buttons.addWidget(self.edit_button)
         buttons.addWidget(self.open_button)
+        buttons.addWidget(self.timeline_button)
         buttons.addWidget(self.retire_button)
 
         header.addLayout(text_wrap)
@@ -678,6 +842,9 @@ class EquipmentPage(QFrame):
 
     def open_selected(self, *_args):
         self.open_item_details()
+
+    def open_spreader_timeline(self):
+        SpreaderTimelineDialog(self.api_client, self).exec()
 
     def add_equipment(self):
         dialog = EquipmentDialog(self.api_client, parent=self)
