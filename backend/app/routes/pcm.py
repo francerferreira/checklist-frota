@@ -14,6 +14,13 @@ from app.services.pcm_service import (
     list_preventive_plans,
     update_preventive_plan,
 )
+from app.services.preventive_service import (
+    create_preventive_execution,
+    get_preventive_execution,
+    list_preventive_executions,
+    update_preventive_execution,
+    update_preventive_stage,
+)
 from app.utils.responses import api_response
 
 
@@ -116,3 +123,65 @@ def preventive_generation():
         return denied
     payload = request.get_json(silent=True) or {}
     return _run(lambda: generate_due_preventives(g.current_user.id, payload.get("plan_id")))
+
+
+@bp.get("/pcm/preventivas/execucoes")
+@auth_required
+def preventive_execution_list():
+    denied = _guard_management()
+    if denied:
+        return denied
+    return _run(
+        lambda: list_preventive_executions(
+            vehicle_id=request.args.get("vehicle_id", type=int),
+            plan_id=request.args.get("plan_id", type=int),
+            status=request.args.get("status"),
+        )
+    )
+
+
+@bp.get("/pcm/preventivas/execucoes/<int:execution_id>")
+@auth_required
+def preventive_execution_detail(execution_id: int):
+    denied = _guard_management()
+    if denied:
+        return denied
+    return _run(lambda: get_preventive_execution(execution_id).to_dict())
+
+
+@bp.post("/pcm/preventivas/execucoes")
+@auth_required
+def preventive_execution_create():
+    denied = _guard_management()
+    if denied:
+        return denied
+    return _run(
+        lambda: create_preventive_execution(request.get_json(silent=True) or {}, g.current_user.id).to_dict(),
+        status_code=201,
+    )
+
+
+@bp.put("/pcm/preventivas/execucoes/<int:execution_id>")
+@auth_required
+def preventive_execution_update(execution_id: int):
+    denied = _guard_management()
+    if denied:
+        return denied
+    return _run(
+        lambda: update_preventive_execution(execution_id, request.get_json(silent=True) or {}, g.current_user.id).to_dict()
+    )
+
+
+@bp.put("/pcm/preventivas/execucoes/<int:execution_id>/etapas/<int:stage_id>")
+@auth_required
+def preventive_stage_update(execution_id: int, stage_id: int):
+    denied = _guard_management()
+    if denied:
+        return denied
+    def action():
+        execution = get_preventive_execution(execution_id)
+        if not any(stage.id == stage_id for stage in execution.stages):
+            raise ValueError("A etapa nao pertence a esta execucao preventiva.")
+        return update_preventive_stage(stage_id, request.get_json(silent=True) or {}, g.current_user.id).to_dict()
+
+    return _run(action)

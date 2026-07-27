@@ -526,6 +526,22 @@ class APIClient:
         payload = {"plan_id": plan_id} if plan_id else {}
         return self._request("POST", "/pcm/gerar-preventivas", json=payload)
 
+    def get_preventive_executions(self, *, vehicle_id: int | None = None, plan_id: int | None = None, status: str | None = None):
+        params = {"vehicle_id": vehicle_id, "plan_id": plan_id, "status": status}
+        return self._request("GET", "/pcm/preventivas/execucoes", params={key: value for key, value in params.items() if value is not None})
+
+    def get_preventive_execution(self, execution_id: int):
+        return self._request("GET", f"/pcm/preventivas/execucoes/{execution_id}")
+
+    def create_preventive_execution(self, payload: dict):
+        return self._request("POST", "/pcm/preventivas/execucoes", json=payload)
+
+    def update_preventive_execution(self, execution_id: int, payload: dict):
+        return self._request("PUT", f"/pcm/preventivas/execucoes/{execution_id}", json=payload)
+
+    def update_preventive_stage(self, execution_id: int, stage_id: int, payload: dict):
+        return self._request("PUT", f"/pcm/preventivas/execucoes/{execution_id}/etapas/{stage_id}", json=payload)
+
     def get_warehouses(self):
         return self._request("GET", "/suprimentos/depositos")
 

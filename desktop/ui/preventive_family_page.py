@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from datetime import datetime
+from datetime import date, datetime
 from pathlib import Path
 
 from PySide6.QtCore import QDateTime, Qt, Signal
@@ -50,6 +50,178 @@ STATUS_COLORS = {
     "LEITURA_DESATUALIZADA": ("#E2E8F0", "#475569"),
     "SEM_DADOS": ("#F1F5F9", "#64748B"),
 }
+
+
+class PreventiveScheduleDialog(QDialog):
+    """Programa uma execução preventiva sem criar regras diferentes por família."""
+
+    def __init__(self, api_client, family: str, plans: list[dict], parent=None):
+        super().__init__(parent)
+        self.api_client = api_client
+        self.family = family.upper()
+        self.plans = list(plans or [])
+        self.setWindowTitle(f"Programar preventiva {self.family}")
+        self.setMinimumWidth(560)
+        form = QGridLayout(self)
+        form.setContentsMargins(18, 18, 18, 18)
+        form.setHorizontalSpacing(10)
+        form.setVerticalSpacing(8)
+        title = QLabel(f"PROGRAMAR PREVENTIVA — {self.family}")
+        title.setObjectName("PageTitle")
+        form.addWidget(title, 0, 0, 1, 2)
+        form.addWidget(QLabel("Plano / equipamento"), 1, 0, 1, 2)
+        self.plan_combo = QComboBox()
+        for plan in self.plans:
+            vehicle = plan.get("vehicle") or {}
+            label = f"{vehicle.get('frota') or vehicle.get('placa') or 'Equipamento'} — {plan.get('title') or plan.get('code') or 'Plano'}"
+            self.plan_combo.addItem(label, plan)
+        form.addWidget(self.plan_combo, 2, 0, 1, 2)
+        form.addWidget(QLabel("Data programada"), 3, 0)
+        self.scheduled_date = QDateEdit()
+        self.scheduled_date.setCalendarPopup(True)
+        self.scheduled_date.setDate(date.today())
+        form.addWidget(self.scheduled_date, 4, 0)
+        form.addWidget(QLabel("Horímetro inicial (opcional)"), 3, 1)
+        self.hourmeter_start = QDoubleSpinBox()
+        self.hourmeter_start.setRange(0, 10_000_000)
+        self.hourmeter_start.setDecimals(2)
+        self.hourmeter_start.setSpecialValueText("Não informado")
+        form.addWidget(self.hourmeter_start, 4, 1)
+        form.addWidget(QLabel("Responsável"), 5, 0)
+        self.responsible = QComboBox()
+        self.responsible.addItem("Usuário atual", (self.api_client.user or {}).get("id"))
+        try:
+            for row in self.api_client.get_mechanics() or []:
+                self.responsible.addItem(row.get("nome") or row.get("login"), row.get("id"))
+        except Exception:
+            pass
+        form.addWidget(self.responsible, 6, 0)
+        form.addWidget(QLabel("Janela / local de execução"), 5, 1)
+        self.window = QLineEdit()
+        self.window.setPlaceholderText("Ex.: 07:00–11:00 | Pátio 03")
+        form.addWidget(self.window, 6, 1)
+        form.addWidget(QLabel("Observação"), 7, 0, 1, 2)
+        self.observation = QTextEdit()
+        self.observation.setPlaceholderText("Orientação para a equipe de execução")
+        self.observation.setMaximumHeight(90)
+        form.addWidget(self.observation, 8, 0, 1, 2)
+        buttons = QDialogButtonBox(QDialogButtonBox.Cancel | QDialogButtonBox.Save)
+        buttons.button(QDialogButtonBox.Save).setText("Programar preventiva")
+        buttons.button(QDialogButtonBox.Save).setProperty("variant", "primary")
+        buttons.accepted.connect(self._save)
+        buttons.rejected.connect(self.reject)
+        form.addWidget(buttons, 9, 0, 1, 2)
+
+    def _save(self):
+        plan = self.plan_combo.currentData() or {}
+        if not plan.get("id"):
+            show_notice(self, "Plano obrigatório", "Selecione um plano preventivo.", icon_name="warning")
+            return
+        vehicle = plan.get("vehicle") or {}
+        observation = self.observation.toPlainText().strip()
+        if self.window.text().strip():
+            observation = f"Janela/local: {self.window.text().strip()}\n{observation}".strip()
+        payload = {
+            "preventive_plan_id": plan["id"],
+            "vehicle_id": plan.get("vehicle_id") or vehicle.get("id"),
+            "status": "PROGRAMADA",
+            "scheduled_date": self.scheduled_date.date().toString("yyyy-MM-dd"),
+            "hourmeter_start": self.hourmeter_start.value() or None,
+            "responsible_user_id": self.responsible.currentData(),
+            "observation": observation or None,
+        }
+        try:
+            self.api_client.create_preventive_execution(payload)
+        except Exception as exc:
+            show_notice(self, "Programação não salva", str(exc), icon_name="warning")
+            return
+        self.accept()
+
+
+class PreventiveExecutionDialog(QDialog):
+    """Atualiza o início, etapas e conclusão de uma execução preventiva."""
+
+    def __init__(self, api_client, execution: dict, parent=None):
+        super().__init__(parent)
+        self.api_client = api_client
+        self.execution = execution or {}
+        self.setWindowTitle("Executar preventiva")
+        self.setMinimumSize(680, 560)
+        layout = QVBoxLayout(self)
+        layout.setContentsMargins(18, 18, 18, 18)
+        vehicle = self.execution.get("vehicle") or {}
+        plan = self.execution.get("preventive_plan") or {}
+        title = QLabel(f"EXECUÇÃO — {vehicle.get('frota') or 'Equipamento'}")
+        title.setObjectName("PageTitle")
+        layout.addWidget(title)
+        layout.addWidget(QLabel(plan.get("title") or "Preventiva programada"))
+        form = QGridLayout()
+        form.addWidget(QLabel("Status"), 0, 0)
+        self.status = QComboBox()
+        for value, label in (("EM_EXECUCAO", "Em execução"), ("CONCLUIDA", "Concluída"), ("NAO_EXECUTADA", "Não executada"), ("PROGRAMADA", "Programada")):
+            self.status.addItem(label, value)
+        current_status = str(self.execution.get("status") or "PROGRAMADA").upper()
+        index = self.status.findData(current_status)
+        if index >= 0:
+            self.status.setCurrentIndex(index)
+        form.addWidget(self.status, 1, 0)
+        form.addWidget(QLabel("Horímetro inicial"), 0, 1)
+        self.hourmeter_start = QDoubleSpinBox(); self.hourmeter_start.setRange(0, 10_000_000); self.hourmeter_start.setDecimals(2)
+        if self.execution.get("hourmeter_start") is not None: self.hourmeter_start.setValue(float(self.execution["hourmeter_start"]))
+        form.addWidget(self.hourmeter_start, 1, 1)
+        form.addWidget(QLabel("Horímetro da execução"), 0, 2)
+        self.hourmeter_execution = QDoubleSpinBox(); self.hourmeter_execution.setRange(0, 10_000_000); self.hourmeter_execution.setDecimals(2)
+        if self.execution.get("hourmeter_execution") is not None: self.hourmeter_execution.setValue(float(self.execution["hourmeter_execution"]))
+        form.addWidget(self.hourmeter_execution, 1, 2)
+        layout.addLayout(form)
+        layout.addWidget(QLabel("Etapas da preventiva"))
+        self.stage_table = QTableWidget(0, 3)
+        self.stage_table.setHorizontalHeaderLabels(["Etapa", "Situação", "% concluído"])
+        configure_table(self.stage_table, stretch_last=False)
+        stages = self.execution.get("etapas") or []
+        self.stage_widgets: list[tuple[dict, QComboBox, QSpinBox]] = []
+        self.stage_table.setRowCount(len(stages))
+        for row_index, stage in enumerate(stages):
+            self.stage_table.setItem(row_index, 0, make_table_item(str(stage.get("stage_type") or "").replace("_", " ")))
+            combo = QComboBox()
+            for value, label in (("PENDENTE", "Pendente"), ("EM_EXECUCAO", "Em execução"), ("CONCLUIDA", "Concluída"), ("BLOQUEADA", "Bloqueada"), ("NAO_EXECUTADA", "Não executada")):
+                combo.addItem(label, value)
+            stage_index = combo.findData(stage.get("status") or "PENDENTE")
+            if stage_index >= 0: combo.setCurrentIndex(stage_index)
+            percent = QSpinBox(); percent.setRange(0, 100); percent.setSuffix(" %"); percent.setValue(int(stage.get("percent_complete") or 0))
+            self.stage_table.setCellWidget(row_index, 1, combo)
+            self.stage_table.setCellWidget(row_index, 2, percent)
+            self.stage_widgets.append((stage, combo, percent))
+        layout.addWidget(self.stage_table, 1)
+        layout.addWidget(QLabel("Observação"))
+        self.observation = QTextEdit(); self.observation.setMaximumHeight(75); self.observation.setPlainText(self.execution.get("observation") or "")
+        layout.addWidget(self.observation)
+        buttons = QDialogButtonBox(QDialogButtonBox.Cancel | QDialogButtonBox.Save)
+        buttons.button(QDialogButtonBox.Save).setText("Salvar execução")
+        buttons.button(QDialogButtonBox.Save).setProperty("variant", "primary")
+        buttons.accepted.connect(self._save); buttons.rejected.connect(self.reject)
+        layout.addWidget(buttons)
+
+    def _save(self):
+        try:
+            for stage, combo, percent in self.stage_widgets:
+                self.api_client.update_preventive_stage(
+                    int(self.execution["id"]), int(stage["id"]),
+                    {"status": combo.currentData(), "percent_complete": percent.value()},
+                )
+            self.api_client.update_preventive_execution(
+                int(self.execution["id"]),
+                {
+                    "status": self.status.currentData(),
+                    "hourmeter_start": self.hourmeter_start.value() or None,
+                    "hourmeter_execution": self.hourmeter_execution.value() or None,
+                    "observation": self.observation.toPlainText().strip() or None,
+                },
+            )
+        except Exception as exc:
+            show_notice(self, "Execução não salva", str(exc), icon_name="warning")
+            return
+        self.accept()
 
 
 class HourmeterEntryDialog(QDialog):
@@ -295,6 +467,7 @@ class PreventiveFamilyPage(QFrame):
         self.family = _text(family).upper()
         self.rows: list[dict] = []
         self.visible_rows: list[dict] = []
+        self.executions: list[dict] = []
         self.setObjectName("ContentSurface")
 
         layout = QVBoxLayout(self)
@@ -316,12 +489,18 @@ class PreventiveFamilyPage(QFrame):
         register_button = QPushButton("Registrar horímetro")
         register_button.setProperty("variant", "primary")
         register_button.clicked.connect(self._open_hourmeter_dialog)
+        schedule_button = QPushButton("Programar preventiva")
+        schedule_button.clicked.connect(self._open_schedule_dialog)
+        execute_button = QPushButton("Executar preventiva")
+        execute_button.clicked.connect(self._open_execution_dialog)
         pcm_button = QPushButton("Abrir PCM")
         pcm_button.clicked.connect(lambda: self.open_page_requested.emit("pcm"))
         refresh_button = QPushButton("Atualizar")
         refresh_button.setProperty("variant", "primary")
         refresh_button.clicked.connect(self.refresh)
         header.addWidget(register_button)
+        header.addWidget(schedule_button)
+        header.addWidget(execute_button)
         header.addWidget(pcm_button)
         header.addWidget(refresh_button)
         layout.addLayout(header)
@@ -406,6 +585,13 @@ class PreventiveFamilyPage(QFrame):
             line.setWordWrap(True)
             detail_layout.addWidget(line)
             self.detail_labels[key] = line
+        detail_layout.addWidget(QLabel("Execução preventiva selecionada"))
+        self.execution_selector = QComboBox()
+        self.execution_selector.currentIndexChanged.connect(self._execution_selection_changed)
+        detail_layout.addWidget(self.execution_selector)
+        self.execution_status_label = QLabel("Status da execução: -")
+        self.execution_status_label.setObjectName("SectionCaption")
+        detail_layout.addWidget(self.execution_status_label)
         detail_layout.addStretch(1)
         content.addWidget(self.detail_card, 1)
         layout.addLayout(content, 1)
@@ -422,10 +608,45 @@ class PreventiveFamilyPage(QFrame):
             self.refresh()
             self.data_changed.emit()
 
+    def _plan_rows_for_family(self) -> list[dict]:
+        return [row.get("plan") for row in self.rows if row.get("plan")]
+
+    def _open_schedule_dialog(self):
+        plans = self._plan_rows_for_family()
+        if not plans:
+            show_notice(self, "Planos indisponíveis", f"Nenhum plano preventivo ativo foi encontrado para {self.family}.", icon_name="warning")
+            return
+        dialog = PreventiveScheduleDialog(self.api_client, self.family, plans, self)
+        if dialog.exec() == QDialog.Accepted:
+            self.refresh()
+            self.data_changed.emit()
+
+    def _open_execution_dialog(self):
+        execution = self.execution_selector.currentData()
+        if not execution:
+            show_notice(self, "Execução indisponível", "Selecione uma execução preventiva programada.", icon_name="warning")
+            return
+        try:
+            if hasattr(self.api_client, "get_preventive_execution"):
+                execution = self.api_client.get_preventive_execution(int(execution["id"]))
+            dialog = PreventiveExecutionDialog(self.api_client, execution, self)
+            if dialog.exec() == QDialog.Accepted:
+                self.refresh()
+                self.data_changed.emit()
+        except Exception as exc:
+            show_notice(self, "Falha ao abrir execução", str(exc), icon_name="warning")
+
+    def _execution_selection_changed(self):
+        execution = self.execution_selector.currentData()
+        self.execution_status_label.setText(f"Status da execução: {execution.get('status') if execution else '-'}")
+
     def refresh(self):
         try:
             vehicles = self.api_client.get_equipment(tipo=self.family.lower(), ativos=True) or []
             plans = self.api_client.get_preventive_plans() or []
+            self.executions = []
+            if hasattr(self.api_client, "get_preventive_executions"):
+                self.executions = self.api_client.get_preventive_executions() or []
             plans_by_vehicle: dict[int, dict] = {}
             for plan in plans:
                 if _text(plan.get("status")).upper() != "ATIVO":
@@ -453,6 +674,7 @@ class PreventiveFamilyPage(QFrame):
                     "percent": due.get("percent_used"),
                 })
             self.last_update.setText(f"Última atualização: {datetime.now().strftime('%d/%m/%Y %H:%M')}")
+            self._render_executions()
             self._render_rows()
         except Exception as exc:
             show_notice(self, f"Falha ao carregar preventiva {self.family}", str(exc), icon_name="warning")
@@ -520,6 +742,23 @@ class PreventiveFamilyPage(QFrame):
         elif not self.visible_rows:
             self._clear_details()
 
+    def _render_executions(self):
+        family_vehicle_ids = {
+            int((row.get("vehicle") or {}).get("id"))
+            for row in self.rows
+            if (row.get("vehicle") or {}).get("id") is not None
+        }
+        self.execution_selector.blockSignals(True)
+        self.execution_selector.clear()
+        for execution in self.executions:
+            if execution.get("vehicle_id") not in family_vehicle_ids:
+                continue
+            vehicle = execution.get("vehicle") or {}
+            label = f"{vehicle.get('frota') or 'Equipamento'} | {execution.get('status') or '-'} | {_date_text(execution.get('scheduled_date'))}"
+            self.execution_selector.addItem(label, execution)
+        self.execution_selector.blockSignals(False)
+        self._execution_selection_changed()
+
     def _show_selected_row(self):
         index = self.table.currentRow()
         if index < 0 or index >= len(self.visible_rows):
@@ -543,6 +782,12 @@ class PreventiveFamilyPage(QFrame):
             label = self.detail_labels[key]
             caption = label.text().split(":", 1)[0]
             label.setText(f"{caption}: {value}")
+        vehicle_id = vehicle.get("id")
+        for option in range(self.execution_selector.count()):
+            execution = self.execution_selector.itemData(option) or {}
+            if execution.get("vehicle_id") == vehicle_id:
+                self.execution_selector.setCurrentIndex(option)
+                break
 
     def _clear_details(self):
         for label in self.detail_labels.values():

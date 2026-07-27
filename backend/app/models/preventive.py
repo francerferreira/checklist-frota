@@ -115,6 +115,12 @@ class PreventiveExecution(db.Model):
             "created_at": self.created_at.isoformat() if self.created_at else None,
             "updated_at": self.updated_at.isoformat() if self.updated_at else None,
             "vehicle": self.vehicle.to_dict() if self.vehicle else None,
+            "preventive_plan": {
+                "id": self.preventive_plan.id,
+                "code": self.preventive_plan.code,
+                "title": self.preventive_plan.title,
+                "priority": self.preventive_plan.priority,
+            } if self.preventive_plan else None,
             "responsible_user": self.responsible_user.to_dict() if self.responsible_user else None,
         }
         if include_steps:
