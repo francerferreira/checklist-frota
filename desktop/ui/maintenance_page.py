@@ -10,6 +10,7 @@ from PySide6.QtWidgets import (
     QComboBox,
     QDateEdit,
     QDialog,
+    QDialogButtonBox,
     QFrame,
     QGridLayout,
     QHBoxLayout,
@@ -453,8 +454,128 @@ class MaintenanceScheduleCreateDialog(QDialog):
         self.accept()
 
 
+class QuickMaintenanceDialog(QDialog):
+    """Entrada curta para programar uma manutenção de RTG ou LBS."""
+
+    def __init__(self, api_client, parent=None):
+        super().__init__(parent)
+        self.api_client = api_client
+        self.equipment: list[dict] = []
+        self.mechanics: list[dict] = []
+
+        self.setWindowTitle("Agendar manutenção")
+        configure_dialog_window(self, width=620, height=520, min_width=560, min_height=460)
+        style_card(self)
+        layout = build_dialog_layout(self, max_content_width=700)
+
+        header = QFrame()
+        header.setObjectName("DialogHeader")
+        header.setAttribute(Qt.WA_StyledBackground, True)
+        header_layout = QVBoxLayout(header)
+        header_layout.setContentsMargins(18, 16, 18, 16)
+        title = QLabel("Agendar manutenção")
+        title.setObjectName("DialogHeaderTitle")
+        subtitle = QLabel("Escolha o equipamento e a data. O sistema cria a programação e a OS automaticamente.")
+        subtitle.setObjectName("DialogHeaderSubtitle")
+        subtitle.setWordWrap(True)
+        header_layout.addWidget(title)
+        header_layout.addWidget(subtitle)
+
+        form_card = QFrame()
+        form_card.setObjectName("HeaderCard")
+        form_card.setAttribute(Qt.WA_StyledBackground, True)
+        form = QGridLayout(form_card)
+        form.setContentsMargins(16, 16, 16, 16)
+        form.setHorizontalSpacing(12)
+        form.setVerticalSpacing(8)
+
+        self.equipment_combo = QComboBox()
+        self.date_input = QDateEdit(QDate.currentDate())
+        self.date_input.setCalendarPopup(True)
+        self.date_input.setDisplayFormat("dd/MM/yyyy")
+        self.title_input = QLineEdit("Manutenção preventiva")
+        self.mechanic_combo = QComboBox()
+        self.mechanic_combo.addItem("Sem responsável definido", None)
+        self.observation_input = QTextEdit()
+        self.observation_input.setPlaceholderText("Observação opcional para a programação")
+
+        form.addWidget(QLabel("Equipamento RTG/LBS"), 0, 0)
+        form.addWidget(self.equipment_combo, 1, 0, 1, 2)
+        form.addWidget(QLabel("Data"), 0, 2)
+        form.addWidget(self.date_input, 1, 2)
+        form.addWidget(QLabel("Serviço"), 2, 0)
+        form.addWidget(self.title_input, 3, 0, 1, 3)
+        form.addWidget(QLabel("Responsável"), 4, 0)
+        form.addWidget(self.mechanic_combo, 5, 0, 1, 3)
+        form.addWidget(QLabel("Observação"), 6, 0, 1, 3)
+        form.addWidget(self.observation_input, 7, 0, 1, 3)
+
+        buttons = QDialogButtonBox(QDialogButtonBox.Cancel | QDialogButtonBox.Save)
+        buttons.button(QDialogButtonBox.Save).setText("Agendar manutenção")
+        buttons.accepted.connect(self._submit)
+        buttons.rejected.connect(self.reject)
+
+        layout.addWidget(header)
+        layout.addWidget(form_card)
+        layout.addWidget(buttons)
+
+        self._load_options()
+
+    def _load_options(self):
+        try:
+            self.equipment = [
+                row for row in (self.api_client.get_equipment(ativos=True) or [])
+                if str(row.get("tipo") or "").lower() in {"rtg", "lbs"}
+            ]
+            self.mechanics = self.api_client.get_mechanics() or []
+        except Exception as exc:
+            show_notice(self, "Falha ao carregar equipamentos", str(exc), icon_name="warning")
+            self.equipment = []
+            self.mechanics = []
+
+        ordered_equipment = sorted(self.equipment, key=lambda item: str(item.get("frota") or "").upper())
+        for row in ordered_equipment:
+            label = row.get("frota") or row.get("modelo") or f"Equipamento {row.get('id')}"
+            self.equipment_combo.addItem(label, row)
+
+        preferred = next(
+            (index for index, row in enumerate(ordered_equipment) if str(row.get("frota") or "").upper() == "RTG 03"),
+            -1,
+        )
+        if preferred >= 0:
+            self.equipment_combo.setCurrentIndex(preferred)
+
+        for row in sorted(self.mechanics, key=lambda item: str(item.get("nome") or item.get("login") or "").upper()):
+            self.mechanic_combo.addItem(row.get("nome") or row.get("login") or "Responsável", row.get("id"))
+
+    def _submit(self):
+        equipment = self.equipment_combo.currentData() or {}
+        vehicle_id = equipment.get("id")
+        if not vehicle_id:
+            show_notice(self, "Equipamento obrigatório", "Selecione um RTG ou LBS.", icon_name="warning")
+            return
+
+        payload = {
+            "source_type": "PREVENTIVA",
+            "title": (self.title_input.text() or "").strip() or "Manutenção preventiva",
+            "item_name": "Manutenção preventiva",
+            "start_date": self.date_input.date().toString("yyyy-MM-dd"),
+            "daily_capacity": 1,
+            "vehicle_ids": [int(vehicle_id)],
+            "assigned_mechanic_user_id": self.mechanic_combo.currentData(),
+            "observation": (self.observation_input.toPlainText() or "").strip(),
+        }
+        try:
+            self.api_client.create_maintenance_schedule(payload)
+        except Exception as exc:
+            show_notice(self, "Falha ao agendar manutenção", str(exc), icon_name="warning")
+            return
+        self.accept()
+
+
 class MaintenancePage(QFrame):
     data_changed = Signal()
+    open_page_requested = Signal(str)
 
     def __init__(self, api_client, parent=None):
         super().__init__(parent)
@@ -511,10 +632,22 @@ class MaintenancePage(QFrame):
         context_hint.setObjectName("ContextHint")
         text_wrap.addWidget(context_hint)
 
-        self.new_schedule_button = QPushButton("Nova programação")
-        self.new_schedule_button.setProperty("variant", "primary")
+        self.quick_schedule_button = QPushButton("Agendar equipamento")
+        self.quick_schedule_button.setProperty("variant", "primary")
+        self.quick_schedule_button.setMinimumHeight(34)
+        self.quick_schedule_button.clicked.connect(self.create_quick_schedule)
+
+        self.new_schedule_button = QPushButton("Programação avançada")
         self.new_schedule_button.setMinimumHeight(34)
         self.new_schedule_button.clicked.connect(self.create_schedule)
+
+        self.open_os_button = QPushButton("Ver OS")
+        self.open_os_button.setMinimumHeight(34)
+        self.open_os_button.clicked.connect(lambda: self._open_maintenance_screen("OS"))
+
+        self.open_pcm_button = QPushButton("Abrir PCM")
+        self.open_pcm_button.setMinimumHeight(34)
+        self.open_pcm_button.clicked.connect(lambda: self.open_page_requested.emit("pcm"))
 
         refresh_button = QPushButton("Atualizar")
         refresh_button.setProperty("variant", "success")
@@ -522,7 +655,10 @@ class MaintenancePage(QFrame):
         refresh_button.clicked.connect(self.refresh)
 
         header.addLayout(text_wrap, 1)
+        header.addWidget(self.quick_schedule_button)
         header.addWidget(self.new_schedule_button)
+        header.addWidget(self.open_os_button)
+        header.addWidget(self.open_pcm_button)
         header.addWidget(refresh_button)
 
         cards_layout = QGridLayout()
@@ -1744,6 +1880,14 @@ class MaintenancePage(QFrame):
         self._load_reference_data()
         self.overview = self.api_client.get_maintenance_overview(year=year, month=month_number) or {}
         self.apply_filters()
+
+    def create_quick_schedule(self):
+        dialog = QuickMaintenanceDialog(self.api_client, self)
+        if dialog.exec() != QDialog.Accepted:
+            return
+        self.refresh()
+        self.data_changed.emit()
+        show_notice(self, "Manutenção agendada", "A programação foi criada e a ordem de serviço já está disponível na tela de OS.", icon_name="ok")
 
     def clear_filters(self):
         self.source_filter.setCurrentIndex(0)

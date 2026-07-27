@@ -444,6 +444,7 @@ class MainWindow(QMainWindow):
             self.activities_page.data_changed.connect(lambda: self.handle_data_changed("activities"))
         if "maintenance" in self.page_map:
             self.maintenance_page.data_changed.connect(lambda: self.handle_data_changed("maintenance"))
+            self.maintenance_page.open_page_requested.connect(self.switch_page)
         if "emergencies" in self.page_map:
             self.emergencies_page.data_changed.connect(lambda: self.handle_data_changed("emergencies"))
         if "pcm" in self.page_map:
