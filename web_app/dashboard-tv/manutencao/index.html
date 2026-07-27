@@ -1,0 +1,94 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="theme-color" content="#061a35">
+    <title>Dashboard TV — Manutenção</title>
+    <link rel="stylesheet" href="../../static/css/dashboard-tv-maintenance.css?v=20260727-01">
+</head>
+<body>
+    <main class="dashboard-maintenance-tv" id="maintenance-tv" aria-live="polite">
+        <header class="dashboard-tv-header">
+            <div class="brand-block">
+                <img src="../../static/icons/cf-logo-mark.png" alt="Checklist de Frota">
+                <div>
+                    <span class="eyebrow">CHECKLIST DE FROTA</span>
+                    <h1>DASHBOARD TV — MANUTENÇÃO</h1>
+                    <p>LBS + RTG · visão operacional consolidada</p>
+                </div>
+            </div>
+            <div class="header-status">
+                <strong id="maintenance-tv-clock">--/--/---- --:--</strong>
+                <span id="maintenance-tv-connection" class="connection-status neutral">AGUARDANDO DADOS</span>
+            </div>
+            <div class="header-actions">
+                <button type="button" id="maintenance-tv-fullscreen">TELA CHEIA</button>
+                <button type="button" id="maintenance-tv-pause" aria-pressed="false">PAUSAR</button>
+            </div>
+        </header>
+
+        <section class="dashboard-tv-body" aria-label="Páginas do Dashboard TV">
+            <div class="pages-viewport">
+                <div class="pages-slider" id="maintenance-tv-slider" style="--current-page: 0">
+                    <section class="dashboard-page" data-tv-page="0" aria-labelledby="page-title-0">
+                        <div class="page-heading"><div><span class="eyebrow">TELA 1 · SITUAÇÃO ATUAL</span><h2 id="page-title-0">Situação atual da manutenção</h2></div><span class="page-caption">Indicadores consolidados</span></div>
+                        <div class="dashboard-page-content">
+                            <div class="kpi-card accent-blue"><span>DISPONIBILIDADE</span><strong data-shell-value="availability">AGUARDANDO</strong><small>equipamentos ativos</small></div>
+                            <div class="kpi-card accent-red"><span>INDISPONÍVEIS</span><strong data-shell-value="unavailable">AGUARDANDO</strong><small>necessitam de decisão</small></div>
+                            <div class="kpi-card accent-amber"><span>EM MANUTENÇÃO</span><strong data-shell-value="maintenance">AGUARDANDO</strong><small>serviço em andamento</small></div>
+                            <div class="kpi-card accent-violet"><span>SEM PREVISÃO</span><strong data-shell-value="without-forecast">AGUARDANDO</strong><small>aguardando programação</small></div>
+                            <article class="tv-panel span-8 row-2"><div class="panel-heading"><span>STATUS OPERACIONAL</span><h3>Resumo dos equipamentos</h3></div><div class="placeholder-list" data-shell-list="operational"><div>Dados serão conectados na Etapa 3.</div></div></article>
+                            <article class="tv-panel span-4 row-2"><div class="panel-heading"><span>ATENÇÃO</span><h3>Principais ofensores</h3></div><div class="placeholder-list" data-shell-list="offenders"><div>Lista crítica aguardando dados.</div></div></article>
+                        </div>
+                    </section>
+
+                    <section class="dashboard-page" data-tv-page="1" aria-labelledby="page-title-1">
+                        <div class="page-heading"><div><span class="eyebrow">TELA 2 · PCM</span><h2 id="page-title-1">Programação, execução e ordens de serviço</h2></div><span class="page-caption">Acompanhamento do período</span></div>
+                        <div class="dashboard-page-content">
+                            <div class="kpi-card accent-blue"><span>OS ABERTAS</span><strong>AGUARDANDO</strong><small>ordens no período</small></div>
+                            <div class="kpi-card accent-red"><span>ATRASADAS</span><strong>AGUARDANDO</strong><small>fora do prazo</small></div>
+                            <div class="kpi-card accent-green"><span>EM EXECUÇÃO</span><strong>AGUARDANDO</strong><small>serviços iniciados</small></div>
+                            <div class="kpi-card accent-amber"><span>BLOQUEADAS</span><strong>AGUARDANDO</strong><small>aguardando material</small></div>
+                            <article class="tv-panel span-7 row-2"><div class="panel-heading"><span>PROGRAMAÇÃO</span><h3>Programadas, executadas e reprogramadas</h3></div><div class="placeholder-table"><div class="table-head"><b>ATIVIDADE</b><b>STATUS</b><b>PREVISÃO</b></div><div class="table-empty">Dados serão conectados na Etapa 3.</div></div></article>
+                            <article class="tv-panel span-5 row-2"><div class="panel-heading"><span>EXECUÇÃO</span><h3>Resumo das ordens</h3></div><div class="placeholder-list"><div>Indicadores de execução aguardando dados.</div></div></article>
+                        </div>
+                    </section>
+
+                    <section class="dashboard-page" data-tv-page="2" aria-labelledby="page-title-2">
+                        <div class="page-heading"><div><span class="eyebrow">TELA 3 · CONFIABILIDADE</span><h2 id="page-title-2">Preventivas, backlog e indicadores técnicos</h2></div><span class="page-caption">Confiabilidade da operação</span></div>
+                        <div class="dashboard-page-content">
+                            <div class="kpi-card accent-red"><span>PREVENTIVAS VENCIDAS</span><strong>AGUARDANDO</strong><small>planos que exigem ação</small></div>
+                            <div class="kpi-card accent-amber"><span>BACKLOG</span><strong>AGUARDANDO</strong><small>atividades pendentes</small></div>
+                            <div class="kpi-card accent-blue"><span>MTTR</span><strong>AGUARDANDO</strong><small>tempo médio de reparo</small></div>
+                            <div class="kpi-card accent-green"><span>MTBF</span><strong>AGUARDANDO</strong><small>tempo médio entre falhas</small></div>
+                            <article class="tv-panel span-6 row-2"><div class="panel-heading"><span>PREVENTIVAS</span><h3>Planos por situação</h3></div><div class="placeholder-list"><div>Dados de preventivas aguardando conexão.</div></div></article>
+                            <article class="tv-panel span-6 row-2"><div class="panel-heading"><span>BACKLOG</span><h3>Idade e prioridade das pendências</h3></div><div class="placeholder-list"><div>Backlog técnico aguardando conexão.</div></div></article>
+                        </div>
+                    </section>
+
+                    <section class="dashboard-page" data-tv-page="3" aria-labelledby="page-title-3">
+                        <div class="page-heading"><div><span class="eyebrow">TELA 4 · DECISÃO</span><h2 id="page-title-3">Materiais, equipamentos críticos e planos de ação</h2></div><span class="page-caption">Impedimentos e decisões imediatas</span></div>
+                        <div class="dashboard-page-content">
+                            <div class="kpi-card accent-red"><span>EQUIPAMENTOS CRÍTICOS</span><strong>AGUARDANDO</strong><small>maiores impactos</small></div>
+                            <div class="kpi-card accent-amber"><span>MATERIAIS PENDENTES</span><strong>AGUARDANDO</strong><small>impedem a liberação</small></div>
+                            <div class="kpi-card accent-violet"><span>PLANOS VENCIDOS</span><strong>AGUARDANDO</strong><small>ações sem conclusão</small></div>
+                            <div class="kpi-card accent-blue"><span>DECISÕES ABERTAS</span><strong>AGUARDANDO</strong><small>pontos para gestão</small></div>
+                            <article class="tv-panel span-7 row-2"><div class="panel-heading"><span>MATERIAIS</span><h3>Itens que impactam a manutenção</h3></div><div class="placeholder-table"><div class="table-head"><b>MATERIAL</b><b>STATUS</b><b>IMPACTO</b></div><div class="table-empty">Dados serão conectados na Etapa 3.</div></div></article>
+                            <article class="tv-panel span-5 row-2"><div class="panel-heading"><span>PLANO DE AÇÃO</span><h3>Prioridades imediatas</h3></div><div class="placeholder-list"><div>Planos aguardando dados da gestão.</div></div></article>
+                        </div>
+                    </section>
+                </div>
+            </div>
+        </section>
+
+        <footer class="dashboard-tv-footer">
+            <div class="footer-navigation"><button type="button" id="maintenance-tv-prev" aria-label="Página anterior">‹</button><div id="maintenance-tv-dots" class="page-dots" aria-label="Selecionar página"></div><button type="button" id="maintenance-tv-next" aria-label="Próxima página">›</button></div>
+            <span id="maintenance-tv-page-label">PÁGINA 1 DE 4</span>
+            <span>ATUALIZAÇÃO AUTOMÁTICA · 60 SEGUNDOS</span>
+        </footer>
+    </main>
+    <script src="../../static/js/config.js?v=20260720-01"></script>
+    <script src="../../static/js/dashboard-tv-maintenance.js?v=20260727-01"></script>
+</body>
+</html>
