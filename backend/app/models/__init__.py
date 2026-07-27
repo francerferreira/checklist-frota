@@ -20,6 +20,7 @@ from app.models.mobile_operation import MobileSyncOperation
 from app.models.navigation import UserNavigationPreference, UserPagePermission
 from app.models.operational_availability import EquipmentOperationalState, EquipmentStatusEvent, HourmeterReading
 from app.models.pcm import PreventivePlan
+from app.models.preventive import PreventiveExecution, PreventiveMaterial, PreventiveStage
 from app.models.purchase import PurchaseReceipt, PurchaseRequest, Supplier
 from app.models.resource import MaintenanceResource, MaintenanceResourceReservation
 from app.models.technical_inspection import InspectionExecution, InspectionExecutionItem, InspectionTemplate, InspectionTemplateItem
@@ -76,6 +77,9 @@ __all__ = [
     "UserPagePermission",
     "OperationalLocation",
     "PreventivePlan",
+    "PreventiveExecution",
+    "PreventiveStage",
+    "PreventiveMaterial",
     "PurchaseReceipt",
     "PurchaseRequest",
     "Supplier",

@@ -132,15 +132,32 @@ class HourmeterReading(db.Model):
     notes = db.Column(db.String(255), nullable=True)
     created_by_user_id = db.Column(db.Integer, db.ForeignKey("users.id"), nullable=False, index=True)
     created_at = db.Column(db.DateTime, nullable=False, default=now_manaus_naive)
+    previous_reading = db.Column(db.Numeric(12, 2), nullable=True)
+    difference_hours = db.Column(db.Numeric(12, 2), nullable=True)
+    validation_status = db.Column(db.String(20), nullable=True, default="VALIDA", index=True)
+    exception_justification = db.Column(db.Text, nullable=True)
+    cancelled_at = db.Column(db.DateTime, nullable=True)
+    cancelled_by_user_id = db.Column(db.Integer, db.ForeignKey("users.id"), nullable=True)
+    cancellation_reason = db.Column(db.Text, nullable=True)
+    replacement_reading_id = db.Column(db.Integer, nullable=True)
 
     vehicle = db.relationship("Vehicle", back_populates="hourmeter_readings", lazy="joined")
-    created_by = db.relationship("User", lazy="joined")
+    created_by = db.relationship("User", foreign_keys=[created_by_user_id], lazy="joined")
+    cancelled_by = db.relationship("User", foreign_keys=[cancelled_by_user_id], lazy="joined")
 
     __table_args__ = (
         db.CheckConstraint("reading >= 0", name="ck_hourmeter_reading_non_negative"),
         db.CheckConstraint(
             "source IN ('MANUAL', 'IMPORTADO', 'TELEMETRIA')",
             name="ck_hourmeter_reading_source",
+        ),
+        db.CheckConstraint(
+            "previous_reading IS NULL OR previous_reading >= 0",
+            name="ck_hourmeter_previous_reading_non_negative",
+        ),
+        db.CheckConstraint(
+            "difference_hours IS NULL OR difference_hours >= 0",
+            name="ck_hourmeter_difference_non_negative",
         ),
         db.UniqueConstraint("vehicle_id", "recorded_at", name="uq_hourmeter_vehicle_recorded_at"),
     )
@@ -155,6 +172,14 @@ class HourmeterReading(db.Model):
             "source": self.source,
             "evidence_path": self.evidence_path,
             "notes": self.notes,
+            "previous_reading": float(self.previous_reading) if self.previous_reading is not None else None,
+            "difference_hours": float(self.difference_hours) if self.difference_hours is not None else None,
+            "validation_status": self.validation_status,
+            "exception_justification": self.exception_justification,
+            "cancelled_at": self.cancelled_at.isoformat() if self.cancelled_at else None,
+            "cancelled_by_user_id": self.cancelled_by_user_id,
+            "cancellation_reason": self.cancellation_reason,
+            "replacement_reading_id": self.replacement_reading_id,
             "created_by_user_id": self.created_by_user_id,
             "created_by": self.created_by.to_dict() if self.created_by else None,
         }

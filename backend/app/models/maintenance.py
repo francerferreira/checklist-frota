@@ -328,6 +328,7 @@ class MaintenanceWorkOrder(db.Model):
     resolution_package = db.relationship("ResolutionPackage", lazy="joined")
     execution = db.relationship("WorkOrderExecution", back_populates="work_order", uselist=False, lazy="select", cascade="all, delete-orphan")
     cost_records = db.relationship("MaintenanceWorkOrderCost", back_populates="work_order", lazy="select", cascade="all, delete-orphan")
+    preventive_executions = db.relationship("PreventiveExecution", back_populates="work_order", lazy="select")
 
     __table_args__ = (
         db.CheckConstraint(

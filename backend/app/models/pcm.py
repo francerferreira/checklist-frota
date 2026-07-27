@@ -34,6 +34,11 @@ class PreventivePlan(db.Model):
     vehicle = db.relationship("Vehicle", lazy="joined")
     assigned_mechanic = db.relationship("User", foreign_keys=[assigned_mechanic_user_id], lazy="joined")
     created_by = db.relationship("User", foreign_keys=[created_by_user_id], lazy="joined")
+    executions = db.relationship(
+        "PreventiveExecution",
+        back_populates="preventive_plan",
+        lazy="select",
+    )
 
     __table_args__ = (
         db.CheckConstraint("trigger_type IN ('CALENDARIO', 'HORIMETRO', 'AMBOS')", name="ck_preventive_plan_trigger"),

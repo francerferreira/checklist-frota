@@ -75,6 +75,11 @@ class Vehicle(db.Model):
         cascade="all, delete-orphan",
         lazy="dynamic",
     )
+    preventive_executions = db.relationship(
+        "PreventiveExecution",
+        back_populates="vehicle",
+        lazy="dynamic",
+    )
 
     def to_dict(self) -> dict:
         profile = self.equipment_profile

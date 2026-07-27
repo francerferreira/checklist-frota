@@ -17,6 +17,13 @@ class AuditLog(db.Model):
     action = db.Column(db.String(50), nullable=False)       # 'STATUS_CHANGE'
     old_value = db.Column(db.Text, nullable=True)
     new_value = db.Column(db.Text, nullable=True)
+    module = db.Column(db.String(80), nullable=True)
+    equipment_id = db.Column(db.Integer, nullable=True)
+    record_id = db.Column(db.Integer, nullable=True)
+    justification = db.Column(db.Text, nullable=True)
+    origin = db.Column(db.String(30), nullable=True)
+    ip_address = db.Column(db.String(64), nullable=True)
+    device = db.Column(db.String(120), nullable=True)
 
     user = db.relationship("User", backref="audit_logs")
 
@@ -30,4 +37,11 @@ class AuditLog(db.Model):
             "action": self.action,
             "old_value": self.old_value,
             "new_value": self.new_value,
+            "module": self.module,
+            "equipment_id": self.equipment_id,
+            "record_id": self.record_id,
+            "justification": self.justification,
+            "origin": self.origin,
+            "ip_address": self.ip_address,
+            "device": self.device,
         }
