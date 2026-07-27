@@ -1,0 +1,87 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="theme-color" content="#071d3a">
+    <title>Dashboard TV — Controle de Paradas</title>
+    <link rel="stylesheet" href="../../static/css/dashboard-tv-stops.css?v=20260727-01">
+</head>
+<body>
+    <main class="dashboard-stops-tv" id="stops-tv" aria-live="polite">
+        <header class="stops-tv-header">
+            <div class="brand-block">
+                <img src="../../static/icons/cf-logo-mark.png" alt="Checklist de Frota">
+                <div>
+                    <span class="eyebrow">CHECKLIST DE FROTA</span>
+                    <h1>DASHBOARD TV — CONTROLE DE PARADAS</h1>
+                    <p>LBS e RTG · acompanhamento de horas paradas</p>
+                </div>
+            </div>
+            <div class="header-period">
+                <strong id="stops-tv-period">COMPETÊNCIA: SEM DADOS</strong>
+                <span id="stops-tv-range">PERÍODO: SEM DADOS</span>
+            </div>
+            <div class="header-status">
+                <strong id="stops-tv-clock">--/--/---- --:--</strong>
+                <span id="stops-tv-last-update">SEM DADOS</span>
+                <span id="stops-tv-connection" class="connection-status neutral">SEM CONEXÃO</span>
+            </div>
+        </header>
+
+        <section class="stops-tv-body" aria-label="Páginas do controle de paradas">
+            <div class="pages-viewport">
+                <div class="pages-slider" id="stops-tv-slider" style="--current-page: 0">
+                    <section class="stops-page" data-stops-page="0" aria-labelledby="stops-page-title-0">
+                        <div class="page-heading"><div><span class="eyebrow">PÁGINA 1 · METAS</span><h2 id="stops-page-title-0">Visão geral das metas</h2></div><span class="page-caption">Horas paradas acumuladas no período</span></div>
+                        <div class="stops-page-content">
+                            <article class="target-card accent-blue" data-stop-target="lbs-pier"><span>LBS · PÍER</span><strong data-stop-value="lbs-pier-hours">SEM DADOS</strong><div class="target-progress"><i data-stop-progress="lbs-pier"></i></div><small>Meta: <b data-stop-value="lbs-pier-goal">SEM DADOS</b> · <b data-stop-value="lbs-pier-percent">SEM DADOS</b></small><em data-stop-value="lbs-pier-status">SEM DADOS</em></article>
+                            <article class="target-card accent-amber" data-stop-target="rtg-atr"><span>RTG · ATR</span><strong data-stop-value="rtg-atr-hours">SEM DADOS</strong><div class="target-progress"><i data-stop-progress="rtg-atr"></i></div><small>Meta: <b data-stop-value="rtg-atr-goal">SEM DADOS</b> · <b data-stop-value="rtg-atr-percent">SEM DADOS</b></small><em data-stop-value="rtg-atr-status">SEM DADOS</em></article>
+                            <article class="target-card accent-red" data-stop-target="rtg-alfandegado"><span>RTG · ALFANDEGADO</span><strong data-stop-value="rtg-alf-hours">SEM DADOS</strong><div class="target-progress"><i data-stop-progress="rtg-alfandegado"></i></div><small>Meta: <b data-stop-value="rtg-alf-goal">SEM DADOS</b> · <b data-stop-value="rtg-alf-percent">SEM DADOS</b></small><em data-stop-value="rtg-alf-status">SEM DADOS</em></article>
+                            <article class="target-card accent-violet" data-stop-target="rtg-total"><span>RTG · CONSOLIDADO</span><strong data-stop-value="rtg-total-hours">SEM DADOS</strong><div class="target-progress"><i data-stop-progress="rtg-total"></i></div><small>Meta: <b data-stop-value="rtg-total-goal">SEM DADOS</b> · <b data-stop-value="rtg-total-percent">SEM DADOS</b></small><em data-stop-value="rtg-total-status">SEM DADOS</em></article>
+                            <article class="stops-panel span-7 row-2"><div class="panel-heading"><span>REALIZADO VERSUS META</span><h3>Consumo das metas mensais</h3></div><div class="chart-placeholder" data-stop-chart="targets"><span>SEM DADOS</span></div></article>
+                            <article class="stops-panel span-5 row-2"><div class="panel-heading"><span>DISTRIBUIÇÃO RTG</span><h3>Horas por localização</h3></div><div class="chart-placeholder" data-stop-chart="rtg-distribution"><span>SEM DADOS</span></div></article>
+                        </div>
+                    </section>
+
+                    <section class="stops-page" data-stops-page="1" aria-labelledby="stops-page-title-1">
+                        <div class="page-heading"><div><span class="eyebrow">PÁGINA 2 · OPERAÇÃO</span><h2 id="stops-page-title-1">Paradas em andamento</h2></div><span class="page-caption">Tempo de parada atualizado em tempo real</span></div>
+                        <div class="stops-page-content single-panel-page">
+                            <article class="stops-panel span-8 row-full"><div class="panel-heading"><span>PARADAS ATIVAS</span><h3>Equipamentos parados agora</h3></div><div class="stops-table" data-stop-table="active"><div class="table-head"><b>EQUIPAMENTO</b><b>ÁREA</b><b>INÍCIO</b><b>DURAÇÃO</b><b>MOTIVO</b><b>STATUS</b></div><div class="table-empty">SEM DADOS</div></div></article>
+                            <article class="stops-panel span-4 row-full"><div class="panel-heading"><span>ATENÇÃO</span><h3>Indicadores críticos</h3></div><div class="metric-list" data-stop-list="active-summary"><div>SEM DADOS</div></div></article>
+                        </div>
+                    </section>
+
+                    <section class="stops-page" data-stops-page="2" aria-labelledby="stops-page-title-2">
+                        <div class="page-heading"><div><span class="eyebrow">PÁGINA 3 · HISTÓRICO</span><h2 id="stops-page-title-2">Ofensores e evolução das paradas</h2></div><span class="page-caption">Ranking por horas acumuladas</span></div>
+                        <div class="stops-page-content">
+                            <article class="stops-panel span-6 row-full"><div class="panel-heading"><span>RANKING</span><h3>Principais equipamentos ofensores</h3></div><div class="ranking-list" data-stop-list="offenders"><div>SEM DADOS</div></div></article>
+                            <article class="stops-panel span-6 row-full"><div class="panel-heading"><span>MOTIVOS</span><h3>Principais causas das paradas</h3></div><div class="ranking-list" data-stop-list="reasons"><div>SEM DADOS</div></div></article>
+                        </div>
+                    </section>
+
+                    <section class="stops-page" data-stops-page="3" aria-labelledby="stops-page-title-3">
+                        <div class="page-heading"><div><span class="eyebrow">PÁGINA 4 · PROJEÇÃO</span><h2 id="stops-page-title-3">Projeção de fechamento do mês</h2></div><span class="page-caption">Tendência e decisão operacional</span></div>
+                        <div class="stops-page-content">
+                            <article class="projection-card span-4"><span>PROJEÇÃO LBS · PÍER</span><strong data-stop-value="projection-lbs">SEM DADOS</strong><small data-stop-value="projection-lbs-status">SEM DADOS</small></article>
+                            <article class="projection-card span-4"><span>PROJEÇÃO RTG · ATR</span><strong data-stop-value="projection-atr">SEM DADOS</strong><small data-stop-value="projection-atr-status">SEM DADOS</small></article>
+                            <article class="projection-card span-4"><span>PROJEÇÃO RTG · ALFANDEGADO</span><strong data-stop-value="projection-alf">SEM DADOS</strong><small data-stop-value="projection-alf-status">SEM DADOS</small></article>
+                            <article class="stops-panel span-7 row-2"><div class="panel-heading"><span>EVOLUÇÃO</span><h3>Horas paradas por dia</h3></div><div class="chart-placeholder" data-stop-chart="daily-trend"><span>SEM DADOS</span></div></article>
+                            <article class="stops-panel span-5 row-2"><div class="panel-heading"><span>DECISÃO</span><h3>Leitura executiva do período</h3></div><div class="metric-list" data-stop-list="decisions"><div>SEM DADOS</div></div></article>
+                        </div>
+                    </section>
+                </div>
+            </div>
+        </section>
+
+        <footer class="stops-tv-footer">
+            <div class="footer-legend"><span><i class="legend-dot good"></i>NORMAL</span><span><i class="legend-dot warn"></i>ATENÇÃO</span><span><i class="legend-dot bad"></i>CRÍTICO</span><span><i class="legend-dot neutral"></i>SEM DADOS</span></div>
+            <div class="footer-navigation"><button type="button" id="stops-tv-prev" aria-label="Página anterior">‹</button><div id="stops-tv-dots" class="page-dots" aria-label="Selecionar página"></div><button type="button" id="stops-tv-next" aria-label="Próxima página">›</button></div>
+            <span id="stops-tv-page-label">PÁGINA 1 DE 4</span>
+            <span>ROTAÇÃO: 40 S · ATUALIZAÇÃO: 60 S</span>
+        </footer>
+    </main>
+    <script src="../../static/js/config.js?v=20260720-01"></script>
+    <script src="../../static/js/dashboard-tv-stops.js?v=20260727-01"></script>
+</body>
+</html>
