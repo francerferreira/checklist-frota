@@ -19,6 +19,7 @@ os.environ["INVENTORY_FILE"] = ""
 os.environ["WASH_CONTROL_FILE"] = ""
 
 from app import create_app
+from app.models import AuditLog
 from app.services import audit_service
 
 
@@ -54,6 +55,28 @@ class AuditServiceTests(unittest.TestCase):
 
         logger_exception.assert_called_once()
         self.assertIsNone(session.info.get("_audit_pending_rows"))
+
+    def test_record_event_persists_preventive_audit_entry(self):
+        with self.app.app_context():
+            audit_service.record_event(
+                user_id=None,
+                entity_type="PREVENTIVE_EXECUTION",
+                entity_id=321,
+                action="STATUS_CHANGE",
+                old_value="PROGRAMADA",
+                new_value="EM_EXECUCAO",
+            )
+            audit_service.db.session.commit()
+            entry = (
+                AuditLog.query.filter_by(entity_type="PREVENTIVE_EXECUTION", entity_id=321)
+                .order_by(AuditLog.id.desc())
+                .first()
+            )
+
+        assert entry is not None
+        assert entry.action == "STATUS_CHANGE"
+        assert entry.old_value == "PROGRAMADA"
+        assert entry.new_value == "EM_EXECUCAO"
 
 
 if __name__ == "__main__":

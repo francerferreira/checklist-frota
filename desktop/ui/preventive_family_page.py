@@ -31,7 +31,19 @@ from PySide6.QtWidgets import (
     QVBoxLayout,
 )
 
-from components import StatCard, show_notice
+from components import (
+    StatCard,
+    finalize_saved_file,
+    run_export_by_type,
+    show_notice,
+    start_export_task_with_preset,
+)
+from services.export_service import (
+    export_rows_to_csv,
+    export_rows_to_pdf,
+    export_rows_to_xlsx,
+    make_default_export_path,
+)
 from theme import configure_table, make_table_item, style_filter_bar, style_table_card
 
 
@@ -624,11 +636,21 @@ class PreventiveFamilyPage(QFrame):
         refresh_button = QPushButton("Atualizar")
         refresh_button.setProperty("variant", "primary")
         refresh_button.clicked.connect(self.refresh)
+        csv_button = QPushButton("CSV")
+        csv_button.clicked.connect(lambda: self.export_preventives("csv"))
+        xlsx_button = QPushButton("Excel")
+        xlsx_button.clicked.connect(lambda: self.export_preventives("xlsx"))
+        pdf_button = QPushButton("PDF")
+        pdf_button.setProperty("variant", "primary")
+        pdf_button.clicked.connect(lambda: self.export_preventives("pdf"))
         header.addWidget(register_button)
         header.addWidget(schedule_button)
         header.addWidget(execute_button)
         header.addWidget(pcm_button)
         header.addWidget(refresh_button)
+        header.addWidget(csv_button)
+        header.addWidget(xlsx_button)
+        header.addWidget(pdf_button)
         layout.addLayout(header)
 
         cards = QGridLayout()
@@ -943,6 +965,101 @@ class PreventiveFamilyPage(QFrame):
         for label in self.detail_labels.values():
             caption = label.text().split(":", 1)[0]
             label.setText(f"{caption}: -")
+
+    def _export_rows(self) -> tuple[list[tuple[str, str]], list[dict]]:
+        """Converte a visão filtrada atual para o formato comum de exportação."""
+        columns = [
+            ("Família", "familia"),
+            ("Equipamento", "equipamento"),
+            ("Local", "local"),
+            ("Horímetro", "horimetro"),
+            ("Última leitura", "ultima_leitura"),
+            ("Próxima preventiva", "proxima_preventiva"),
+            ("Horas restantes", "horas_restantes"),
+            ("Progresso", "progresso"),
+            ("Situação", "situacao"),
+        ]
+        rows = []
+        for row in self.visible_rows:
+            vehicle = row.get("vehicle") or {}
+            location = vehicle.get("operational_location") or {}
+            current = row.get("current")
+            next_due = row.get("next_due")
+            remaining = row.get("remaining")
+            percent = row.get("percent")
+            rows.append(
+                {
+                    "familia": self.family,
+                    "equipamento": vehicle.get("frota") or vehicle.get("placa") or "-",
+                    "local": location.get("full_name") or location.get("name") or vehicle.get("local") or "Sem local",
+                    "horimetro": f"{float(current):.2f} h" if current is not None else "-",
+                    "ultima_leitura": _date_text(row.get("last_reading_at")),
+                    "proxima_preventiva": f"{float(next_due):.2f} h" if next_due is not None else "-",
+                    "horas_restantes": f"{float(remaining):.0f} h" if remaining is not None else "-",
+                    "progresso": f"{float(percent):.0f}%" if percent is not None else "-",
+                    "situacao": STATUS_LABELS.get(row.get("status"), row.get("status") or "-"),
+                }
+            )
+        return columns, rows
+
+    def export_preventives(self, file_type: str):
+        """Exporta somente os equipamentos que passaram pelos filtros atuais."""
+        columns, rows = self._export_rows()
+        if not rows:
+            show_notice(self, "Sem dados", "Nenhum equipamento da visão atual pode ser exportado.", icon_name="warning")
+            return
+        prefix = f"preventivas_{self.family.lower()}"
+        default_path = make_default_export_path(prefix, file_type)
+        filters = {"csv": "CSV (*.csv)", "xlsx": "Excel (*.xlsx)", "pdf": "PDF (*.pdf)"}
+        if file_type == "pdf":
+            filename = run_export_by_type(
+                self,
+                file_type="pdf",
+                dialog_title=f"Exportar preventivas {self.family}",
+                default_path=default_path,
+                filters=filters,
+                handlers={"pdf": lambda target: self._start_preventive_pdf_export(target, columns, rows)},
+            )
+            return filename
+        run_export_by_type(
+            self,
+            file_type=file_type,
+            dialog_title=f"Exportar preventivas {self.family}",
+            default_path=default_path,
+            filters=filters,
+            handlers={
+                "csv": lambda target: self._finish_preventive_export(export_rows_to_csv(columns, rows, target)),
+                "xlsx": lambda target: self._finish_preventive_export(
+                    export_rows_to_xlsx(f"Preventivas {self.family}", columns, rows, target)
+                ),
+            },
+        )
+
+    def _finish_preventive_export(self, path):
+        finalize_saved_file(self, path, success_title="Exportação concluída")
+
+    def _start_preventive_pdf_export(self, filename: str, columns: list[tuple[str, str]], rows: list[dict]):
+        def task(progress):
+            progress(25, "Preparando relatório de preventivas")
+            result = export_rows_to_pdf(
+                f"Preventivas {self.family}",
+                "Visão filtrada de planos, horímetros e vencimentos",
+                columns,
+                rows,
+                filename,
+                generated_by=(self.api_client.user or {}).get("nome", ""),
+                period_label=f"Família {self.family} | {datetime.now().strftime('%d/%m/%Y %H:%M')}",
+            )
+            progress(100, "Relatório pronto")
+            return result
+
+        start_export_task_with_preset(
+            self,
+            "preventive_pdf",
+            task,
+            success_title="PDF de preventivas gerado",
+            failure_title="Falha ao exportar preventivas",
+        )
 
 
 class PreventiveRTGPage(PreventiveFamilyPage):
