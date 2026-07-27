@@ -386,8 +386,8 @@ class MainWindow(QMainWindow):
             "checklist_history": "Histórico Checklist",
             "spreader_history": "Histórico Spreaders",
             "special_schedule": "Escala de Domingo e Feriado",
-            "rtg_module": "Gestao RTG",
-            "lbs_module": "Gestao LBS",
+            "rtg_module": "Gest\u00e3o RTG",
+            "lbs_module": "Gest\u00e3o LBS",
             "users": "Logins",
             "cloud_backup": "Backup",
             "audit_logs": "Logs de Auditoria",
@@ -442,8 +442,8 @@ class MainWindow(QMainWindow):
         menu_groups = {
             "Dashboard": ["dashboard"],
             "Equipamentos": ["equipment", "availability", "spreader_history", "checklist_items", "inspection_templates"],
-            "Gestao RTG": ["rtg_module"],
-            "Gestao LBS": ["lbs_module"],
+            "Gest\u00e3o RTG": ["rtg_module"],
+            "Gest\u00e3o LBS": ["lbs_module"],
             "RH": ["hr_management", "employees", "attendance", "vacations", "employee_records", "special_schedule"],
             "Relatórios": ["reports", "productivity", "checklist_history"],
             "Configurações": ["users", "admin_rules", "cloud_backup", "audit_logs"],
@@ -561,8 +561,8 @@ class MainWindow(QMainWindow):
         sections = [
             ("Dashboard", ["dashboard"]),
             ("Equipamentos", ["equipment", "availability", "spreader_history", "checklist_items", "inspection_templates"]),
-            ("Gestao RTG", ["rtg_module"]),
-            ("Gestao LBS", ["lbs_module"]),
+            ("Gest\u00e3o RTG", ["rtg_module"]),
+            ("Gest\u00e3o LBS", ["lbs_module"]),
             ("RH", ["hr_management", "employees", "attendance", "vacations", "employee_records", "special_schedule"]),
             ("Relatórios", ["reports", "productivity", "checklist_history"]),
             ("Configurações", ["users", "admin_rules", "cloud_backup", "audit_logs"]),
@@ -783,9 +783,9 @@ class MainWindow(QMainWindow):
         if page_key in {"hr_management", "employees", "attendance", "vacations", "employee_records", "special_schedule"}:
             return "RH"
         if page_key == "rtg_module":
-            return "GESTAO RTG"
+            return "GEST\u00c3O RTG"
         if page_key == "lbs_module":
-            return "GESTAO LBS"
+            return "GEST\u00c3O LBS"
         if page_key in {"reports", "productivity", "checklist_history"}:
             return "RELATÓRIOS"
         if page_key in {"users", "cloud_backup", "audit_logs", "admin_rules"}:

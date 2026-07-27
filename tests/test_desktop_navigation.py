@@ -425,16 +425,16 @@ class DesktopNavigationTests(unittest.TestCase):
     def test_family_modules_are_separate_navigation_shells(self):
         self.assertIn("rtg_module", self.window.page_map)
         self.assertIn("lbs_module", self.window.page_map)
-        self.assertEqual(self.window.page_titles["rtg_module"], "Gestao RTG")
-        self.assertEqual(self.window.page_titles["lbs_module"], "Gestao LBS")
+        self.assertEqual(self.window.page_titles["rtg_module"], "Gest\u00e3o RTG")
+        self.assertEqual(self.window.page_titles["lbs_module"], "Gest\u00e3o LBS")
 
         self.window.switch_page("rtg_module")
-        self.assertEqual(self.window._navigation_section("rtg_module"), "GESTAO RTG")
-        self.assertIn("GESTAO RTG", self.window.rtg_module_page.findChildren(QLabel)[0].text())
+        self.assertEqual(self.window._navigation_section("rtg_module"), "GEST\u00c3O RTG")
+        self.assertIn("GEST\u00c3O RTG", self.window.rtg_module_page.findChildren(QLabel)[0].text())
 
         self.window.switch_page("lbs_module")
-        self.assertEqual(self.window._navigation_section("lbs_module"), "GESTAO LBS")
-        self.assertIn("GESTAO LBS", self.window.lbs_module_page.findChildren(QLabel)[0].text())
+        self.assertEqual(self.window._navigation_section("lbs_module"), "GEST\u00c3O LBS")
+        self.assertIn("GEST\u00c3O LBS", self.window.lbs_module_page.findChildren(QLabel)[0].text())
 
     def test_users_page_hides_admin_buttons_for_gestor(self):
         gestor_page = UsersPage(

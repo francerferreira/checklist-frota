@@ -23,7 +23,7 @@ class FamilyModulePage(QFrame):
         layout.setContentsMargins(18, 18, 18, 18)
         layout.setSpacing(14)
 
-        title = QLabel(f"GESTAO {self.family}")
+        title = QLabel(f"GEST\u00c3O {self.family}")
         title.setObjectName("PageTitle")
         subtitle = QLabel(
             f"Central de controle da familia {self.family}. "
