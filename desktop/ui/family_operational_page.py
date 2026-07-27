@@ -70,11 +70,12 @@ class FamilyOperationalPage(QFrame):
     data_changed = Signal()
     open_page_requested = Signal(str)
 
-    def __init__(self, api_client, family: str, downtime_page_key: str, parent=None):
+    def __init__(self, api_client, family: str, downtime_page_key: str, maintenance_page_key: str | None = None, parent=None):
         super().__init__(parent)
         self.api_client = api_client
         self.family = _text(family).upper()
         self.downtime_page_key = downtime_page_key
+        self.maintenance_page_key = maintenance_page_key
         self.rows: list[dict] = []
         self.setObjectName("ContentSurface")
 
@@ -97,6 +98,10 @@ class FamilyOperationalPage(QFrame):
         downtime_button = QPushButton(f"Controle de paradas {self.family}")
         downtime_button.setProperty("variant", "primary")
         downtime_button.clicked.connect(lambda: self.open_page_requested.emit(self.downtime_page_key))
+        if self.maintenance_page_key:
+            maintenance_button = QPushButton(f"Manutenções {self.family}")
+            maintenance_button.clicked.connect(lambda: self.open_page_requested.emit(self.maintenance_page_key))
+            header.addWidget(maintenance_button, 0)
         header.addWidget(downtime_button, 0)
         layout.addLayout(header)
 

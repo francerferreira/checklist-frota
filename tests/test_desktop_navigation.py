@@ -94,6 +94,9 @@ class FakeAPIClient:
             "rows": [],
         }
 
+    def get_maintenance_overview(self, year=None, month=None, mechanic_id=None):
+        return {"itens": [], "programacoes": [], "resumo": {}}
+
     def get_critical_equipment(self):
         self.calls["operations_center"] += 1
         return {"items": []}
@@ -404,6 +407,8 @@ class DesktopNavigationTests(unittest.TestCase):
             self.assertIn("vacations", gestor_window.page_map)
             self.assertIn("rtg_module", gestor_window.page_map)
             self.assertIn("lbs_module", gestor_window.page_map)
+            self.assertIn("rtg_maintenance", gestor_window.page_map)
+            self.assertIn("lbs_maintenance", gestor_window.page_map)
             self.assertIn("rtg_downtime", gestor_window.page_map)
             self.assertIn("lbs_downtime", gestor_window.page_map)
 
@@ -419,6 +424,8 @@ class DesktopNavigationTests(unittest.TestCase):
         self.assertIn("vacations", allowed_pages_for_role("gestor"))
         self.assertIn("rtg_module", allowed_pages_for_role("admin"))
         self.assertIn("lbs_module", allowed_pages_for_role("gestor"))
+        self.assertIn("rtg_maintenance", allowed_pages_for_role("admin"))
+        self.assertIn("lbs_maintenance", allowed_pages_for_role("gestor"))
         self.assertIn("rtg_downtime", allowed_pages_for_role("admin"))
         self.assertIn("lbs_downtime", allowed_pages_for_role("gestor"))
         self.assertTrue(user_can({"tipo": "admin"}, "manage_users"))
@@ -429,6 +436,8 @@ class DesktopNavigationTests(unittest.TestCase):
     def test_family_modules_are_separate_navigation_shells(self):
         self.assertIn("rtg_module", self.window.page_map)
         self.assertIn("lbs_module", self.window.page_map)
+        self.assertIn("rtg_maintenance", self.window.page_map)
+        self.assertIn("lbs_maintenance", self.window.page_map)
         self.assertEqual(self.window.page_titles["rtg_module"], "Gest\u00e3o RTG")
         self.assertEqual(self.window.page_titles["lbs_module"], "Gest\u00e3o LBS")
 
@@ -439,6 +448,14 @@ class DesktopNavigationTests(unittest.TestCase):
         self.window.switch_page("lbs_module")
         self.assertEqual(self.window._navigation_section("lbs_module"), "GEST\u00c3O LBS")
         self.assertIn("PAINEL OPERACIONAL LBS", self.window.lbs_module_page.findChildren(QLabel)[0].text())
+
+        self.window.switch_page("rtg_maintenance")
+        self.assertEqual(self.window._navigation_section("rtg_maintenance"), "GEST\u00c3O RTG")
+        self.assertEqual(self.window.page_titles["rtg_maintenance"], "Manuten\u00e7\u00f5es RTG")
+
+        self.window.switch_page("lbs_maintenance")
+        self.assertEqual(self.window._navigation_section("lbs_maintenance"), "GEST\u00c3O LBS")
+        self.assertEqual(self.window.page_titles["lbs_maintenance"], "Manuten\u00e7\u00f5es LBS")
 
         self.window.switch_page("rtg_downtime")
         self.assertEqual(self.window.page_titles["rtg_downtime"], "Controle de Paradas RTG")

@@ -74,10 +74,11 @@ class LBSOperationalPage(QFrame):
 
     open_page_requested = Signal(str)
 
-    def __init__(self, api_client, downtime_page_key: str, parent=None):
+    def __init__(self, api_client, downtime_page_key: str, maintenance_page_key: str | None = None, parent=None):
         super().__init__(parent)
         self.api_client = api_client
         self.downtime_page_key = downtime_page_key
+        self.maintenance_page_key = maintenance_page_key
         self.rows: list[dict] = []
         self.spreader_links: dict[int, dict[str, list[str]]] = {}
         self.setObjectName("ContentSurface")
@@ -99,6 +100,10 @@ class LBSOperationalPage(QFrame):
         downtime_button = QPushButton("Controle de paradas LBS")
         downtime_button.setProperty("variant", "primary")
         downtime_button.clicked.connect(lambda: self.open_page_requested.emit(self.downtime_page_key))
+        if self.maintenance_page_key:
+            maintenance_button = QPushButton("Manutenções LBS")
+            maintenance_button.clicked.connect(lambda: self.open_page_requested.emit(self.maintenance_page_key))
+            header.addWidget(maintenance_button, 0)
         header.addWidget(downtime_button, 0)
         layout.addLayout(header)
 
