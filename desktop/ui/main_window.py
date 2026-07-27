@@ -47,7 +47,7 @@ from ui.employee_records_page import EmployeeRecordsPage
 from ui.family_downtime_page import FamilyDowntimePage
 from ui.family_maintenance_page import FamilyMaintenancePage
 from ui.family_operational_page import FamilyOperationalPage
-from ui.preventive_family_page import PreventiveRTGPage
+from ui.preventive_family_page import PreventiveLBSPage, PreventiveRTGPage
 from ui.lbs_operational_page import LBSOperationalPage
 from ui.hr_management_page import HRManagementPage
 from ui.vacations_page import VacationsPage
@@ -325,10 +325,16 @@ class MainWindow(QMainWindow):
             "rtg_maintenance",
             preventive_page_key="rtg_preventive",
         )
-        self.lbs_module_page = LBSOperationalPage(self.api_client, "lbs_downtime", "lbs_maintenance")
+        self.lbs_module_page = LBSOperationalPage(
+            self.api_client,
+            "lbs_downtime",
+            "lbs_maintenance",
+            preventive_page_key="lbs_preventive",
+        )
         self.rtg_maintenance_page = FamilyMaintenancePage(self.api_client, "RTG")
         self.rtg_preventive_page = PreventiveRTGPage(self.api_client)
         self.lbs_maintenance_page = FamilyMaintenancePage(self.api_client, "LBS")
+        self.lbs_preventive_page = PreventiveLBSPage(self.api_client)
         self.rtg_downtime_page = FamilyDowntimePage(self.api_client, "RTG", self.user)
         self.lbs_downtime_page = FamilyDowntimePage(self.api_client, "LBS", self.user)
         self.supply_library_page = SupplyLibraryPage(self.api_client)
@@ -369,6 +375,7 @@ class MainWindow(QMainWindow):
             "rtg_maintenance": self.rtg_maintenance_page,
             "rtg_preventive": self.rtg_preventive_page,
             "lbs_maintenance": self.lbs_maintenance_page,
+            "lbs_preventive": self.lbs_preventive_page,
             "rtg_downtime": self.rtg_downtime_page,
             "lbs_downtime": self.lbs_downtime_page,
             "supply_library": self.supply_library_page,
@@ -411,6 +418,7 @@ class MainWindow(QMainWindow):
             "rtg_maintenance": "Manuten\u00e7\u00f5es RTG",
             "rtg_preventive": "Preventiva RTG",
             "lbs_maintenance": "Manuten\u00e7\u00f5es LBS",
+            "lbs_preventive": "Preventiva LBS",
             "rtg_downtime": "Controle de Paradas RTG",
             "lbs_downtime": "Controle de Paradas LBS",
             "users": "Logins",
@@ -466,6 +474,9 @@ class MainWindow(QMainWindow):
             self.rtg_preventive_page.open_page_requested.connect(self.switch_page)
         if "lbs_downtime" in self.page_map:
             self.lbs_downtime_page.data_changed.connect(lambda: self.handle_data_changed("lbs_downtime"))
+        if "lbs_preventive" in self.page_map:
+            self.lbs_preventive_page.data_changed.connect(lambda: self.handle_data_changed("lbs_preventive"))
+            self.lbs_preventive_page.open_page_requested.connect(self.switch_page)
         if "rtg_module" in self.page_map:
             self.rtg_module_page.open_page_requested.connect(self.switch_page)
         if "lbs_module" in self.page_map:
@@ -483,7 +494,7 @@ class MainWindow(QMainWindow):
             "Dashboard": ["dashboard"],
             "Equipamentos": ["equipment", "availability", "spreader_history", "checklist_items", "inspection_templates"],
             "Gest\u00e3o RTG": ["rtg_module", "rtg_preventive", "rtg_maintenance", "rtg_downtime"],
-            "Gest\u00e3o LBS": ["lbs_module", "lbs_maintenance", "lbs_downtime"],
+            "Gest\u00e3o LBS": ["lbs_module", "lbs_preventive", "lbs_maintenance", "lbs_downtime"],
             "RH": ["hr_management", "employees", "attendance", "vacations", "employee_records", "special_schedule"],
             "Relatórios": ["reports", "productivity", "checklist_history"],
             "Configurações": ["users", "admin_rules", "cloud_backup", "audit_logs"],
@@ -602,7 +613,7 @@ class MainWindow(QMainWindow):
             ("Dashboard", ["dashboard"]),
             ("Equipamentos", ["equipment", "availability", "spreader_history", "checklist_items", "inspection_templates"]),
             ("Gest\u00e3o RTG", ["rtg_module", "rtg_preventive", "rtg_maintenance", "rtg_downtime"]),
-            ("Gest\u00e3o LBS", ["lbs_module", "lbs_maintenance", "lbs_downtime"]),
+            ("Gest\u00e3o LBS", ["lbs_module", "lbs_preventive", "lbs_maintenance", "lbs_downtime"]),
             ("RH", ["hr_management", "employees", "attendance", "vacations", "employee_records", "special_schedule"]),
             ("Relatórios", ["reports", "productivity", "checklist_history"]),
             ("Configurações", ["users", "admin_rules", "cloud_backup", "audit_logs"]),
@@ -824,7 +835,7 @@ class MainWindow(QMainWindow):
             return "RH"
         if page_key in {"rtg_module", "rtg_preventive", "rtg_maintenance", "rtg_downtime"}:
             return "GEST\u00c3O RTG"
-        if page_key in {"lbs_module", "lbs_maintenance", "lbs_downtime"}:
+        if page_key in {"lbs_module", "lbs_preventive", "lbs_maintenance", "lbs_downtime"}:
             return "GEST\u00c3O LBS"
         if page_key in {"reports", "productivity", "checklist_history"}:
             return "RELATÓRIOS"
@@ -1037,6 +1048,8 @@ class MainWindow(QMainWindow):
                 self.rtg_preventive_page.refresh()
             elif page_key == "lbs_maintenance":
                 self.lbs_maintenance_page.refresh()
+            elif page_key == "lbs_preventive":
+                self.lbs_preventive_page.refresh()
             elif page_key == "rtg_downtime":
                 self.rtg_downtime_page.refresh()
             elif page_key == "lbs_downtime":
@@ -1064,7 +1077,7 @@ class MainWindow(QMainWindow):
             self.dirty_pages.update([
                 "activities", "maintenance", "washes", "nc", "reports", "spreader_history",
                 "rtg_downtime", "lbs_downtime",
-                "rtg_preventive",
+                "rtg_preventive", "lbs_preventive",
             ])
 
         if source_page_key != "dashboard" and self.current_page_key != source_page_key:
@@ -1099,6 +1112,7 @@ class MainWindow(QMainWindow):
             "emergencies": ("Carregando emergenciais", "Buscando ocorrências, criticidade e ordens de serviço."),
             "pcm": ("Carregando PCM", "Consolidando planos preventivos, agenda e backlog."),
             "rtg_preventive": ("Carregando preventiva RTG", "Atualizando horímetros, ciclos e vencimentos da família RTG."),
+            "lbs_preventive": ("Carregando preventiva LBS", "Atualizando horímetros, ciclos e vencimentos da família LBS."),
             "supply_library": ("Carregando suprimentos", "Montando depósitos, reservas e biblioteca técnica."),
             "reports": ("Montando relatórios", "Consolidando dados macro, micro e exportações."),
             "checklist_history": ("Carregando histórico", "Montando matriz de checklists por frota e data."),

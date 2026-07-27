@@ -336,3 +336,8 @@ class PreventiveFamilyPage(QFrame):
 class PreventiveRTGPage(PreventiveFamilyPage):
     def __init__(self, api_client, parent=None):
         super().__init__(api_client, "RTG", parent)
+
+
+class PreventiveLBSPage(PreventiveFamilyPage):
+    def __init__(self, api_client, parent=None):
+        super().__init__(api_client, "LBS", parent)

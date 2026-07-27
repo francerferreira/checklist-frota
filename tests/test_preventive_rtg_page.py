@@ -14,7 +14,7 @@ if str(DESKTOP_ROOT) not in sys.path:
 
 from PySide6.QtWidgets import QApplication
 
-from ui.preventive_family_page import PreventiveRTGPage
+from ui.preventive_family_page import PreventiveLBSPage, PreventiveRTGPage
 
 
 class FakePreventiveAPI:
@@ -72,6 +72,16 @@ class PreventiveRTGPageTests(unittest.TestCase):
         self.assertEqual(page.cards["ATENCAO"].value_label.text(), "1")
         self.assertIn("RTG 02", page.detail_labels["equipment"].text())
         self.assertIn("180", page.detail_labels["remaining"].text())
+        page.close()
+
+    def test_lbs_screen_reuses_same_preventive_structure(self):
+        page = PreventiveLBSPage(FakePreventiveAPI())
+        page.refresh()
+
+        self.assertEqual(page.table.rowCount(), 1)
+        self.assertEqual(page.table.item(0, 1).text(), "LBS 03")
+        self.assertEqual(page.cards["total"].value_label.text(), "1")
+        self.assertEqual(page.cards["SEM_DADOS"].value_label.text(), "1")
         page.close()
 
 
