@@ -11,7 +11,7 @@ if str(BACKEND) not in sys.path:
     sys.path.insert(0, str(BACKEND))
 
 from app.routes.stops_dashboard_tv import bp
-from app.services.stops_dashboard_tv_service import _target_row
+from app.services.stops_dashboard_tv_service import _daily_slices, _projection_row, _target_row
 
 
 SERVICE = BACKEND / "app" / "services" / "stops_dashboard_tv_service.py"
@@ -33,6 +33,8 @@ class DashboardTvStopsApiContractTest(unittest.TestCase):
         self.assertIn('"active_stops"', source)
         self.assertIn('"daily_trend"', source)
         self.assertIn('"targets"', source)
+        self.assertIn('"monthly_summary"', source)
+        self.assertIn('"projections"', source)
         self.assertTrue(TARGETS.exists())
 
     def test_target_status_follows_visual_thresholds(self):
@@ -40,6 +42,21 @@ class DashboardTvStopsApiContractTest(unittest.TestCase):
         self.assertEqual(_target_row("lbs-pier", 8, {"lbs-pier": 10}, [])["status"], "ATENCAO")
         self.assertEqual(_target_row("lbs-pier", 9.5, {"lbs-pier": 10}, [])["status"], "VERMELHO")
         self.assertEqual(_target_row("lbs-pier", 11, {"lbs-pier": 10}, [])["status"], "CRITICO")
+
+    def test_daily_slices_split_a_stop_at_midnight(self):
+        from datetime import datetime
+
+        row = {"started_at": "2026-07-31T22:00:00", "ended_at": "2026-08-01T04:00:00"}
+        self.assertEqual(
+            _daily_slices(row, datetime(2026, 7, 31), datetime(2026, 8, 1, 4)),
+            [("2026-07-31", 2.0), ("2026-08-01", 4.0)],
+        )
+
+    def test_projection_is_calculated_from_elapsed_days(self):
+        projection = _projection_row("lbs-pier", 5, {"lbs-pier": 10}, 5, 10, True)
+        self.assertEqual(projection["projected_hours"], 10.0)
+        self.assertEqual(projection["percentage"], 100.0)
+        self.assertEqual(projection["status"], "VERMELHO")
 
 
 if __name__ == "__main__":

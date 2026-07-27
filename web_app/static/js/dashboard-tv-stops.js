@@ -85,7 +85,7 @@
         if (!target) return;
         if (!items.length) { target.innerHTML = `<span>${escapeHtml(emptyMessage)}</span>`; return; }
         const max = Math.max(1, ...items.map((item) => Number(item[valueKey]) || 0));
-        target.innerHTML = `<div class="chart-bars">${items.map((item) => `<div class="chart-bar"><strong>${escapeHtml(item[labelKey] || "SEM DADOS")}</strong><i style="height:${Math.max(3, Math.min(100, (Number(item[valueKey]) || 0) / max * 100))}%"></i><small>${escapeHtml(formatHours(item[valueKey]))}</small></div>`).join("")}</div>`;
+        target.innerHTML = `<div class="chart-bars">${items.map((item) => { const label = labelKey === "date" ? formatDate(item[labelKey]) : item[labelKey]; return `<div class="chart-bar"><strong>${escapeHtml(label || "SEM DADOS")}</strong><i style="height:${Math.max(3, Math.min(100, (Number(item[valueKey]) || 0) / max * 100))}%"></i><small>${escapeHtml(formatHours(item[valueKey]))}</small></div>`; }).join("")}</div>`;
     }
 
     function renderList(selector, items, renderer, emptyMessage) {
@@ -104,17 +104,19 @@
         setConnection("DADOS ATUALIZADOS", "ok");
         const targets = data?.targets || {};
         ["lbs-pier", "rtg-atr", "rtg-alfandegado", "rtg-total"].forEach((code) => renderTarget(code, targets[code]));
-        renderChart("targets", ["lbs-pier", "rtg-atr", "rtg-alfandegado", "rtg-total"].map((code) => ({ label: targets[code]?.label || code, hours: targets[code]?.hours || 0, goal: targets[code]?.goal_hours || 0 })), "label", "hours", "Nenhuma parada registrada no período");
-        renderChart("rtg-distribution", ["rtg-atr", "rtg-alfandegado"].map((code) => ({ label: targets[code]?.label || code, hours: targets[code]?.hours || 0 })), "label", "hours", "Nenhuma parada RTG registrada");
+        const targetChartItems = ["lbs-pier", "rtg-atr", "rtg-alfandegado", "rtg-total"].map((code) => ({ label: targets[code]?.label || code, hours: targets[code]?.hours || 0, goal: targets[code]?.goal_hours || 0 }));
+        renderChart("targets", targetChartItems.some((item) => item.hours > 0) ? targetChartItems : [], "label", "hours", "Nenhuma parada registrada no período");
+        const rtgChartItems = ["rtg-atr", "rtg-alfandegado"].map((code) => ({ label: targets[code]?.label || code, hours: targets[code]?.hours || 0 }));
+        renderChart("rtg-distribution", rtgChartItems.some((item) => item.hours > 0) ? rtgChartItems : [], "label", "hours", "Nenhuma parada RTG registrada");
         renderChart("daily-trend", data?.daily_trend || [], "date", "hours", "Nenhuma parada registrada no período");
         const active = data?.active_stops || [];
         const activeTable = document.querySelector('[data-stop-table="active"]');
         activeTable.innerHTML = `<div class="table-head"><b>EQUIPAMENTO</b><b>ÁREA</b><b>INÍCIO</b><b>DURAÇÃO</b><b>MOTIVO</b><b>STATUS</b></div>${active.length ? active.map((item) => `<div class="table-row"><span><strong>${escapeHtml(item.vehicle)}</strong><small>${escapeHtml(item.family)}</small></span><span>${escapeHtml(item.area)}</span><span>${escapeHtml(item.started_at?.slice(11, 16) || "SEM HORA")}</span><span>${escapeHtml(item.duration || formatHours(item.hours))}</span><span>${escapeHtml(item.reason)}</span><span class="status-badge ${item.status === "INDISPONIVEL" ? "bad" : "warn"}">${escapeHtml(item.status)}</span></div>`).join("") : '<div class="table-empty">Nenhum equipamento parado no momento</div>'}`;
-        renderList("active-summary", [{ label: "EQUIPAMENTOS PARADOS", value: data?.active_summary?.total }, { label: "HORAS EM ANDAMENTO", value: formatHours(data?.active_summary?.hours) }, { label: "MAIS ANTIGA", value: data?.active_summary?.oldest_started_at ? formatDate(data.active_summary.oldest_started_at) : "SEM DADOS" }], (item) => `<div><strong>${escapeHtml(item.label)}</strong><span>${escapeHtml(item.value == null ? "SEM DADOS" : item.value)}</span></div>`, "Nenhum equipamento parado no momento");
+        renderList("active-summary", [{ label: "EQUIPAMENTOS PARADOS", value: data?.active_summary?.total }, { label: "HORAS EM ANDAMENTO", value: formatHours(data?.active_summary?.hours) }, { label: "MAIS ANTIGA", value: data?.active_summary?.oldest_started_at ? formatDate(data.active_summary.oldest_started_at) : "SEM DADOS" }, { label: "PARADAS NO PERÍODO", value: data?.monthly_summary?.total_events }, { label: "MÉDIA POR PARADA", value: formatHours(data?.monthly_summary?.average_hours) }, { label: "MAIOR PARADA", value: formatHours(data?.monthly_summary?.longest_hours) }], (item) => `<div><strong>${escapeHtml(item.label)}</strong><span>${escapeHtml(item.value == null ? "SEM DADOS" : item.value)}</span></div>`, "Nenhum equipamento parado no momento");
         renderList("offenders", data?.offenders || [], (item, index) => `<div><strong>${index + 1}. ${escapeHtml(item.vehicle)}</strong><span>${escapeHtml(item.area)} · ${escapeHtml(formatHours(item.hours))} · ${escapeHtml(item.events)} ocorrências</span></div>`, "Nenhum ofensor no período");
         renderList("reasons", data?.reasons || [], (item, index) => `<div><strong>${index + 1}. ${escapeHtml(item.reason)}</strong><span>${escapeHtml(formatHours(item.hours))} · ${escapeHtml(item.events)} ocorrências</span></div>`, "Nenhum motivo registrado");
         const projections = data?.projections || {};
-        ["lbs", "atr", "alf"].forEach((key) => { setText(`projection-${key}`, projections[key]?.hours == null ? "SEM DADOS" : formatHours(projections[key].hours)); setText(`projection-${key}-status`, projections[key]?.status || "SEM DADOS"); });
+        ["lbs", "atr", "alf", "total"].forEach((key) => { const code = key === "lbs" ? "lbs-pier" : key === "atr" ? "rtg-atr" : key === "alf" ? "rtg-alfandegado" : "rtg-total"; setText(`projection-${key}`, projections[code]?.projected_hours == null ? "SEM DADOS" : formatHours(projections[code].projected_hours)); setText(`projection-${key}-status`, projections[code]?.status || "SEM DADOS"); });
         renderList("decisions", data?.data_availability?.projections === false ? [] : data?.decisions || [], (item) => `<div><strong>${escapeHtml(item.title)}</strong><span>${escapeHtml(item.detail)}</span></div>`, data?.data_availability?.message || "Sem decisões para o período");
     }
 

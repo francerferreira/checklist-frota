@@ -135,17 +135,7 @@ def _event_rows(vehicles: list[Vehicle], window_start: datetime, window_end: dat
 def _target_row(code: str, hours: float, targets: dict[str, float], rows: list[dict]) -> dict:
     goal = targets.get(code)
     percentage = round((hours / goal) * 100, 2) if goal and goal > 0 else None
-    status = (
-        "SEM_DADOS"
-        if goal is None
-        else "CRITICO"
-        if percentage > 100
-        else "VERMELHO"
-        if percentage > 90
-        else "ATENCAO"
-        if percentage > 70
-        else "NORMAL"
-    )
+    status = _status_for_percentage(percentage)
     return {
         "code": code,
         "label": _area_label(code),
@@ -156,6 +146,60 @@ def _target_row(code: str, hours: float, targets: dict[str, float], rows: list[d
         "stopped_equipment": len({row["vehicle_id"] for row in rows}),
         "status": status,
     }
+
+
+def _status_for_percentage(percentage: float | None) -> str:
+    if percentage is None:
+        return "SEM_DADOS"
+    if percentage > 100:
+        return "CRITICO"
+    if percentage > 90:
+        return "VERMELHO"
+    if percentage > 70:
+        return "ATENCAO"
+    return "NORMAL"
+
+
+def _projection_row(
+    code: str,
+    current_hours: float,
+    targets: dict[str, float],
+    elapsed_days: int,
+    period_days: int,
+    has_data: bool,
+) -> dict:
+    goal = targets.get(code)
+    projected = None
+    if has_data and elapsed_days > 0:
+        projected = round(current_hours / elapsed_days * period_days, 2)
+    percentage = round((projected / goal) * 100, 2) if projected is not None and goal else None
+    return {
+        "code": code,
+        "label": _area_label(code),
+        "current_hours": round(current_hours, 2),
+        "projected_hours": projected,
+        "goal_hours": goal,
+        "percentage": percentage,
+        "status": _status_for_percentage(percentage),
+        "elapsed_days": elapsed_days,
+        "period_days": period_days,
+    }
+
+
+def _daily_slices(row: dict, window_start: datetime, window_end: datetime) -> list[tuple[str, float]]:
+    started_at = datetime.fromisoformat(row["started_at"])
+    ended_at = datetime.fromisoformat(row["ended_at"]) if row.get("ended_at") else window_end
+    cursor = max(started_at, window_start)
+    end = min(ended_at, window_end)
+    slices: list[tuple[str, float]] = []
+    while cursor < end:
+        next_day = datetime.combine(cursor.date() + timedelta(days=1), time.min)
+        slice_end = min(end, next_day)
+        hours = (slice_end - cursor).total_seconds() / 3600
+        if hours > 0:
+            slices.append((cursor.date().isoformat(), round(hours, 2)))
+        cursor = slice_end
+    return slices
 
 
 def build_stops_dashboard_tv_payload(filters: DashboardFilters) -> dict:
@@ -170,7 +214,7 @@ def build_stops_dashboard_tv_payload(filters: DashboardFilters) -> dict:
     window_start, window_end = _period_bounds(filters)
     vehicles = _vehicles(filters)
     rows = _event_rows(vehicles, window_start, window_end)
-    active_rows = [row for row in rows if row["active"]]
+    active_rows = sorted((row for row in rows if row["active"]), key=lambda row: (-row["hours"], row["vehicle"]))
     targets = _load_targets(filters.date_to)
     by_area = defaultdict(float)
     for row in rows:
@@ -179,9 +223,10 @@ def build_stops_dashboard_tv_payload(filters: DashboardFilters) -> dict:
         code: _target_row(code, by_area.get(code, 0), targets, [row for row in rows if row["area_code"] == code])
         for code in ("lbs-pier", "rtg-atr", "rtg-alfandegado", "rtg-total")
     }
-    target_rows["rtg-total"]["hours"] = round(by_area.get("rtg-atr", 0) + by_area.get("rtg-alfandegado", 0) + by_area.get("rtg-outros", 0), 2)
-    target_rows["rtg-total"] = _target_row("rtg-total", target_rows["rtg-total"]["hours"], targets, [row for row in rows if row["family"] == "RTG"])
-    by_vehicle = defaultdict(lambda: {"hours": 0.0, "events": 0, "family": "", "area": "", "status": ""})
+    rtg_rows = [row for row in rows if row["area_code"] in {"rtg-atr", "rtg-alfandegado"}]
+    rtg_total_hours = round(by_area.get("rtg-atr", 0) + by_area.get("rtg-alfandegado", 0), 2)
+    target_rows["rtg-total"] = _target_row("rtg-total", rtg_total_hours, targets, rtg_rows)
+    by_vehicle = defaultdict(lambda: {"hours": 0.0, "events": 0, "family": "", "area": "", "status": "", "reasons": Counter()})
     by_reason = defaultdict(lambda: {"hours": 0.0, "events": 0})
     daily = defaultdict(lambda: {"hours": 0.0, "lbs": 0.0, "rtg": 0.0})
     for row in rows:
@@ -189,15 +234,68 @@ def build_stops_dashboard_tv_payload(filters: DashboardFilters) -> dict:
         vehicle.update({"family": row["family"], "area": row["area"], "status": row["status"]})
         vehicle["hours"] += row["hours"]
         vehicle["events"] += 1
+        vehicle["reasons"][row["reason"]] += row["hours"]
         reason = by_reason[row["reason"]]
         reason["hours"] += row["hours"]
         reason["events"] += 1
-        day = row["started_at"][:10]
-        daily[day]["hours"] += row["hours"]
-        daily[day]["lbs" if row["family"] == "LBS" else "rtg"] += row["hours"]
-    offenders = sorted(({"vehicle": vehicle, **values, "hours": round(values["hours"], 2), "duration": _hours_label(values["hours"])} for vehicle, values in by_vehicle.items()), key=lambda item: (-item["hours"], item["vehicle"]))[:10]
-    reasons = sorted(({"reason": reason, **values, "hours": round(values["hours"], 2)} for reason, values in by_reason.items()), key=lambda item: (-item["hours"], item["reason"]))[:8]
+        for day, hours in _daily_slices(row, window_start, window_end):
+            daily[day]["hours"] += hours
+            daily[day]["lbs" if row["family"] == "LBS" else "rtg"] += hours
+    total_hours = round(sum(row["hours"] for row in rows), 2)
+    offenders = []
+    for vehicle, values in by_vehicle.items():
+        principal_reason = values["reasons"].most_common(1)
+        offenders.append({
+            "vehicle": vehicle,
+            "family": values["family"],
+            "area": values["area"],
+            "status": values["status"],
+            "hours": round(values["hours"], 2),
+            "events": values["events"],
+            "average_hours": round(values["hours"] / values["events"], 2) if values["events"] else 0,
+            "duration": _hours_label(values["hours"]),
+            "principal_reason": principal_reason[0][0] if principal_reason else "SEM MOTIVO INFORMADO",
+            "participation": round(values["hours"] / total_hours * 100, 2) if total_hours else None,
+        })
+    offenders = sorted(offenders, key=lambda item: (-item["hours"], item["vehicle"]))[:10]
+    reasons = sorted(({
+        "reason": reason,
+        **values,
+        "hours": round(values["hours"], 2),
+        "participation": round(values["hours"] / total_hours * 100, 2) if total_hours else None,
+    } for reason, values in by_reason.items()), key=lambda item: (-item["hours"], item["reason"]))[:8]
     daily_trend = [{"date": day, "hours": round(values["hours"], 2), "lbs_hours": round(values["lbs"], 2), "rtg_hours": round(values["rtg"], 2)} for day, values in sorted(daily.items())]
+    monthly_summary = {
+        "total_hours": total_hours,
+        "total_events": len(rows),
+        "average_hours": round(total_hours / len(rows), 2) if rows else None,
+        "longest_hours": round(max((row["hours"] for row in rows), default=0), 2) if rows else None,
+        "active_total": len(active_rows),
+        "days_with_data": len(daily_trend),
+    }
+    month_start = date(filters.date_to.year, filters.date_to.month, 1)
+    next_month = date(filters.date_to.year + (filters.date_to.month == 12), 1 if filters.date_to.month == 12 else filters.date_to.month + 1, 1)
+    period_days = (next_month - month_start).days
+    projection_start = max(filters.date_from, month_start)
+    projection_end = min(filters.date_to, window_end.date())
+    elapsed_days = max(0, (projection_end - projection_start).days + 1) if projection_end >= projection_start else 0
+    area_hours = {
+        "lbs-pier": by_area.get("lbs-pier", 0),
+        "rtg-atr": by_area.get("rtg-atr", 0),
+        "rtg-alfandegado": by_area.get("rtg-alfandegado", 0),
+    }
+    area_hours["rtg-total"] = area_hours["rtg-atr"] + area_hours["rtg-alfandegado"]
+    projections = {
+        code: _projection_row(
+            code,
+            area_hours[code],
+            targets,
+            elapsed_days,
+            period_days,
+            bool([row for row in rows if row["area_code"] == code] if code != "rtg-total" else rtg_rows),
+        )
+        for code in ("lbs-pier", "rtg-atr", "rtg-alfandegado", "rtg-total")
+    }
     period_label = filters.date_to.strftime("%m/%Y")
     period_range = f"{filters.date_from.strftime('%d/%m/%Y')} a {filters.date_to.strftime('%d/%m/%Y')}"
     payload = {
@@ -208,11 +306,17 @@ def build_stops_dashboard_tv_payload(filters: DashboardFilters) -> dict:
         "targets": target_rows,
         "active_stops": active_rows[:12],
         "active_summary": {"total": len(active_rows), "hours": round(sum(row["hours"] for row in active_rows), 2), "oldest_started_at": min((row["started_at"] for row in active_rows), default=None)},
+        "monthly_summary": monthly_summary,
         "offenders": offenders,
         "reasons": reasons,
         "daily_trend": daily_trend,
-        "projections": {},
-        "data_availability": {"projections": False, "message": "Projeção exige histórico mensal suficiente."},
+        "projections": projections,
+        "components": [],
+        "data_availability": {
+            "projections": bool(rows) and elapsed_days > 0,
+            "components": False,
+            "message": "Componentes ainda não estão disponíveis no cadastro atual." if not rows else "Projeção calculada com base nas horas do período.",
+        },
         "performance": {"cached": False, "cache_ttl_seconds": STOP_CACHE_TTL_SECONDS, "query_duration_ms": round((monotonic() - started) * 1000, 2)},
     }
     _payload_cache[cache_key] = (now, payload)
