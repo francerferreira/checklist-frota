@@ -14,6 +14,7 @@ from app.models import (
     MaintenanceWorkOrder,
     MaintenanceWorkOrderCost,
     OperationalLocation,
+    PreventiveExecution,
     PreventivePlan,
     Vehicle,
     WorkOrderExecution,
@@ -415,11 +416,40 @@ def build_dashboard_work_orders(filters: DashboardFilters, *, page: int = 1, pag
 
 def build_dashboard_preventives(filters: DashboardFilters) -> dict:
     vehicle_ids = _vehicle_ids(filters)
-    due = _due_preventives(filters, vehicle_ids)
+    plans = PreventivePlan.query.filter(
+        PreventivePlan.status == "ATIVO",
+        PreventivePlan.vehicle_id.in_(vehicle_ids),
+    ).all() if vehicle_ids else []
+    items = []
+    for plan in plans:
+        item = plan.to_dict(plan_due_state(plan))
+        execution = (
+            PreventiveExecution.query
+            .filter(
+                PreventiveExecution.preventive_plan_id == plan.id,
+                PreventiveExecution.status.in_(("PLANEJADA", "PROGRAMADA", "EM_EXECUCAO")),
+            )
+            .order_by(PreventiveExecution.created_at.desc(), PreventiveExecution.id.desc())
+            .first()
+        )
+        item["execution"] = execution.to_dict() if execution else None
+        items.append(item)
+    priority_order = {"VENCIDA": 0, "CRITICA": 1, "PROXIMA": 2, "ATENCAO": 3, "NO_PRAZO": 4, "SEM_DADOS": 5}
+    items.sort(key=lambda item: (
+        priority_order.get((item.get("due") or {}).get("calculation_status"), 9),
+        item.get("next_due_date") or "9999-12-31",
+        item.get("vehicle", {}).get("frota", "") if item.get("vehicle") else "",
+    ))
+    summary = {status: 0 for status in ("NO_PRAZO", "ATENCAO", "PROXIMA", "CRITICA", "VENCIDA", "SEM_DADOS")}
+    for item in items:
+        status = (item.get("due") or {}).get("calculation_status") or "SEM_DADOS"
+        summary[status] = summary.get(status, 0) + 1
     return {
         "filters": filters.to_dict(),
-        "total_due_or_overdue": len(due),
-        "items": due,
+        "total_plans": len(items),
+        "total_due_or_overdue": sum(1 for item in items if (item.get("due") or {}).get("due") or (item.get("due") or {}).get("overdue")),
+        "summary": summary,
+        "items": items,
     }
 
 

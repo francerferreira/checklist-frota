@@ -231,6 +231,7 @@ const state = {
     selectedNonConformityItem: "",
     maintenanceOverview: null,
     pendingMaintenanceItemIds: new Set(),
+    preventives: { items: [], summary: {}, totalPlans: 0 },
     hrJourney: null,
     weeklyDsr: { employees: [], overview: null },
     specialSchedule: { employees: [], rows: [] },
@@ -282,6 +283,7 @@ const screens = {
     checklistHistory: document.getElementById("checklist-history-screen"),
     nonConformities: document.getElementById("non-conformities-screen"),
     maintenance: document.getElementById("maintenance-screen"),
+    preventives: document.getElementById("preventives-screen"),
     hrJourney: document.getElementById("hr-journey-screen"),
     weeklyDsr: document.getElementById("weekly-dsr-screen"),
     specialSchedule: document.getElementById("special-schedule-screen"),
@@ -384,6 +386,7 @@ const elements = {
     openWashesMenu: document.getElementById("open-washes-menu"),
     openNonConformitiesMenu: document.getElementById("open-non-conformities-menu"),
     openMaintenanceMenu: document.getElementById("open-maintenance-menu"),
+    openPreventivesMenu: document.getElementById("open-preventives-menu"),
     openAvailabilityMenu: document.getElementById("open-availability-menu"),
     openTechnicalInspectionsMenu: document.getElementById("open-technical-inspections-menu"),
     openEmergenciesMenu: document.getElementById("open-emergencies-menu"),
@@ -442,6 +445,10 @@ const elements = {
     maintenanceCalendar: document.getElementById("maintenance-calendar"),
     maintenanceDayPanel: document.getElementById("maintenance-day-panel"),
     maintenanceList: document.getElementById("maintenance-list"),
+    preventivesBackButton: document.getElementById("preventives-back-button"),
+    preventivesCounter: document.getElementById("preventives-counter"),
+    preventivesSummary: document.getElementById("preventives-summary"),
+    preventivesList: document.getElementById("preventives-list"),
     hrJourneyBackButton: document.getElementById("hr-journey-back-button"),
     hrJourneyCounter: document.getElementById("hr-journey-counter"),
     hrJourneySummary: document.getElementById("hr-journey-summary"),
@@ -888,6 +895,7 @@ async function loadWashOverview() {
 function renderHome() {
     const canViewMaintenanceDashboard = ["admin", "gestor"].includes(String(state.user?.tipo || "").toLowerCase());
     elements.openMaintenanceDashboardMenu?.classList.toggle("hidden", !canViewMaintenanceDashboard);
+    elements.openPreventivesMenu?.classList.toggle("hidden", !canViewMaintenanceDashboard);
     elements.openWeeklyDsrMenu?.classList.toggle("hidden", !canViewMaintenanceDashboard);
     elements.openSpecialScheduleMenu?.classList.toggle("hidden", !canViewMaintenanceDashboard);
     elements.openAbsenteeismMenu?.classList.toggle("hidden", !canViewMaintenanceDashboard);
@@ -1298,6 +1306,105 @@ async function openMaintenanceMenu() {
         elements.maintenanceDayPanel.innerHTML = "";
         renderStateCard(elements.maintenanceList, {
             title: "NÃO FOI POSSÍVEL CARREGAR A MANUTENÇÃO",
+            message: error.message || "Verifique a conexão e tente novamente.",
+            tone: "error",
+        });
+        showToast(error.message, true);
+    }
+}
+
+function preventiveStatusLabel(status) {
+    const labels = {
+        NO_PRAZO: "NO PRAZO",
+        ATENCAO: "ATENÇÃO",
+        PROXIMA: "PRÓXIMA",
+        CRITICA: "CRÍTICA",
+        VENCIDA: "VENCIDA",
+        SEM_DADOS: "SEM LEITURA",
+        LEITURA_DESATUALIZADA: "LEITURA DESATUALIZADA",
+    };
+    return labels[String(status || "SEM_DADOS").toUpperCase()] || String(status || "SEM DADOS").replaceAll("_", " ");
+}
+
+function preventiveStatusClass(status) {
+    return String(status || "SEM_DADOS").toLowerCase().replaceAll("_", "-");
+}
+
+function preventiveVehicleLabel(vehicle) {
+    if (!vehicle) return "EQUIPAMENTO NÃO IDENTIFICADO";
+    return vehicle.frota || vehicle.nome || vehicle.referencia || `ATIVO ${vehicle.id || "-"}`;
+}
+
+function renderPreventives() {
+    const payload = state.preventives || {};
+    const items = Array.isArray(payload.items) ? payload.items : [];
+    const summary = payload.summary || {};
+    const cards = [
+        ["NO PRAZO", summary.NO_PRAZO || 0, "no-prazo"],
+        ["ATENÇÃO", summary.ATENCAO || 0, "atencao"],
+        ["PRÓXIMAS", summary.PROXIMA || 0, "proxima"],
+        ["CRÍTICAS", summary.CRITICA || 0, "critica"],
+        ["VENCIDAS", summary.VENCIDA || 0, "vencida"],
+        ["SEM LEITURA", summary.SEM_DADOS || 0, "sem-dados"],
+    ];
+    elements.preventivesCounter.textContent = `${payload.totalPlans || items.length} PLANOS ATIVOS | ${payload.total_due_or_overdue || 0} VENCENDO OU VENCIDOS`;
+    elements.preventivesSummary.innerHTML = cards.map(([label, value, tone]) => `
+        <article class="preventive-summary-card tone-${tone}">
+            <span>${label}</span>
+            <strong>${Number(value)}</strong>
+        </article>
+    `).join("");
+    if (!items.length) {
+        renderStateCard(elements.preventivesList, {
+            title: "NENHUMA PREVENTIVA CADASTRADA",
+            message: "Quando o Desktop cadastrar um plano, ele aparecerá aqui com horímetro, prazo e situação.",
+            tone: "neutral",
+        });
+        return;
+    }
+    elements.preventivesList.innerHTML = items.map((item) => {
+        const due = item.due || {};
+        const status = due.calculation_status || "SEM_DADOS";
+        const vehicle = item.vehicle || {};
+        const execution = item.execution || null;
+        const materialCount = Array.isArray(execution?.materiais) ? execution.materiais.length : 0;
+        return `
+            <article class="preventive-mobile-row status-${preventiveStatusClass(status)}">
+                <div class="preventive-mobile-row-head">
+                    <div><strong>${escapeHtml(preventiveVehicleLabel(vehicle))}</strong><span>${escapeHtml(item.title || "PLANO PREVENTIVO")}</span></div>
+                    <b>${escapeHtml(preventiveStatusLabel(status))}</b>
+                </div>
+                <div class="preventive-mobile-row-grid">
+                    <div><span>HORÍMETRO ATUAL</span><strong>${due.current_hourmeter ?? "-"}</strong></div>
+                    <div><span>HORAS RESTANTES</span><strong>${due.hours_remaining ?? "-"}</strong></div>
+                    <div><span>PRÓXIMA PREVENTIVA</span><strong>${due.next_due_hourmeter ?? "-"}</strong></div>
+                    <div><span>DATA PREVISTA</span><strong>${formatDate(item.next_due_date)}</strong></div>
+                </div>
+                <div class="preventive-mobile-row-foot"><span>OS: ${execution?.work_order_id ? `#${execution.work_order_id}` : "NÃO GERADA"}</span><span>MATERIAL: ${materialCount ? `${materialCount} VINCULADO(S)` : "NÃO VINCULADO"}</span></div>
+            </article>
+        `;
+    }).join("");
+}
+
+async function openPreventivesMenu() {
+    if (!hasWashReportAccess()) {
+        showToast("MÓDULO DE PREVENTIVAS RESTRITO AO ADMIN E GESTOR.", true);
+        return;
+    }
+    setActiveScreen("preventives");
+    elements.preventivesCounter.textContent = "CARREGANDO...";
+    renderStateCard(elements.preventivesList, {
+        title: "CARREGANDO PREVENTIVAS",
+        message: "Consultando os planos ativos de RTG e LBS.",
+        tone: "loading",
+    });
+    try {
+        state.preventives = await apiFetch("/dashboard-manutencao/preventivas");
+        renderPreventives();
+    } catch (error) {
+        elements.preventivesCounter.textContent = "FALHA AO CARREGAR";
+        renderStateCard(elements.preventivesList, {
+            title: "PREVENTIVAS INDISPONÍVEIS",
             message: error.message || "Verifique a conexão e tente novamente.",
             tone: "error",
         });
@@ -6770,6 +6877,7 @@ on(elements.openActivitiesMenu, "click", openActivitiesMenu);
 on(elements.openWashesMenu, "click", openWashesMenu);
 on(elements.openNonConformitiesMenu, "click", openNonConformitiesMenu);
 on(elements.openMaintenanceMenu, "click", openMaintenanceMenu);
+on(elements.openPreventivesMenu, "click", openPreventivesMenu);
 on(elements.openAvailabilityMenu, "click", openAvailabilityMenu);
 on(elements.openTechnicalInspectionsMenu, "click", openTechnicalInspectionsMenu);
 on(elements.openEmergenciesMenu, "click", openEmergenciesMenu);
@@ -6836,6 +6944,10 @@ on(elements.checklistHistoryTypeFilter, "change", scheduleChecklistHistoryFilter
 on(elements.checklistHistoryStartDate, "change", scheduleChecklistHistoryFilters);
 on(elements.checklistHistoryEndDate, "change", scheduleChecklistHistoryFilters);
 on(elements.maintenanceBackButton, "click", () => {
+    renderHome();
+    setActiveScreen("home");
+});
+on(elements.preventivesBackButton, "click", () => {
     renderHome();
     setActiveScreen("home");
 });
