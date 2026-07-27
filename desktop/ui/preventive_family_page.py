@@ -7,7 +7,9 @@ from PySide6.QtCore import QDateTime, Qt, Signal
 from PySide6.QtGui import QColor
 from PySide6.QtWidgets import (
     QAbstractItemView,
+    QCheckBox,
     QComboBox,
+    QDateEdit,
     QDateTimeEdit,
     QDialog,
     QDialogButtonBox,
@@ -22,6 +24,7 @@ from PySide6.QtWidgets import (
     QMessageBox,
     QPushButton,
     QDoubleSpinBox,
+    QSpinBox,
     QTextEdit,
     QTableWidget,
     QTableWidgetItem,
@@ -220,6 +223,129 @@ class PreventiveExecutionDialog(QDialog):
             )
         except Exception as exc:
             show_notice(self, "Execução não salva", str(exc), icon_name="warning")
+            return
+        self.accept()
+
+
+class PreventiveIntegrationDialog(QDialog):
+    """Integra a execucao ao fluxo oficial de OS e reserva de materiais."""
+
+    def __init__(self, api_client, execution: dict, parent=None):
+        super().__init__(parent)
+        self.api_client = api_client
+        self.execution = execution or {}
+        self.materials: list[dict] = []
+        self.setWindowTitle("Integrar OS e materiais")
+        self.setMinimumSize(720, 500)
+        layout = QVBoxLayout(self)
+        layout.setContentsMargins(18, 18, 18, 18)
+        layout.setSpacing(10)
+
+        vehicle = self.execution.get("vehicle") or {}
+        plan = self.execution.get("preventive_plan") or {}
+        title = QLabel(f"INTEGRACAO — {vehicle.get('frota') or 'Equipamento'}")
+        title.setObjectName("PageTitle")
+        layout.addWidget(title)
+        layout.addWidget(QLabel(f"{plan.get('code') or 'Preventiva'} | {plan.get('title') or '-'}"))
+
+        options = QGridLayout()
+        self.create_work_order = QCheckBox("Criar OS automaticamente quando nao houver OS vinculada")
+        self.create_work_order.setChecked(True)
+        options.addWidget(self.create_work_order, 0, 0, 1, 2)
+        options.addWidget(QLabel("OS existente (numero opcional)"), 1, 0)
+        self.work_order = QLineEdit()
+        self.work_order.setPlaceholderText("Ex.: OS-000123")
+        options.addWidget(self.work_order, 2, 0)
+        self.close_work_order = QCheckBox("Encerrar OS ao concluir a preventiva")
+        self.close_work_order.setEnabled(str(self.execution.get("status") or "").upper() == "CONCLUIDA")
+        options.addWidget(self.close_work_order, 2, 1)
+        layout.addLayout(options)
+
+        material_header = QHBoxLayout()
+        material_header.addWidget(QLabel("Kit de materiais da preventiva"), 1)
+        add_button = QPushButton("Adicionar material")
+        add_button.clicked.connect(self._add_material_row)
+        remove_button = QPushButton("Remover selecionado")
+        remove_button.clicked.connect(self._remove_material_row)
+        material_header.addWidget(add_button)
+        material_header.addWidget(remove_button)
+        layout.addLayout(material_header)
+
+        self.material_table = QTableWidget(0, 3)
+        self.material_table.setHorizontalHeaderLabels(["Material", "Quantidade", "Observacao"])
+        configure_table(self.material_table, stretch_last=True)
+        self.material_table.setSelectionBehavior(QAbstractItemView.SelectRows)
+        layout.addWidget(self.material_table, 1)
+
+        try:
+            self.materials = self.api_client.get_materials() or []
+        except Exception:
+            self.materials = []
+        for row in self.execution.get("materiais") or []:
+            self._add_material_row(row)
+
+        buttons = QDialogButtonBox(QDialogButtonBox.Cancel | QDialogButtonBox.Save)
+        buttons.button(QDialogButtonBox.Save).setText("Salvar integracao")
+        buttons.button(QDialogButtonBox.Save).setProperty("variant", "primary")
+        buttons.accepted.connect(self._save)
+        buttons.rejected.connect(self.reject)
+        layout.addWidget(buttons)
+
+    def _add_material_row(self, existing: dict | None = None):
+        row_index = self.material_table.rowCount()
+        self.material_table.insertRow(row_index)
+        combo = QComboBox()
+        combo.addItem("Selecione um material", None)
+        for material in self.materials:
+            label = f"{material.get('referencia') or '-'} — {material.get('descricao') or 'Material'}"
+            combo.addItem(label, material.get("id"))
+        selected_id = (existing or {}).get("material_id")
+        if selected_id:
+            index = combo.findData(selected_id)
+            if index >= 0:
+                combo.setCurrentIndex(index)
+        self.material_table.setCellWidget(row_index, 0, combo)
+        quantity = QSpinBox()
+        quantity.setRange(1, 9999)
+        quantity.setValue(int((existing or {}).get("quantity_planned") or 1))
+        self.material_table.setCellWidget(row_index, 1, quantity)
+        observation = QLineEdit()
+        observation.setPlaceholderText("Opcional")
+        observation.setText((existing or {}).get("observation") or "")
+        self.material_table.setCellWidget(row_index, 2, observation)
+
+    def _remove_material_row(self):
+        row = self.material_table.currentRow()
+        if row >= 0:
+            self.material_table.removeRow(row)
+
+    def _save(self):
+        material_rows = []
+        for row in range(self.material_table.rowCount()):
+            combo = self.material_table.cellWidget(row, 0)
+            quantity = self.material_table.cellWidget(row, 1)
+            observation = self.material_table.cellWidget(row, 2)
+            material_id = combo.currentData() if combo else None
+            if not material_id:
+                show_notice(self, "Material incompleto", "Selecione o material em todas as linhas ou remova a linha vazia.", icon_name="warning")
+                return
+            material_rows.append({
+                "material_id": int(material_id),
+                "quantity_planned": int(quantity.value()),
+                "observation": observation.text().strip() or None,
+            })
+        payload = {
+            "create_work_order": self.create_work_order.isChecked(),
+            "close_work_order": self.close_work_order.isChecked(),
+            "materials": material_rows,
+        }
+        if self.work_order.text().strip():
+            payload["order_number"] = self.work_order.text().strip()
+            payload["create_work_order"] = False
+        try:
+            self.api_client.integrate_preventive_execution(int(self.execution["id"]), payload)
+        except Exception as exc:
+            show_notice(self, "Integracao nao salva", str(exc), icon_name="warning")
             return
         self.accept()
 
@@ -592,6 +718,12 @@ class PreventiveFamilyPage(QFrame):
         self.execution_status_label = QLabel("Status da execução: -")
         self.execution_status_label.setObjectName("SectionCaption")
         detail_layout.addWidget(self.execution_status_label)
+        self.integration_button = QPushButton("Integrar OS e materiais", self)
+        self.integration_button.setProperty("variant", "primary")
+        self.integration_button.clicked.connect(self._open_integration_dialog)
+        self.integration_button.setEnabled(False)
+        detail_layout.addWidget(self.integration_button)
+        self.execution_selector.currentIndexChanged.connect(self._sync_integration_button)
         detail_layout.addStretch(1)
         content.addWidget(self.detail_card, 1)
         layout.addLayout(content, 1)
@@ -639,6 +771,24 @@ class PreventiveFamilyPage(QFrame):
     def _execution_selection_changed(self):
         execution = self.execution_selector.currentData()
         self.execution_status_label.setText(f"Status da execução: {execution.get('status') if execution else '-'}")
+
+    def _open_integration_dialog(self):
+        execution = self.execution_selector.currentData()
+        if not execution:
+            show_notice(self, "Execucao indisponivel", "Selecione uma execucao preventiva para integrar.", icon_name="warning")
+            return
+        try:
+            if hasattr(self.api_client, "get_preventive_execution"):
+                execution = self.api_client.get_preventive_execution(int(execution["id"]))
+            dialog = PreventiveIntegrationDialog(self.api_client, execution, self)
+            if dialog.exec() == QDialog.Accepted:
+                self.refresh()
+                self.data_changed.emit()
+        except Exception as exc:
+            show_notice(self, "Falha ao integrar preventiva", str(exc), icon_name="warning")
+
+    def _sync_integration_button(self):
+        self.integration_button.setEnabled(bool(self.execution_selector.currentData()))
 
     def refresh(self):
         try:

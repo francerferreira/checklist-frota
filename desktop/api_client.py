@@ -539,6 +539,9 @@ class APIClient:
     def update_preventive_execution(self, execution_id: int, payload: dict):
         return self._request("PUT", f"/pcm/preventivas/execucoes/{execution_id}", json=payload)
 
+    def integrate_preventive_execution(self, execution_id: int, payload: dict):
+        return self._request("POST", f"/pcm/preventivas/execucoes/{execution_id}/integrar", json=payload)
+
     def update_preventive_stage(self, execution_id: int, stage_id: int, payload: dict):
         return self._request("PUT", f"/pcm/preventivas/execucoes/{execution_id}/etapas/{stage_id}", json=payload)
 

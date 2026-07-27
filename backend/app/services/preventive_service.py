@@ -12,12 +12,17 @@ from decimal import Decimal, InvalidOperation
 from sqlalchemy.exc import OperationalError
 
 from app.extensions import db
+from app.services.audit_service import record_event
 from app.models import (
     EquipmentOperationalState,
     HourmeterReading,
+    Material,
+    MaintenanceWorkOrder,
+    PreventiveMaterial,
     PreventiveExecution,
     PreventivePlan,
     PreventiveStage,
+    User,
     Vehicle,
 )
 from app.models.preventive import PREVENTIVE_EXECUTION_STATUSES, PREVENTIVE_STAGE_STATUSES, PREVENTIVE_STAGE_TYPES
@@ -452,3 +457,164 @@ def update_preventive_stage(stage_id: int, payload: dict, user_id: int) -> Preve
         stage.observation = _clean(payload.get("observation") or payload.get("observacao"))
     db.session.commit()
     return stage
+
+
+def integrate_preventive_execution(execution_id: int, payload: dict, user_id: int) -> dict:
+    """Liga uma execucao preventiva ao fluxo oficial de OS e materiais.
+
+    A operacao e idempotente: uma execucao ja ligada reutiliza a mesma OS e os
+    mesmos materiais, evitando que cada abertura da tela gere registros novos.
+    """
+    execution = get_preventive_execution(execution_id)
+    if execution.status in {"CANCELADA", "NAO_EXECUTADA"}:
+        raise ValueError("Uma execucao cancelada ou nao executada nao pode receber integracao.")
+
+    from app.services.maintenance_service import (
+        create_maintenance_schedule,
+        link_schedule_material,
+        update_schedule_item,
+    )
+
+    payload = payload or {}
+    work_order = execution.work_order
+    create_work_order = payload.get("create_work_order")
+    if create_work_order is None:
+        create_work_order = payload.get("criar_os", True)
+    requested_work_order = payload.get("work_order_id") or payload.get("os_id") or payload.get("order_number")
+    if requested_work_order and not work_order:
+        try:
+            work_order = MaintenanceWorkOrder.query.get(int(requested_work_order))
+        except (TypeError, ValueError):
+            work_order = MaintenanceWorkOrder.query.filter_by(order_number=str(requested_work_order).strip()).first()
+        if not work_order:
+            raise LookupError("Ordem de servico informada nao encontrada.")
+
+    if work_order:
+        if int(work_order.vehicle_id) != int(execution.vehicle_id):
+            raise ValueError("A ordem de servico pertence a outro equipamento.")
+        execution.work_order_id = work_order.id
+        schedule = work_order.schedule
+    if not work_order and create_work_order:
+        plan = execution.preventive_plan
+        vehicle = execution.vehicle
+        schedule = create_maintenance_schedule(
+            {
+                "source_type": "PREVENTIVA",
+                "source_key": f"PREVENTIVE_EXECUTION:{execution.id}",
+                "title": f"{plan.code or 'PREVENTIVA'} - {plan.title or 'Manutencao preventiva'}",
+                "item_name": plan.title or plan.code or "Manutencao preventiva",
+                "status": "PROGRAMADA" if execution.scheduled_date else "ABERTA",
+                "start_date": execution.scheduled_date.isoformat() if execution.scheduled_date else None,
+                "daily_capacity": 1,
+                "assigned_mechanic_user_id": execution.responsible_user_id,
+                "observation": execution.observation or "OS gerada pela execucao preventiva",
+                "vehicle_ids": [vehicle.id],
+            },
+            created_by_user_id=user_id,
+        )
+        work_order = schedule.work_orders[0] if schedule.work_orders else None
+        if not work_order:
+            raise ValueError("A programacao foi criada, mas a OS nao foi gerada.")
+        execution.work_order_id = work_order.id
+    elif not work_order:
+        schedule = None
+
+    material_rows = payload.get("materials") or payload.get("materiais") or []
+    if material_rows and not schedule:
+        raise ValueError("Vincule ou crie uma OS antes de informar materiais.")
+
+    linked_material_ids: set[int] = set()
+    for row in material_rows:
+        material_id = row.get("material_id") or row.get("id")
+        if not material_id:
+            raise ValueError("Cada material deve informar material_id.")
+        try:
+            material_id = int(material_id)
+            quantity = int(row.get("quantity_planned") or row.get("quantidade") or row.get("quantity") or 1)
+        except (TypeError, ValueError) as exc:
+            raise ValueError("Material ou quantidade invalida.") from exc
+        if quantity <= 0:
+            raise ValueError("A quantidade planejada deve ser maior que zero.")
+        material = db.session.get(Material, material_id)
+        if not material or not material.ativo:
+            raise LookupError("Material ativo nao encontrado.")
+
+        link_schedule_material(
+            schedule.id,
+            {
+                "material_id": material_id,
+                "quantity_per_vehicle": quantity,
+                "observation": row.get("observation") or row.get("observacao"),
+            },
+            user_id=user_id,
+        )
+        preventive_material = PreventiveMaterial.query.filter_by(
+            preventive_execution_id=execution.id,
+            material_id=material_id,
+        ).first()
+        if not preventive_material:
+            preventive_material = PreventiveMaterial(
+                preventive_execution_id=execution.id,
+                material_id=material_id,
+                quantity_planned=quantity,
+                requested_at=now_manaus_naive(),
+            )
+            db.session.add(preventive_material)
+        else:
+            preventive_material.quantity_planned = quantity
+        linked_material_ids.add(material_id)
+
+    close_work_order = bool(payload.get("close_work_order") or payload.get("encerrar_os"))
+    if close_work_order:
+        if execution.status != "CONCLUIDA":
+            raise ValueError("Conclua a preventiva antes de encerrar a OS.")
+        if not work_order or not work_order.schedule_item:
+            raise ValueError("A OS nao possui item de manutencao para encerramento.")
+        if work_order.schedule_item.status != "INSTALADO":
+            user = db.session.get(User, user_id)
+            if not user:
+                raise LookupError("Usuario responsavel nao encontrado.")
+            update_schedule_item(
+                work_order.schedule_item.id,
+                {"status": "INSTALADO", "observation": execution.observation},
+                user=user,
+            )
+        for preventive_material in execution.materials:
+            preventive_material.quantity_separated = preventive_material.quantity_planned
+            preventive_material.quantity_used = preventive_material.quantity_planned
+            preventive_material.status = "UTILIZADO"
+            preventive_material.separated_at = preventive_material.separated_at or now_manaus_naive()
+            preventive_material.used_at = now_manaus_naive()
+    else:
+        for preventive_material in execution.materials:
+            if preventive_material.material_id not in linked_material_ids:
+                continue
+            schedule_link = next(
+                (link for link in schedule.materials if link.material_id == preventive_material.material_id),
+                None,
+            )
+            if schedule_link and schedule_link.status in {"DISPONIVEL_EM_ESTOQUE", "RESERVADO"}:
+                preventive_material.quantity_separated = preventive_material.quantity_planned
+                preventive_material.status = "SEPARADO"
+                preventive_material.separated_at = preventive_material.separated_at or now_manaus_naive()
+            else:
+                preventive_material.status = "SOLICITADO"
+
+    execution.work_order_id = work_order.id if work_order else execution.work_order_id
+    db.session.flush()
+    record_event(
+        user_id=user_id,
+        entity_type="PREVENTIVE_EXECUTION",
+        entity_id=execution.id,
+        action="INTEGRATED_MAINTENANCE",
+        new_value=f"os={work_order.order_number if work_order else '-'}; materiais={len(linked_material_ids)}; encerrada={close_work_order}",
+    )
+    db.session.commit()
+    data = execution.to_dict()
+    data["integracao"] = {
+        "ordem_servico": work_order.to_dict() if work_order else None,
+        "programacao": schedule.to_dict(include_items=True, include_materials=True, include_work_orders=True) if schedule else None,
+        "materiais_vinculados": len(linked_material_ids),
+        "os_encerrada": bool(work_order and work_order.status == "CONCLUIDA"),
+    }
+    return data

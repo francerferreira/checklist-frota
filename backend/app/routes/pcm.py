@@ -17,6 +17,7 @@ from app.services.pcm_service import (
 from app.services.preventive_service import (
     create_preventive_execution,
     get_preventive_execution,
+    integrate_preventive_execution,
     list_preventive_executions,
     update_preventive_execution,
     update_preventive_stage,
@@ -170,6 +171,15 @@ def preventive_execution_update(execution_id: int):
     return _run(
         lambda: update_preventive_execution(execution_id, request.get_json(silent=True) or {}, g.current_user.id).to_dict()
     )
+
+
+@bp.post("/pcm/preventivas/execucoes/<int:execution_id>/integrar")
+@auth_required
+def preventive_execution_integrate(execution_id: int):
+    denied = _guard_management()
+    if denied:
+        return denied
+    return _run(lambda: integrate_preventive_execution(execution_id, request.get_json(silent=True) or {}, g.current_user.id))
 
 
 @bp.put("/pcm/preventivas/execucoes/<int:execution_id>/etapas/<int:stage_id>")
