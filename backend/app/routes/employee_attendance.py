@@ -243,6 +243,11 @@ def save_mobile_absenteeism():
     payload = request.get_json(silent=True) or {}
     try:
         reference_date = _parse_date(payload.get("date"), "a data")
+        # A apuração diária não pode ser lançada depois do fechamento da janela
+        # operacional. Datas futuras continuam disponíveis para prévia, mas uma
+        # data anterior ao dia corrente exige correção pelo histórico de RH.
+        if reference_date < date.today():
+            raise ValueError("A janela de 24 horas para esta apuração já foi encerrada. Use o histórico de RH para corrigir o lançamento.")
         entries = payload.get("entries") or []
         if not isinstance(entries, list) or not entries:
             raise ValueError("Informe ao menos um colaborador para salvar.")

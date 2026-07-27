@@ -435,11 +435,9 @@ class MainWindow(QMainWindow):
         menu_groups = {
             "Dashboard": ["dashboard"],
             "Equipamentos": ["equipment", "availability", "spreader_history", "checklist_items", "inspection_templates"],
-            "RH": ["hr_management", "employees", "vacations", "employee_records"],
-            "Absenteísmo": ["attendance"],
+            "RH": ["hr_management", "employees", "attendance", "vacations", "employee_records", "special_schedule"],
             "Relatórios": ["reports", "productivity", "checklist_history"],
-            "Usuários": ["users"],
-            "Configurações": ["admin_rules", "cloud_backup", "audit_logs"],
+            "Configurações": ["users", "admin_rules", "cloud_backup", "audit_logs"],
             "Operação e Manutenção": ["operations_center", "nc", "emergencies", "maintenance", "pcm", "resources", "activities", "washes"],
             "Materiais e Compras": ["materials", "supply_library", "purchases"],
         }
@@ -452,12 +450,6 @@ class MainWindow(QMainWindow):
             for key in available_keys:
                 action = menu.addAction(self.page_titles.get(key, key))
                 action.triggered.connect(lambda checked=False, page_key=key: self.switch_page(page_key))
-
-        if self.can_manage:
-            if "special_schedule" in self.page_map:
-                scale_menu = menubar.addMenu("Escala e DSR")
-                scale_action = scale_menu.addAction("Abrir gestão de domingo e feriado")
-                scale_action.triggered.connect(lambda: self.switch_page("special_schedule"))
 
         web_panels_menu = menubar.addMenu("Painéis Web")
         web_mobile_action = web_panels_menu.addAction("Abrir Web Mobile")
@@ -560,11 +552,9 @@ class MainWindow(QMainWindow):
         sections = [
             ("Dashboard", ["dashboard"]),
             ("Equipamentos", ["equipment", "availability", "spreader_history", "checklist_items", "inspection_templates"]),
-            ("RH", ["hr_management", "employees", "vacations", "employee_records"]),
-            ("Absenteísmo", ["attendance"]),
+            ("RH", ["hr_management", "employees", "attendance", "vacations", "employee_records", "special_schedule"]),
             ("Relatórios", ["reports", "productivity", "checklist_history"]),
-            ("Usuários", ["users"]),
-            ("Configurações", ["admin_rules", "cloud_backup", "audit_logs"]),
+            ("Configurações", ["users", "admin_rules", "cloud_backup", "audit_logs"]),
             ("Operação e Manutenção", ["operations_center", "nc", "emergencies", "maintenance", "pcm", "resources", "activities", "washes"]),
             ("Materiais e Compras", ["materials", "supply_library", "purchases"]),
         ]
@@ -577,19 +567,6 @@ class MainWindow(QMainWindow):
                     continue
                 item = self._make_tree_item(section_item, self.page_titles.get(key, key), page_key=key, icon_name="dashboard")
                 self.tree_items[key] = item
-            if section_label == "Absenteísmo" and self.can_manage:
-                if "special_schedule" not in self.page_map:
-                    continue
-                scale_section = self._make_tree_item(root, "Escala e DSR", icon_name="activities")
-                self.section_items.append(scale_section)
-                action_item = self._make_tree_item(
-                    scale_section,
-                    "Abrir escala de domingo e feriado",
-                    action_key="scale_dsr",
-                    icon_name="activities",
-                )
-                self.tree_action_items["scale_dsr"] = action_item
-
         self.nav_tree.expandAll()
         if self.current_page_key:
             self._sync_tree_selection(self.current_page_key)
@@ -792,17 +769,11 @@ class MainWindow(QMainWindow):
             return "DASHBOARD"
         if page_key in {"equipment", "availability", "spreader_history", "checklist_items", "inspection_templates"}:
             return "EQUIPAMENTOS"
-        if page_key in {"hr_management", "employees", "vacations", "employee_records"}:
+        if page_key in {"hr_management", "employees", "attendance", "vacations", "employee_records", "special_schedule"}:
             return "RH"
-        if page_key == "attendance":
-            return "ABSENTEÍSMO"
-        if page_key == "special_schedule":
-            return "ESCALA E DSR"
         if page_key in {"reports", "productivity", "checklist_history"}:
             return "RELATÓRIOS"
-        if page_key == "users":
-            return "USUÁRIOS"
-        if page_key in {"cloud_backup", "audit_logs", "admin_rules"}:
+        if page_key in {"users", "cloud_backup", "audit_logs", "admin_rules"}:
             return "CONFIGURAÇÕES"
         if page_key in {"operations_center", "nc", "emergencies", "maintenance", "pcm", "resources", "activities", "washes"}:
             return "OPERAÇÃO E MANUTENÇÃO"

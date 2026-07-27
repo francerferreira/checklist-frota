@@ -278,6 +278,21 @@ class APIClient:
         params = {"colaborador_id": employee_id, "data": occurrence_date, "tipo": occurrence_type}
         return self._request("GET", "/rh/frequencia", params={key: value for key, value in params.items() if value})
 
+    def get_mobile_absenteeism(self, *, reference_date: str, **filters):
+        params = {"data": reference_date, **filters}
+        return self._request(
+            "GET",
+            "/rh/absenteismo-mobile",
+            params={key: value for key, value in params.items() if value not in (None, "")},
+        )
+
+    def save_mobile_absenteeism(self, *, reference_date: str, entries: list[dict]):
+        return self._request(
+            "POST",
+            "/rh/absenteismo-mobile",
+            json={"date": reference_date, "entries": entries},
+        )
+
     def get_special_schedules(self, schedule_date: str | None = None):
         params = {"data": schedule_date} if schedule_date else None
         return self._request("GET", "/rh/escalas-especiais", params=params)
