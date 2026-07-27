@@ -14,6 +14,7 @@ from app.routes.hr_management import bp as hr_management_bp
 from app.routes.maintenance import bp as maintenance_bp
 from app.routes.maintenance_dashboard import bp as maintenance_dashboard_bp
 from app.routes.maintenance_dashboard_tv import bp as maintenance_dashboard_tv_bp
+from app.routes.stops_dashboard_tv import bp as stops_dashboard_tv_bp
 from app.routes.technical_inspections import bp as technical_inspections_bp
 from app.routes.intelligence import bp as intelligence_bp
 from app.routes.mechanic_non_conformities import bp as mechanic_non_conformities_bp
@@ -52,6 +53,7 @@ def register_blueprints(app):
         maintenance_bp,
         maintenance_dashboard_bp,
         maintenance_dashboard_tv_bp,
+        stops_dashboard_tv_bp,
         technical_inspections_bp,
         intelligence_bp,
         materials_bp,

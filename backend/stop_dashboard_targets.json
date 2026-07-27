@@ -1,0 +1,17 @@
+{
+  "version": 1,
+  "monthly": {
+    "2026-07": {
+      "lbs-pier": 10,
+      "rtg-atr": 50,
+      "rtg-alfandegado": 50,
+      "rtg-total": 100
+    }
+  },
+  "default": {
+    "lbs-pier": 10,
+    "rtg-atr": 50,
+    "rtg-alfandegado": 50,
+    "rtg-total": 100
+  }
+}
