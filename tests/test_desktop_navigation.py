@@ -15,7 +15,7 @@ if str(DESKTOP_ROOT) not in sys.path:
 
 from PySide6.QtTest import QTest
 from PySide6.QtCore import QUrl
-from PySide6.QtWidgets import QApplication, QFrame
+from PySide6.QtWidgets import QApplication, QFrame, QLabel
 
 from access import allowed_pages_for_role, user_can
 from api_client import APIClient
@@ -402,6 +402,8 @@ class DesktopNavigationTests(unittest.TestCase):
             self.assertIn("supply_library", gestor_window.page_map)
             self.assertIn("hr_management", gestor_window.page_map)
             self.assertIn("vacations", gestor_window.page_map)
+            self.assertIn("rtg_module", gestor_window.page_map)
+            self.assertIn("lbs_module", gestor_window.page_map)
 
             self.assertEqual(set(motorista_window.page_map.keys()), {"dashboard"})
         finally:
@@ -413,10 +415,26 @@ class DesktopNavigationTests(unittest.TestCase):
         self.assertEqual(allowed_pages_for_role("motorista"), {"dashboard"})
         self.assertNotIn("users", allowed_pages_for_role("gestor"))
         self.assertIn("vacations", allowed_pages_for_role("gestor"))
+        self.assertIn("rtg_module", allowed_pages_for_role("admin"))
+        self.assertIn("lbs_module", allowed_pages_for_role("gestor"))
         self.assertTrue(user_can({"tipo": "admin"}, "manage_users"))
         self.assertFalse(user_can({"tipo": "gestor"}, "manage_users"))
         self.assertTrue(user_can({"tipo": "gestor"}, "manage_activity_materials"))
         self.assertFalse(user_can({"tipo": "motorista"}, "view_wash_values"))
+
+    def test_family_modules_are_separate_navigation_shells(self):
+        self.assertIn("rtg_module", self.window.page_map)
+        self.assertIn("lbs_module", self.window.page_map)
+        self.assertEqual(self.window.page_titles["rtg_module"], "Gestao RTG")
+        self.assertEqual(self.window.page_titles["lbs_module"], "Gestao LBS")
+
+        self.window.switch_page("rtg_module")
+        self.assertEqual(self.window._navigation_section("rtg_module"), "GESTAO RTG")
+        self.assertIn("GESTAO RTG", self.window.rtg_module_page.findChildren(QLabel)[0].text())
+
+        self.window.switch_page("lbs_module")
+        self.assertEqual(self.window._navigation_section("lbs_module"), "GESTAO LBS")
+        self.assertIn("GESTAO LBS", self.window.lbs_module_page.findChildren(QLabel)[0].text())
 
     def test_users_page_hides_admin_buttons_for_gestor(self):
         gestor_page = UsersPage(

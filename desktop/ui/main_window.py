@@ -44,6 +44,7 @@ from ui.emergencies_page import EmergenciesPage
 from ui.employees_page import EmployeesPage
 from ui.attendance_page import AttendancePage
 from ui.employee_records_page import EmployeeRecordsPage
+from ui.family_module_page import FamilyModulePage
 from ui.hr_management_page import HRManagementPage
 from ui.vacations_page import VacationsPage
 from ui.global_search_dialog import GlobalSearchDialog
@@ -313,6 +314,8 @@ class MainWindow(QMainWindow):
         self.hr_management_page = HRManagementPage(self.api_client, self.user)
         self.vacations_page = VacationsPage(self.api_client)
         self.special_schedule_page = SpecialSchedulePage(self.api_client)
+        self.rtg_module_page = FamilyModulePage("RTG")
+        self.lbs_module_page = FamilyModulePage("LBS")
         self.supply_library_page = SupplyLibraryPage(self.api_client)
         self.reports_page = ReportsPage(self.api_client)
         self.users_page = UsersPage(self.api_client, self.user)
@@ -346,6 +349,8 @@ class MainWindow(QMainWindow):
             "hr_management": self.hr_management_page,
             "vacations": self.vacations_page,
             "special_schedule": self.special_schedule_page,
+            "rtg_module": self.rtg_module_page,
+            "lbs_module": self.lbs_module_page,
             "supply_library": self.supply_library_page,
             "users": self.users_page,
             "cloud_backup": self.cloud_backup_page,
@@ -381,6 +386,8 @@ class MainWindow(QMainWindow):
             "checklist_history": "Histórico Checklist",
             "spreader_history": "Histórico Spreaders",
             "special_schedule": "Escala de Domingo e Feriado",
+            "rtg_module": "Gestao RTG",
+            "lbs_module": "Gestao LBS",
             "users": "Logins",
             "cloud_backup": "Backup",
             "audit_logs": "Logs de Auditoria",
@@ -435,6 +442,8 @@ class MainWindow(QMainWindow):
         menu_groups = {
             "Dashboard": ["dashboard"],
             "Equipamentos": ["equipment", "availability", "spreader_history", "checklist_items", "inspection_templates"],
+            "Gestao RTG": ["rtg_module"],
+            "Gestao LBS": ["lbs_module"],
             "RH": ["hr_management", "employees", "attendance", "vacations", "employee_records", "special_schedule"],
             "Relatórios": ["reports", "productivity", "checklist_history"],
             "Configurações": ["users", "admin_rules", "cloud_backup", "audit_logs"],
@@ -552,6 +561,8 @@ class MainWindow(QMainWindow):
         sections = [
             ("Dashboard", ["dashboard"]),
             ("Equipamentos", ["equipment", "availability", "spreader_history", "checklist_items", "inspection_templates"]),
+            ("Gestao RTG", ["rtg_module"]),
+            ("Gestao LBS", ["lbs_module"]),
             ("RH", ["hr_management", "employees", "attendance", "vacations", "employee_records", "special_schedule"]),
             ("Relatórios", ["reports", "productivity", "checklist_history"]),
             ("Configurações", ["users", "admin_rules", "cloud_backup", "audit_logs"]),
@@ -771,6 +782,10 @@ class MainWindow(QMainWindow):
             return "EQUIPAMENTOS"
         if page_key in {"hr_management", "employees", "attendance", "vacations", "employee_records", "special_schedule"}:
             return "RH"
+        if page_key == "rtg_module":
+            return "GESTAO RTG"
+        if page_key == "lbs_module":
+            return "GESTAO LBS"
         if page_key in {"reports", "productivity", "checklist_history"}:
             return "RELATÓRIOS"
         if page_key in {"users", "cloud_backup", "audit_logs", "admin_rules"}:
@@ -972,6 +987,10 @@ class MainWindow(QMainWindow):
                 self.vacations_page.refresh()
             elif page_key == "special_schedule":
                 self.special_schedule_page.refresh()
+            elif page_key == "rtg_module":
+                self.rtg_module_page.refresh()
+            elif page_key == "lbs_module":
+                self.lbs_module_page.refresh()
             elif page_key == "cloud_backup":
                 self.cloud_backup_page.refresh()
             elif page_key == "audit_logs":
