@@ -45,6 +45,7 @@ from ui.employees_page import EmployeesPage
 from ui.attendance_page import AttendancePage
 from ui.employee_records_page import EmployeeRecordsPage
 from ui.family_module_page import FamilyModulePage
+from ui.family_downtime_page import FamilyDowntimePage
 from ui.hr_management_page import HRManagementPage
 from ui.vacations_page import VacationsPage
 from ui.global_search_dialog import GlobalSearchDialog
@@ -316,6 +317,8 @@ class MainWindow(QMainWindow):
         self.special_schedule_page = SpecialSchedulePage(self.api_client)
         self.rtg_module_page = FamilyModulePage("RTG")
         self.lbs_module_page = FamilyModulePage("LBS")
+        self.rtg_downtime_page = FamilyDowntimePage(self.api_client, "RTG", self.user)
+        self.lbs_downtime_page = FamilyDowntimePage(self.api_client, "LBS", self.user)
         self.supply_library_page = SupplyLibraryPage(self.api_client)
         self.reports_page = ReportsPage(self.api_client)
         self.users_page = UsersPage(self.api_client, self.user)
@@ -351,6 +354,8 @@ class MainWindow(QMainWindow):
             "special_schedule": self.special_schedule_page,
             "rtg_module": self.rtg_module_page,
             "lbs_module": self.lbs_module_page,
+            "rtg_downtime": self.rtg_downtime_page,
+            "lbs_downtime": self.lbs_downtime_page,
             "supply_library": self.supply_library_page,
             "users": self.users_page,
             "cloud_backup": self.cloud_backup_page,
@@ -388,6 +393,8 @@ class MainWindow(QMainWindow):
             "special_schedule": "Escala de Domingo e Feriado",
             "rtg_module": "Gest\u00e3o RTG",
             "lbs_module": "Gest\u00e3o LBS",
+            "rtg_downtime": "Controle de Paradas RTG",
+            "lbs_downtime": "Controle de Paradas LBS",
             "users": "Logins",
             "cloud_backup": "Backup",
             "audit_logs": "Logs de Auditoria",
@@ -434,6 +441,10 @@ class MainWindow(QMainWindow):
             self.vacations_page.data_changed.connect(lambda: self.handle_data_changed("vacations"))
         if "special_schedule" in self.page_map:
             self.special_schedule_page.data_changed.connect(lambda: self.handle_data_changed("special_schedule"))
+        if "rtg_downtime" in self.page_map:
+            self.rtg_downtime_page.data_changed.connect(lambda: self.handle_data_changed("rtg_downtime"))
+        if "lbs_downtime" in self.page_map:
+            self.lbs_downtime_page.data_changed.connect(lambda: self.handle_data_changed("lbs_downtime"))
 
     def _build_menu_bar(self):
         menubar = self.menuBar()
@@ -442,8 +453,8 @@ class MainWindow(QMainWindow):
         menu_groups = {
             "Dashboard": ["dashboard"],
             "Equipamentos": ["equipment", "availability", "spreader_history", "checklist_items", "inspection_templates"],
-            "Gest\u00e3o RTG": ["rtg_module"],
-            "Gest\u00e3o LBS": ["lbs_module"],
+            "Gest\u00e3o RTG": ["rtg_module", "rtg_downtime"],
+            "Gest\u00e3o LBS": ["lbs_module", "lbs_downtime"],
             "RH": ["hr_management", "employees", "attendance", "vacations", "employee_records", "special_schedule"],
             "Relatórios": ["reports", "productivity", "checklist_history"],
             "Configurações": ["users", "admin_rules", "cloud_backup", "audit_logs"],
@@ -561,8 +572,8 @@ class MainWindow(QMainWindow):
         sections = [
             ("Dashboard", ["dashboard"]),
             ("Equipamentos", ["equipment", "availability", "spreader_history", "checklist_items", "inspection_templates"]),
-            ("Gest\u00e3o RTG", ["rtg_module"]),
-            ("Gest\u00e3o LBS", ["lbs_module"]),
+            ("Gest\u00e3o RTG", ["rtg_module", "rtg_downtime"]),
+            ("Gest\u00e3o LBS", ["lbs_module", "lbs_downtime"]),
             ("RH", ["hr_management", "employees", "attendance", "vacations", "employee_records", "special_schedule"]),
             ("Relatórios", ["reports", "productivity", "checklist_history"]),
             ("Configurações", ["users", "admin_rules", "cloud_backup", "audit_logs"]),
@@ -784,7 +795,11 @@ class MainWindow(QMainWindow):
             return "RH"
         if page_key == "rtg_module":
             return "GEST\u00c3O RTG"
+        if page_key == "rtg_downtime":
+            return "GEST\u00c3O RTG"
         if page_key == "lbs_module":
+            return "GEST\u00c3O LBS"
+        if page_key == "lbs_downtime":
             return "GEST\u00c3O LBS"
         if page_key in {"reports", "productivity", "checklist_history"}:
             return "RELATÓRIOS"
@@ -991,6 +1006,10 @@ class MainWindow(QMainWindow):
                 self.rtg_module_page.refresh()
             elif page_key == "lbs_module":
                 self.lbs_module_page.refresh()
+            elif page_key == "rtg_downtime":
+                self.rtg_downtime_page.refresh()
+            elif page_key == "lbs_downtime":
+                self.lbs_downtime_page.refresh()
             elif page_key == "cloud_backup":
                 self.cloud_backup_page.refresh()
             elif page_key == "audit_logs":
@@ -1011,7 +1030,10 @@ class MainWindow(QMainWindow):
 
         # Se equipamentos foram alterados, forcar refresh de tudo que usa frota
         if source_page_key == "equipment":
-            self.dirty_pages.update(["activities", "maintenance", "washes", "nc", "reports", "spreader_history"])
+            self.dirty_pages.update([
+                "activities", "maintenance", "washes", "nc", "reports", "spreader_history",
+                "rtg_downtime", "lbs_downtime",
+            ])
 
         if source_page_key != "dashboard" and self.current_page_key != source_page_key:
             self._refresh_page("dashboard")

@@ -404,6 +404,8 @@ class DesktopNavigationTests(unittest.TestCase):
             self.assertIn("vacations", gestor_window.page_map)
             self.assertIn("rtg_module", gestor_window.page_map)
             self.assertIn("lbs_module", gestor_window.page_map)
+            self.assertIn("rtg_downtime", gestor_window.page_map)
+            self.assertIn("lbs_downtime", gestor_window.page_map)
 
             self.assertEqual(set(motorista_window.page_map.keys()), {"dashboard"})
         finally:
@@ -417,6 +419,8 @@ class DesktopNavigationTests(unittest.TestCase):
         self.assertIn("vacations", allowed_pages_for_role("gestor"))
         self.assertIn("rtg_module", allowed_pages_for_role("admin"))
         self.assertIn("lbs_module", allowed_pages_for_role("gestor"))
+        self.assertIn("rtg_downtime", allowed_pages_for_role("admin"))
+        self.assertIn("lbs_downtime", allowed_pages_for_role("gestor"))
         self.assertTrue(user_can({"tipo": "admin"}, "manage_users"))
         self.assertFalse(user_can({"tipo": "gestor"}, "manage_users"))
         self.assertTrue(user_can({"tipo": "gestor"}, "manage_activity_materials"))
@@ -435,6 +439,16 @@ class DesktopNavigationTests(unittest.TestCase):
         self.window.switch_page("lbs_module")
         self.assertEqual(self.window._navigation_section("lbs_module"), "GEST\u00c3O LBS")
         self.assertIn("GEST\u00c3O LBS", self.window.lbs_module_page.findChildren(QLabel)[0].text())
+
+        self.window.switch_page("rtg_downtime")
+        self.assertEqual(self.window.page_titles["rtg_downtime"], "Controle de Paradas RTG")
+        self.assertEqual(self.window._navigation_section("rtg_downtime"), "GEST\u00c3O RTG")
+        self.assertEqual(self.window.rtg_downtime_page.table.rowCount(), 0)
+
+        self.window.switch_page("lbs_downtime")
+        self.assertEqual(self.window.page_titles["lbs_downtime"], "Controle de Paradas LBS")
+        self.assertEqual(self.window._navigation_section("lbs_downtime"), "GEST\u00c3O LBS")
+        self.assertEqual(self.window.lbs_downtime_page.table.rowCount(), 0)
 
     def test_users_page_hides_admin_buttons_for_gestor(self):
         gestor_page = UsersPage(

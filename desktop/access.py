@@ -33,6 +33,8 @@ PAGE_ACCESS_BY_ROLE = {
         "special_schedule",
         "rtg_module",
         "lbs_module",
+        "rtg_downtime",
+        "lbs_downtime",
         "users",
         "cloud_backup",
         "audit_logs",
@@ -67,6 +69,8 @@ PAGE_ACCESS_BY_ROLE = {
         "special_schedule",
         "rtg_module",
         "lbs_module",
+        "rtg_downtime",
+        "lbs_downtime",
         "admin_rules",
     },
     "mecanico": {

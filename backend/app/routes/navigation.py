@@ -13,8 +13,8 @@ from app.utils.timezone import now_manaus_naive
 bp = Blueprint("navigation", __name__)
 
 ROLE_PAGES = {
-    "admin": {"dashboard", "operations_center", "nc", "productivity", "reports", "checklist_history", "spreader_history", "equipment", "checklist_items", "inspection_templates", "materials", "washes", "activities", "maintenance", "availability", "emergencies", "pcm", "resources", "purchases", "supply_library", "employees", "attendance", "employee_records", "hr_management", "vacations", "special_schedule", "rtg_module", "lbs_module", "users", "cloud_backup", "audit_logs", "admin_rules"},
-    "gestor": {"dashboard", "operations_center", "nc", "productivity", "reports", "checklist_history", "spreader_history", "equipment", "checklist_items", "inspection_templates", "materials", "washes", "activities", "maintenance", "availability", "emergencies", "pcm", "resources", "purchases", "supply_library", "employees", "attendance", "employee_records", "hr_management", "vacations", "special_schedule", "rtg_module", "lbs_module", "admin_rules"},
+    "admin": {"dashboard", "operations_center", "nc", "productivity", "reports", "checklist_history", "spreader_history", "equipment", "checklist_items", "inspection_templates", "materials", "washes", "activities", "maintenance", "availability", "emergencies", "pcm", "resources", "purchases", "supply_library", "employees", "attendance", "employee_records", "hr_management", "vacations", "special_schedule", "rtg_module", "lbs_module", "rtg_downtime", "lbs_downtime", "users", "cloud_backup", "audit_logs", "admin_rules"},
+    "gestor": {"dashboard", "operations_center", "nc", "productivity", "reports", "checklist_history", "spreader_history", "equipment", "checklist_items", "inspection_templates", "materials", "washes", "activities", "maintenance", "availability", "emergencies", "pcm", "resources", "purchases", "supply_library", "employees", "attendance", "employee_records", "hr_management", "vacations", "special_schedule", "rtg_module", "lbs_module", "rtg_downtime", "lbs_downtime", "admin_rules"},
     "mecanico": {"dashboard", "operations_center", "nc", "productivity", "activities", "maintenance", "availability", "emergencies"},
     "operacional": {"dashboard", "operations_center", "nc", "productivity", "activities", "maintenance", "availability", "emergencies"},
     "motorista": {"dashboard"},
@@ -49,6 +49,8 @@ PAGE_LABELS = {
     "special_schedule": "Escala de Domingo e Feriado",
     "rtg_module": "Gest\u00e3o RTG",
     "lbs_module": "Gest\u00e3o LBS",
+    "rtg_downtime": "Controle de Paradas RTG",
+    "lbs_downtime": "Controle de Paradas LBS",
     "users": "Logins",
     "cloud_backup": "Backup",
     "audit_logs": "Logs de Auditoria",
