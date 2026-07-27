@@ -10,7 +10,7 @@
         day: "2-digit", month: "2-digit", year: "numeric",
         hour: "2-digit", minute: "2-digit",
     });
-    const state = { page: 0, rotationPausedUntil: 0, lastValidData: null, apiBaseUrl: "" };
+    const state = { page: 0, rotationPausedUntil: 0, lastValidData: null, lastValidAt: null, apiBaseUrl: "" };
     const elements = {
         slider: document.getElementById("maintenance-tv-slider"),
         pageLabel: document.getElementById("maintenance-tv-page-label"),
@@ -41,6 +41,12 @@
 
     function updateClock() {
         if (elements.clock) elements.clock.textContent = clockFormatter.format(new Date());
+    }
+
+    function formatTime(value) {
+        if (!value) return "--:--:--";
+        const parsed = new Date(value);
+        return Number.isNaN(parsed.getTime()) ? "--:--:--" : parsed.toLocaleTimeString("pt-BR", { timeZone: "America/Manaus" });
     }
 
     function setConnection(label, tone) {
@@ -187,7 +193,8 @@
         renderTable("materials", ["MATERIAL / EQUIPAMENTO", "STATUS", "PREVISAO / FORNECEDOR"], data.materials || [], (item) => `<div class="table-row"><span><strong>${escapeHtml(item.reference || "SEM REFERENCIA")}</strong><small>${escapeHtml(item.description || "Material nao identificado")} · ${escapeHtml(item.vehicle || "SEM EQUIPAMENTO")}</small></span><span>${statusChip(item.status)}</span><span>${escapeHtml(item.expected_date ? formatDate(item.expected_date) : "SEM DATA")}<small>${escapeHtml(item.supplier || "Fornecedor nao informado")}</small></span></div>`, "Nenhum material bloqueante.");
         setShellValue("mttr", formatHours(reliability.mttr_hours));
         setShellValue("mtbf", formatHours(reliability.mtbf_hours));
-        setConnection("DADOS ATUALIZADOS", "ok");
+        state.lastValidAt = data.generated_at || new Date().toISOString();
+        setConnection(`DADOS ATUALIZADOS · ${formatTime(state.lastValidAt)}`, "ok");
     }
 
     async function loadDashboard() {
@@ -203,7 +210,7 @@
             state.lastValidData = body.data || body;
             renderDashboard(state.lastValidData);
         } catch (error) {
-            setConnection(state.lastValidData ? "ÚLTIMO DADO VÁLIDO" : "FALHA DE COMUNICAÇÃO", "error");
+            setConnection(state.lastValidData ? `ÚLTIMOS DADOS VÁLIDOS · ${formatTime(state.lastValidAt)}` : "FALHA AO ATUALIZAR", "error");
         }
     }
 
@@ -235,7 +242,7 @@
 
     window.MaintenanceTvShell = {
         setData(data) { state.lastValidData = data || null; renderDashboard(state.lastValidData || {}); },
-        setError() { setConnection(state.lastValidData ? "ÚLTIMO DADO VÁLIDO" : "FALHA DE COMUNICAÇÃO", "error"); },
+        setError() { setConnection(state.lastValidData ? `ÚLTIMOS DADOS VÁLIDOS · ${formatTime(state.lastValidAt)}` : "FALHA AO ATUALIZAR", "error"); },
         goToPage: (page) => moveTo(Number(page), true),
     };
 }());

@@ -27,6 +27,17 @@ class MaintenanceDashboardTvVisualContractTest(unittest.TestCase):
         self.assertIn("Sem previsao de liberacao", js)
         self.assertIn("Planos de acao ainda nao possuem cadastro proprio no banco.", js)
 
+    def test_final_operation_contract_is_present(self):
+        html = HTML.read_text(encoding="utf-8")
+        css = CSS.read_text(encoding="utf-8")
+        js = JS.read_text(encoding="utf-8")
+        self.assertIn("footer-legend", html)
+        self.assertIn("ROTAÇÃO: 40 S", html)
+        self.assertIn("width: 100vw", css)
+        self.assertIn("height: 100vh", css)
+        self.assertIn("ÚLTIMOS DADOS VÁLIDOS", js)
+        self.assertIn("FALHA AO ATUALIZAR", js)
+
 
 if __name__ == "__main__":
     unittest.main()

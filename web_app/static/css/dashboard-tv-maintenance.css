@@ -106,8 +106,15 @@ button { font: inherit; }
 .table-row strong { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--tv-text); font-weight: 800; }
 .table-empty { display: grid; place-items: center; border: 1px dashed var(--tv-line); border-top: 0; color: var(--tv-muted); }
 
-.dashboard-tv-footer { min-width: 0; display: grid; grid-template-columns: 1fr auto 1fr; gap: 16px; align-items: center; border-top: 1px solid var(--tv-line); color: var(--tv-muted); font-size: .67rem; font-weight: 800; letter-spacing: .05em; }
+.dashboard-tv-footer { min-width: 0; display: grid; grid-template-columns: minmax(0, 1fr) auto auto minmax(0, 1fr); gap: 16px; align-items: center; border-top: 1px solid var(--tv-line); color: var(--tv-muted); font-size: .67rem; font-weight: 800; letter-spacing: .05em; }
 .dashboard-tv-footer > span:last-child { text-align: right; }
+.footer-legend { min-width: 0; display: flex; align-items: center; gap: 10px; overflow: hidden; white-space: nowrap; }
+.footer-legend span { display: inline-flex; align-items: center; gap: 4px; }
+.legend-dot { width: 7px; height: 7px; display: inline-block; border-radius: 50%; background: var(--tv-muted); }
+.legend-dot.good { background: var(--tv-green); }
+.legend-dot.warn { background: var(--tv-amber); }
+.legend-dot.bad { background: var(--tv-red); }
+.legend-dot.neutral { background: var(--tv-muted); }
 .footer-navigation { display: flex; align-items: center; gap: 8px; }
 .footer-navigation button { width: 27px; height: 27px; padding: 0; font-size: 1.2rem; line-height: 1; }
 .page-dots { display: flex; gap: 6px; }

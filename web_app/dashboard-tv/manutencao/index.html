@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <meta name="theme-color" content="#061a35">
     <title>Dashboard TV — Manutenção</title>
-    <link rel="stylesheet" href="../../static/css/dashboard-tv-maintenance.css?v=20260727-02">
+    <link rel="stylesheet" href="../../static/css/dashboard-tv-maintenance.css?v=20260727-03">
 </head>
 <body>
     <main class="dashboard-maintenance-tv" id="maintenance-tv" aria-live="polite">
@@ -83,12 +83,18 @@
         </section>
 
         <footer class="dashboard-tv-footer">
+            <div class="footer-legend" aria-label="Legenda operacional">
+                <span><i class="legend-dot good"></i>NORMAL</span>
+                <span><i class="legend-dot warn"></i>ATENÇÃO</span>
+                <span><i class="legend-dot bad"></i>CRÍTICO</span>
+                <span><i class="legend-dot neutral"></i>SEM DADOS</span>
+            </div>
             <div class="footer-navigation"><button type="button" id="maintenance-tv-prev" aria-label="Página anterior">‹</button><div id="maintenance-tv-dots" class="page-dots" aria-label="Selecionar página"></div><button type="button" id="maintenance-tv-next" aria-label="Próxima página">›</button></div>
             <span id="maintenance-tv-page-label">PÁGINA 1 DE 4</span>
-            <span>ATUALIZAÇÃO AUTOMÁTICA · 60 SEGUNDOS</span>
+            <span>ROTAÇÃO: 40 S · ATUALIZAÇÃO: 60 S</span>
         </footer>
     </main>
     <script src="../../static/js/config.js?v=20260720-01"></script>
-    <script src="../../static/js/dashboard-tv-maintenance.js?v=20260727-02"></script>
+    <script src="../../static/js/dashboard-tv-maintenance.js?v=20260727-03"></script>
 </body>
 </html>
