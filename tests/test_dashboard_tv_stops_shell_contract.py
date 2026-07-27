@@ -31,6 +31,17 @@ class DashboardTvStopsShellContractTest(unittest.TestCase):
         self.assertIn("ArrowRight", js)
         self.assertIn("PageDown", js)
 
+    def test_visual_data_blocks_are_present(self):
+        html = HTML.read_text(encoding="utf-8")
+        css = CSS.read_text(encoding="utf-8")
+        js = JS.read_text(encoding="utf-8")
+        self.assertIn('data-stop-chart="offenders"', html)
+        self.assertIn('data-stop-list="history-summary"', html)
+        self.assertIn('data-stop-projection="rtg-total"', html)
+        self.assertIn("status-critical", css)
+        self.assertIn("statusLabel", js)
+        self.assertIn("projected_hours", js)
+
 
 if __name__ == "__main__":
     unittest.main()

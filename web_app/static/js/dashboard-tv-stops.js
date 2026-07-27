@@ -44,7 +44,7 @@
     }
 
     function formatHours(value) {
-        return typeof value === "number" && Number.isFinite(value) ? `${value.toLocaleString("pt-BR", { maximumFractionDigits: 2 })} h` : "SEM DADOS";
+        return typeof value === "number" && Number.isFinite(value) ? `${value.toLocaleString("pt-BR", { maximumFractionDigits: 1 })} h` : "SEM DADOS";
     }
 
     function formatDate(value) {
@@ -70,13 +70,29 @@
         const target = document.querySelector(`[data-stop-progress="${selector}"]`);
         if (target) target.style.width = `${Math.max(0, Math.min(100, Number(value) || 0))}%`;
     }
+    function statusLabel(value) {
+        return ({ NORMAL: "NORMAL", ATENCAO: "ATENÇÃO", VERMELHO: "VERMELHO", CRITICO: "CRÍTICO", SEM_DADOS: "SEM DADOS", INDISPONIVEL: "INDISPONÍVEL", MANUTENCAO: "MANUTENÇÃO" })[value] || value || "SEM DADOS";
+    }
+    function statusClass(value) {
+        return ({ NORMAL: "status-normal", ATENCAO: "status-warn", VERMELHO: "status-danger", CRITICO: "status-critical", SEM_DADOS: "status-empty" })[value] || "status-empty";
+    }
+    function setStatusClass(selector, value) {
+        const element = document.querySelector(`[data-stop-${selector}]`);
+        if (!element) return;
+        element.classList.remove("status-normal", "status-warn", "status-danger", "status-critical", "status-empty");
+        element.classList.add(statusClass(value));
+        element.dataset.status = value || "SEM_DADOS";
+    }
     function renderTarget(code, item) {
         const prefix = code === "rtg-alfandegado" ? "rtg-alf" : code;
+        setStatusClass(`target="${code}"`, item?.status);
         setText(`${prefix}-hours`, formatHours(item?.hours));
         setText(`${prefix}-goal`, item?.goal_hours == null ? "SEM DADOS" : `${formatHours(item.goal_hours)}`);
         setText(`${prefix}-percent`, item?.percentage == null ? "SEM DADOS" : `${item.percentage.toLocaleString("pt-BR", { maximumFractionDigits: 1 })}%`);
         setText(`${prefix}-balance`, item?.balance_hours == null ? "SEM DADOS" : formatHours(item.balance_hours));
-        setText(`${prefix}-status`, item?.status || "SEM DADOS");
+        setText(`${prefix}-status`, statusLabel(item?.status));
+        const card = document.querySelector(`[data-stop-target="${code}"]`);
+        if (card) { card.classList.remove("status-normal", "status-warn", "status-danger", "status-critical", "status-empty"); card.classList.add(statusClass(item?.status)); }
         setProgress(code, item?.percentage);
     }
 
@@ -85,7 +101,7 @@
         if (!target) return;
         if (!items.length) { target.innerHTML = `<span>${escapeHtml(emptyMessage)}</span>`; return; }
         const max = Math.max(1, ...items.map((item) => Number(item[valueKey]) || 0));
-        target.innerHTML = `<div class="chart-bars">${items.map((item) => { const label = labelKey === "date" ? formatDate(item[labelKey]) : item[labelKey]; return `<div class="chart-bar"><strong>${escapeHtml(label || "SEM DADOS")}</strong><i style="height:${Math.max(3, Math.min(100, (Number(item[valueKey]) || 0) / max * 100))}%"></i><small>${escapeHtml(formatHours(item[valueKey]))}</small></div>`; }).join("")}</div>`;
+        target.innerHTML = `<div class="chart-bars">${items.map((item) => { const label = labelKey === "date" ? formatDate(item[labelKey]) : item[labelKey]; const detail = item.goal == null ? formatHours(item[valueKey]) : `${formatHours(item[valueKey])} / ${formatHours(item.goal)}`; return `<div class="chart-bar"><strong title="${escapeHtml(label || "SEM DADOS")}">${escapeHtml(label || "SEM DADOS")}</strong><i style="height:${Math.max(3, Math.min(100, (Number(item[valueKey]) || 0) / max * 100))}%"></i><small>${escapeHtml(detail)}</small></div>`; }).join("")}</div>`;
     }
 
     function renderList(selector, items, renderer, emptyMessage) {
@@ -111,12 +127,17 @@
         renderChart("daily-trend", data?.daily_trend || [], "date", "hours", "Nenhuma parada registrada no período");
         const active = data?.active_stops || [];
         const activeTable = document.querySelector('[data-stop-table="active"]');
-        activeTable.innerHTML = `<div class="table-head"><b>EQUIPAMENTO</b><b>ÁREA</b><b>INÍCIO</b><b>DURAÇÃO</b><b>MOTIVO</b><b>STATUS</b></div>${active.length ? active.map((item) => `<div class="table-row"><span><strong>${escapeHtml(item.vehicle)}</strong><small>${escapeHtml(item.family)}</small></span><span>${escapeHtml(item.area)}</span><span>${escapeHtml(item.started_at?.slice(11, 16) || "SEM HORA")}</span><span>${escapeHtml(item.duration || formatHours(item.hours))}</span><span>${escapeHtml(item.reason)}</span><span class="status-badge ${item.status === "INDISPONIVEL" ? "bad" : "warn"}">${escapeHtml(item.status)}</span></div>`).join("") : '<div class="table-empty">Nenhum equipamento parado no momento</div>'}`;
+        activeTable.innerHTML = `<div class="table-head"><b>EQUIPAMENTO</b><b>ÁREA</b><b>INÍCIO</b><b>DURAÇÃO</b><b>MOTIVO</b><b>STATUS</b></div>${active.length ? active.map((item) => `<div class="table-row"><span><strong>${escapeHtml(item.vehicle)}</strong><small>${escapeHtml(item.family)}</small></span><span>${escapeHtml(item.area)}</span><span>${escapeHtml(item.started_at?.slice(11, 16) || "SEM HORA")}</span><span>${escapeHtml(item.duration || formatHours(item.hours))}</span><span>${escapeHtml(item.reason)}</span><span class="status-badge ${item.status === "INDISPONIVEL" ? "bad" : "warn"}">${escapeHtml(statusLabel(item.status))}</span></div>`).join("") : '<div class="table-empty">Nenhum equipamento parado no momento</div>'}`;
         renderList("active-summary", [{ label: "PARADAS NO PERÍODO", value: data?.monthly_summary?.total_events }, { label: "MÉDIA POR PARADA", value: formatHours(data?.monthly_summary?.average_hours) }, { label: "MAIOR PARADA", value: formatHours(data?.monthly_summary?.longest_hours) }, { label: "PARADOS AGORA", value: data?.active_summary?.total }], (item) => `<div><strong>${escapeHtml(item.label)}</strong><span>${escapeHtml(item.value == null ? "SEM DADOS" : item.value)}</span></div>`, "Nenhum equipamento parado no momento");
-        renderList("offenders", data?.offenders || [], (item, index) => `<div><strong>${index + 1}. ${escapeHtml(item.vehicle)}</strong><span>${escapeHtml(item.area)} · ${escapeHtml(formatHours(item.hours))} · ${escapeHtml(item.events)} ocorrências</span></div>`, "Nenhum ofensor no período");
-        renderList("reasons", data?.reasons || [], (item, index) => `<div><strong>${index + 1}. ${escapeHtml(item.reason)}</strong><span>${escapeHtml(formatHours(item.hours))} · ${escapeHtml(item.events)} ocorrências</span></div>`, "Nenhum motivo registrado");
+        const offenders = data?.offenders || [];
+        renderList("offenders", offenders, (item, index) => `<div><strong>${index + 1}. ${escapeHtml(item.vehicle)}</strong><span>${escapeHtml(item.area)} · ${escapeHtml(formatHours(item.hours))} · ${escapeHtml(item.events)} ocorrências · ${escapeHtml(item.principal_reason)}</span></div>`, "Nenhum ofensor no período");
+        renderChart("offenders", offenders.slice(0, 8).map((item) => ({ label: item.vehicle, hours: item.hours })), "label", "hours", "Nenhum ofensor no período");
+        renderList("reasons", data?.reasons || [], (item, index) => `<div><strong>${index + 1}. ${escapeHtml(item.reason)}</strong><span>${escapeHtml(formatHours(item.hours))} · ${escapeHtml(item.events)} ocorrências · ${item.participation == null ? "SEM %" : `${item.participation.toLocaleString("pt-BR", { maximumFractionDigits: 1 })}%`}</span></div>`, "Nenhum motivo registrado");
+        const topOffender = offenders[0];
+        const topReason = (data?.reasons || [])[0];
+        renderList("history-summary", [{ label: "HORAS NO PERÍODO", value: formatHours(data?.monthly_summary?.total_hours) }, { label: "EQUIPAMENTO OFENSOR", value: topOffender?.vehicle || "SEM DADOS" }, { label: "PRINCIPAL MOTIVO", value: topReason?.reason || "SEM DADOS" }, { label: "DIAS COM REGISTRO", value: data?.monthly_summary?.days_with_data }], (item) => `<div><strong>${escapeHtml(item.label)}</strong><span>${escapeHtml(item.value == null ? "SEM DADOS" : item.value)}</span></div>`, "Sem histórico no período");
         const projections = data?.projections || {};
-        ["lbs", "atr", "alf", "total"].forEach((key) => { const code = key === "lbs" ? "lbs-pier" : key === "atr" ? "rtg-atr" : key === "alf" ? "rtg-alfandegado" : "rtg-total"; setText(`projection-${key}`, projections[code]?.projected_hours == null ? "SEM DADOS" : formatHours(projections[code].projected_hours)); setText(`projection-${key}-status`, projections[code]?.status || "SEM DADOS"); });
+        ["lbs", "atr", "alf", "total"].forEach((key) => { const code = key === "lbs" ? "lbs-pier" : key === "atr" ? "rtg-atr" : key === "alf" ? "rtg-alfandegado" : "rtg-total"; setText(`projection-${key}`, projections[code]?.projected_hours == null ? "SEM DADOS" : formatHours(projections[code].projected_hours)); setText(`projection-${key}-status`, statusLabel(projections[code]?.status)); const card = document.querySelector(`[data-stop-projection="${code}"]`); if (card) { card.classList.remove("status-normal", "status-warn", "status-danger", "status-critical", "status-empty"); card.classList.add(statusClass(projections[code]?.status)); } });
         renderList("decisions", data?.data_availability?.projections === false ? [] : data?.decisions || [], (item) => `<div><strong>${escapeHtml(item.title)}</strong><span>${escapeHtml(item.detail)}</span></div>`, data?.data_availability?.message || "Sem decisões para o período");
     }
 

@@ -47,10 +47,19 @@ button { font: inherit; }
 .target-card.accent-amber { border-top-color: var(--stop-amber); }
 .target-card.accent-red { border-top-color: var(--stop-red); }
 .target-card.accent-violet { border-top-color: var(--stop-violet); }
+.target-card.status-normal, .projection-card.status-normal { border-top-color: var(--stop-green); border-left-color: var(--stop-green); }
+.target-card.status-warn, .projection-card.status-warn { border-top-color: var(--stop-amber); border-left-color: var(--stop-amber); }
+.target-card.status-danger, .projection-card.status-danger { border-top-color: var(--stop-red); border-left-color: var(--stop-red); }
+.target-card.status-critical, .projection-card.status-critical { border-top-color: #ff3d4d; border-left-color: #ff3d4d; background: linear-gradient(145deg, rgba(115, 22, 36, .98), rgba(77, 15, 28, .98)); }
+.target-card.status-empty, .projection-card.status-empty { border-top-color: var(--stop-muted); border-left-color: var(--stop-muted); }
 .target-card span, .projection-card span { display: block; color: var(--stop-muted); font-size: .66rem; font-weight: 800; letter-spacing: .08em; }
 .target-card strong, .projection-card strong { display: block; margin: 14px 0 8px; color: var(--stop-text); font-size: clamp(1.2rem, 2.2vw, 2.5rem); }
 .target-card small, .projection-card small { color: var(--stop-muted); font-size: .68rem; }
 .target-card em { display: block; margin-top: 9px; color: var(--stop-blue); font-size: .68rem; font-style: normal; font-weight: 800; }
+.target-card.status-normal em, .projection-card.status-normal small { color: var(--stop-green); }
+.target-card.status-warn em, .projection-card.status-warn small { color: var(--stop-amber); }
+.target-card.status-danger em, .target-card.status-critical em, .projection-card.status-danger small, .projection-card.status-critical small { color: var(--stop-red); }
+.target-card.status-empty em, .projection-card.status-empty small { color: var(--stop-muted); }
 .target-progress { height: 7px; overflow: hidden; border-radius: 99px; background: rgba(255,255,255,.12); }
 .target-progress i { display: block; width: 0; height: 100%; border-radius: inherit; background: var(--stop-blue); }
 .stops-panel { padding: 18px; }
@@ -88,6 +97,7 @@ button { font: inherit; }
 .status-badge.warn { background: var(--stop-amber); }
 .table-empty { display: grid; place-items: center; border: 1px dashed var(--stop-line); border-top: 0; }
 .projection-card { grid-column: span 4; padding: 18px; border-left: 4px solid var(--stop-blue); }
+.projection-card.span-3 { grid-column: span 3; }
 .projection-card strong { font-size: clamp(1.2rem, 2vw, 2.2rem); }
 .stops-tv-footer { min-width: 0; display: grid; grid-template-columns: minmax(0, 1fr) auto auto minmax(0, 1fr); gap: 16px; align-items: center; border-top: 1px solid var(--stop-line); color: var(--stop-muted); font-size: .67rem; font-weight: 800; letter-spacing: .05em; }
 .stops-tv-footer > span:last-child { text-align: right; }
