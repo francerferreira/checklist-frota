@@ -7,6 +7,7 @@ from pathlib import Path
 from datetime import datetime
 
 from flask import Blueprint, g, request, send_file
+from sqlalchemy.orm import lazyload
 
 from app.extensions import db
 from app.models import MaintenanceSchedule, MaintenanceScheduleItem
@@ -89,7 +90,7 @@ def list_maintenance_schedules():
     if denied:
         return denied
 
-    query = MaintenanceSchedule.query.order_by(MaintenanceSchedule.created_at.desc())
+    query = MaintenanceSchedule.query.options(lazyload("*")).order_by(MaintenanceSchedule.created_at.desc())
     schedules = query.all()
     return api_response(True, data=[schedule.to_dict(include_items=True, include_materials=True) for schedule in schedules])
 

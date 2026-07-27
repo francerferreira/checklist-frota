@@ -3,6 +3,8 @@
 from calendar import monthrange
 from datetime import date, datetime, timedelta
 
+from sqlalchemy.orm import lazyload
+
 from app.extensions import db
 from app.utils.timezone import now_manaus_naive, today_manaus
 from app.models import (
@@ -798,7 +800,15 @@ def build_maintenance_overview(*, year: int | None = None, month: int | None = N
     today = today_manaus()
     year = year or today.year
     month = month or today.month
-    schedules = MaintenanceSchedule.query.order_by(MaintenanceSchedule.created_at.desc()).all()
+    # As relações da manutenção têm várias associações profundas configuradas
+    # como eager loading. No SQLite isso pode ultrapassar o limite de 64 tabelas
+    # em um único JOIN. A visão só precisa dos registros e serializa os detalhes
+    # depois, em consultas menores.
+    schedules = (
+        MaintenanceSchedule.query.options(lazyload("*"))
+        .order_by(MaintenanceSchedule.created_at.desc())
+        .all()
+    )
     items = MaintenanceScheduleItem.query.order_by(MaintenanceScheduleItem.scheduled_date.asc().nullslast()).all()
     materials = MaintenanceMaterial.query.order_by(MaintenanceMaterial.created_at.desc()).all()
     work_orders = MaintenanceWorkOrder.query.order_by(MaintenanceWorkOrder.scheduled_date.asc().nullslast(), MaintenanceWorkOrder.id.asc()).all()
