@@ -18,6 +18,10 @@ from ui.preventive_family_page import PreventiveLBSPage, PreventiveRTGPage
 
 
 class FakePreventiveAPI:
+    def __init__(self):
+        self.user = {"login": "admin", "nome": "Administrador", "tipo": "admin"}
+        self.recorded = []
+
     def get_equipment(self, tipo=None, ativos=None):
         return [
             {
@@ -55,6 +59,10 @@ class FakePreventiveAPI:
             }
         ]
 
+    def record_equipment_hourmeter(self, vehicle_id, payload):
+        self.recorded.append((vehicle_id, payload))
+        return {"id": 99, "vehicle_id": vehicle_id, "reading": payload["reading"]}
+
 
 class PreventiveRTGPageTests(unittest.TestCase):
     @classmethod
@@ -82,6 +90,23 @@ class PreventiveRTGPageTests(unittest.TestCase):
         self.assertEqual(page.table.item(0, 1).text(), "LBS 03")
         self.assertEqual(page.cards["total"].value_label.text(), "1")
         self.assertEqual(page.cards["SEM_DADOS"].value_label.text(), "1")
+        page.close()
+
+    def test_hourmeter_dialog_saves_selected_family_equipment(self):
+        api = FakePreventiveAPI()
+        page = PreventiveRTGPage(api)
+        page.refresh()
+        from ui.preventive_family_page import HourmeterEntryDialog
+
+        dialog = HourmeterEntryDialog(api, "RTG", page.rows)
+        dialog.reading_spin.setValue(20350)
+        dialog._save()
+
+        self.assertEqual(len(api.recorded), 1)
+        self.assertEqual(api.recorded[0][0], 1)
+        self.assertEqual(api.recorded[0][1]["reading"], 20350)
+        self.assertEqual(api.recorded[0][1]["notes"], None)
+        dialog.close()
         page.close()
 
 

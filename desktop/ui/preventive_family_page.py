@@ -1,17 +1,28 @@
 from __future__ import annotations
 
 from datetime import datetime
+from pathlib import Path
 
-from PySide6.QtCore import Qt, Signal
+from PySide6.QtCore import QDateTime, Qt, Signal
 from PySide6.QtGui import QColor
 from PySide6.QtWidgets import (
+    QAbstractItemView,
     QComboBox,
+    QDateTimeEdit,
+    QDialog,
+    QDialogButtonBox,
+    QFileDialog,
     QFrame,
     QGridLayout,
     QHBoxLayout,
     QLabel,
     QLineEdit,
+    QListWidget,
+    QListWidgetItem,
+    QMessageBox,
     QPushButton,
+    QDoubleSpinBox,
+    QTextEdit,
     QTableWidget,
     QTableWidgetItem,
     QVBoxLayout,
@@ -39,6 +50,199 @@ STATUS_COLORS = {
     "LEITURA_DESATUALIZADA": ("#E2E8F0", "#475569"),
     "SEM_DADOS": ("#F1F5F9", "#64748B"),
 }
+
+
+class HourmeterEntryDialog(QDialog):
+    """Lançamento auditável de horímetro para uma família de equipamentos."""
+
+    def __init__(self, api_client, family: str, rows: list[dict], parent=None):
+        super().__init__(parent)
+        self.api_client = api_client
+        self.family = family.upper()
+        self.rows = list(rows or [])
+        self.selected_row: dict | None = None
+        self.photo_path: str | None = None
+        self.setWindowTitle(f"Registrar horímetro {self.family}")
+        self.setMinimumSize(620, 610)
+
+        layout = QVBoxLayout(self)
+        layout.setContentsMargins(20, 18, 20, 18)
+        layout.setSpacing(10)
+
+        title = QLabel(f"REGISTRAR HORÍMETRO — {self.family}")
+        title.setObjectName("PageTitle")
+        layout.addWidget(title)
+        subtitle = QLabel("Registre uma nova leitura sem apagar o histórico anterior.")
+        subtitle.setObjectName("PageSubtitle")
+        subtitle.setWordWrap(True)
+        layout.addWidget(subtitle)
+
+        layout.addWidget(QLabel("Pesquisar equipamento"))
+        self.search = QLineEdit()
+        self.search.setPlaceholderText(f"Buscar equipamento {self.family}")
+        self.search.textChanged.connect(self._render_equipment_list)
+        layout.addWidget(self.search)
+
+        layout.addWidget(QLabel("Equipamento"))
+        self.equipment_list = QListWidget()
+        self.equipment_list.setSelectionMode(QAbstractItemView.SingleSelection)
+        self.equipment_list.setMinimumHeight(100)
+        self.equipment_list.setMaximumHeight(145)
+        self.equipment_list.itemSelectionChanged.connect(self._select_equipment)
+        layout.addWidget(self.equipment_list)
+
+        self.last_reading_label = QLabel("Último horímetro: Sem leitura")
+        self.last_reading_label.setObjectName("SectionCaption")
+        layout.addWidget(self.last_reading_label)
+
+        form = QGridLayout()
+        form.setHorizontalSpacing(12)
+        form.setVerticalSpacing(8)
+        form.addWidget(QLabel("Novo horímetro"), 0, 0)
+        self.reading_spin = QDoubleSpinBox()
+        self.reading_spin.setRange(0, 10_000_000)
+        self.reading_spin.setDecimals(2)
+        self.reading_spin.setSingleStep(1)
+        self.reading_spin.valueChanged.connect(self._update_difference)
+        form.addWidget(self.reading_spin, 1, 0)
+        form.addWidget(QLabel("Diferença da leitura anterior"), 0, 1)
+        self.difference_label = QLabel("-")
+        form.addWidget(self.difference_label, 1, 1)
+
+        form.addWidget(QLabel("Data e hora da leitura"), 2, 0)
+        self.recorded_at = QDateTimeEdit()
+        self.recorded_at.setDateTime(QDateTime.currentDateTime())
+        self.recorded_at.setDisplayFormat("dd/MM/yyyy HH:mm")
+        self.recorded_at.setCalendarPopup(True)
+        can_edit_date = str((self.api_client.user or {}).get("tipo") or "").lower() in {"admin", "gestor"}
+        self.recorded_at.setEnabled(can_edit_date)
+        self.recorded_at.setToolTip("Somente ADMIN e GESTOR podem alterar a data e hora.")
+        form.addWidget(self.recorded_at, 3, 0)
+        form.addWidget(QLabel("Origem"), 2, 1)
+        form.addWidget(QLabel("Desktop"), 3, 1)
+        layout.addLayout(form)
+
+        user = self.api_client.user or {}
+        layout.addWidget(QLabel(f"Usuário responsável: {user.get('nome') or user.get('login') or 'Usuário autenticado'}"))
+        layout.addWidget(QLabel("Observação (opcional)"))
+        self.notes = QTextEdit()
+        self.notes.setPlaceholderText("Informe uma observação sobre a leitura, se necessário.")
+        self.notes.setMaximumHeight(70)
+        layout.addWidget(self.notes)
+
+        photo_row = QHBoxLayout()
+        self.photo_label = QLabel("Nenhuma foto selecionada")
+        photo_button = QPushButton("Anexar foto do painel")
+        photo_button.clicked.connect(self._select_photo)
+        photo_row.addWidget(photo_button)
+        photo_row.addWidget(self.photo_label, 1)
+        layout.addLayout(photo_row)
+
+        buttons = QDialogButtonBox(QDialogButtonBox.Cancel | QDialogButtonBox.Save)
+        buttons.button(QDialogButtonBox.Cancel).setText("Cancelar")
+        buttons.button(QDialogButtonBox.Save).setText("Salvar leitura")
+        buttons.button(QDialogButtonBox.Save).setProperty("variant", "primary")
+        buttons.rejected.connect(self.reject)
+        buttons.accepted.connect(self._save)
+        layout.addWidget(buttons)
+
+        self._render_equipment_list()
+
+    def _render_equipment_list(self):
+        query = self.search.text().strip().casefold()
+        self.equipment_list.clear()
+        for row in self.rows:
+            vehicle = row.get("vehicle") or {}
+            label = str(vehicle.get("frota") or vehicle.get("placa") or vehicle.get("modelo") or "Equipamento")
+            local = (vehicle.get("operational_location") or {}).get("full_name") or "Sem local"
+            if query and query not in f"{label} {local}".casefold():
+                continue
+            item = QListWidgetItem(f"{label}  |  {local}")
+            item.setData(Qt.UserRole, row)
+            self.equipment_list.addItem(item)
+        if self.equipment_list.count() and not self.equipment_list.currentItem():
+            self.equipment_list.setCurrentRow(0)
+
+    def _select_equipment(self):
+        item = self.equipment_list.currentItem()
+        self.selected_row = item.data(Qt.UserRole) if item else None
+        current = (self.selected_row or {}).get("current")
+        if current is None:
+            current = ((self.selected_row or {}).get("state") or {}).get("latest_hourmeter")
+        if current is None:
+            self.last_reading_label.setText("Último horímetro: Sem leitura")
+            self.reading_spin.setValue(0)
+        else:
+            current_value = float(current)
+            self.last_reading_label.setText(f"Último horímetro: {current_value:.2f} h")
+            self.reading_spin.setValue(current_value)
+        self._update_difference()
+
+    def _update_difference(self):
+        current = (self.selected_row or {}).get("current")
+        if current is None:
+            current = ((self.selected_row or {}).get("state") or {}).get("latest_hourmeter")
+        self.difference_label.setText(f"{self.reading_spin.value() - float(current):.2f} h" if current is not None else "Primeira leitura")
+
+    def _select_photo(self):
+        path, _ = QFileDialog.getOpenFileName(self, "Selecionar foto do painel", "", "Imagens (*.png *.jpg *.jpeg *.webp);;Todos os arquivos (*)")
+        if path:
+            self.photo_path = path
+            self.photo_label.setText(Path(path).name)
+
+    def _save(self):
+        if not self.selected_row:
+            show_notice(self, "Equipamento obrigatório", f"Selecione um equipamento {self.family}.", icon_name="warning")
+            return
+        if self.recorded_at.dateTime() > QDateTime.currentDateTime():
+            show_notice(self, "Data inválida", "A data da leitura não pode estar no futuro.", icon_name="warning")
+            return
+        current = (self.selected_row or {}).get("current")
+        if current is None:
+            current = ((self.selected_row or {}).get("state") or {}).get("latest_hourmeter")
+        reading = self.reading_spin.value()
+        if current is not None and reading < float(current):
+            show_notice(
+                self,
+                "Leitura menor que a anterior",
+                f"A leitura informada é menor que a última leitura registrada ({float(current):.2f} h).",
+                icon_name="warning",
+            )
+            return
+        if current is not None and reading - float(current) > 400:
+            answer = QMessageBox.question(
+                self,
+                "Variação elevada",
+                f"A diferença informada é de {reading - float(current):.2f} h. Confirma a leitura?",
+                QMessageBox.Yes | QMessageBox.No,
+                QMessageBox.No,
+            )
+            if answer != QMessageBox.Yes:
+                return
+        vehicle = self.selected_row.get("vehicle") or {}
+        evidence_path = None
+        try:
+            if self.photo_path:
+                upload = self.api_client.upload_file(
+                    self.photo_path,
+                    str(vehicle.get("frota") or vehicle.get("placa") or "equipamento"),
+                    "horimetro",
+                    str((self.api_client.user or {}).get("login") or "desktop"),
+                )
+                evidence_path = upload.get("path") or upload.get("url")
+            self.api_client.record_equipment_hourmeter(
+                int(vehicle["id"]),
+                {
+                    "reading": reading,
+                    "recorded_at": self.recorded_at.dateTime().toPython().isoformat(timespec="minutes"),
+                    "notes": self.notes.toPlainText().strip() or None,
+                    "evidence_path": evidence_path,
+                },
+            )
+        except Exception as exc:
+            show_notice(self, "Leitura não salva", str(exc), icon_name="warning")
+            return
+        self.accept()
 
 
 def _text(value) -> str:
@@ -109,11 +313,15 @@ class PreventiveFamilyPage(QFrame):
         self.last_update = QLabel("Última atualização: -")
         self.last_update.setObjectName("SectionCaption")
         header.addWidget(self.last_update, 0, Qt.AlignTop)
+        register_button = QPushButton("Registrar horímetro")
+        register_button.setProperty("variant", "primary")
+        register_button.clicked.connect(self._open_hourmeter_dialog)
         pcm_button = QPushButton("Abrir PCM")
         pcm_button.clicked.connect(lambda: self.open_page_requested.emit("pcm"))
         refresh_button = QPushButton("Atualizar")
         refresh_button.setProperty("variant", "primary")
         refresh_button.clicked.connect(self.refresh)
+        header.addWidget(register_button)
         header.addWidget(pcm_button)
         header.addWidget(refresh_button)
         layout.addLayout(header)
@@ -204,6 +412,15 @@ class PreventiveFamilyPage(QFrame):
 
     def set_loading_state(self, loading: bool):
         self.setEnabled(not loading)
+
+    def _open_hourmeter_dialog(self):
+        if not self.rows:
+            show_notice(self, "Equipamentos indisponíveis", f"Nenhum equipamento ativo da família {self.family} foi carregado.", icon_name="warning")
+            return
+        dialog = HourmeterEntryDialog(self.api_client, self.family, self.rows, self)
+        if dialog.exec() == QDialog.Accepted:
+            self.refresh()
+            self.data_changed.emit()
 
     def refresh(self):
         try:
