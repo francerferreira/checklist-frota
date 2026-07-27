@@ -25,7 +25,7 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
-from access import PAGE_ACCESS_BY_ROLE, allowed_pages_for_role, normalize_user_role
+from access import PAGE_ACCESS_BY_ROLE, allowed_pages_for_user, normalize_user_role
 from components import LoadingOverlay, make_icon, show_notice
 from runtime_paths import asset_path
 from theme import APP_STYLE, apply_button_styles, install_button_style_enforcer
@@ -224,7 +224,7 @@ class MainWindow(QMainWindow):
         self.user_role = normalize_user_role(self.user)
         self.is_admin = self.user_role == "admin"
         self.can_manage = self.user_role in {"admin", "gestor"}
-        self.allowed_pages = allowed_pages_for_role(self.user_role)
+        self.allowed_pages = allowed_pages_for_user(self.user)
         self.app_icon_path = asset_path("app-icon.ico")
         self.current_page_key = ""
         self.dirty_pages: set[str] = set()

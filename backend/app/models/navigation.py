@@ -29,3 +29,25 @@ class UserNavigationPreference(db.Model):
             "access_count": self.access_count,
             "last_accessed_at": self.last_accessed_at.isoformat() if self.last_accessed_at else None,
         }
+
+
+class UserPagePermission(db.Model):
+    """Tela habilitada especificamente para um usuario no Desktop/Web."""
+
+    __tablename__ = "user_page_permissions"
+
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey("users.id"), nullable=False, index=True)
+    page_key = db.Column(db.String(60), nullable=False, index=True)
+    enabled = db.Column(db.Boolean, nullable=False, default=True)
+    created_at = db.Column(db.DateTime, nullable=False, default=now_manaus_naive)
+    updated_at = db.Column(db.DateTime, nullable=False, default=now_manaus_naive, onupdate=now_manaus_naive)
+
+    user = db.relationship("User", back_populates="page_permissions")
+
+    __table_args__ = (
+        db.UniqueConstraint("user_id", "page_key", name="uq_user_page_permission"),
+    )
+
+    def to_dict(self) -> dict:
+        return {"page_key": self.page_key, "enabled": self.enabled}

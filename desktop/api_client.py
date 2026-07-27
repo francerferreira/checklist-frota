@@ -233,6 +233,15 @@ class APIClient:
     def get_users(self):
         return self._request("GET", "/usuarios")
 
+    def get_user_profile(self, user_id: int):
+        return self._request("GET", f"/usuarios/{user_id}/perfil")
+
+    def reset_user_first_access(self, user_id: int):
+        return self._request("POST", f"/usuarios/{user_id}/reset-primeiro-acesso")
+
+    def update_user_pages(self, user_id: int, page_keys: list[str]):
+        return self._request("PUT", f"/usuarios/{user_id}/telas", json={"page_keys": page_keys})
+
     def get_mechanics(self):
         return self._request("GET", "/usuarios/mecanicos")
 

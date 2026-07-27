@@ -21,6 +21,12 @@ class User(db.Model):
 
     checklists = db.relationship("Checklist", back_populates="user", lazy="dynamic")
     employee = db.relationship("Employee", back_populates="user", uselist=False, foreign_keys="Employee.user_id", lazy="joined")
+    page_permissions = db.relationship(
+        "UserPagePermission",
+        back_populates="user",
+        cascade="all, delete-orphan",
+        lazy="selectin",
+    )
 
     def set_password(self, password: str) -> None:
         self.senha_hash = generate_password_hash(password)
@@ -29,10 +35,30 @@ class User(db.Model):
         return check_password_hash(self.senha_hash, password)
 
     def to_dict(self) -> dict:
+        employee = self.employee
+        identity = None
+        first_access_required = False
+        if employee:
+            first_access_required = not employee.photo_path or not employee.signature_path
+            identity = {
+                "employee_id": employee.id,
+                "registration": employee.registration,
+                "full_name": employee.full_name,
+                "function_name": employee.function_name,
+                "team_name": employee.team_name,
+                "shift_name": employee.shift_name,
+                "photo_path": employee.photo_path,
+                "signature_path": employee.signature_path,
+                "first_access_completed_at": employee.first_access_completed_at.isoformat() if employee.first_access_completed_at else None,
+                "first_access_required": first_access_required,
+            }
         return {
             "id": self.id,
             "nome": self.nome,
             "login": self.login,
             "tipo": self.tipo,
             "ativo": self.ativo,
+            "identity": identity,
+            "first_access_required": first_access_required,
+            "custom_page_keys": [row.page_key for row in self.page_permissions if row.enabled],
         }

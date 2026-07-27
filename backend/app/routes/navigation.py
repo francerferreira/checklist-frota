@@ -13,8 +13,8 @@ from app.utils.timezone import now_manaus_naive
 bp = Blueprint("navigation", __name__)
 
 ROLE_PAGES = {
-    "admin": {"dashboard", "operations_center", "nc", "productivity", "reports", "checklist_history", "equipment", "checklist_items", "inspection_templates", "materials", "washes", "activities", "maintenance", "availability", "emergencies", "pcm", "resources", "purchases", "supply_library", "employees", "attendance", "employee_records", "hr_management", "users", "cloud_backup", "audit_logs", "admin_rules"},
-    "gestor": {"dashboard", "operations_center", "nc", "productivity", "reports", "checklist_history", "equipment", "checklist_items", "inspection_templates", "materials", "washes", "activities", "maintenance", "availability", "emergencies", "pcm", "resources", "purchases", "supply_library", "employees", "attendance", "employee_records", "hr_management", "admin_rules"},
+    "admin": {"dashboard", "operations_center", "nc", "productivity", "reports", "checklist_history", "spreader_history", "equipment", "checklist_items", "inspection_templates", "materials", "washes", "activities", "maintenance", "availability", "emergencies", "pcm", "resources", "purchases", "supply_library", "employees", "attendance", "employee_records", "hr_management", "vacations", "users", "cloud_backup", "audit_logs", "admin_rules"},
+    "gestor": {"dashboard", "operations_center", "nc", "productivity", "reports", "checklist_history", "spreader_history", "equipment", "checklist_items", "inspection_templates", "materials", "washes", "activities", "maintenance", "availability", "emergencies", "pcm", "resources", "purchases", "supply_library", "employees", "attendance", "employee_records", "hr_management", "vacations", "admin_rules"},
     "mecanico": {"dashboard", "operations_center", "nc", "productivity", "activities", "maintenance", "availability", "emergencies"},
     "operacional": {"dashboard", "operations_center", "nc", "productivity", "activities", "maintenance", "availability", "emergencies"},
     "motorista": {"dashboard"},
@@ -27,6 +27,7 @@ PAGE_LABELS = {
     "productivity": "Produtividade",
     "reports": "Relatorios",
     "checklist_history": "Historico Checklist",
+    "spreader_history": "Historico de Spreaders",
     "equipment": "Equipamentos",
     "checklist_items": "Checklist",
     "inspection_templates": "Templates Tecnicos",
@@ -44,6 +45,7 @@ PAGE_LABELS = {
     "attendance": "Frequencia e ocorrencias",
     "employee_records": "Documentos e treinamentos",
     "hr_management": "Painel de RH",
+    "vacations": "Ferias",
     "users": "Logins",
     "cloud_backup": "Backup",
     "audit_logs": "Logs de Auditoria",

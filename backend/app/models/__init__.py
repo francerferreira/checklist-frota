@@ -17,7 +17,7 @@ from app.models.maintenance import MaintenanceMaterial, MaintenanceSchedule, Mai
 from app.models.material import Material, MaterialMovement
 from app.models.mechanic_non_conformity import MechanicNonConformity
 from app.models.mobile_operation import MobileSyncOperation
-from app.models.navigation import UserNavigationPreference
+from app.models.navigation import UserNavigationPreference, UserPagePermission
 from app.models.operational_availability import EquipmentOperationalState, EquipmentStatusEvent, HourmeterReading
 from app.models.pcm import PreventivePlan
 from app.models.purchase import PurchaseReceipt, PurchaseRequest, Supplier
@@ -73,6 +73,7 @@ __all__ = [
     "MechanicNonConformity",
     "MobileSyncOperation",
     "UserNavigationPreference",
+    "UserPagePermission",
     "OperationalLocation",
     "PreventivePlan",
     "PurchaseReceipt",

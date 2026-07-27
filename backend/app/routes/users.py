@@ -8,7 +8,7 @@ from flask import Blueprint, current_app, g, request
 from sqlalchemy.exc import IntegrityError
 
 from app.extensions import db
-from app.models import Employee, User
+from app.models import Employee, User, UserPagePermission
 from app.services.auth_service import auth_required, user_has_management_access
 from app.services.identity_service import normalize_login
 from app.utils.responses import api_response
@@ -32,6 +32,68 @@ def list_users():
         return denied
 
     return api_response(True, data=[user.to_dict() for user in User.query.order_by(User.nome.asc()).all()])
+
+
+@bp.get("/usuarios/<int:user_id>/perfil")
+@auth_required
+def get_user_profile(user_id: int):
+    denied = _guard_management_access()
+    if denied:
+        return denied
+    user = User.query.get_or_404(user_id)
+    return api_response(True, data=user.to_dict())
+
+
+@bp.post("/usuarios/<int:user_id>/reset-primeiro-acesso")
+@auth_required
+def reset_user_first_access(user_id: int):
+    denied = _guard_management_access()
+    if denied:
+        return denied
+    user = User.query.get_or_404(user_id)
+    employee = Employee.query.filter_by(user_id=user.id).first()
+    if not employee:
+        return api_response(False, error="Este login nao esta vinculado a um colaborador.", status_code=404)
+    # Os arquivos antigos permanecem no armazenamento para preservar auditoria.
+    employee.photo_path = None
+    employee.signature_path = None
+    employee.first_access_completed_at = None
+    db.session.commit()
+    return api_response(True, data=user.to_dict())
+
+
+@bp.put("/usuarios/<int:user_id>/telas")
+@auth_required
+def update_user_pages(user_id: int):
+    denied = _guard_management_access()
+    if denied:
+        return denied
+    user = User.query.get_or_404(user_id)
+    payload = request.get_json(silent=True) or {}
+    requested = payload.get("page_keys")
+    if not isinstance(requested, list):
+        return api_response(False, error="Informe uma lista de telas.", status_code=400)
+    # Importacao local evita acoplamento de inicializacao entre os blueprints.
+    from app.routes.navigation import ROLE_PAGES
+
+    allowed = ROLE_PAGES.get(str(user.tipo or "").strip().lower(), {"dashboard"})
+    selected = {str(page).strip() for page in requested if str(page).strip()}
+    invalid = sorted(selected - allowed)
+    if invalid:
+        return api_response(False, error=f"Telas nao permitidas para este perfil: {', '.join(invalid)}", status_code=400)
+    selected.add("dashboard")
+    rows = {row.page_key: row for row in user.page_permissions}
+    for page_key in selected:
+        row = rows.get(page_key)
+        if row is None:
+            db.session.add(UserPagePermission(user_id=user.id, page_key=page_key, enabled=True))
+        else:
+            row.enabled = True
+    for page_key, row in rows.items():
+        if page_key not in selected:
+            row.enabled = False
+    db.session.commit()
+    return api_response(True, data=user.to_dict())
 
 
 @bp.get("/usuarios/mecanicos")

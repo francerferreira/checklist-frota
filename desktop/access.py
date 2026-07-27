@@ -99,7 +99,8 @@ ACTION_ACCESS_BY_ROLE = {
 
 
 def normalize_user_role(user: Mapping[str, object] | None) -> str:
-    return str((user or {}).get("tipo") or "").strip().lower()
+    role = str((user or {}).get("tipo") or "").strip().lower()
+    return "operacional" if role == "mecanico" else role
 
 
 def allowed_pages_for_role(role: str) -> set[str]:
@@ -108,7 +109,17 @@ def allowed_pages_for_role(role: str) -> set[str]:
 
 
 def user_can_access_page(user: Mapping[str, object] | None, page_key: str) -> bool:
-    return page_key in allowed_pages_for_role(normalize_user_role(user))
+    return page_key in allowed_pages_for_user(user)
+
+
+def allowed_pages_for_user(user: Mapping[str, object] | None) -> set[str]:
+    role_pages = allowed_pages_for_role(normalize_user_role(user))
+    custom = (user or {}).get("custom_page_keys")
+    if not isinstance(custom, (list, tuple, set)) or not custom:
+        return role_pages
+    selected = {str(page).strip() for page in custom if str(page).strip()}
+    selected = (selected & role_pages) | {"dashboard"}
+    return selected
 
 
 def role_can(role: str, permission_key: str) -> bool:
