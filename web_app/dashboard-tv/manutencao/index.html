@@ -46,36 +46,36 @@
                     <section class="dashboard-page" data-tv-page="1" aria-labelledby="page-title-1">
                         <div class="page-heading"><div><span class="eyebrow">TELA 2 · PCM</span><h2 id="page-title-1">Programação, execução e ordens de serviço</h2></div><span class="page-caption">Acompanhamento do período</span></div>
                         <div class="dashboard-page-content">
-                            <div class="kpi-card accent-blue"><span>OS ABERTAS</span><strong>AGUARDANDO</strong><small>ordens no período</small></div>
-                            <div class="kpi-card accent-red"><span>ATRASADAS</span><strong>AGUARDANDO</strong><small>fora do prazo</small></div>
-                            <div class="kpi-card accent-green"><span>EM EXECUÇÃO</span><strong>AGUARDANDO</strong><small>serviços iniciados</small></div>
-                            <div class="kpi-card accent-amber"><span>BLOQUEADAS</span><strong>AGUARDANDO</strong><small>aguardando material</small></div>
-                            <article class="tv-panel span-7 row-2"><div class="panel-heading"><span>PROGRAMAÇÃO</span><h3>Programadas, executadas e reprogramadas</h3></div><div class="placeholder-table"><div class="table-head"><b>ATIVIDADE</b><b>STATUS</b><b>PREVISÃO</b></div><div class="table-empty">Dados serão conectados na Etapa 3.</div></div></article>
-                            <article class="tv-panel span-5 row-2"><div class="panel-heading"><span>EXECUÇÃO</span><h3>Resumo das ordens</h3></div><div class="placeholder-list"><div>Indicadores de execução aguardando dados.</div></div></article>
+                            <div class="kpi-card accent-blue"><span>OS ABERTAS</span><strong data-shell-value="open-orders">AGUARDANDO</strong><small>ordens no período</small></div>
+                            <div class="kpi-card accent-red"><span>ATRASADAS</span><strong data-shell-value="overdue-orders">AGUARDANDO</strong><small>fora do prazo</small></div>
+                            <div class="kpi-card accent-green"><span>EM EXECUÇÃO</span><strong data-shell-value="in-execution">AGUARDANDO</strong><small>serviços iniciados</small></div>
+                            <div class="kpi-card accent-amber"><span>BLOQUEADAS</span><strong data-shell-value="blocked-orders">AGUARDANDO</strong><small>aguardando material</small></div>
+                            <article class="tv-panel span-7 row-2"><div class="panel-heading"><span>PROGRAMAÇÃO</span><h3>Programadas, executadas e reprogramadas</h3></div><div class="placeholder-table" data-shell-table="schedule"><div class="table-head"><b>ATIVIDADE</b><b>STATUS</b><b>PREVISÃO</b></div><div class="table-empty">Dados serão conectados na Etapa 3.</div></div></article>
+                            <article class="tv-panel span-5 row-2"><div class="panel-heading"><span>EXECUÇÃO</span><h3>Resumo das ordens</h3></div><div class="placeholder-list" data-shell-list="execution"><div>Indicadores de execução aguardando dados.</div></div></article>
                         </div>
                     </section>
 
                     <section class="dashboard-page" data-tv-page="2" aria-labelledby="page-title-2">
                         <div class="page-heading"><div><span class="eyebrow">TELA 3 · CONFIABILIDADE</span><h2 id="page-title-2">Preventivas, backlog e indicadores técnicos</h2></div><span class="page-caption">Confiabilidade da operação</span></div>
                         <div class="dashboard-page-content">
-                            <div class="kpi-card accent-red"><span>PREVENTIVAS VENCIDAS</span><strong>AGUARDANDO</strong><small>planos que exigem ação</small></div>
-                            <div class="kpi-card accent-amber"><span>BACKLOG</span><strong>AGUARDANDO</strong><small>atividades pendentes</small></div>
-                            <div class="kpi-card accent-blue"><span>MTTR</span><strong>AGUARDANDO</strong><small>tempo médio de reparo</small></div>
-                            <div class="kpi-card accent-green"><span>MTBF</span><strong>AGUARDANDO</strong><small>tempo médio entre falhas</small></div>
-                            <article class="tv-panel span-6 row-2"><div class="panel-heading"><span>PREVENTIVAS</span><h3>Planos por situação</h3></div><div class="placeholder-list"><div>Dados de preventivas aguardando conexão.</div></div></article>
-                            <article class="tv-panel span-6 row-2"><div class="panel-heading"><span>BACKLOG</span><h3>Idade e prioridade das pendências</h3></div><div class="placeholder-list"><div>Backlog técnico aguardando conexão.</div></div></article>
+                            <div class="kpi-card accent-red"><span>PREVENTIVAS VENCIDAS</span><strong data-shell-value="overdue-preventives">AGUARDANDO</strong><small>planos que exigem ação</small></div>
+                            <div class="kpi-card accent-amber"><span>BACKLOG</span><strong data-shell-value="backlog">AGUARDANDO</strong><small>atividades pendentes</small></div>
+                            <div class="kpi-card accent-blue"><span>MTTR</span><strong data-shell-value="mttr">AGUARDANDO</strong><small>tempo médio de reparo</small></div>
+                            <div class="kpi-card accent-green"><span>MTBF</span><strong data-shell-value="mtbf">AGUARDANDO</strong><small>tempo médio entre falhas</small></div>
+                            <article class="tv-panel span-6 row-2"><div class="panel-heading"><span>PREVENTIVAS</span><h3>Planos por situação</h3></div><div class="placeholder-list" data-shell-list="preventives"><div>Dados de preventivas aguardando conexão.</div></div></article>
+                            <article class="tv-panel span-6 row-2"><div class="panel-heading"><span>BACKLOG</span><h3>Idade e prioridade das pendências</h3></div><div class="placeholder-list" data-shell-list="backlog"><div>Backlog técnico aguardando conexão.</div></div></article>
                         </div>
                     </section>
 
                     <section class="dashboard-page" data-tv-page="3" aria-labelledby="page-title-3">
                         <div class="page-heading"><div><span class="eyebrow">TELA 4 · DECISÃO</span><h2 id="page-title-3">Materiais, equipamentos críticos e planos de ação</h2></div><span class="page-caption">Impedimentos e decisões imediatas</span></div>
                         <div class="dashboard-page-content">
-                            <div class="kpi-card accent-red"><span>EQUIPAMENTOS CRÍTICOS</span><strong>AGUARDANDO</strong><small>maiores impactos</small></div>
-                            <div class="kpi-card accent-amber"><span>MATERIAIS PENDENTES</span><strong>AGUARDANDO</strong><small>impedem a liberação</small></div>
-                            <div class="kpi-card accent-violet"><span>PLANOS VENCIDOS</span><strong>AGUARDANDO</strong><small>ações sem conclusão</small></div>
-                            <div class="kpi-card accent-blue"><span>DECISÕES ABERTAS</span><strong>AGUARDANDO</strong><small>pontos para gestão</small></div>
-                            <article class="tv-panel span-7 row-2"><div class="panel-heading"><span>MATERIAIS</span><h3>Itens que impactam a manutenção</h3></div><div class="placeholder-table"><div class="table-head"><b>MATERIAL</b><b>STATUS</b><b>IMPACTO</b></div><div class="table-empty">Dados serão conectados na Etapa 3.</div></div></article>
-                            <article class="tv-panel span-5 row-2"><div class="panel-heading"><span>PLANO DE AÇÃO</span><h3>Prioridades imediatas</h3></div><div class="placeholder-list"><div>Planos aguardando dados da gestão.</div></div></article>
+                            <div class="kpi-card accent-red"><span>EQUIPAMENTOS CRÍTICOS</span><strong data-shell-value="critical">AGUARDANDO</strong><small>maiores impactos</small></div>
+                            <div class="kpi-card accent-amber"><span>MATERIAIS PENDENTES</span><strong data-shell-value="materials">AGUARDANDO</strong><small>impedem a liberação</small></div>
+                            <div class="kpi-card accent-violet"><span>PLANOS VENCIDOS</span><strong data-shell-value="action-plans">AGUARDANDO</strong><small>ações sem conclusão</small></div>
+                            <div class="kpi-card accent-blue"><span>DECISÕES ABERTAS</span><strong data-shell-value="decisions">AGUARDANDO</strong><small>pontos para gestão</small></div>
+                            <article class="tv-panel span-7 row-2"><div class="panel-heading"><span>MATERIAIS</span><h3>Itens que impactam a manutenção</h3></div><div class="placeholder-table" data-shell-table="materials"><div class="table-head"><b>MATERIAL</b><b>STATUS</b><b>IMPACTO</b></div><div class="table-empty">Dados serão conectados na Etapa 3.</div></div></article>
+                            <article class="tv-panel span-5 row-2"><div class="panel-heading"><span>PLANO DE AÇÃO</span><h3>Prioridades imediatas</h3></div><div class="placeholder-list" data-shell-list="actions"><div>Planos aguardando dados da gestão.</div></div></article>
                         </div>
                     </section>
                 </div>
