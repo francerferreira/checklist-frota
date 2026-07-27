@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <meta name="theme-color" content="#061a35">
     <title>Dashboard TV — Manutenção</title>
-    <link rel="stylesheet" href="../../static/css/dashboard-tv-maintenance.css?v=20260727-01">
+    <link rel="stylesheet" href="../../static/css/dashboard-tv-maintenance.css?v=20260727-02">
 </head>
 <body>
     <main class="dashboard-maintenance-tv" id="maintenance-tv" aria-live="polite">
@@ -38,8 +38,8 @@
                             <div class="kpi-card accent-red"><span>INDISPONÍVEIS</span><strong data-shell-value="unavailable">AGUARDANDO</strong><small>necessitam de decisão</small></div>
                             <div class="kpi-card accent-amber"><span>EM MANUTENÇÃO</span><strong data-shell-value="maintenance">AGUARDANDO</strong><small>serviço em andamento</small></div>
                             <div class="kpi-card accent-violet"><span>SEM PREVISÃO</span><strong data-shell-value="without-forecast">AGUARDANDO</strong><small>aguardando programação</small></div>
-                            <article class="tv-panel span-8 row-2"><div class="panel-heading"><span>STATUS OPERACIONAL</span><h3>Resumo dos equipamentos</h3></div><div class="placeholder-list" data-shell-list="operational"><div>Dados serão conectados na Etapa 3.</div></div></article>
-                            <article class="tv-panel span-4 row-2"><div class="panel-heading"><span>ATENÇÃO</span><h3>Principais ofensores</h3></div><div class="placeholder-list" data-shell-list="offenders"><div>Lista crítica aguardando dados.</div></div></article>
+                            <article class="tv-panel span-8 row-2"><div class="panel-heading"><span>STATUS OPERACIONAL</span><h3>Resumo dos equipamentos</h3></div><div class="placeholder-list" data-shell-list="operational"><div>SEM DADOS</div></div></article>
+                            <article class="tv-panel span-4 row-2"><div class="panel-heading"><span>ATENÇÃO</span><h3>Principais ofensores</h3></div><div class="placeholder-list" data-shell-list="offenders"><div>SEM DADOS</div></div></article>
                         </div>
                     </section>
 
@@ -50,8 +50,8 @@
                             <div class="kpi-card accent-red"><span>ATRASADAS</span><strong data-shell-value="overdue-orders">AGUARDANDO</strong><small>fora do prazo</small></div>
                             <div class="kpi-card accent-green"><span>EM EXECUÇÃO</span><strong data-shell-value="in-execution">AGUARDANDO</strong><small>serviços iniciados</small></div>
                             <div class="kpi-card accent-amber"><span>BLOQUEADAS</span><strong data-shell-value="blocked-orders">AGUARDANDO</strong><small>aguardando material</small></div>
-                            <article class="tv-panel span-7 row-2"><div class="panel-heading"><span>PROGRAMAÇÃO</span><h3>Programadas, executadas e reprogramadas</h3></div><div class="placeholder-table" data-shell-table="schedule"><div class="table-head"><b>ATIVIDADE</b><b>STATUS</b><b>PREVISÃO</b></div><div class="table-empty">Dados serão conectados na Etapa 3.</div></div></article>
-                            <article class="tv-panel span-5 row-2"><div class="panel-heading"><span>EXECUÇÃO</span><h3>Resumo das ordens</h3></div><div class="placeholder-list" data-shell-list="execution"><div>Indicadores de execução aguardando dados.</div></div></article>
+                            <article class="tv-panel span-7 row-2"><div class="panel-heading"><span>PROGRAMAÇÃO</span><h3>Programadas, executadas e reprogramadas</h3></div><div class="placeholder-table" data-shell-table="schedule"><div class="table-head"><b>ATIVIDADE</b><b>STATUS</b><b>PREVISÃO</b></div><div class="table-empty">SEM DADOS</div></div></article>
+                            <article class="tv-panel span-5 row-2"><div class="panel-heading"><span>EXECUÇÃO</span><h3>Resumo das ordens</h3></div><div class="placeholder-list" data-shell-list="execution"><div>SEM DADOS</div></div></article>
                         </div>
                     </section>
 
@@ -62,8 +62,8 @@
                             <div class="kpi-card accent-amber"><span>BACKLOG</span><strong data-shell-value="backlog">AGUARDANDO</strong><small>atividades pendentes</small></div>
                             <div class="kpi-card accent-blue"><span>MTTR</span><strong data-shell-value="mttr">AGUARDANDO</strong><small>tempo médio de reparo</small></div>
                             <div class="kpi-card accent-green"><span>MTBF</span><strong data-shell-value="mtbf">AGUARDANDO</strong><small>tempo médio entre falhas</small></div>
-                            <article class="tv-panel span-6 row-2"><div class="panel-heading"><span>PREVENTIVAS</span><h3>Planos por situação</h3></div><div class="placeholder-list" data-shell-list="preventives"><div>Dados de preventivas aguardando conexão.</div></div></article>
-                            <article class="tv-panel span-6 row-2"><div class="panel-heading"><span>BACKLOG</span><h3>Idade e prioridade das pendências</h3></div><div class="placeholder-list" data-shell-list="backlog"><div>Backlog técnico aguardando conexão.</div></div></article>
+                            <article class="tv-panel span-6 row-2"><div class="panel-heading"><span>PREVENTIVAS</span><h3>Planos por situação</h3></div><div class="placeholder-list" data-shell-list="preventives"><div>SEM DADOS</div></div></article>
+                            <article class="tv-panel span-6 row-2"><div class="panel-heading"><span>BACKLOG</span><h3>Idade e prioridade das pendências</h3></div><div class="placeholder-list" data-shell-list="backlog"><div>SEM DADOS</div></div></article>
                         </div>
                     </section>
 
@@ -74,8 +74,8 @@
                             <div class="kpi-card accent-amber"><span>MATERIAIS PENDENTES</span><strong data-shell-value="materials">AGUARDANDO</strong><small>impedem a liberação</small></div>
                             <div class="kpi-card accent-violet"><span>PLANOS VENCIDOS</span><strong data-shell-value="action-plans">AGUARDANDO</strong><small>ações sem conclusão</small></div>
                             <div class="kpi-card accent-blue"><span>DECISÕES ABERTAS</span><strong data-shell-value="decisions">AGUARDANDO</strong><small>pontos para gestão</small></div>
-                            <article class="tv-panel span-7 row-2"><div class="panel-heading"><span>MATERIAIS</span><h3>Itens que impactam a manutenção</h3></div><div class="placeholder-table" data-shell-table="materials"><div class="table-head"><b>MATERIAL</b><b>STATUS</b><b>IMPACTO</b></div><div class="table-empty">Dados serão conectados na Etapa 3.</div></div></article>
-                            <article class="tv-panel span-5 row-2"><div class="panel-heading"><span>PLANO DE AÇÃO</span><h3>Prioridades imediatas</h3></div><div class="placeholder-list" data-shell-list="actions"><div>Planos aguardando dados da gestão.</div></div></article>
+                            <article class="tv-panel span-7 row-2"><div class="panel-heading"><span>MATERIAIS</span><h3>Itens que impactam a manutenção</h3></div><div class="placeholder-table" data-shell-table="materials"><div class="table-head"><b>MATERIAL</b><b>STATUS</b><b>IMPACTO</b></div><div class="table-empty">SEM DADOS</div></div></article>
+                            <article class="tv-panel span-5 row-2"><div class="panel-heading"><span>PLANO DE AÇÃO</span><h3>Prioridades imediatas</h3></div><div class="placeholder-list" data-shell-list="actions"><div>SEM DADOS</div></div></article>
                         </div>
                     </section>
                 </div>
@@ -89,6 +89,6 @@
         </footer>
     </main>
     <script src="../../static/js/config.js?v=20260720-01"></script>
-    <script src="../../static/js/dashboard-tv-maintenance.js?v=20260727-01"></script>
+    <script src="../../static/js/dashboard-tv-maintenance.js?v=20260727-02"></script>
 </body>
 </html>
