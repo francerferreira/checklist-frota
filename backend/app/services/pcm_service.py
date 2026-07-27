@@ -8,6 +8,7 @@ from sqlalchemy.orm import lazyload
 from app.extensions import db
 from app.models import MaintenanceSchedule, MaintenanceScheduleItem, MaintenanceWorkOrder, PreventivePlan, User, Vehicle
 from app.services.maintenance_service import sync_work_order_for_item
+from app.services.preventive_service import calculate_next_due, calculate_plan_state
 from app.utils.timezone import now_manaus_naive, today_manaus
 
 
@@ -70,24 +71,7 @@ def _parse_date(value, field: str, default: date | None = None) -> date | None:
 
 
 def plan_due_state(plan: PreventivePlan, *, reference_date: date | None = None) -> dict:
-    reference_date = reference_date or today_manaus()
-    state = plan.vehicle.operational_state if plan.vehicle else None
-    current_hourmeter = Decimal(str(state.latest_hourmeter)) if state and state.latest_hourmeter is not None else None
-    date_due = plan.next_due_date is not None and reference_date >= plan.next_due_date
-    hourmeter_due = plan.next_due_hourmeter is not None and current_hourmeter is not None and current_hourmeter >= plan.next_due_hourmeter
-    date_overdue = plan.next_due_date is not None and reference_date > plan.next_due_date + timedelta(days=plan.tolerance_days or 0)
-    hourmeter_overdue = (
-        plan.next_due_hourmeter is not None and current_hourmeter is not None
-        and current_hourmeter > plan.next_due_hourmeter + Decimal(str(plan.tolerance_hourmeter or 0))
-    )
-    due = (plan.trigger_type in {"CALENDARIO", "AMBOS"} and date_due) or (plan.trigger_type in {"HORIMETRO", "AMBOS"} and hourmeter_due)
-    overdue = (plan.trigger_type in {"CALENDARIO", "AMBOS"} and date_overdue) or (plan.trigger_type in {"HORIMETRO", "AMBOS"} and hourmeter_overdue)
-    return {
-        "status": "VENCIDA" if overdue else ("VENCENDO" if due else "EM_DIA"),
-        "due": bool(due),
-        "overdue": bool(overdue),
-        "current_hourmeter": float(current_hourmeter) if current_hourmeter is not None else None,
-    }
+    return calculate_plan_state(plan, reference_date=reference_date)
 
 
 def _plan_payload(payload: dict, *, existing: PreventivePlan | None = None) -> dict:
@@ -255,10 +239,9 @@ def advance_preventive_plan_after_completion(item: MaintenanceScheduleItem) -> N
     plan = db.session.get(PreventivePlan, plan_id)
     if not plan or plan.status != "ATIVO":
         return
-    if plan.next_due_date and plan.interval_days:
-        plan.next_due_date = plan.next_due_date + timedelta(days=plan.interval_days)
-    if plan.next_due_hourmeter is not None and plan.interval_hourmeter is not None:
-        plan.next_due_hourmeter = Decimal(str(plan.next_due_hourmeter)) + Decimal(str(plan.interval_hourmeter))
+    next_due = calculate_next_due(plan)
+    plan.next_due_date = next_due["next_due_date"]
+    plan.next_due_hourmeter = next_due["next_due_hourmeter"]
 
 
 def build_pcm_agenda(year: int | None = None, month: int | None = None) -> dict:

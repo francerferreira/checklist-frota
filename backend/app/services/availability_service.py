@@ -1,10 +1,9 @@
 from __future__ import annotations
 
 from datetime import date, datetime, time
-from decimal import Decimal, InvalidOperation
-
 from app.extensions import db
 from app.models import EquipmentOperationalState, EquipmentStatusEvent, HourmeterReading, Vehicle
+from app.services.preventive_service import register_hourmeter
 from app.utils.timezone import MANAUS_TZ, now_manaus_naive, today_manaus
 
 
@@ -105,38 +104,7 @@ def set_operational_status(vehicle_id: int, payload: dict, user_id: int) -> dict
 
 
 def record_hourmeter(vehicle_id: int, payload: dict, user_id: int) -> HourmeterReading:
-    vehicle = db.session.get(Vehicle, vehicle_id)
-    if not vehicle or not vehicle.ativo:
-        raise LookupError("Equipamento ativo nao encontrado.")
-    try:
-        reading = Decimal(str(payload.get("reading"))).quantize(Decimal("0.01"))
-    except (InvalidOperation, TypeError, ValueError) as exc:
-        raise ValueError("Informe um horimetro numerico valido.") from exc
-    if reading < 0:
-        raise ValueError("O horimetro nao pode ser negativo.")
-    recorded_at = parse_datetime(payload.get("recorded_at"), field_name="Data da leitura")
-    previous = (HourmeterReading.query.filter(
-        HourmeterReading.vehicle_id == vehicle_id, HourmeterReading.recorded_at < recorded_at,
-    ).order_by(HourmeterReading.recorded_at.desc()).first())
-    following = (HourmeterReading.query.filter(
-        HourmeterReading.vehicle_id == vehicle_id, HourmeterReading.recorded_at > recorded_at,
-    ).order_by(HourmeterReading.recorded_at.asc()).first())
-    if previous and reading < previous.reading:
-        raise ValueError("A leitura nao pode ser menor que o horimetro anterior.")
-    if following and reading > following.reading:
-        raise ValueError("A leitura nao pode ser maior que o horimetro posterior.")
-    item = HourmeterReading(
-        vehicle_id=vehicle_id, reading=reading, recorded_at=recorded_at, source="MANUAL",
-        evidence_path=_clean(payload.get("evidence_path")), notes=_clean(payload.get("notes")),
-        created_by_user_id=user_id,
-    )
-    db.session.add(item)
-    state = ensure_operational_state(vehicle_id)
-    if state.latest_hourmeter_at is None or recorded_at >= state.latest_hourmeter_at:
-        state.latest_hourmeter = reading
-        state.latest_hourmeter_at = recorded_at
-    db.session.commit()
-    return item
+    return register_hourmeter(vehicle_id, payload, user_id)
 
 
 def list_status_history(vehicle_id: int) -> list[dict]:
