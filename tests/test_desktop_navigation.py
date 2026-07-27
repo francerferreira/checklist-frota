@@ -434,7 +434,7 @@ class DesktopNavigationTests(unittest.TestCase):
 
         self.window.switch_page("rtg_module")
         self.assertEqual(self.window._navigation_section("rtg_module"), "GEST\u00c3O RTG")
-        self.assertIn("GEST\u00c3O RTG", self.window.rtg_module_page.findChildren(QLabel)[0].text())
+        self.assertIn("PAINEL OPERACIONAL RTG", self.window.rtg_module_page.findChildren(QLabel)[0].text())
 
         self.window.switch_page("lbs_module")
         self.assertEqual(self.window._navigation_section("lbs_module"), "GEST\u00c3O LBS")
