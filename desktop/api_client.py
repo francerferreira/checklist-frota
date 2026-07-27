@@ -278,6 +278,28 @@ class APIClient:
         params = {"colaborador_id": employee_id, "data": occurrence_date, "tipo": occurrence_type}
         return self._request("GET", "/rh/frequencia", params={key: value for key, value in params.items() if value})
 
+    def get_special_schedules(self, schedule_date: str | None = None):
+        params = {"data": schedule_date} if schedule_date else None
+        return self._request("GET", "/rh/escalas-especiais", params=params)
+
+    def create_special_schedule(self, payload: dict):
+        return self._request("POST", "/rh/escalas-especiais", json=payload)
+
+    def get_special_schedule_pdf(self, schedule_date: str | None = None, schedule_type: str | None = None) -> bytes:
+        params = {}
+        if schedule_date:
+            params["data"] = schedule_date
+        if schedule_type:
+            params["tipo"] = schedule_type
+        response = self.session.get(f"{self.base_url}/rh/escalas-especiais/pdf", params=params or None, timeout=30)
+        if not response.ok:
+            try:
+                payload = response.json()
+            except ValueError:
+                payload = {}
+            raise RuntimeError(payload.get("error") or "Falha ao exportar a escala em PDF.")
+        return response.content
+
     def create_employee_attendance(self, payload: dict):
         return self._request("POST", "/rh/frequencia", json=payload)
 

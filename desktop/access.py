@@ -30,6 +30,7 @@ PAGE_ACCESS_BY_ROLE = {
         "employee_records",
         "hr_management",
         "vacations",
+        "special_schedule",
         "users",
         "cloud_backup",
         "audit_logs",
@@ -61,6 +62,7 @@ PAGE_ACCESS_BY_ROLE = {
         "employee_records",
         "hr_management",
         "vacations",
+        "special_schedule",
         "admin_rules",
     },
     "mecanico": {

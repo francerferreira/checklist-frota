@@ -179,6 +179,7 @@ PROFILE_PAGE_LABELS = {
     "employee_records": "Documentos e Treinamentos",
     "hr_management": "Painel de RH",
     "vacations": "Ferias",
+    "special_schedule": "Escala de Domingo e Feriado",
     "users": "Usuarios",
     "cloud_backup": "Backup",
     "audit_logs": "Logs de Auditoria",

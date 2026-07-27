@@ -36,6 +36,7 @@ from ui.audit_logs_page import AuditLogsPage
 from ui.checklist_items_page import ChecklistItemsPage
 from ui.checklist_history_page import ChecklistHistoryPage
 from ui.spreader_history_page import SpreaderHistoryPage
+from ui.special_schedule_page import SpecialSchedulePage
 from ui.cloud_backup_page import CloudBackupPage
 from ui.dashboard_page import DashboardPage
 from ui.equipment_page import EquipmentPage
@@ -311,6 +312,7 @@ class MainWindow(QMainWindow):
         self.employee_records_page = EmployeeRecordsPage(self.api_client, self.user)
         self.hr_management_page = HRManagementPage(self.api_client, self.user)
         self.vacations_page = VacationsPage(self.api_client)
+        self.special_schedule_page = SpecialSchedulePage(self.api_client)
         self.supply_library_page = SupplyLibraryPage(self.api_client)
         self.reports_page = ReportsPage(self.api_client)
         self.users_page = UsersPage(self.api_client, self.user)
@@ -343,6 +345,7 @@ class MainWindow(QMainWindow):
             "employee_records": self.employee_records_page,
             "hr_management": self.hr_management_page,
             "vacations": self.vacations_page,
+            "special_schedule": self.special_schedule_page,
             "supply_library": self.supply_library_page,
             "users": self.users_page,
             "cloud_backup": self.cloud_backup_page,
@@ -377,6 +380,7 @@ class MainWindow(QMainWindow):
             "reports": "Relatórios",
             "checklist_history": "Histórico Checklist",
             "spreader_history": "Histórico Spreaders",
+            "special_schedule": "Escala de Domingo e Feriado",
             "users": "Logins",
             "cloud_backup": "Backup",
             "audit_logs": "Logs de Auditoria",
@@ -421,6 +425,8 @@ class MainWindow(QMainWindow):
             self.hr_management_page.open_page_requested.connect(self.switch_page)
         if "vacations" in self.page_map:
             self.vacations_page.data_changed.connect(lambda: self.handle_data_changed("vacations"))
+        if "special_schedule" in self.page_map:
+            self.special_schedule_page.data_changed.connect(lambda: self.handle_data_changed("special_schedule"))
 
     def _build_menu_bar(self):
         menubar = self.menuBar()
@@ -448,9 +454,10 @@ class MainWindow(QMainWindow):
                 action.triggered.connect(lambda checked=False, page_key=key: self.switch_page(page_key))
 
         if self.can_manage:
-            scale_menu = menubar.addMenu("Escala e DSR")
-            scale_action = scale_menu.addAction("Abrir gestão de domingo e feriado")
-            scale_action.triggered.connect(self.open_scale_dsr)
+            if "special_schedule" in self.page_map:
+                scale_menu = menubar.addMenu("Escala e DSR")
+                scale_action = scale_menu.addAction("Abrir gestão de domingo e feriado")
+                scale_action.triggered.connect(lambda: self.switch_page("special_schedule"))
 
         web_panels_menu = menubar.addMenu("Painéis Web")
         web_mobile_action = web_panels_menu.addAction("Abrir Web Mobile")
@@ -491,14 +498,10 @@ class MainWindow(QMainWindow):
         self._open_web_panel("o Web Mobile", "")
 
     def open_scale_dsr(self) -> None:
-        url = self._web_panel_url("", module="escala")
-        if not QDesktopServices.openUrl(QUrl(url)):
-            show_notice(
-                self,
-                "Não foi possível abrir a Escala e DSR",
-                "Inicie o atalho ABRIR_WEB_MOBILE_E_DESKTOP_LOCAL.bat e tente novamente.",
-                icon_name="warning",
-            )
+        if "special_schedule" in self.page_map:
+            self.switch_page("special_schedule")
+            return
+        show_notice(self, "Acesso indisponível", "A tela de escala não está habilitada para este perfil.", icon_name="warning")
 
     def open_tv_dashboard(self) -> None:
         self._open_web_panel("o Dashboard TV", "dashboard-manutencao/tv/")
@@ -575,6 +578,8 @@ class MainWindow(QMainWindow):
                 item = self._make_tree_item(section_item, self.page_titles.get(key, key), page_key=key, icon_name="dashboard")
                 self.tree_items[key] = item
             if section_label == "Absenteísmo" and self.can_manage:
+                if "special_schedule" not in self.page_map:
+                    continue
                 scale_section = self._make_tree_item(root, "Escala e DSR", icon_name="activities")
                 self.section_items.append(scale_section)
                 action_item = self._make_tree_item(
@@ -791,6 +796,8 @@ class MainWindow(QMainWindow):
             return "RH"
         if page_key == "attendance":
             return "ABSENTEÍSMO"
+        if page_key == "special_schedule":
+            return "ESCALA E DSR"
         if page_key in {"reports", "productivity", "checklist_history"}:
             return "RELATÓRIOS"
         if page_key == "users":
@@ -992,6 +999,8 @@ class MainWindow(QMainWindow):
                 self.hr_management_page.refresh()
             elif page_key == "vacations":
                 self.vacations_page.refresh()
+            elif page_key == "special_schedule":
+                self.special_schedule_page.refresh()
             elif page_key == "cloud_backup":
                 self.cloud_backup_page.refresh()
             elif page_key == "audit_logs":
