@@ -70,12 +70,13 @@ class FamilyOperationalPage(QFrame):
     data_changed = Signal()
     open_page_requested = Signal(str)
 
-    def __init__(self, api_client, family: str, downtime_page_key: str, maintenance_page_key: str | None = None, parent=None):
+    def __init__(self, api_client, family: str, downtime_page_key: str, maintenance_page_key: str | None = None, parent=None, preventive_page_key: str | None = None):
         super().__init__(parent)
         self.api_client = api_client
         self.family = _text(family).upper()
         self.downtime_page_key = downtime_page_key
         self.maintenance_page_key = maintenance_page_key
+        self.preventive_page_key = preventive_page_key
         self.rows: list[dict] = []
         self.setObjectName("ContentSurface")
 
@@ -102,6 +103,11 @@ class FamilyOperationalPage(QFrame):
             maintenance_button = QPushButton(f"Manutenções {self.family}")
             maintenance_button.clicked.connect(lambda: self.open_page_requested.emit(self.maintenance_page_key))
             header.addWidget(maintenance_button, 0)
+        if self.preventive_page_key:
+            preventive_button = QPushButton(f"Preventiva {self.family}")
+            preventive_button.setProperty("variant", "primary")
+            preventive_button.clicked.connect(lambda: self.open_page_requested.emit(self.preventive_page_key))
+            header.addWidget(preventive_button, 0)
         header.addWidget(downtime_button, 0)
         layout.addLayout(header)
 
