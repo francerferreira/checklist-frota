@@ -3,6 +3,8 @@ from __future__ import annotations
 from datetime import date, timedelta
 from decimal import Decimal, InvalidOperation
 
+from sqlalchemy.orm import lazyload
+
 from app.extensions import db
 from app.models import MaintenanceSchedule, MaintenanceScheduleItem, MaintenanceWorkOrder, PreventivePlan, User, Vehicle
 from app.services.maintenance_service import sync_work_order_for_item
@@ -224,7 +226,7 @@ def generate_due_preventives(user_id: int, plan_id: int | None = None) -> list[d
         due = plan_due_state(plan)
         if not due["due"]:
             continue
-        active_schedule = MaintenanceSchedule.query.filter(
+        active_schedule = MaintenanceSchedule.query.options(lazyload("*")).filter(
             MaintenanceSchedule.source_key.like(f"{PLAN_SOURCE_PREFIX}{plan.id}:%"),
             MaintenanceSchedule.status.in_({"ABERTA", "AGUARDANDO_MATERIAL", "PROGRAMADA", "EM_EXECUCAO"}),
         ).first()
@@ -303,7 +305,7 @@ def build_pcm_programming_window(*, start_date: date, end_date: date, daily_capa
     plans_by_id = {plan.id: plan for plan in plans}
     active_schedule_plan_ids = {
         plan_id
-        for schedule in MaintenanceSchedule.query.filter(MaintenanceSchedule.status.in_({"ABERTA", "AGUARDANDO_MATERIAL", "PROGRAMADA", "EM_EXECUCAO"})).all()
+        for schedule in MaintenanceSchedule.query.options(lazyload("*")).filter(MaintenanceSchedule.status.in_({"ABERTA", "AGUARDANDO_MATERIAL", "PROGRAMADA", "EM_EXECUCAO"})).all()
         if (plan_id := _plan_id_from_schedule(schedule))
     }
     days = {}

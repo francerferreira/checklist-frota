@@ -65,11 +65,13 @@ class MaintenanceSchedule(db.Model):
     created_at = db.Column(db.DateTime, nullable=False, default=now_manaus_naive, index=True)
     updated_at = db.Column(db.DateTime, nullable=False, default=now_manaus_naive, onupdate=now_manaus_naive)
 
-    created_by = db.relationship("User", foreign_keys=[created_by_user_id], lazy="joined")
-    assigned_mechanic = db.relationship("User", foreign_keys=[assigned_mechanic_user_id], lazy="joined")
-    items = db.relationship("MaintenanceScheduleItem", back_populates="schedule", cascade="all, delete-orphan", lazy="joined")
-    materials = db.relationship("MaintenanceMaterial", back_populates="schedule", cascade="all, delete-orphan", lazy="joined")
-    work_orders = db.relationship("MaintenanceWorkOrder", back_populates="schedule", cascade="all, delete-orphan", lazy="joined")
+    # Evita JOINs profundos em cascata. No SQLite, carregar toda a árvore de
+    # manutenção em uma única consulta ultrapassa o limite de 64 tabelas.
+    created_by = db.relationship("User", foreign_keys=[created_by_user_id], lazy="select")
+    assigned_mechanic = db.relationship("User", foreign_keys=[assigned_mechanic_user_id], lazy="select")
+    items = db.relationship("MaintenanceScheduleItem", back_populates="schedule", cascade="all, delete-orphan", lazy="select")
+    materials = db.relationship("MaintenanceMaterial", back_populates="schedule", cascade="all, delete-orphan", lazy="select")
+    work_orders = db.relationship("MaintenanceWorkOrder", back_populates="schedule", cascade="all, delete-orphan", lazy="select")
 
     __table_args__ = (
         db.CheckConstraint(
