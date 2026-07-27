@@ -1,5 +1,7 @@
 from pathlib import Path
+from datetime import date
 import unittest
+from unittest.mock import patch
 
 from flask import Flask
 
@@ -11,6 +13,7 @@ if str(BACKEND) not in sys.path:
     sys.path.insert(0, str(BACKEND))
 
 from app.routes.stops_dashboard_tv import bp
+from app.services.maintenance_dashboard_service import DashboardFilters
 from app.services.stops_dashboard_tv_service import _daily_slices, _projection_row, _target_row
 
 
@@ -57,6 +60,29 @@ class DashboardTvStopsApiContractTest(unittest.TestCase):
         self.assertEqual(projection["projected_hours"], 10.0)
         self.assertEqual(projection["percentage"], 100.0)
         self.assertEqual(projection["status"], "VERMELHO")
+
+    def test_route_returns_standard_success_envelope(self):
+        app = Flask(__name__)
+        app.register_blueprint(bp)
+        filters = DashboardFilters(date(2026, 7, 1), date(2026, 7, 27))
+        with patch("app.routes.stops_dashboard_tv.parse_dashboard_filters", return_value=filters), patch(
+            "app.routes.stops_dashboard_tv.build_stops_dashboard_tv_payload",
+            return_value={"period": {"label": "COMPETÊNCIA: 07/2026"}},
+        ):
+            response = app.test_client().get("/api/dashboard-tv/paradas")
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.get_json(), {"success": True, "data": {"period": {"label": "COMPETÊNCIA: 07/2026"}}})
+
+    def test_route_converts_invalid_filters_to_bad_request(self):
+        app = Flask(__name__)
+        app.register_blueprint(bp)
+        with patch(
+            "app.routes.stops_dashboard_tv.parse_dashboard_filters",
+            side_effect=ValueError("Data inicial invalida; use AAAA-MM-DD."),
+        ):
+            response = app.test_client().get("/api/dashboard-tv/paradas")
+        self.assertEqual(response.status_code, 400)
+        self.assertEqual(response.get_json()["success"], False)
 
 
 if __name__ == "__main__":
