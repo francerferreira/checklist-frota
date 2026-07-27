@@ -44,9 +44,9 @@ from ui.emergencies_page import EmergenciesPage
 from ui.employees_page import EmployeesPage
 from ui.attendance_page import AttendancePage
 from ui.employee_records_page import EmployeeRecordsPage
-from ui.family_module_page import FamilyModulePage
 from ui.family_downtime_page import FamilyDowntimePage
 from ui.family_operational_page import FamilyOperationalPage
+from ui.lbs_operational_page import LBSOperationalPage
 from ui.hr_management_page import HRManagementPage
 from ui.vacations_page import VacationsPage
 from ui.global_search_dialog import GlobalSearchDialog
@@ -317,7 +317,7 @@ class MainWindow(QMainWindow):
         self.vacations_page = VacationsPage(self.api_client)
         self.special_schedule_page = SpecialSchedulePage(self.api_client)
         self.rtg_module_page = FamilyOperationalPage(self.api_client, "RTG", "rtg_downtime")
-        self.lbs_module_page = FamilyModulePage("LBS")
+        self.lbs_module_page = LBSOperationalPage(self.api_client, "lbs_downtime")
         self.rtg_downtime_page = FamilyDowntimePage(self.api_client, "RTG", self.user)
         self.lbs_downtime_page = FamilyDowntimePage(self.api_client, "LBS", self.user)
         self.supply_library_page = SupplyLibraryPage(self.api_client)
@@ -448,6 +448,8 @@ class MainWindow(QMainWindow):
             self.lbs_downtime_page.data_changed.connect(lambda: self.handle_data_changed("lbs_downtime"))
         if "rtg_module" in self.page_map:
             self.rtg_module_page.open_page_requested.connect(self.switch_page)
+        if "lbs_module" in self.page_map:
+            self.lbs_module_page.open_page_requested.connect(self.switch_page)
 
     def _build_menu_bar(self):
         menubar = self.menuBar()

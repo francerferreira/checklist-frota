@@ -438,7 +438,7 @@ class DesktopNavigationTests(unittest.TestCase):
 
         self.window.switch_page("lbs_module")
         self.assertEqual(self.window._navigation_section("lbs_module"), "GEST\u00c3O LBS")
-        self.assertIn("GEST\u00c3O LBS", self.window.lbs_module_page.findChildren(QLabel)[0].text())
+        self.assertIn("PAINEL OPERACIONAL LBS", self.window.lbs_module_page.findChildren(QLabel)[0].text())
 
         self.window.switch_page("rtg_downtime")
         self.assertEqual(self.window.page_titles["rtg_downtime"], "Controle de Paradas RTG")
