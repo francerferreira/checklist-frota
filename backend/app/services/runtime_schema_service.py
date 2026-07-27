@@ -176,6 +176,31 @@ def _backfill_checklist_item_grouping() -> None:
     db.session.commit()
 
 
+def _ensure_audit_log_columns() -> None:
+    """Atualiza a tabela legada de auditoria usada pelo SQLite local.
+
+    O modelo de auditoria ganhou contexto operacional depois que algumas bases
+    locais já haviam sido criadas. Sem esta atualização, o login é validado,
+    mas a gravação do evento de entrada falha e a interface recebe um erro de
+    rede genérico (``Failed to fetch``).
+    """
+    inspector = inspect(db.engine)
+    if "audit_logs" not in inspector.get_table_names():
+        return
+
+    columns = {column["name"] for column in inspector.get_columns("audit_logs")}
+    for column_name, column_sql in (
+        ("module", "VARCHAR(80)"),
+        ("equipment_id", "INTEGER"),
+        ("record_id", "INTEGER"),
+        ("justification", "TEXT"),
+        ("origin", "VARCHAR(30)"),
+        ("ip_address", "VARCHAR(64)"),
+        ("device", "VARCHAR(120)"),
+    ):
+        _ensure_column("audit_logs", columns, column_name, column_sql)
+
+
 def ensure_runtime_schema() -> None:
     if not current_app.config.get("LEGACY_LOCAL_BOOTSTRAP_ENABLED"):
         raise RuntimeError(
@@ -186,6 +211,8 @@ def ensure_runtime_schema() -> None:
             "Alteracao automatica de schema e restrita ao SQLite temporario de testes."
         )
     inspector = inspect(db.engine)
+
+    _ensure_audit_log_columns()
 
     if "employees" in inspector.get_table_names():
         columns = {column["name"] for column in inspector.get_columns("employees")}
