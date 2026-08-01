@@ -3,7 +3,7 @@
 from datetime import datetime
 from urllib.parse import quote
 
-from PySide6.QtCore import QEvent, QEasingCurve, QPropertyAnimation, QTimer, Qt, QUrl
+from PySide6.QtCore import QEvent, QEasingCurve, QPropertyAnimation, QSettings, QTimer, Qt, QUrl
 from PySide6.QtGui import QBrush, QColor, QDesktopServices, QIcon, QKeySequence, QPixmap, QShortcut
 from PySide6.QtWidgets import (
     QDialog,
@@ -245,6 +245,7 @@ class MainWindow(QMainWindow):
         self._syncing_tree = False
         self.sidebar_visible = True
         self.pending_navigation_target: dict | None = None
+        self.module_refresh_interval_ms = self._load_module_refresh_interval()
 
         self.setWindowTitle("Sistema de Manutenção de Frota")
         self.setMinimumSize(1280, 760)
@@ -294,6 +295,32 @@ class MainWindow(QMainWindow):
         self.showMaximized()
         QTimer.singleShot(0, lambda: self.switch_page("dashboard"))
 
+    @staticmethod
+    def _load_module_refresh_interval() -> int:
+        settings = QSettings("ChecklistFrota", "Desktop")
+        try:
+            value = int(settings.value("module_refresh_interval_ms", 60_000))
+        except (TypeError, ValueError):
+            value = 60_000
+        return value if value in {30_000, 60_000, 300_000} else 60_000
+
+    def set_module_refresh_interval(self, interval_ms: int) -> None:
+        """Propaga a preferência para todas as centrais já abertas."""
+        try:
+            interval_ms = int(interval_ms)
+        except (TypeError, ValueError):
+            interval_ms = 60_000
+        if interval_ms not in {30_000, 60_000, 300_000}:
+            interval_ms = 60_000
+        self.module_refresh_interval_ms = interval_ms
+        settings = QSettings("ChecklistFrota", "Desktop")
+        settings.setValue("module_refresh_interval_ms", interval_ms)
+        settings.sync()
+        for page_key in ("equipment_home", "rh_home", "attendance_home", "schedule_home", "maintenance_home"):
+            page = getattr(self, f"{page_key}_page", None)
+            if page is not None:
+                page.set_refresh_interval(interval_ms)
+
     def _build_pages(self):
         self.dashboard_page = DashboardPage(self.api_client)
         self.equipment_home_page = ModuleLandingPage(
@@ -312,6 +339,7 @@ class MainWindow(QMainWindow):
             self.user_role,
             api_client=self.api_client,
             module_key="equipment_home",
+            refresh_interval_ms=self.module_refresh_interval_ms,
         )
         self.rh_home_page = ModuleLandingPage(
             "Central de RH",
@@ -327,6 +355,7 @@ class MainWindow(QMainWindow):
             self.user_role,
             api_client=self.api_client,
             module_key="rh_home",
+            refresh_interval_ms=self.module_refresh_interval_ms,
         )
         self.attendance_home_page = ModuleLandingPage(
             "Central de Absenteísmo",
@@ -341,6 +370,7 @@ class MainWindow(QMainWindow):
             self.user_role,
             api_client=self.api_client,
             module_key="attendance_home",
+            refresh_interval_ms=self.module_refresh_interval_ms,
         )
         self.schedule_home_page = ModuleLandingPage(
             "Central de Escala e DSR",
@@ -355,6 +385,7 @@ class MainWindow(QMainWindow):
             self.user_role,
             api_client=self.api_client,
             module_key="schedule_home",
+            refresh_interval_ms=self.module_refresh_interval_ms,
         )
         self.maintenance_home_page = ModuleLandingPage(
             "Central de Manutenção",
@@ -375,6 +406,7 @@ class MainWindow(QMainWindow):
             self.user_role,
             api_client=self.api_client,
             module_key="maintenance_home",
+            refresh_interval_ms=self.module_refresh_interval_ms,
         )
         self.nc_page = NonConformitiesPage(self.api_client)
         self.productivity_page = ProductivityPage(self.api_client)
@@ -550,6 +582,7 @@ class MainWindow(QMainWindow):
             self.users_page.data_changed.connect(lambda: self.handle_data_changed("users"))
         if "admin_rules" in self.page_map:
             self.admin_rules_page.data_changed.connect(lambda: self.handle_data_changed("admin_rules"))
+            self.admin_rules_page.refresh_interval_changed.connect(self.set_module_refresh_interval)
         if "employees" in self.page_map:
             self.employees_page.data_changed.connect(lambda: self.handle_data_changed("employees"))
         if "attendance" in self.page_map:

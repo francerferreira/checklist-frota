@@ -1,9 +1,10 @@
 from __future__ import annotations
 
-from PySide6.QtCore import QTimer, Signal
+from PySide6.QtCore import QSettings, QTimer, Signal
 from PySide6.QtWidgets import (
     QFormLayout,
     QFrame,
+    QComboBox,
     QGridLayout,
     QHBoxLayout,
     QLabel,
@@ -19,6 +20,13 @@ from theme import configure_table, make_table_item, style_card, style_filter_bar
 
 class AdminRulesPage(QFrame):
     data_changed = Signal()
+    refresh_interval_changed = Signal(int)
+
+    REFRESH_INTERVALS = (
+        (30_000, "30 segundos"),
+        (60_000, "1 minuto"),
+        (300_000, "5 minutos"),
+    )
 
     def __init__(self, api_client, parent=None):
         super().__init__(parent)
@@ -77,6 +85,36 @@ class AdminRulesPage(QFrame):
         for badge in (self.window_badge, self.weight_badge, self.alert_badge, self.compat_badge):
             summary_layout.addWidget(badge)
         summary_layout.addStretch()
+
+        refresh_card = QFrame()
+        style_table_card(refresh_card)
+        refresh_layout = QHBoxLayout(refresh_card)
+        refresh_layout.setContentsMargins(14, 10, 14, 10)
+        refresh_layout.setSpacing(10)
+        refresh_text = QVBoxLayout()
+        refresh_title = QLabel("Atualização automática das centrais")
+        refresh_title.setObjectName("SectionTitle")
+        refresh_hint = QLabel(
+            "Escolha de quanto em quanto tempo o Desktop deve atualizar os indicadores das centrais."
+        )
+        refresh_hint.setObjectName("SectionCaption")
+        refresh_hint.setWordWrap(True)
+        refresh_text.addWidget(refresh_title)
+        refresh_text.addWidget(refresh_hint)
+        refresh_layout.addLayout(refresh_text, 1)
+        self.refresh_interval_combo = QComboBox()
+        for interval_ms, label in self.REFRESH_INTERVALS:
+            self.refresh_interval_combo.addItem(label, interval_ms)
+        current_interval = self._stored_refresh_interval()
+        current_index = self.refresh_interval_combo.findData(current_interval)
+        self.refresh_interval_combo.setCurrentIndex(max(0, current_index))
+        self.refresh_interval_combo.setMinimumWidth(150)
+        self.save_refresh_button = QPushButton("Salvar intervalo")
+        self.save_refresh_button.setProperty("variant", "primary")
+        self.save_refresh_button.setMinimumHeight(34)
+        self.save_refresh_button.clicked.connect(self.save_refresh_interval)
+        refresh_layout.addWidget(self.refresh_interval_combo)
+        refresh_layout.addWidget(self.save_refresh_button)
 
         form_card = QFrame()
         style_table_card(form_card)
@@ -167,6 +205,7 @@ class AdminRulesPage(QFrame):
 
         layout.addLayout(header)
         layout.addWidget(summary_card)
+        layout.addWidget(refresh_card)
         layout.addWidget(form_card)
         layout.addWidget(compatibility_card)
         layout.addWidget(homologation_card, 1)
@@ -280,3 +319,26 @@ class AdminRulesPage(QFrame):
             show_notice(self, "Configuração salva", "As regras inteligentes foram atualizadas com sucesso.", icon_name="dashboard")
         except Exception as exc:
             show_notice(self, "Falha ao salvar regras", str(exc), icon_name="warning")
+
+    @classmethod
+    def _stored_refresh_interval(cls) -> int:
+        settings = QSettings("ChecklistFrota", "Desktop")
+        try:
+            value = int(settings.value("module_refresh_interval_ms", 60_000))
+        except (TypeError, ValueError):
+            value = 60_000
+        valid_values = {interval_ms for interval_ms, _ in cls.REFRESH_INTERVALS}
+        return value if value in valid_values else 60_000
+
+    def save_refresh_interval(self):
+        interval_ms = int(self.refresh_interval_combo.currentData())
+        settings = QSettings("ChecklistFrota", "Desktop")
+        settings.setValue("module_refresh_interval_ms", interval_ms)
+        settings.sync()
+        self.refresh_interval_changed.emit(interval_ms)
+        show_notice(
+            self,
+            "Intervalo salvo",
+            "As centrais passarão a atualizar automaticamente no intervalo escolhido.",
+            icon_name="dashboard",
+        )

@@ -24,6 +24,7 @@ class ModuleLandingPage(QFrame):
         user_role: str,
         api_client=None,
         module_key: str = "",
+        refresh_interval_ms: int = 60_000,
         parent=None,
     ):
         super().__init__(parent)
@@ -32,8 +33,9 @@ class ModuleLandingPage(QFrame):
         self.api_client = api_client
         self.module_key = module_key
         self.shortcut_rows = [row for row in shortcuts if row[2] in allowed_pages]
+        self.refresh_interval_ms = self._normalize_refresh_interval(refresh_interval_ms)
         self.auto_refresh_timer = QTimer(self)
-        self.auto_refresh_timer.setInterval(60_000)
+        self.auto_refresh_timer.setInterval(self.refresh_interval_ms)
         self.auto_refresh_timer.timeout.connect(self.refresh)
 
         layout = QVBoxLayout(self)
@@ -194,11 +196,36 @@ class ModuleLandingPage(QFrame):
                 pcm = intelligence.get("pcm") or {}
                 self.access_card.set_content("Preventivas vencidas", str(pcm.get("preventivas_vencendo_ou_vencidas", 0)), "Planos preventivos em atraso")
             self.last_updated_label.setText(
-                f"Atualizado em {datetime.now().strftime('%d/%m/%Y %H:%M')} · próxima atualização em 1 min"
+                f"Atualizado em {datetime.now().strftime('%d/%m/%Y %H:%M')} · próxima atualização em {self._refresh_interval_label()}"
             )
         except Exception:
             self.last_updated_label.setText("Atualização automática: falha de conexão")
             self.access_card.set_content("Conexão", "INDISPONÍVEL", "Não foi possível atualizar os indicadores")
+
+    @staticmethod
+    def _normalize_refresh_interval(interval_ms: int) -> int:
+        try:
+            value = int(interval_ms)
+        except (TypeError, ValueError):
+            value = 60_000
+        return value if value in {30_000, 60_000, 300_000} else 60_000
+
+    def _refresh_interval_label(self) -> str:
+        return {
+            30_000: "30 s",
+            60_000: "1 min",
+            300_000: "5 min",
+        }.get(self.refresh_interval_ms, "1 min")
+
+    def set_refresh_interval(self, interval_ms: int) -> None:
+        """Atualiza o intervalo sem reconstruir a central."""
+        self.refresh_interval_ms = self._normalize_refresh_interval(interval_ms)
+        self.auto_refresh_timer.setInterval(self.refresh_interval_ms)
+        if self.isVisible():
+            self.auto_refresh_timer.start()
+        self.last_updated_label.setText(
+            f"Atualização automática configurada para {self._refresh_interval_label()}"
+        )
 
     def showEvent(self, event):
         self.auto_refresh_timer.start()
