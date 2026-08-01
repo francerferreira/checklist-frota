@@ -715,6 +715,112 @@ QStatusBar {
     color: #295780;
     border-top: 1px solid #B7CBE3;
 }
+
+/* Fundacao visual comum: leitura direta, controles espacados e hierarquia
+   consistente entre as telas do Desktop. */
+QWidget {
+    color: #10253F;
+    font-family: "Arial", "Segoe UI", sans-serif;
+    font-size: 13px;
+}
+QMainWindow, QWidget#MainContainer {
+    background: #F3F6FA;
+}
+QFrame#Sidebar,
+QWidget#ContentSurface,
+QWidget#PanelCard,
+QWidget#ImagePanel,
+QWidget#HeaderCard,
+QWidget#FilterBar,
+QWidget#TableCard,
+QFrame#TopNavStrip,
+QFrame#TopNavGridHost,
+QFrame#TopBar,
+QFrame#TopBarActionCluster,
+QFrame#TopBarBadge {
+    border-radius: 8px;
+    border-color: #C7D6E6;
+}
+QFrame#Sidebar {
+    background: #FFFFFF;
+}
+QWidget#ContentSurface {
+    background: #F8FAFD;
+}
+QPushButton {
+    min-height: 34px;
+    border-radius: 8px;
+    padding: 8px 14px;
+    font-family: "Arial", "Segoe UI", sans-serif;
+}
+QPushButton[moduleNav="true"] {
+    min-height: 30px;
+    padding: 6px 10px;
+    border-radius: 7px;
+}
+QLineEdit,
+QTextEdit,
+QComboBox,
+QDateEdit,
+QSpinBox,
+QDoubleSpinBox {
+    min-height: 34px;
+    border-radius: 8px;
+    border-color: #B9CBE0;
+    padding: 7px 10px;
+    background: #FFFFFF;
+}
+QLineEdit:focus,
+QTextEdit:focus,
+QComboBox:focus,
+QDateEdit:focus,
+QSpinBox:focus,
+QDoubleSpinBox:focus {
+    border: 2px solid #4D8DD6;
+    padding: 6px 9px;
+}
+QTreeWidget,
+QTreeView {
+    border-radius: 8px;
+    border-color: #C7D6E6;
+    alternate-background-color: #F5F9FE;
+}
+QTreeWidget::item,
+QTreeView::item {
+    padding: 7px 6px;
+}
+QTableWidget {
+    border-radius: 8px;
+    border: 1px solid #C7D6E6;
+    gridline-color: #D9E4F0;
+    font-family: "Arial", "Segoe UI", sans-serif;
+    font-size: 13px;
+}
+QTableWidget::item {
+    padding: 8px 10px;
+}
+QHeaderView::section {
+    background: #0B5FBE;
+    border-right: 1px solid #0A4F9E;
+    border-bottom: 1px solid #0A4F9E;
+    padding: 8px 10px;
+    font-family: "Arial", "Segoe UI", sans-serif;
+    font-weight: 700;
+}
+QGroupBox {
+    border-radius: 8px;
+    border-color: #C7D6E6;
+    padding-top: 10px;
+}
+QTabBar::tab {
+    border-radius: 7px 7px 0 0;
+    padding: 8px 12px;
+}
+QScrollBar::handle:vertical,
+QScrollBar::handle:horizontal {
+    border-radius: 5px;
+    background: #6D9ED3;
+}
 """
 
 
@@ -756,7 +862,7 @@ def apply_button_style(button: QPushButton) -> None:
             color: #FFFFFF;
             border: 1px solid {border};
             border-style: solid;
-            border-radius: 2px;
+            border-radius: 8px;
             padding: 6px 10px;
             font-weight: 700;
             text-align: {text_align};

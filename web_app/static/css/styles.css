@@ -3428,6 +3428,259 @@ textarea {
     }
 }
 
+/*
+ * Fundacao visual 2026
+ *
+ * A interface usa uma hierarquia curta e previsivel: Arial para leitura,
+ * azul para navegacao, verde para sucesso e vermelho/laranja para atencao.
+ * Este bloco fica no fim do arquivo para uniformizar as telas legadas sem
+ * alterar regras de negocio ou os componentes que ja existem.
+ */
+:root {
+    --font-ui: Arial, "Segoe UI", sans-serif;
+    --ink: #10253f;
+    --muted: #536b86;
+    --muted-strong: #35516f;
+    --line: #d6e1ed;
+    --line-strong: #b9cbe0;
+    --card: #ffffff;
+    --card-soft: #f6f9fd;
+    --blue: #0b5fbe;
+    --blue-soft: #e7f1ff;
+    --green: #12966f;
+    --red: #c93636;
+    --amber: #b86a0a;
+    --radius: 12px;
+    --radius-md: 10px;
+    --radius-sm: 8px;
+    --shadow-soft: 0 6px 16px rgba(22, 53, 89, 0.08);
+    --shadow: 0 10px 24px rgba(22, 53, 89, 0.10);
+}
+
+html,
+body,
+button,
+input,
+textarea,
+select {
+    font-family: var(--font-ui);
+}
+
+body {
+    font-size: 14px;
+    line-height: 1.4;
+}
+
+.mobile-shell {
+    padding-top: max(10px, env(safe-area-inset-top));
+    padding-bottom: calc(22px + env(safe-area-inset-bottom));
+}
+
+.app-main {
+    gap: 16px;
+}
+
+.screen-heading {
+    padding-top: 14px;
+}
+
+.screen-heading h2 {
+    font-family: var(--font-ui);
+    font-size: clamp(1.35rem, 2.2vw, 1.9rem);
+    font-weight: 800;
+    letter-spacing: 0;
+}
+
+input,
+textarea,
+select {
+    min-height: 44px;
+    border: 1px solid var(--line-strong);
+    border-radius: var(--radius-md);
+    background: #ffffff;
+    color: var(--ink);
+    padding: 10px 12px;
+}
+
+input:focus,
+textarea:focus,
+select:focus,
+button:focus-visible {
+    outline: 3px solid rgba(11, 95, 190, 0.24);
+    outline-offset: 1px;
+}
+
+.primary-button,
+.secondary-button,
+.icon-button,
+.share-button,
+.status-button,
+.module-tab,
+.asset-access-toggle {
+    min-height: 42px;
+    border-radius: var(--radius-md);
+    font-family: var(--font-ui);
+    font-weight: 700;
+    letter-spacing: 0;
+}
+
+.primary-button {
+    background: linear-gradient(135deg, #0b5fbe, #087fc2);
+    box-shadow: 0 8px 18px rgba(11, 95, 190, 0.20);
+}
+
+.secondary-button,
+.icon-button {
+    border: 1px solid #9db9d8;
+    background: #ffffff;
+    color: var(--blue);
+}
+
+.secondary-button:hover,
+.icon-button:hover {
+    background: var(--blue-soft);
+    border-color: #6f9ed1;
+}
+
+.menu-grid,
+.vehicle-list,
+.activity-list,
+.module-list {
+    gap: 16px;
+}
+
+.menu-card,
+.vehicle-card,
+.activity-card,
+.checklist-card,
+.checklist-group-card,
+.empty-state,
+.state-card,
+.progress-card,
+.module-header,
+.list-toolbar,
+.history-summary-card,
+.history-filter-card,
+.asset-access-panel,
+.special-schedule-card,
+.weekly-dsr-filter {
+    border-radius: var(--radius);
+    border-color: var(--line);
+    box-shadow: var(--shadow-soft);
+}
+
+.menu-card,
+.vehicle-card,
+.activity-card {
+    padding: 15px;
+}
+
+.menu-card {
+    min-height: 96px;
+}
+
+.menu-card strong,
+.vehicle-card strong,
+.activity-card strong {
+    font-family: var(--font-ui);
+    font-weight: 700;
+}
+
+.menu-card em,
+.vehicle-card span:not(.vehicle-type),
+.vehicle-card small,
+.activity-card span:not(.vehicle-type),
+.activity-card small {
+    color: var(--muted-strong);
+}
+
+.module-header,
+.list-toolbar,
+.progress-card,
+.history-filter-card {
+    background: rgba(255, 255, 255, 0.98);
+}
+
+.module-header strong,
+.list-toolbar strong,
+.progress-card strong,
+.state-card strong {
+    color: var(--ink);
+}
+
+.module-tab {
+    box-shadow: none;
+}
+
+.history-table-wrap,
+.absenteeism-table-wrap,
+.schedule-table-wrap {
+    border-radius: var(--radius);
+    border-color: var(--line-strong);
+    box-shadow: var(--shadow-soft);
+}
+
+.history-table,
+.absenteeism-table,
+.schedule-table {
+    font-family: var(--font-ui);
+}
+
+.history-table thead th,
+.absenteeism-table thead th,
+.schedule-table thead th {
+    background: #0b5fbe;
+    color: #ffffff;
+    font-weight: 700;
+}
+
+.history-table tbody tr:hover td,
+.absenteeism-table tbody tr:hover td,
+.schedule-table tbody tr:hover td {
+    background: #f0f6ff;
+}
+
+@media (min-width: 760px) {
+    .menu-grid {
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+    }
+
+    .vehicle-list {
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+    }
+}
+
+@media (min-width: 1200px) {
+    .menu-grid,
+    .vehicle-list {
+        grid-template-columns: repeat(4, minmax(0, 1fr));
+    }
+}
+
+@media (max-width: 759px) {
+    .mobile-shell {
+        padding-left: 10px;
+        padding-right: 10px;
+    }
+
+    .screen-heading h2 {
+        font-size: 1.35rem;
+    }
+
+    .menu-grid,
+    .vehicle-list,
+    .activity-list {
+        grid-template-columns: 1fr;
+        gap: 12px;
+    }
+
+    .menu-card,
+    .vehicle-card,
+    .activity-card {
+        border-radius: 10px;
+    }
+}
+
 .emergency-menu-card {
     border-color: rgba(190, 35, 35, 0.35);
     background: linear-gradient(145deg, #fff8f5, #ffffff 70%);
