@@ -1,8 +1,8 @@
 from __future__ import annotations
 
-from datetime import date
+from datetime import date, datetime
 
-from PySide6.QtCore import QSize, Qt, Signal
+from PySide6.QtCore import QTimer, QSize, Qt, Signal
 from PySide6.QtWidgets import QFrame, QGridLayout, QHBoxLayout, QLabel, QPushButton, QVBoxLayout
 
 from components import StatCard, make_icon
@@ -32,6 +32,9 @@ class ModuleLandingPage(QFrame):
         self.api_client = api_client
         self.module_key = module_key
         self.shortcut_rows = [row for row in shortcuts if row[2] in allowed_pages]
+        self.auto_refresh_timer = QTimer(self)
+        self.auto_refresh_timer.setInterval(60_000)
+        self.auto_refresh_timer.timeout.connect(self.refresh)
 
         layout = QVBoxLayout(self)
         layout.setContentsMargins(18, 18, 18, 18)
@@ -69,6 +72,11 @@ class ModuleLandingPage(QFrame):
         hero_text.addWidget(scope_title)
         hero_text.addWidget(scope_caption)
         hero_layout.addLayout(hero_text, 1)
+        self.last_updated_label = QLabel("Atualização automática: aguardando dados")
+        self.last_updated_label.setObjectName("MutedText")
+        self.last_updated_label.setAlignment(Qt.AlignRight | Qt.AlignVCenter)
+        self.last_updated_label.setWordWrap(True)
+        hero_layout.addWidget(self.last_updated_label, 0)
         layout.addWidget(hero)
 
         stats = QGridLayout()
@@ -185,5 +193,17 @@ class ModuleLandingPage(QFrame):
                 self.shortcuts_card.set_content("OS vencidas", str(backlog.get("vencidas", 0)), "Itens que exigem prioridade")
                 pcm = intelligence.get("pcm") or {}
                 self.access_card.set_content("Preventivas vencidas", str(pcm.get("preventivas_vencendo_ou_vencidas", 0)), "Planos preventivos em atraso")
+            self.last_updated_label.setText(
+                f"Atualizado em {datetime.now().strftime('%d/%m/%Y %H:%M')} · próxima atualização em 1 min"
+            )
         except Exception:
+            self.last_updated_label.setText("Atualização automática: falha de conexão")
             self.access_card.set_content("Conexão", "INDISPONÍVEL", "Não foi possível atualizar os indicadores")
+
+    def showEvent(self, event):
+        self.auto_refresh_timer.start()
+        super().showEvent(event)
+
+    def hideEvent(self, event):
+        self.auto_refresh_timer.stop()
+        super().hideEvent(event)
