@@ -310,6 +310,8 @@ class MainWindow(QMainWindow):
             ],
             self.allowed_pages,
             self.user_role,
+            api_client=self.api_client,
+            module_key="equipment_home",
         )
         self.rh_home_page = ModuleLandingPage(
             "Central de RH",
@@ -323,6 +325,8 @@ class MainWindow(QMainWindow):
             ],
             self.allowed_pages,
             self.user_role,
+            api_client=self.api_client,
+            module_key="rh_home",
         )
         self.attendance_home_page = ModuleLandingPage(
             "Central de Absenteísmo",
@@ -335,6 +339,8 @@ class MainWindow(QMainWindow):
             ],
             self.allowed_pages,
             self.user_role,
+            api_client=self.api_client,
+            module_key="attendance_home",
         )
         self.schedule_home_page = ModuleLandingPage(
             "Central de Escala e DSR",
@@ -347,6 +353,8 @@ class MainWindow(QMainWindow):
             ],
             self.allowed_pages,
             self.user_role,
+            api_client=self.api_client,
+            module_key="schedule_home",
         )
         self.maintenance_home_page = ModuleLandingPage(
             "Central de Manutenção",
@@ -365,6 +373,8 @@ class MainWindow(QMainWindow):
             ],
             self.allowed_pages,
             self.user_role,
+            api_client=self.api_client,
+            module_key="maintenance_home",
         )
         self.nc_page = NonConformitiesPage(self.api_client)
         self.productivity_page = ProductivityPage(self.api_client)
@@ -1090,6 +1100,16 @@ class MainWindow(QMainWindow):
             target_id = target.get("entity_id") if target else None
             if page_key == "dashboard":
                 self.dashboard_page.refresh()
+            elif page_key == "equipment_home":
+                self.equipment_home_page.refresh()
+            elif page_key == "rh_home":
+                self.rh_home_page.refresh()
+            elif page_key == "attendance_home":
+                self.attendance_home_page.refresh()
+            elif page_key == "schedule_home":
+                self.schedule_home_page.refresh()
+            elif page_key == "maintenance_home":
+                self.maintenance_home_page.refresh()
             elif page_key == "nc":
                 self.nc_page.refresh()
             elif page_key == "productivity":
@@ -1205,6 +1225,11 @@ class MainWindow(QMainWindow):
     def _show_page_loading(self, page_key: str):
         context_map = {
             "dashboard": ("Atualizando dashboard", "Preparando indicadores, prioridades e visão executiva."),
+            "equipment_home": ("Atualizando equipamentos", "Consultando ativos e disponibilidade operacional."),
+            "rh_home": ("Atualizando RH", "Consultando colaboradores e estrutura do efetivo."),
+            "attendance_home": ("Atualizando absenteísmo", "Consultando a apuração diária de presença."),
+            "schedule_home": ("Atualizando escala e DSR", "Consultando escalas e registros de DSR."),
+            "maintenance_home": ("Atualizando manutenção", "Consultando OS, backlog e preventivas vencidas."),
             "nc": ("Carregando central", "Buscando não conformidades, filtros e histórico visual."),
             "productivity": ("Carregando produtividade", "Consolidando checklists, manutenções, lavagens e resoluções."),
             "equipment": ("Carregando equipamentos", "Organizando a base da frota e os detalhes técnicos."),

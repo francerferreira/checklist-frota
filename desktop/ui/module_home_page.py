@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from datetime import date
+
 from PySide6.QtCore import QSize, Qt, Signal
 from PySide6.QtWidgets import QFrame, QGridLayout, QHBoxLayout, QLabel, QPushButton, QVBoxLayout
 
@@ -20,11 +22,15 @@ class ModuleLandingPage(QFrame):
         shortcuts: list[tuple[str, str, str, str]],
         allowed_pages: set[str],
         user_role: str,
+        api_client=None,
+        module_key: str = "",
         parent=None,
     ):
         super().__init__(parent)
         self.setObjectName("ContentSurface")
         self.title = title
+        self.api_client = api_client
+        self.module_key = module_key
         self.shortcut_rows = [row for row in shortcuts if row[2] in allowed_pages]
 
         layout = QVBoxLayout(self)
@@ -138,3 +144,46 @@ class ModuleLandingPage(QFrame):
         shortcuts_layout.addLayout(grid)
         layout.addWidget(shortcuts_card, 1)
 
+    def refresh(self) -> None:
+        """Atualiza os indicadores da central sem alterar dados operacionais."""
+        if self.api_client is None or not self.module_key:
+            return
+        try:
+            if self.module_key == "equipment_home":
+                overview = self.api_client.get_availability_overview() or {}
+                rows = list(overview.get("rows") or [])
+                counts = overview.get("summary") or {}
+                status_counts = counts.get("status_counts") or {}
+                available = int(status_counts.get("DISPONIVEL", 0)) + int(status_counts.get("RESTRICAO", 0))
+                attention = len(rows) - available
+                self.subscreens_card.set_content("Ativos cadastrados", str(len(rows)), "Equipamentos retornados pela API")
+                self.shortcuts_card.set_content("Disponíveis", str(available), "Disponíveis ou em restrição operacional")
+                self.access_card.set_content("Em atenção", str(max(0, attention)), "Indisponíveis ou em manutenção")
+            elif self.module_key == "rh_home":
+                employees = list(self.api_client.get_employees(status="ATIVO") or [])
+                self.subscreens_card.set_content("Colaboradores ativos", str(len(employees)), "Cadastro ativo no RH")
+                self.shortcuts_card.set_content("Turnos", str(len({row.get('shift_name') for row in employees if row.get('shift_name')})), "Turnos com colaboradores ativos")
+                self.access_card.set_content("Áreas", str(len({row.get('team_name') for row in employees if row.get('team_name')})), "Áreas com efetivo cadastrado")
+            elif self.module_key == "attendance_home":
+                payload = self.api_client.get_mobile_absenteeism(reference_date=date.today().isoformat()) or {}
+                summary = payload.get("summary") or {}
+                by_type = summary.get("by_type") or {}
+                self.subscreens_card.set_content("Colaboradores", str(summary.get("total", sum(by_type.values()))), "Total da apuração de hoje")
+                self.shortcuts_card.set_content("Presentes", str(by_type.get("PRESENTE", 0)), "Presença registrada no dia")
+                absences = sum(int(by_type.get(key, 0)) for key in ("FALTA", "ATESTADO", "AFASTADO"))
+                self.access_card.set_content("Ausências", str(absences), "Faltas, atestados e afastamentos")
+            elif self.module_key == "schedule_home":
+                schedules = list(self.api_client.get_special_schedules() or [])
+                self.subscreens_card.set_content("Escalas registradas", str(len(schedules)), "Domingos e feriados cadastrados")
+                self.shortcuts_card.set_content("Confirmados", str(sum(1 for row in schedules if row.get("status") == "CONFIRMADA")), "Presenças confirmadas")
+                self.access_card.set_content("DSR lançadas", str(sum(1 for row in schedules if row.get("dsr_date"))), "Registros com data de DSR")
+            elif self.module_key == "maintenance_home":
+                dashboard = self.api_client.get_dashboard() or {}
+                intelligence = dashboard.get("manutencao_portuaria") or {}
+                backlog = intelligence.get("backlog") or {}
+                self.subscreens_card.set_content("OS abertas", str(backlog.get("total", 0)), "Itens no backlog operacional")
+                self.shortcuts_card.set_content("OS vencidas", str(backlog.get("vencidas", 0)), "Itens que exigem prioridade")
+                pcm = intelligence.get("pcm") or {}
+                self.access_card.set_content("Preventivas vencidas", str(pcm.get("preventivas_vencendo_ou_vencidas", 0)), "Planos preventivos em atraso")
+        except Exception:
+            self.access_card.set_content("Conexão", "INDISPONÍVEL", "Não foi possível atualizar os indicadores")
