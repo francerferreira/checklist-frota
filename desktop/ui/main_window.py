@@ -413,9 +413,9 @@ class MainWindow(QMainWindow):
             "checklist_history": "Histórico Checklist",
             "spreader_history": "Histórico Spreaders",
             "special_schedule": "Escala de Domingo e Feriado",
-            "rtg_module": "Gest\u00e3o RTG",
-            "lbs_module": "Gest\u00e3o LBS",
-            "rtg_maintenance": "Manuten\u00e7\u00f5es RTG",
+            "rtg_module": "Manutenção RTG",
+            "lbs_module": "Manutenção LBS",
+            "rtg_maintenance": "Manutenções RTG",
             "rtg_preventive": "Preventiva RTG",
             "lbs_maintenance": "Manuten\u00e7\u00f5es LBS",
             "lbs_preventive": "Preventiva LBS",
@@ -494,12 +494,14 @@ class MainWindow(QMainWindow):
         menu_groups = {
             "Dashboard": ["dashboard"],
             "Equipamentos": ["equipment", "availability", "spreader_history", "checklist_items", "inspection_templates"],
-            "Gest\u00e3o RTG": ["rtg_module", "rtg_preventive", "rtg_maintenance", "rtg_downtime"],
-            "Gest\u00e3o LBS": ["lbs_module", "lbs_preventive", "lbs_maintenance", "lbs_downtime"],
-            "RH": ["hr_management", "employees", "attendance", "vacations", "employee_records", "special_schedule"],
+            "RH": ["hr_management", "employees", "vacations", "employee_records"],
+            "Absenteísmo": ["attendance"],
+            "Escala e DSR": ["special_schedule"],
+            "Manutenção": ["operations_center", "nc", "emergencies", "maintenance", "pcm", "resources", "activities", "washes"],
+            "Manutenção RTG": ["rtg_module", "rtg_preventive", "rtg_maintenance", "rtg_downtime"],
+            "Manutenção LBS": ["lbs_module", "lbs_preventive", "lbs_maintenance", "lbs_downtime"],
             "Relatórios": ["reports", "productivity", "checklist_history"],
             "Configurações": ["users", "admin_rules", "cloud_backup", "audit_logs"],
-            "Operação e Manutenção": ["operations_center", "nc", "emergencies", "maintenance", "pcm", "resources", "activities", "washes"],
             "Materiais e Compras": ["materials", "supply_library", "purchases"],
         }
 
@@ -613,12 +615,14 @@ class MainWindow(QMainWindow):
         sections = [
             ("Dashboard", ["dashboard"]),
             ("Equipamentos", ["equipment", "availability", "spreader_history", "checklist_items", "inspection_templates"]),
-            ("Gest\u00e3o RTG", ["rtg_module", "rtg_preventive", "rtg_maintenance", "rtg_downtime"]),
-            ("Gest\u00e3o LBS", ["lbs_module", "lbs_preventive", "lbs_maintenance", "lbs_downtime"]),
-            ("RH", ["hr_management", "employees", "attendance", "vacations", "employee_records", "special_schedule"]),
+            ("RH", ["hr_management", "employees", "vacations", "employee_records"]),
+            ("Absenteísmo", ["attendance"]),
+            ("Escala e DSR", ["special_schedule"]),
+            ("Manutenção", ["operations_center", "nc", "emergencies", "maintenance", "pcm", "resources", "activities", "washes"]),
+            ("Manutenção RTG", ["rtg_module", "rtg_preventive", "rtg_maintenance", "rtg_downtime"]),
+            ("Manutenção LBS", ["lbs_module", "lbs_preventive", "lbs_maintenance", "lbs_downtime"]),
             ("Relatórios", ["reports", "productivity", "checklist_history"]),
             ("Configurações", ["users", "admin_rules", "cloud_backup", "audit_logs"]),
-            ("Operação e Manutenção", ["operations_center", "nc", "emergencies", "maintenance", "pcm", "resources", "activities", "washes"]),
             ("Materiais e Compras", ["materials", "supply_library", "purchases"]),
         ]
 
@@ -832,18 +836,22 @@ class MainWindow(QMainWindow):
             return "DASHBOARD"
         if page_key in {"equipment", "availability", "spreader_history", "checklist_items", "inspection_templates"}:
             return "EQUIPAMENTOS"
-        if page_key in {"hr_management", "employees", "attendance", "vacations", "employee_records", "special_schedule"}:
+        if page_key in {"hr_management", "employees", "vacations", "employee_records"}:
             return "RH"
+        if page_key == "attendance":
+            return "ABSENTEÍSMO"
+        if page_key == "special_schedule":
+            return "ESCALA E DSR"
         if page_key in {"rtg_module", "rtg_preventive", "rtg_maintenance", "rtg_downtime"}:
-            return "GEST\u00c3O RTG"
+            return "MANUTENÇÃO RTG"
         if page_key in {"lbs_module", "lbs_preventive", "lbs_maintenance", "lbs_downtime"}:
-            return "GEST\u00c3O LBS"
+            return "MANUTENÇÃO LBS"
         if page_key in {"reports", "productivity", "checklist_history"}:
             return "RELATÓRIOS"
         if page_key in {"users", "cloud_backup", "audit_logs", "admin_rules"}:
             return "CONFIGURAÇÕES"
         if page_key in {"operations_center", "nc", "emergencies", "maintenance", "pcm", "resources", "activities", "washes"}:
-            return "OPERAÇÃO E MANUTENÇÃO"
+            return "MANUTENÇÃO"
         return "MATERIAIS E COMPRAS"
 
     def _load_navigation_preferences(self):

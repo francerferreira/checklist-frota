@@ -892,6 +892,39 @@ async function loadWashOverview() {
     state.washOverview = await apiFetch(`/lavagens/visao?ano=${state.washYear}&mes=${state.washMonth}`);
 }
 
+function syncMenuGroupHeadings() {
+    const groups = {
+        equipamentos: [
+            "open-checklist-menu",
+            "open-checklist-history-menu",
+            "open-activities-menu",
+            "open-availability-menu",
+            "open-technical-inspections-menu",
+            "open-technical-library-menu",
+        ],
+        manutencao: [
+            "open-maintenance-menu",
+            "open-non-conformities-menu",
+            "open-emergencies-menu",
+            "open-washes-menu",
+            "open-preventives-menu",
+            "open-maintenance-dashboard-menu",
+        ],
+        rh: ["open-hr-journey-menu"],
+        absenteismo: ["open-absenteeism-menu"],
+        "escala-dsr": ["open-special-schedule-menu"],
+    };
+
+    document.querySelectorAll(".menu-group-heading[data-menu-heading]").forEach((heading) => {
+        const ids = groups[heading.dataset.menuHeading] || [];
+        const hasVisibleCard = ids.some((id) => {
+            const card = document.getElementById(id);
+            return card && !card.classList.contains("hidden");
+        });
+        heading.classList.toggle("hidden", !hasVisibleCard);
+    });
+}
+
 function renderHome() {
     const canViewMaintenanceDashboard = ["admin", "gestor"].includes(String(state.user?.tipo || "").toLowerCase());
     elements.openMaintenanceDashboardMenu?.classList.toggle("hidden", !canViewMaintenanceDashboard);
@@ -926,6 +959,7 @@ function renderHome() {
     if (elements.openMaintenanceMenu) {
         elements.openMaintenanceMenu.classList.toggle("hidden", !canAccessMechanicModule);
     }
+    syncMenuGroupHeadings();
     refreshSyncQueuePanel();
     refreshCloudAdminPanel();
     refreshAdminResetPanel();
