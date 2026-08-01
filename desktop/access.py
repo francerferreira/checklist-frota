@@ -6,6 +6,11 @@ from collections.abc import Mapping
 PAGE_ACCESS_BY_ROLE = {
     "admin": {
         "dashboard",
+        "equipment_home",
+        "rh_home",
+        "attendance_home",
+        "schedule_home",
+        "maintenance_home",
         "operations_center",
         "nc",
         "productivity",
@@ -46,6 +51,11 @@ PAGE_ACCESS_BY_ROLE = {
     },
     "gestor": {
         "dashboard",
+        "equipment_home",
+        "rh_home",
+        "attendance_home",
+        "schedule_home",
+        "maintenance_home",
         "operations_center",
         "nc",
         "productivity",
@@ -83,6 +93,8 @@ PAGE_ACCESS_BY_ROLE = {
     },
     "mecanico": {
         "dashboard",
+        "equipment_home",
+        "maintenance_home",
         "operations_center",
         "nc",
         "productivity",
@@ -93,6 +105,8 @@ PAGE_ACCESS_BY_ROLE = {
     },
     "operacional": {
         "dashboard",
+        "equipment_home",
+        "maintenance_home",
         "operations_center",
         "nc",
         "productivity",

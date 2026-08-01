@@ -55,6 +55,7 @@ from ui.global_search_dialog import GlobalSearchDialog
 from ui.inspection_templates_page import InspectionTemplatesPage
 from ui.materials_page import MaterialsPage
 from ui.maintenance_page import MaintenancePage
+from ui.module_home_page import ModuleLandingPage
 from ui.non_conformities_page import NonConformitiesPage
 from ui.operational_center_page import OperationalCenterPage
 from ui.productivity_page import ProductivityPage
@@ -295,6 +296,76 @@ class MainWindow(QMainWindow):
 
     def _build_pages(self):
         self.dashboard_page = DashboardPage(self.api_client)
+        self.equipment_home_page = ModuleLandingPage(
+            "Central de Equipamentos",
+            "Consulte ativos, execute checklists e acompanhe inspeções em um único ponto de entrada.",
+            "Equipamentos",
+            [
+                ("Equipamentos", "Cadastro e consulta dos ativos.", "equipment", "equipment"),
+                ("Realizar checklist", "Registrar conformidades do equipamento.", "checklist_items", "checklist"),
+                ("Disponibilidade e horímetro", "Atualizar situação e leitura operacional.", "availability", "dashboard"),
+                ("Inspeções", "Acompanhar levantamentos e evidências.", "activities", "activities"),
+                ("Inspeção técnica", "Executar modelos técnicos publicados.", "inspection_templates", "reports"),
+                ("Histórico de checklist", "Consultar registros por ativo e data.", "checklist_history", "reports"),
+            ],
+            self.allowed_pages,
+            self.user_role,
+        )
+        self.rh_home_page = ModuleLandingPage(
+            "Central de RH",
+            "Administre colaboradores, documentos, férias e vínculo funcional com atalhos separados.",
+            "RH",
+            [
+                ("Colaboradores", "Cadastro, função, turno e situação.", "employees", "users"),
+                ("Documentos e treinamentos", "ASO, certificados e cursos.", "employee_records", "reports"),
+                ("Férias", "Planejar períodos e calendário de férias.", "vacations", "dashboard"),
+                ("Central de RH", "Indicadores e atalhos gerais do RH.", "hr_management", "dashboard"),
+            ],
+            self.allowed_pages,
+            self.user_role,
+        )
+        self.attendance_home_page = ModuleLandingPage(
+            "Central de Absenteísmo",
+            "Acesse a apuração diária e o histórico de presença sem misturar com outras rotinas.",
+            "Absenteísmo",
+            [
+                ("Absenteísmo diário", "Lançar presença, falta, férias, DSR e atestados.", "attendance", "users"),
+                ("Histórico de checklist", "Consultar registros operacionais relacionados.", "checklist_history", "reports"),
+                ("Relatórios", "Consolidar informações para análise gerencial.", "reports", "reports"),
+            ],
+            self.allowed_pages,
+            self.user_role,
+        )
+        self.schedule_home_page = ModuleLandingPage(
+            "Central de Escala e DSR",
+            "Planeje domingos e feriados, filtre os times e acesse o histórico da escala.",
+            "Escala e DSR",
+            [
+                ("Escala de domingo e feriado", "Selecionar quem trabalhará e registrar a DSR.", "special_schedule", "dashboard"),
+                ("Absenteísmo diário", "Conferir a presença lançada no dia.", "attendance", "users"),
+                ("Relatórios", "Consultar relatórios gerenciais disponíveis.", "reports", "reports"),
+            ],
+            self.allowed_pages,
+            self.user_role,
+        )
+        self.maintenance_home_page = ModuleLandingPage(
+            "Central de Manutenção",
+            "Organize PCM, ordens de serviço, emergenciais e tratativas em uma navegação direta.",
+            "Manutenção",
+            [
+                ("Manutenção", "Serviços direcionados e ordens de serviço.", "maintenance", "dashboard"),
+                ("PCM", "Planejamento preventivo e backlog.", "pcm", "dashboard"),
+                ("Central operacional", "Acompanhar status dos ativos.", "operations_center", "equipment"),
+                ("Central de resolução", "Tratar não conformidades abertas.", "nc", "warning"),
+                ("Emergenciais e OS", "Registrar paradas e liberar equipamentos.", "emergencies", "warning"),
+                ("Recursos e ferramentas", "Consultar recursos de apoio à manutenção.", "resources", "materials"),
+                ("Lavagens", "Acompanhar o cronograma operacional.", "washes", "activities"),
+                ("Manutenção RTG", "Abrir o módulo exclusivo de RTG.", "rtg_module", "equipment"),
+                ("Manutenção LBS", "Abrir o módulo exclusivo de LBS.", "lbs_module", "equipment"),
+            ],
+            self.allowed_pages,
+            self.user_role,
+        )
         self.nc_page = NonConformitiesPage(self.api_client)
         self.productivity_page = ProductivityPage(self.api_client)
         self.operational_center_page = OperationalCenterPage(self.api_client)
@@ -346,6 +417,11 @@ class MainWindow(QMainWindow):
 
         all_pages = {
             "dashboard": self.dashboard_page,
+            "equipment_home": self.equipment_home_page,
+            "rh_home": self.rh_home_page,
+            "attendance_home": self.attendance_home_page,
+            "schedule_home": self.schedule_home_page,
+            "maintenance_home": self.maintenance_home_page,
             "nc": self.nc_page,
             "productivity": self.productivity_page,
             "operations_center": self.operational_center_page,
@@ -388,6 +464,11 @@ class MainWindow(QMainWindow):
 
         self.page_titles = {
             "dashboard": "Dashboard",
+            "equipment_home": "Central de Equipamentos",
+            "rh_home": "Central de RH",
+            "attendance_home": "Central de Absenteísmo",
+            "schedule_home": "Central de Escala e DSR",
+            "maintenance_home": "Central de Manutenção",
             "nc": "Central de Resolução",
             "productivity": "Produtividade",
             "operations_center": "Central Operacional",
@@ -432,6 +513,10 @@ class MainWindow(QMainWindow):
         self.dashboard_page.alert_open_requested.connect(self.open_contextual_alert)
         self.dashboard_page.web_mobile_requested.connect(self.open_web_mobile)
         self.dashboard_page.tv_dashboard_requested.connect(self.open_tv_dashboard)
+        for module_home_key in ("equipment_home", "rh_home", "attendance_home", "schedule_home", "maintenance_home"):
+            module_home = self.page_map.get(module_home_key)
+            if module_home is not None:
+                module_home.open_page_requested.connect(self.switch_page)
         if "equipment" in self.page_map:
             self.equipment_page.data_changed.connect(lambda: self.handle_data_changed("equipment"))
         if "checklist_items" in self.page_map:
@@ -493,11 +578,11 @@ class MainWindow(QMainWindow):
 
         menu_groups = {
             "Dashboard": ["dashboard"],
-            "Equipamentos": ["equipment", "availability", "spreader_history", "checklist_items", "inspection_templates"],
-            "RH": ["hr_management", "employees", "vacations", "employee_records"],
-            "Absenteísmo": ["attendance"],
-            "Escala e DSR": ["special_schedule"],
-            "Manutenção": ["operations_center", "nc", "emergencies", "maintenance", "pcm", "resources", "activities", "washes"],
+            "Equipamentos": ["equipment_home", "equipment", "availability", "spreader_history", "checklist_items", "inspection_templates"],
+            "RH": ["rh_home", "hr_management", "employees", "vacations", "employee_records"],
+            "Absenteísmo": ["attendance_home", "attendance"],
+            "Escala e DSR": ["schedule_home", "special_schedule"],
+            "Manutenção": ["maintenance_home", "operations_center", "nc", "emergencies", "maintenance", "pcm", "resources", "activities", "washes"],
             "Manutenção RTG": ["rtg_module", "rtg_preventive", "rtg_maintenance", "rtg_downtime"],
             "Manutenção LBS": ["lbs_module", "lbs_preventive", "lbs_maintenance", "lbs_downtime"],
             "Relatórios": ["reports", "productivity", "checklist_history"],
@@ -614,11 +699,11 @@ class MainWindow(QMainWindow):
                 self.tree_items[key] = item
         sections = [
             ("Dashboard", ["dashboard"]),
-            ("Equipamentos", ["equipment", "availability", "spreader_history", "checklist_items", "inspection_templates"]),
-            ("RH", ["hr_management", "employees", "vacations", "employee_records"]),
-            ("Absenteísmo", ["attendance"]),
-            ("Escala e DSR", ["special_schedule"]),
-            ("Manutenção", ["operations_center", "nc", "emergencies", "maintenance", "pcm", "resources", "activities", "washes"]),
+            ("Equipamentos", ["equipment_home", "equipment", "availability", "spreader_history", "checklist_items", "inspection_templates"]),
+            ("RH", ["rh_home", "hr_management", "employees", "vacations", "employee_records"]),
+            ("Absenteísmo", ["attendance_home", "attendance"]),
+            ("Escala e DSR", ["schedule_home", "special_schedule"]),
+            ("Manutenção", ["maintenance_home", "operations_center", "nc", "emergencies", "maintenance", "pcm", "resources", "activities", "washes"]),
             ("Manutenção RTG", ["rtg_module", "rtg_preventive", "rtg_maintenance", "rtg_downtime"]),
             ("Manutenção LBS", ["lbs_module", "lbs_preventive", "lbs_maintenance", "lbs_downtime"]),
             ("Relatórios", ["reports", "productivity", "checklist_history"]),
@@ -842,6 +927,16 @@ class MainWindow(QMainWindow):
             return "ABSENTEÍSMO"
         if page_key == "special_schedule":
             return "ESCALA E DSR"
+        if page_key == "equipment_home":
+            return "EQUIPAMENTOS"
+        if page_key == "rh_home":
+            return "RH"
+        if page_key == "attendance_home":
+            return "ABSENTEÍSMO"
+        if page_key == "schedule_home":
+            return "ESCALA E DSR"
+        if page_key == "maintenance_home":
+            return "MANUTENÇÃO"
         if page_key in {"rtg_module", "rtg_preventive", "rtg_maintenance", "rtg_downtime"}:
             return "MANUTENÇÃO RTG"
         if page_key in {"lbs_module", "lbs_preventive", "lbs_maintenance", "lbs_downtime"}:
