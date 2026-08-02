@@ -26,7 +26,7 @@ class HRManagementPage(QFrame):
 
         header = QHBoxLayout()
         text = QVBoxLayout()
-        title = QLabel("Central de RH")
+        title = QLabel("Painel de RH")
         title.setObjectName("PageTitle")
         subtitle = QLabel("Acesse colaboradores, frequência, férias e documentos em um único módulo de RH.")
         subtitle.setObjectName("PageSubtitle")

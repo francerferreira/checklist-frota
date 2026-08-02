@@ -6,6 +6,7 @@ from PySide6.QtWidgets import (
     QComboBox,
     QFrame,
     QGridLayout,
+    QHeaderView,
     QHBoxLayout,
     QLabel,
     QLineEdit,
@@ -167,10 +168,29 @@ class LBSOperationalPage(QFrame):
         self.table.setHorizontalHeaderLabels(
             ["Píer", "Berço", "LBS", "Série", "Spreader acoplado", "Reserva", "Situação", "Horímetro", "Motivo", "Ação"]
         )
-        configure_table(self.table, stretch_last=False)
+        configure_table(self.table, stretch_last=False, auto_fit=False)
+        self._configure_table_columns()
         self.table.setMinimumHeight(440)
         table_layout.addWidget(self.table)
         layout.addWidget(table_card, 1)
+
+    def _configure_table_columns(self):
+        header = self.table.horizontalHeader()
+        fixed_columns = {
+            0: 185,
+            1: 175,
+            2: 100,
+            3: 115,
+            4: 235,
+            5: 220,
+            6: 140,
+            7: 125,
+            9: 154,
+        }
+        for column, width in fixed_columns.items():
+            header.setSectionResizeMode(column, QHeaderView.Fixed)
+            self.table.setColumnWidth(column, width)
+        header.setSectionResizeMode(8, QHeaderView.Stretch)
 
     def _refresh_berco_filter(self):
         selected_pier = _text(self.pier_filter.currentData())
@@ -294,10 +314,15 @@ class LBSOperationalPage(QFrame):
                     item.setForeground(QColor(foreground))
                 self.table.setItem(index, column, item)
             action = QPushButton("Ver parada" if status in STOP_STATUSES else "Abrir controle")
-            action.clicked.connect(lambda _checked=False: self.open_page_requested.emit(self.downtime_page_key))
+            action.clicked.connect(lambda _checked=False, row_index=index: self._open_downtime_control(row_index))
             self.table.setCellWidget(index, 9, action)
         average = sum(measured) / len(measured) if measured else None
         self.total_card.set_content("Equipamentos", str(len(visible_rows)), "Ativos LBS")
         self.available_card.set_content("Disponíveis", str(available), "Disponível ou restrição")
         self.stopped_card.set_content("Em parada", str(stopped), "Indisponível ou manutenção")
         self.measured_card.set_content("Disponibilidade", f"{average:.2f}%" if average is not None else "-", "Média no período")
+        self.table.setSortingEnabled(True)
+
+    def _open_downtime_control(self, row_index: int):
+        self.table.selectRow(row_index)
+        self.open_page_requested.emit(self.downtime_page_key)

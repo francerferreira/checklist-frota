@@ -47,6 +47,7 @@ class DashboardPage(QFrame):
     alert_open_requested = Signal(dict)
     web_mobile_requested = Signal()
     tv_dashboard_requested = Signal()
+    stops_dashboard_requested = Signal()
 
     def __init__(self, api_client, parent=None):
         super().__init__(parent)
@@ -125,9 +126,17 @@ class DashboardPage(QFrame):
         self.tv_dashboard_button.setIconSize(QSize(18, 18))
         self.tv_dashboard_button.setToolTip("Abrir o Dashboard TV no navegador")
         self.tv_dashboard_button.clicked.connect(self.tv_dashboard_requested.emit)
+        self.stops_dashboard_button = QPushButton("Dashboard de Paradas")
+        self.stops_dashboard_button.setObjectName("open-stops-dashboard-button")
+        self.stops_dashboard_button.setProperty("variant", "secondary")
+        self.stops_dashboard_button.setIcon(make_icon("warning", "#FFFFFF", "#C77700", 18))
+        self.stops_dashboard_button.setIconSize(QSize(18, 18))
+        self.stops_dashboard_button.setToolTip("Abrir o Dashboard TV de paradas no navegador")
+        self.stops_dashboard_button.clicked.connect(self.stops_dashboard_requested.emit)
         quick_access_wrap.addWidget(quick_access_title)
         quick_access_wrap.addWidget(self.web_mobile_button)
         quick_access_wrap.addWidget(self.tv_dashboard_button)
+        quick_access_wrap.addWidget(self.stops_dashboard_button)
         hero_layout.addLayout(quick_access_wrap, 0)
 
         cards_layout = QGridLayout()
@@ -224,7 +233,7 @@ class DashboardPage(QFrame):
             ["Item", "Não conformidades", "Abertas", "Resolvidas", "Prioridade"]
         )
         configure_table(self.critical_table, stretch_last=False)
-        self.critical_table.setMinimumHeight(500)
+        self.critical_table.setMinimumHeight(320)
 
         table_layout.addLayout(top_row)
         table_layout.addWidget(table_caption)

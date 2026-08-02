@@ -6,6 +6,7 @@ from PySide6.QtWidgets import (
     QComboBox,
     QFrame,
     QGridLayout,
+    QHeaderView,
     QHBoxLayout,
     QLabel,
     QLineEdit,
@@ -21,10 +22,10 @@ from theme import configure_table, style_filter_bar, style_table_card
 
 STATUS_LABELS = {
     "SEM_APONTAMENTO": "Sem apontamento",
-    "DISPONIVEL": "Disponivel",
-    "INDISPONIVEL": "Indisponivel",
-    "RESTRICAO": "Restricao",
-    "MANUTENCAO": "Manutencao",
+    "DISPONIVEL": "Dispon\u00edvel",
+    "INDISPONIVEL": "Indispon\u00edvel",
+    "RESTRICAO": "Restri\u00e7\u00e3o",
+    "MANUTENCAO": "Manuten\u00e7\u00e3o",
 }
 STATUS_COLORS = {
     "SEM_APONTAMENTO": ("#F1F5F9", "#64748B"),
@@ -59,9 +60,9 @@ def _location_parts(row: dict) -> tuple[str, str]:
     elif "ATR" in area_source:
         area = "ATR"
     else:
-        area = parent or "SEM AREA"
-    patio = name or "SEM PATIO"
-    if "PATIO" not in patio.upper() and len(pieces) > 1:
+        area = parent or "SEM \u00c1REA"
+    patio = name or "SEM P\u00c1TIO"
+    if "P\u00c1TIO" not in patio.upper() and len(pieces) > 1:
         patio = pieces[-1]
     return area, patio
 
@@ -89,7 +90,7 @@ class FamilyOperationalPage(QFrame):
         title = QLabel(f"PAINEL OPERACIONAL {self.family}")
         title.setObjectName("PageTitle")
         subtitle = QLabel(
-            f"Acompanhe os equipamentos {self.family} separados por area e patio, com a situacao operacional atual."
+            f"Acompanhe os equipamentos {self.family} separados por \u00e1rea e p\u00e1tio, com a situa\u00e7\u00e3o operacional atual."
         )
         subtitle.setObjectName("PageSubtitle")
         subtitle.setWordWrap(True)
@@ -115,9 +116,9 @@ class FamilyOperationalPage(QFrame):
         cards.setHorizontalSpacing(14)
         cards.setVerticalSpacing(14)
         self.total_card = StatCard("Equipamentos", "0", f"Ativos {self.family}", icon_name="equipment")
-        self.available_card = StatCard("Disponiveis", "0", "Disponivel ou restricao", icon_name="dashboard")
-        self.stopped_card = StatCard("Em parada", "0", "Indisponivel ou manutencao", icon_name="warning")
-        self.measured_card = StatCard("Disponibilidade", "-", "Media no periodo", icon_name="reports")
+        self.available_card = StatCard("Dispon\u00edveis", "0", "Dispon\u00edvel ou restri\u00e7\u00e3o", icon_name="dashboard")
+        self.stopped_card = StatCard("Em parada", "0", "Indispon\u00edvel ou manuten\u00e7\u00e3o", icon_name="warning")
+        self.measured_card = StatCard("Disponibilidade", "-", "M\u00e9dia no per\u00edodo", icon_name="reports")
         for index, card in enumerate((self.total_card, self.available_card, self.stopped_card, self.measured_card)):
             cards.addWidget(card, 0, index)
             cards.setColumnStretch(index, 1)
@@ -132,14 +133,14 @@ class FamilyOperationalPage(QFrame):
         self.area_filter = QComboBox()
         self.patio_filter = QComboBox()
         self.search = QLineEdit()
-        self.search.setPlaceholderText("Buscar RTG, serie ou local")
+        self.search.setPlaceholderText("Buscar RTG, s\u00e9rie ou local")
         refresh_button = QPushButton("Atualizar")
         refresh_button.setProperty("variant", "primary")
         refresh_button.clicked.connect(self.refresh)
         self.area_filter.currentIndexChanged.connect(self._refresh_patio_filter)
-        filter_layout.addWidget(QLabel("Area"), 0, 0)
+        filter_layout.addWidget(QLabel("\u00c1rea"), 0, 0)
         filter_layout.addWidget(self.area_filter, 1, 0)
-        filter_layout.addWidget(QLabel("Patio"), 0, 1)
+        filter_layout.addWidget(QLabel("P\u00e1tio"), 0, 1)
         filter_layout.addWidget(self.patio_filter, 1, 1)
         filter_layout.addWidget(QLabel("Pesquisa"), 0, 2)
         filter_layout.addWidget(self.search, 1, 2)
@@ -154,12 +155,23 @@ class FamilyOperationalPage(QFrame):
         table_layout.setContentsMargins(14, 14, 14, 14)
         self.table = QTableWidget(0, 7)
         self.table.setHorizontalHeaderLabels(
-            ["Area", "Patio", "Equipamento", "Situacao", "Horimetro", "Motivo", "Acao"]
+            ["\u00c1rea", "P\u00e1tio", "Equipamento", "Situa\u00e7\u00e3o", "Hor\u00edmetro", "Motivo", "A\u00e7\u00e3o"]
         )
-        configure_table(self.table, stretch_last=False)
+        configure_table(self.table, stretch_last=False, auto_fit=False)
+        self._configure_table_columns()
         self.table.setMinimumHeight(440)
         table_layout.addWidget(self.table)
         layout.addWidget(table_card, 1)
+
+    def _configure_table_columns(self):
+        header = self.table.horizontalHeader()
+        for column in range(5):
+            header.setSectionResizeMode(column, QHeaderView.ResizeToContents)
+        header.setSectionResizeMode(5, QHeaderView.Stretch)
+        header.setSectionResizeMode(6, QHeaderView.Fixed)
+        self.table.setColumnWidth(6, 154)
+        self.table.setColumnWidth(2, 180)
+        self.table.setColumnWidth(4, 125)
 
     def set_loading_state(self, loading: bool):
         self.setEnabled(not loading)
@@ -170,7 +182,7 @@ class FamilyOperationalPage(QFrame):
         current = self.patio_filter.currentData()
         self.patio_filter.blockSignals(True)
         self.patio_filter.clear()
-        self.patio_filter.addItem("Todos os patios", "")
+        self.patio_filter.addItem("Todos os p\u00e1tios", "")
         for patio in patios:
             self.patio_filter.addItem(patio, patio)
         index = self.patio_filter.findData(current)
@@ -254,11 +266,16 @@ class FamilyOperationalPage(QFrame):
                     item.setForeground(QColor(foreground))
                 self.table.setItem(index, column, item)
             action = QPushButton("Ver parada" if status in STOP_STATUSES else "Abrir controle")
-            action.clicked.connect(lambda _checked=False: self.open_page_requested.emit(self.downtime_page_key))
+            action.clicked.connect(lambda _checked=False, row_index=index: self._open_downtime_control(row_index))
             self.table.setCellWidget(index, 6, action)
 
         average = sum(measured) / len(measured) if measured else None
         self.total_card.set_content("Equipamentos", str(total), f"Ativos {self.family}")
-        self.available_card.set_content("Disponiveis", str(available), "Disponivel ou restricao")
-        self.stopped_card.set_content("Em parada", str(stopped), "Indisponivel ou manutencao")
-        self.measured_card.set_content("Disponibilidade", f"{average:.2f}%" if average is not None else "-", "Media no periodo")
+        self.table.setSortingEnabled(True)
+        self.available_card.set_content("Dispon\u00edveis", str(available), "Dispon\u00edvel ou restri\u00e7\u00e3o")
+        self.stopped_card.set_content("Em parada", str(stopped), "Indispon\u00edvel ou manuten\u00e7\u00e3o")
+        self.measured_card.set_content("Disponibilidade", f"{average:.2f}%" if average is not None else "-", "M\u00e9dia no per\u00edodo")
+
+    def _open_downtime_control(self, row_index: int):
+        self.table.selectRow(row_index)
+        self.open_page_requested.emit(self.downtime_page_key)

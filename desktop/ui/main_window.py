@@ -18,6 +18,7 @@ from PySide6.QtWidgets import (
     QMdiSubWindow,
     QPushButton,
     QApplication,
+    QScrollArea,
     QSplitter,
     QTreeWidget,
     QTreeWidgetItem,
@@ -342,14 +343,16 @@ class MainWindow(QMainWindow):
             refresh_interval_ms=self.module_refresh_interval_ms,
         )
         self.rh_home_page = ModuleLandingPage(
-            "Central de RH",
+            "Painel de RH",
             "Administre colaboradores, documentos, férias e vínculo funcional com atalhos separados.",
             "RH",
             [
+                ("Painel de RH", "Indicadores e atalhos gerais do RH.", "hr_management", "dashboard"),
                 ("Colaboradores", "Cadastro, função, turno e situação.", "employees", "users"),
+                ("Frequência e ocorrências", "Lançar e consultar presença, falta, férias, DSR e atestados.", "attendance", "users"),
+                ("Escala de domingo e feriado", "Selecionar equipes e registrar a DSR após confirmação.", "special_schedule", "dashboard"),
                 ("Documentos e treinamentos", "ASO, certificados e cursos.", "employee_records", "reports"),
                 ("Férias", "Planejar períodos e calendário de férias.", "vacations", "dashboard"),
-                ("Central de RH", "Indicadores e atalhos gerais do RH.", "hr_management", "dashboard"),
             ],
             self.allowed_pages,
             self.user_role,
@@ -362,9 +365,7 @@ class MainWindow(QMainWindow):
             "Acesse a apuração diária e o histórico de presença sem misturar com outras rotinas.",
             "Absenteísmo",
             [
-                ("Absenteísmo diário", "Lançar presença, falta, férias, DSR e atestados.", "attendance", "users"),
-                ("Histórico de checklist", "Consultar registros operacionais relacionados.", "checklist_history", "reports"),
-                ("Relatórios", "Consolidar informações para análise gerencial.", "reports", "reports"),
+                ("Frequência e ocorrências", "Lançar presença, falta, férias, DSR e atestados.", "attendance", "users"),
             ],
             self.allowed_pages,
             self.user_role,
@@ -378,8 +379,7 @@ class MainWindow(QMainWindow):
             "Escala e DSR",
             [
                 ("Escala de domingo e feriado", "Selecionar quem trabalhará e registrar a DSR.", "special_schedule", "dashboard"),
-                ("Absenteísmo diário", "Conferir a presença lançada no dia.", "attendance", "users"),
-                ("Relatórios", "Consultar relatórios gerenciais disponíveis.", "reports", "reports"),
+                ("Frequência e ocorrências", "Conferir a presença lançada no dia.", "attendance", "users"),
             ],
             self.allowed_pages,
             self.user_role,
@@ -507,7 +507,7 @@ class MainWindow(QMainWindow):
         self.page_titles = {
             "dashboard": "Dashboard",
             "equipment_home": "Central de Equipamentos",
-            "rh_home": "Central de RH",
+            "rh_home": "Painel de RH",
             "attendance_home": "Central de Absenteísmo",
             "schedule_home": "Central de Escala e DSR",
             "maintenance_home": "Central de Manutenção",
@@ -527,9 +527,9 @@ class MainWindow(QMainWindow):
             "resources": "Recursos e ferramentas",
             "purchases": "Compras e fornecedores",
             "employees": "Recursos Humanos",
-            "attendance": "Absenteísmo Diário",
+            "attendance": "Frequência e ocorrências",
             "employee_records": "Documentos e treinamentos",
-            "hr_management": "Central de RH",
+            "hr_management": "Painel de RH",
             "vacations": "Férias",
             "supply_library": "Suprimentos e Biblioteca",
             "reports": "Relatórios",
@@ -555,6 +555,7 @@ class MainWindow(QMainWindow):
         self.dashboard_page.alert_open_requested.connect(self.open_contextual_alert)
         self.dashboard_page.web_mobile_requested.connect(self.open_web_mobile)
         self.dashboard_page.tv_dashboard_requested.connect(self.open_tv_dashboard)
+        self.dashboard_page.stops_dashboard_requested.connect(self.open_stops_dashboard)
         for module_home_key in ("equipment_home", "rh_home", "attendance_home", "schedule_home", "maintenance_home"):
             module_home = self.page_map.get(module_home_key)
             if module_home is not None:
@@ -622,9 +623,7 @@ class MainWindow(QMainWindow):
         menu_groups = {
             "Dashboard": ["dashboard"],
             "Equipamentos": ["equipment_home", "equipment", "availability", "spreader_history", "checklist_items", "inspection_templates"],
-            "RH": ["rh_home", "hr_management", "employees", "vacations", "employee_records"],
-            "Absenteísmo": ["attendance_home", "attendance"],
-            "Escala e DSR": ["schedule_home", "special_schedule"],
+            "RH": ["rh_home", "hr_management", "employees", "attendance_home", "attendance", "schedule_home", "special_schedule", "vacations", "employee_records"],
             "Manutenção": ["maintenance_home", "operations_center", "nc", "emergencies", "maintenance", "pcm", "resources", "activities", "washes"],
             "Manutenção RTG": ["rtg_module", "rtg_preventive", "rtg_maintenance", "rtg_downtime"],
             "Manutenção LBS": ["lbs_module", "lbs_preventive", "lbs_maintenance", "lbs_downtime"],
@@ -647,6 +646,8 @@ class MainWindow(QMainWindow):
         web_mobile_action.triggered.connect(self.open_web_mobile)
         tv_dashboard_action = web_panels_menu.addAction("Abrir Dashboard TV")
         tv_dashboard_action.triggered.connect(self.open_tv_dashboard)
+        stops_dashboard_action = web_panels_menu.addAction("Abrir Dashboard de Paradas")
+        stops_dashboard_action.triggered.connect(self.open_stops_dashboard)
 
         account_menu = menubar.addMenu("Conta")
         global_search_action = account_menu.addAction("Busca global")
@@ -660,15 +661,23 @@ class MainWindow(QMainWindow):
         exit_action = account_menu.addAction("Encerrar sessão")
         exit_action.triggered.connect(self.close)
 
-    def _web_panel_url(self, relative_path: str, *, module: str | None = None) -> str:
+    def _web_panel_url(
+        self,
+        relative_path: str,
+        *,
+        module: str | None = None,
+        version: str | None = None,
+    ) -> str:
         api_url = quote(str(self.api_client.base_url or "").rstrip("/"), safe="")
         url = f"http://127.0.0.1:5500/{relative_path.lstrip('/')}?api={api_url}"
         if module:
             url += f"&modulo={quote(module, safe='')}"
+        if version:
+            url += f"&v={quote(version, safe='')}"
         return url
 
-    def _open_web_panel(self, label: str, relative_path: str) -> None:
-        url = self._web_panel_url(relative_path)
+    def _open_web_panel(self, label: str, relative_path: str, *, version: str | None = None) -> None:
+        url = self._web_panel_url(relative_path, version=version)
         if not QDesktopServices.openUrl(QUrl(url)):
             show_notice(
                 self,
@@ -687,7 +696,10 @@ class MainWindow(QMainWindow):
         show_notice(self, "Acesso indisponível", "A tela de escala não está habilitada para este perfil.", icon_name="warning")
 
     def open_tv_dashboard(self) -> None:
-        self._open_web_panel("o Dashboard TV", "dashboard-manutencao/tv/")
+        self._open_web_panel("o Dashboard TV", "dashboard-tv/manutencao/", version="20260801")
+
+    def open_stops_dashboard(self) -> None:
+        self._open_web_panel("o Dashboard de Paradas", "dashboard-tv/paradas/", version="20260801")
 
     def _build_tree_panel(self):
         panel = QFrame()
@@ -743,9 +755,7 @@ class MainWindow(QMainWindow):
         sections = [
             ("Dashboard", ["dashboard"]),
             ("Equipamentos", ["equipment_home", "equipment", "availability", "spreader_history", "checklist_items", "inspection_templates"]),
-            ("RH", ["rh_home", "hr_management", "employees", "vacations", "employee_records"]),
-            ("Absenteísmo", ["attendance_home", "attendance"]),
-            ("Escala e DSR", ["schedule_home", "special_schedule"]),
+            ("RH", ["rh_home", "hr_management", "employees", "attendance_home", "attendance", "schedule_home", "special_schedule", "vacations", "employee_records"]),
             ("Manutenção", ["maintenance_home", "operations_center", "nc", "emergencies", "maintenance", "pcm", "resources", "activities", "washes"]),
             ("Manutenção RTG", ["rtg_module", "rtg_preventive", "rtg_maintenance", "rtg_downtime"]),
             ("Manutenção LBS", ["lbs_module", "lbs_preventive", "lbs_maintenance", "lbs_downtime"]),
@@ -762,7 +772,9 @@ class MainWindow(QMainWindow):
                     continue
                 item = self._make_tree_item(section_item, self.page_titles.get(key, key), page_key=key, icon_name="dashboard")
                 self.tree_items[key] = item
-        self.nav_tree.expandAll()
+        root.setExpanded(True)
+        for section_item in self.section_items:
+            section_item.setExpanded(False)
         if self.current_page_key:
             self._sync_tree_selection(self.current_page_key)
 
@@ -921,7 +933,14 @@ class MainWindow(QMainWindow):
                 | Qt.WindowSystemMenuHint
                 | Qt.WindowMinMaxButtonsHint
             )
-            sub.setWidget(self.page_map[page_key])
+            page_scroll = QScrollArea(sub)
+            page_scroll.setObjectName("PageScrollArea")
+            page_scroll.setFrameShape(QFrame.NoFrame)
+            page_scroll.setWidgetResizable(True)
+            page_scroll.setHorizontalScrollBarPolicy(Qt.ScrollBarAsNeeded)
+            page_scroll.setVerticalScrollBarPolicy(Qt.ScrollBarAsNeeded)
+            page_scroll.setWidget(self.page_map[page_key])
+            sub.setWidget(page_scroll)
             self.mdi_area.addSubWindow(sub)
             sub.destroyed.connect(lambda *_: self.page_subwindows.pop(page_key, None))
             self.page_subwindows[page_key] = sub
@@ -948,6 +967,9 @@ class MainWindow(QMainWindow):
         self._syncing_tree = True
         try:
             self.nav_tree.setCurrentItem(item)
+            parent = item.parent()
+            if parent is not None:
+                parent.setExpanded(True)
         finally:
             self._syncing_tree = False
 
@@ -964,20 +986,10 @@ class MainWindow(QMainWindow):
             return "DASHBOARD"
         if page_key in {"equipment", "availability", "spreader_history", "checklist_items", "inspection_templates"}:
             return "EQUIPAMENTOS"
-        if page_key in {"hr_management", "employees", "vacations", "employee_records"}:
+        if page_key in {"rh_home", "hr_management", "employees", "vacations", "employee_records", "attendance_home", "attendance", "schedule_home", "special_schedule"}:
             return "RH"
-        if page_key == "attendance":
-            return "ABSENTEÍSMO"
-        if page_key == "special_schedule":
-            return "ESCALA E DSR"
         if page_key == "equipment_home":
             return "EQUIPAMENTOS"
-        if page_key == "rh_home":
-            return "RH"
-        if page_key == "attendance_home":
-            return "ABSENTEÍSMO"
-        if page_key == "schedule_home":
-            return "ESCALA E DSR"
         if page_key == "maintenance_home":
             return "MANUTENÇÃO"
         if page_key in {"rtg_module", "rtg_preventive", "rtg_maintenance", "rtg_downtime"}:

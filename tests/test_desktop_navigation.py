@@ -336,19 +336,24 @@ class DesktopNavigationTests(unittest.TestCase):
             web_mobile_url = open_url.call_args.args[0].toString(QUrl.FullyDecoded)
             self.window.open_tv_dashboard()
             tv_dashboard_url = open_url.call_args.args[0].toString(QUrl.FullyDecoded)
+            self.window.open_stops_dashboard()
+            stops_dashboard_url = open_url.call_args.args[0].toString(QUrl.FullyDecoded)
 
         self.assertEqual(web_mobile_url, "http://127.0.0.1:5500/?api=http%3A%2F%2F127.0.0.1%3A5000")
-        self.assertEqual(tv_dashboard_url, "http://127.0.0.1:5500/dashboard-manutencao/tv/?api=http%3A%2F%2F127.0.0.1%3A5000")
+        self.assertEqual(tv_dashboard_url, "http://127.0.0.1:5500/dashboard-tv/manutencao/?api=http%3A%2F%2F127.0.0.1%3A5000&v=20260801")
+        self.assertEqual(stops_dashboard_url, "http://127.0.0.1:5500/dashboard-tv/paradas/?api=http%3A%2F%2F127.0.0.1%3A5000&v=20260801")
         self.assertTrue(any(action.text() == "Painéis Web" for action in self.window.menuBar().actions()))
 
     def test_dashboard_has_visible_web_shortcuts(self):
         self.assertEqual(self.window.dashboard_page.web_mobile_button.objectName(), "open-web-mobile-button")
         self.assertEqual(self.window.dashboard_page.tv_dashboard_button.objectName(), "open-tv-dashboard-button")
+        self.assertEqual(self.window.dashboard_page.stops_dashboard_button.objectName(), "open-stops-dashboard-button")
         with unittest.mock.patch("ui.main_window.QDesktopServices.openUrl", return_value=True) as open_url:
             self.window.dashboard_page.web_mobile_button.click()
             self.window.dashboard_page.tv_dashboard_button.click()
+            self.window.dashboard_page.stops_dashboard_button.click()
 
-        self.assertEqual(open_url.call_count, 2)
+        self.assertEqual(open_url.call_count, 3)
 
     def test_data_change_from_users_marks_other_pages_dirty_without_refreshing_all(self):
         self.window.switch_page("users")
@@ -438,33 +443,33 @@ class DesktopNavigationTests(unittest.TestCase):
         self.assertIn("lbs_module", self.window.page_map)
         self.assertIn("rtg_maintenance", self.window.page_map)
         self.assertIn("lbs_maintenance", self.window.page_map)
-        self.assertEqual(self.window.page_titles["rtg_module"], "Gest\u00e3o RTG")
-        self.assertEqual(self.window.page_titles["lbs_module"], "Gest\u00e3o LBS")
+        self.assertEqual(self.window.page_titles["rtg_module"], "Manuten\u00e7\u00e3o RTG")
+        self.assertEqual(self.window.page_titles["lbs_module"], "Manuten\u00e7\u00e3o LBS")
 
         self.window.switch_page("rtg_module")
-        self.assertEqual(self.window._navigation_section("rtg_module"), "GEST\u00c3O RTG")
+        self.assertEqual(self.window._navigation_section("rtg_module"), "MANUTEN\u00c7\u00c3O RTG")
         self.assertIn("PAINEL OPERACIONAL RTG", self.window.rtg_module_page.findChildren(QLabel)[0].text())
 
         self.window.switch_page("lbs_module")
-        self.assertEqual(self.window._navigation_section("lbs_module"), "GEST\u00c3O LBS")
+        self.assertEqual(self.window._navigation_section("lbs_module"), "MANUTEN\u00c7\u00c3O LBS")
         self.assertIn("PAINEL OPERACIONAL LBS", self.window.lbs_module_page.findChildren(QLabel)[0].text())
 
         self.window.switch_page("rtg_maintenance")
-        self.assertEqual(self.window._navigation_section("rtg_maintenance"), "GEST\u00c3O RTG")
+        self.assertEqual(self.window._navigation_section("rtg_maintenance"), "MANUTEN\u00c7\u00c3O RTG")
         self.assertEqual(self.window.page_titles["rtg_maintenance"], "Manuten\u00e7\u00f5es RTG")
 
         self.window.switch_page("lbs_maintenance")
-        self.assertEqual(self.window._navigation_section("lbs_maintenance"), "GEST\u00c3O LBS")
+        self.assertEqual(self.window._navigation_section("lbs_maintenance"), "MANUTEN\u00c7\u00c3O LBS")
         self.assertEqual(self.window.page_titles["lbs_maintenance"], "Manuten\u00e7\u00f5es LBS")
 
         self.window.switch_page("rtg_downtime")
         self.assertEqual(self.window.page_titles["rtg_downtime"], "Controle de Paradas RTG")
-        self.assertEqual(self.window._navigation_section("rtg_downtime"), "GEST\u00c3O RTG")
+        self.assertEqual(self.window._navigation_section("rtg_downtime"), "MANUTEN\u00c7\u00c3O RTG")
         self.assertEqual(self.window.rtg_downtime_page.table.rowCount(), 0)
 
         self.window.switch_page("lbs_downtime")
         self.assertEqual(self.window.page_titles["lbs_downtime"], "Controle de Paradas LBS")
-        self.assertEqual(self.window._navigation_section("lbs_downtime"), "GEST\u00c3O LBS")
+        self.assertEqual(self.window._navigation_section("lbs_downtime"), "MANUTEN\u00c7\u00c3O LBS")
         self.assertEqual(self.window.lbs_downtime_page.table.rowCount(), 0)
 
     def test_users_page_hides_admin_buttons_for_gestor(self):
