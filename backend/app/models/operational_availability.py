@@ -126,6 +126,7 @@ class HourmeterReading(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     vehicle_id = db.Column(db.Integer, db.ForeignKey("vehicles.id"), nullable=False, index=True)
     reading = db.Column(db.Numeric(12, 2), nullable=False, index=True)
+    meter_type = db.Column(db.String(20), nullable=False, default="DIESEL", index=True)
     recorded_at = db.Column(db.DateTime, nullable=False, default=now_manaus_naive, index=True)
     source = db.Column(db.String(30), nullable=False, default="MANUAL", index=True)
     evidence_path = db.Column(db.String(255), nullable=True)
@@ -168,6 +169,7 @@ class HourmeterReading(db.Model):
             "id": self.id,
             "vehicle_id": self.vehicle_id,
             "reading": float(value) if isinstance(value, Decimal) else float(value or 0),
+            "meter_type": self.meter_type or "DIESEL",
             "recorded_at": self.recorded_at.isoformat() if self.recorded_at else None,
             "source": self.source,
             "evidence_path": self.evidence_path,

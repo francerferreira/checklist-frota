@@ -371,6 +371,7 @@ class HourmeterEntryDialog(QDialog):
         self.family = family.upper()
         self.rows = list(rows or [])
         self.selected_row: dict | None = None
+        self.current_reading: float | None = None
         self.photo_path: str | None = None
         self.setWindowTitle(f"Registrar horímetro {self.family}")
         self.setMinimumSize(620, 610)
@@ -409,6 +410,12 @@ class HourmeterEntryDialog(QDialog):
         form.setHorizontalSpacing(12)
         form.setVerticalSpacing(8)
         form.addWidget(QLabel("Novo horímetro"), 0, 0)
+        self.meter_type = QComboBox()
+        self.meter_type.addItem("Diesel", "DIESEL")
+        self.meter_type.addItem("Elétrico", "ELETRICO")
+        self.meter_type.currentIndexChanged.connect(self._load_selected_meter_history)
+        layout.addWidget(QLabel("Tipo de horímetro"))
+        layout.addWidget(self.meter_type)
         self.reading_spin = QDoubleSpinBox()
         self.reading_spin.setRange(0, 10_000_000)
         self.reading_spin.setDecimals(2)
@@ -476,6 +483,33 @@ class HourmeterEntryDialog(QDialog):
     def _select_equipment(self):
         item = self.equipment_list.currentItem()
         self.selected_row = item.data(Qt.UserRole) if item else None
+        self._load_selected_meter_history()
+
+    def _load_selected_meter_history(self):
+        vehicle = ((self.selected_row or {}).get("vehicle") or {})
+        meter_type = self.meter_type.currentData() if hasattr(self, "meter_type") else "DIESEL"
+        current = None
+        try:
+            history = self.api_client.get_equipment_hourmeters(int(vehicle["id"])) if vehicle.get("id") else []
+            readings = [row for row in history if str(row.get("meter_type") or "DIESEL").upper() == meter_type]
+            if readings:
+                readings.sort(key=lambda row: str(row.get("recorded_at") or ""), reverse=True)
+                current = readings[0].get("reading")
+        except Exception:
+            current = None
+        if current is None and meter_type == "DIESEL":
+            current = (self.selected_row or {}).get("current") or ((self.selected_row or {}).get("state") or {}).get("latest_hourmeter")
+        self.current_reading = float(current) if current is not None else None
+        if self.current_reading is None:
+            self.reading_spin.setValue(0)
+        else:
+            self.reading_spin.setValue(self.current_reading)
+        self._update_difference()
+        return
+
+    def _legacy_select_equipment(self):
+        item = self.equipment_list.currentItem()
+        self.selected_row = item.data(Qt.UserRole) if item else None
         current = (self.selected_row or {}).get("current")
         if current is None:
             current = ((self.selected_row or {}).get("state") or {}).get("latest_hourmeter")
@@ -489,6 +523,9 @@ class HourmeterEntryDialog(QDialog):
         self._update_difference()
 
     def _update_difference(self):
+        if self.current_reading is not None:
+            self.difference_label.setText(f"{self.reading_spin.value() - self.current_reading:.2f} h")
+            return
         current = (self.selected_row or {}).get("current")
         if current is None:
             current = ((self.selected_row or {}).get("state") or {}).get("latest_hourmeter")
@@ -507,9 +544,7 @@ class HourmeterEntryDialog(QDialog):
         if self.recorded_at.dateTime() > QDateTime.currentDateTime():
             show_notice(self, "Data inválida", "A data da leitura não pode estar no futuro.", icon_name="warning")
             return
-        current = (self.selected_row or {}).get("current")
-        if current is None:
-            current = ((self.selected_row or {}).get("state") or {}).get("latest_hourmeter")
+        current = self.current_reading
         reading = self.reading_spin.value()
         if current is not None and reading < float(current):
             show_notice(
@@ -544,6 +579,7 @@ class HourmeterEntryDialog(QDialog):
                 int(vehicle["id"]),
                 {
                     "reading": reading,
+                    "meter_type": self.meter_type.currentData(),
                     "recorded_at": self.recorded_at.dateTime().toPython().isoformat(timespec="minutes"),
                     "notes": self.notes.toPlainText().strip() or None,
                     "evidence_path": evidence_path,
@@ -631,8 +667,6 @@ class PreventiveFamilyPage(QFrame):
         schedule_button.clicked.connect(self._open_schedule_dialog)
         execute_button = QPushButton("Executar preventiva")
         execute_button.clicked.connect(self._open_execution_dialog)
-        pcm_button = QPushButton("Abrir PCM")
-        pcm_button.clicked.connect(lambda: self.open_page_requested.emit("pcm"))
         refresh_button = QPushButton("Atualizar")
         refresh_button.setProperty("variant", "primary")
         refresh_button.clicked.connect(self.refresh)
@@ -646,7 +680,6 @@ class PreventiveFamilyPage(QFrame):
         header.addWidget(register_button)
         header.addWidget(schedule_button)
         header.addWidget(execute_button)
-        header.addWidget(pcm_button)
         header.addWidget(refresh_button)
         header.addWidget(csv_button)
         header.addWidget(xlsx_button)

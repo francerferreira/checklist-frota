@@ -314,16 +314,17 @@ class DesktopNavigationTests(unittest.TestCase):
         self.assertEqual(self.api_client.calls["dashboard"], 1)
 
     def test_navigation_search_filters_modules_and_updates_context(self):
-        self.window.navigation_search.setText("central")
+        self.window.navigation_search.setText("rtg")
         self.app.processEvents()
 
-        self.assertFalse(self.window.tree_items["operations_center"].isHidden())
+        self.assertNotIn("operations_center", self.window.tree_items)
+        self.assertFalse(self.window.tree_items["rtg_module"].isHidden())
         self.assertTrue(self.window.tree_items["equipment"].isHidden())
 
-        self.window.switch_page("operations_center")
+        self.window.switch_page("rtg_module")
         self.assertEqual(
             self.window.navigation_context_label.text(),
-            "NAVEGAÇÃO › CENTRAL OPERACIONAL",
+            "NAVEGAÇÃO › MANUTENÇÃO RTG",
         )
 
         self.window.navigation_search.clear()

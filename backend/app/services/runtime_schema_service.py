@@ -261,6 +261,12 @@ def ensure_runtime_schema() -> None:
         _ensure_column("maintenance_work_orders", columns, "budget_amount", "NUMERIC(14, 2)")
         _ensure_column("maintenance_work_orders", columns, "budget_notes", "TEXT")
 
+    if "hourmeter_readings" in inspector.get_table_names():
+        columns = {column["name"] for column in inspector.get_columns("hourmeter_readings")}
+        _ensure_column("hourmeter_readings", columns, "meter_type", "VARCHAR(20) NOT NULL DEFAULT 'DIESEL'")
+        db.session.execute(text("UPDATE hourmeter_readings SET meter_type = 'DIESEL' WHERE meter_type IS NULL OR TRIM(meter_type) = ''"))
+        db.session.commit()
+
     if "materials" in inspector.get_table_names():
         columns = {column["name"] for column in inspector.get_columns("materials")}
         if "ponto_reposicao" not in columns:

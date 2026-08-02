@@ -18,6 +18,9 @@ from ui.family_maintenance_page import FamilyMaintenancePage
 
 
 class FakeMaintenanceAPI:
+    def get_equipment(self, **kwargs):
+        return []
+
     def get_maintenance_overview(self, year, month):
         return {
             "itens": [
@@ -51,10 +54,10 @@ class FamilyMaintenancePageTests(unittest.TestCase):
         page.refresh()
         self.assertEqual(page.table.rowCount(), 1)
         self.assertEqual(page.table.item(0, 1).text(), "RTG 02")
-        self.assertEqual(page.table.item(0, 3).text(), "Programado")
-        self.assertEqual(page.table.item(0, 4).text(), "OS-RTG-01")
-        self.assertEqual(page.pending_card.value_label.text(), "1")
-        self.assertEqual(page.orders_card.value_label.text(), "1")
+        self.assertEqual(page.table.item(0, 2).text(), "Corretiva")
+        self.assertEqual(page.table.item(0, 4).text(), "Programado")
+        self.assertEqual(page.table.item(0, 6).text(), "OS-RTG-01")
+        self.assertEqual(page.corrective_card.value_label.text(), "1")
         page.close()
 
 

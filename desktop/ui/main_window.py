@@ -388,19 +388,12 @@ class MainWindow(QMainWindow):
             refresh_interval_ms=self.module_refresh_interval_ms,
         )
         self.maintenance_home_page = ModuleLandingPage(
-            "Central de Manutenção",
-            "Organize PCM, ordens de serviço, emergenciais e tratativas em uma navegação direta.",
+            "Manutenção por Família",
+            "Escolha RTG ou LBS. Cada família mantém sua própria agenda, preventivas, corretivas, paradas e horímetros.",
             "Manutenção",
             [
-                ("Manutenção", "Serviços direcionados e ordens de serviço.", "maintenance", "dashboard"),
-                ("PCM", "Planejamento preventivo e backlog.", "pcm", "dashboard"),
-                ("Central operacional", "Acompanhar status dos ativos.", "operations_center", "equipment"),
-                ("Central de resolução", "Tratar não conformidades abertas.", "nc", "warning"),
-                ("Emergenciais e OS", "Registrar paradas e liberar equipamentos.", "emergencies", "warning"),
-                ("Recursos e ferramentas", "Consultar recursos de apoio à manutenção.", "resources", "materials"),
-                ("Lavagens", "Acompanhar o cronograma operacional.", "washes", "activities"),
-                ("Manutenção RTG", "Abrir o módulo exclusivo de RTG.", "rtg_module", "equipment"),
-                ("Manutenção LBS", "Abrir o módulo exclusivo de LBS.", "lbs_module", "equipment"),
+                ("RTG", "Agenda, corretivas, preventivas, paradas e horímetros dos RTGs.", "rtg_module", "equipment"),
+                ("LBS", "Agenda, corretivas, preventivas, paradas e horímetros das LBS.", "lbs_module", "equipment"),
             ],
             self.allowed_pages,
             self.user_role,
@@ -510,7 +503,7 @@ class MainWindow(QMainWindow):
             "rh_home": "Painel de RH",
             "attendance_home": "Central de Absenteísmo",
             "schedule_home": "Central de Escala e DSR",
-            "maintenance_home": "Central de Manutenção",
+            "maintenance_home": "Manutenção por Família",
             "nc": "Central de Resolução",
             "productivity": "Produtividade",
             "operations_center": "Central Operacional",
@@ -624,9 +617,7 @@ class MainWindow(QMainWindow):
             "Dashboard": ["dashboard"],
             "Equipamentos": ["equipment_home", "equipment", "availability", "spreader_history", "checklist_items", "inspection_templates"],
             "RH": ["rh_home", "hr_management", "employees", "attendance_home", "attendance", "schedule_home", "special_schedule", "vacations", "employee_records"],
-            "Manutenção": ["maintenance_home", "operations_center", "nc", "emergencies", "maintenance", "pcm", "resources", "activities", "washes"],
-            "Manutenção RTG": ["rtg_module", "rtg_preventive", "rtg_maintenance", "rtg_downtime"],
-            "Manutenção LBS": ["lbs_module", "lbs_preventive", "lbs_maintenance", "lbs_downtime"],
+            "Manutenção": ["maintenance_home", "rtg_module", "rtg_preventive", "rtg_maintenance", "rtg_downtime", "lbs_module", "lbs_preventive", "lbs_maintenance", "lbs_downtime"],
             "Relatórios": ["reports", "productivity", "checklist_history"],
             "Configurações": ["users", "admin_rules", "cloud_backup", "audit_logs"],
             "Materiais e Compras": ["materials", "supply_library", "purchases"],
@@ -742,7 +733,11 @@ class MainWindow(QMainWindow):
         self.section_items = []
 
         root = self._make_tree_item(self.nav_tree, "Central de Controle", icon_name="dashboard")
-        favorite_keys = [key for key in self.page_titles if key in self.favorite_page_keys and key in self.page_map]
+        hidden_maintenance_pages = {"maintenance", "pcm", "emergencies", "operations_center", "nc", "resources"}
+        favorite_keys = [
+            key for key in self.page_titles
+            if key in self.favorite_page_keys and key in self.page_map and key not in hidden_maintenance_pages
+        ]
         recent_keys = [key for key in self.recent_page_keys if key in self.page_map]
         for section_label, keys in (("Favoritos", favorite_keys), ("Recentes", recent_keys)):
             if not keys:
@@ -756,9 +751,8 @@ class MainWindow(QMainWindow):
             ("Dashboard", ["dashboard"]),
             ("Equipamentos", ["equipment_home", "equipment", "availability", "spreader_history", "checklist_items", "inspection_templates"]),
             ("RH", ["rh_home", "hr_management", "employees", "attendance_home", "attendance", "schedule_home", "special_schedule", "vacations", "employee_records"]),
-            ("Manutenção", ["maintenance_home", "operations_center", "nc", "emergencies", "maintenance", "pcm", "resources", "activities", "washes"]),
-            ("Manutenção RTG", ["rtg_module", "rtg_preventive", "rtg_maintenance", "rtg_downtime"]),
-            ("Manutenção LBS", ["lbs_module", "lbs_preventive", "lbs_maintenance", "lbs_downtime"]),
+            ("Manutenção RTG", ["rtg_module", "rtg_maintenance", "rtg_preventive", "rtg_downtime"]),
+            ("Manutenção LBS", ["lbs_module", "lbs_maintenance", "lbs_preventive", "lbs_downtime"]),
             ("Relatórios", ["reports", "productivity", "checklist_history"]),
             ("Configurações", ["users", "admin_rules", "cloud_backup", "audit_logs"]),
             ("Materiais e Compras", ["materials", "supply_library", "purchases"]),

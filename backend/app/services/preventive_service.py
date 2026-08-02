@@ -236,13 +236,19 @@ def register_hourmeter(vehicle_id: int, payload: dict, user_id: int) -> Hourmete
         raise ValueError("Informe um horimetro numerico valido.") from exc
     if reading < 0:
         raise ValueError("O horimetro nao pode ser negativo.")
+    meter_type = str(payload.get("meter_type") or "DIESEL").strip().upper()
+    if meter_type not in {"DIESEL", "ELETRICO"}:
+        raise ValueError("Tipo de horimetro invalido. Informe DIESEL ou ELETRICO.")
     recorded_at = _parse_recorded_at(payload.get("recorded_at"))
     duplicate = HourmeterReading.query.filter_by(vehicle_id=vehicle_id, recorded_at=recorded_at).first()
     if duplicate:
-        raise ValueError("Ja existe uma leitura para este equipamento nesta data e hora.")
+        if (duplicate.meter_type or "DIESEL") == meter_type:
+            raise ValueError("Ja existe uma leitura para este horimetro nesta data e hora.")
+        raise ValueError("Ja existe leitura de outro horimetro neste mesmo minuto. Informe a segunda leitura no minuto seguinte.")
     previous = (
         HourmeterReading.query.filter(
             HourmeterReading.vehicle_id == vehicle_id,
+            HourmeterReading.meter_type == meter_type,
             HourmeterReading.recorded_at < recorded_at,
         )
         .order_by(HourmeterReading.recorded_at.desc())
@@ -251,6 +257,7 @@ def register_hourmeter(vehicle_id: int, payload: dict, user_id: int) -> Hourmete
     following = (
         HourmeterReading.query.filter(
             HourmeterReading.vehicle_id == vehicle_id,
+            HourmeterReading.meter_type == meter_type,
             HourmeterReading.recorded_at > recorded_at,
         )
         .order_by(HourmeterReading.recorded_at.asc())
@@ -265,6 +272,7 @@ def register_hourmeter(vehicle_id: int, payload: dict, user_id: int) -> Hourmete
     item = HourmeterReading(
         vehicle_id=vehicle_id,
         reading=reading,
+        meter_type=meter_type,
         recorded_at=recorded_at,
         source="MANUAL",
         evidence_path=_clean(payload.get("evidence_path")),
@@ -276,7 +284,7 @@ def register_hourmeter(vehicle_id: int, payload: dict, user_id: int) -> Hourmete
     )
     db.session.add(item)
     state = _ensure_operational_state(vehicle_id)
-    if state.latest_hourmeter_at is None or recorded_at >= state.latest_hourmeter_at:
+    if meter_type == "DIESEL" and (state.latest_hourmeter_at is None or recorded_at >= state.latest_hourmeter_at):
         state.latest_hourmeter = reading
         state.latest_hourmeter_at = recorded_at
     db.session.commit()

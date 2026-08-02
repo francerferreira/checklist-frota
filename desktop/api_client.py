@@ -156,6 +156,9 @@ class APIClient:
         params = {"status": status} if status else None
         return self._request("GET", "/emergenciais", params=params)
 
+    def create_emergency(self, payload: dict):
+        return self._request("POST", "/emergenciais", json=payload)
+
     def triage_emergency(self, emergency_id: int, payload: dict):
         return self._request("PUT", f"/emergenciais/{emergency_id}/triagem", json=payload)
 
