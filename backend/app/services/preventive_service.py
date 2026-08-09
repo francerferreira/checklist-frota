@@ -33,6 +33,7 @@ DEFAULT_STALE_READING_DAYS = 2
 MAX_HOURMETER_DELTA = Decimal("400")
 _ZERO = Decimal("0.00")
 _HUNDRED = Decimal("100.00")
+PREVENTIVE_HOURMETER_STEPS = tuple(Decimal(step) for step in range(500, 6001, 500))
 
 
 def _clean(value) -> str | None:
@@ -53,6 +54,69 @@ def _as_decimal(value) -> Decimal | None:
 
 def _number(value: Decimal | None) -> float | None:
     return float(value) if value is not None else None
+
+
+def _preventive_step(completed_count: int) -> Decimal:
+    """Retorna a próxima preventiva da série P500 até P6000.
+
+    Depois da P6000 inicia uma nova série em P500. O marcador depende das
+    preventivas concluídas, nunca do valor absoluto do horímetro.
+    """
+    return PREVENTIVE_HOURMETER_STEPS[max(0, completed_count) % len(PREVENTIVE_HOURMETER_STEPS)]
+
+
+def _completed_preventive_count(plan: PreventivePlan) -> int:
+    return int(
+        PreventiveExecution.query.filter(
+            PreventiveExecution.preventive_plan_id == plan.id,
+            PreventiveExecution.status == "CONCLUIDA",
+        ).count()
+    )
+
+
+def _forecast_due_date(vehicle_id: int, current_hourmeter: Decimal | None, next_due_hourmeter: Decimal | None):
+    """Estima a data do próximo marco pela velocidade real do horímetro.
+
+    Sem duas leituras válidas não há base confiável para prever a data.
+    """
+    if current_hourmeter is None or next_due_hourmeter is None:
+        return None, None
+    remaining = next_due_hourmeter - current_hourmeter
+    if remaining < _ZERO:
+        remaining = _ZERO
+    readings = (
+        HourmeterReading.query.filter(
+            HourmeterReading.vehicle_id == vehicle_id,
+            HourmeterReading.meter_type == "DIESEL",
+        )
+        .order_by(HourmeterReading.recorded_at.desc(), HourmeterReading.id.desc())
+        .limit(12)
+        .all()
+    )
+    if len(readings) < 2:
+        return None, None
+    latest = readings[0]
+    previous = next(
+        (
+            item
+            for item in readings[1:]
+            if item.reading is not None
+            and latest.reading is not None
+            and latest.reading > item.reading
+            and latest.recorded_at > item.recorded_at
+        ),
+        None,
+    )
+    if not previous:
+        return None, None
+    elapsed_days = Decimal(str((latest.recorded_at - previous.recorded_at).total_seconds())) / Decimal("86400")
+    if elapsed_days <= _ZERO:
+        return None, None
+    daily_average = (latest.reading - previous.reading) / elapsed_days
+    if daily_average <= _ZERO:
+        return None, None
+    forecast_at = latest.recorded_at + timedelta(days=float(remaining / daily_average))
+    return forecast_at.date(), daily_average.quantize(Decimal("0.01"))
 
 
 def _parse_recorded_at(value) -> datetime:
@@ -177,6 +241,8 @@ def calculate_plan_state(
     )
 
     execution = _latest_completed_execution(plan)
+    completed_count = _completed_preventive_count(plan)
+    preventive_step = _preventive_step(completed_count)
     last_preventive_hm = _as_decimal(execution.hourmeter_execution if execution else None)
     last_preventive_date = execution.completed_at.date() if execution and execution.completed_at else None
     if last_preventive_hm is None and plan.next_due_hourmeter is not None and plan.interval_hourmeter is not None:
@@ -187,6 +253,11 @@ def calculate_plan_state(
         and (reference_date - latest_at.date()).days > stale_days
     )
     calculation_status = "LEITURA_DESATUALIZADA" if stale else cycle["status"]
+    forecast_due_date, daily_average = _forecast_due_date(
+        plan.vehicle_id,
+        current,
+        _as_decimal(plan.next_due_hourmeter),
+    )
     return {
         "status": "VENCIDA" if overdue else ("VENCENDO" if due else "EM_DIA"),
         "calculation_status": calculation_status,
@@ -202,6 +273,10 @@ def calculate_plan_state(
         "last_preventive_date": last_preventive_date.isoformat() if last_preventive_date else None,
         "next_due_hourmeter": _number(_as_decimal(plan.next_due_hourmeter)),
         "next_due_date": plan.next_due_date.isoformat() if plan.next_due_date else None,
+        "preventive_step_hours": _number(preventive_step),
+        "preventive_label": f"P{int(preventive_step)}",
+        "forecast_due_date": forecast_due_date.isoformat() if forecast_due_date else None,
+        "forecast_daily_hours": _number(daily_average),
         "stale_reading": stale,
         "hours_used": cycle["hours_used"],
         "hours_remaining": cycle["hours_remaining"],
@@ -353,6 +428,8 @@ def create_preventive_execution(payload: dict, user_id: int) -> PreventiveExecut
         raise ValueError("Informe a data programada para liberar a execucao.")
     responsible_id = payload.get("responsible_user_id") or payload.get("responsavel_id") or user_id
     cycle_hourmeter = _execution_number(payload.get("cycle_hourmeter") or payload.get("ciclo_realizado"), label="o ciclo")
+    if cycle_hourmeter is None:
+        cycle_hourmeter = _preventive_step(_completed_preventive_count(plan))
     hourmeter_start = _execution_number(payload.get("hourmeter_start") or payload.get("horimetro_inicio"), label="o horimetro inicial")
 
     execution = PreventiveExecution(

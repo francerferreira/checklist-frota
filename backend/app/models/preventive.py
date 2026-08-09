@@ -47,6 +47,16 @@ def _number(value):
     return float(value) if isinstance(value, Decimal) else float(value)
 
 
+def _preventive_label(value):
+    if value is None:
+        return None
+    try:
+        hours = int(Decimal(str(value)))
+    except Exception:
+        return None
+    return f"P{hours}" if 500 <= hours <= 6000 and hours % 500 == 0 else None
+
+
 class PreventiveExecution(db.Model):
     """Execução concreta de um plano preventivo para um equipamento."""
 
@@ -103,6 +113,7 @@ class PreventiveExecution(db.Model):
             "vehicle_id": self.vehicle_id,
             "preventive_plan_id": self.preventive_plan_id,
             "cycle_hourmeter": _number(self.cycle_hourmeter),
+            "preventive_label": _preventive_label(self.cycle_hourmeter),
             "hourmeter_start": _number(self.hourmeter_start),
             "hourmeter_execution": _number(self.hourmeter_execution),
             "scheduled_date": self.scheduled_date.isoformat() if self.scheduled_date else None,

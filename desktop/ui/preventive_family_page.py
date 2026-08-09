@@ -3,7 +3,7 @@ from __future__ import annotations
 from datetime import date, datetime
 from pathlib import Path
 
-from PySide6.QtCore import QDateTime, Qt, Signal
+from PySide6.QtCore import QDate, QDateTime, Qt, Signal
 from PySide6.QtGui import QColor
 from PySide6.QtWidgets import (
     QAbstractItemView,
@@ -89,8 +89,16 @@ class PreventiveScheduleDialog(QDialog):
         for plan in self.plans:
             vehicle = plan.get("vehicle") or {}
             label = f"{vehicle.get('frota') or vehicle.get('placa') or 'Equipamento'} — {plan.get('title') or plan.get('code') or 'Plano'}"
-            self.plan_combo.addItem(label, plan)
+            due = plan.get("due") or {}
+            step = due.get("preventive_label") or "P500"
+            self.plan_combo.addItem(
+                f"{vehicle.get('frota') or vehicle.get('placa') or 'Equipamento'} — {step}",
+                plan,
+            )
         form.addWidget(self.plan_combo, 2, 0, 1, 2)
+        self.plan_summary = QLabel()
+        self.plan_summary.setObjectName("SectionCaption")
+        self.plan_summary.setWordWrap(True)
         form.addWidget(QLabel("Data programada"), 3, 0)
         self.scheduled_date = QDateEdit()
         self.scheduled_date.setCalendarPopup(True)
@@ -125,7 +133,28 @@ class PreventiveScheduleDialog(QDialog):
         buttons.button(QDialogButtonBox.Save).setProperty("variant", "primary")
         buttons.accepted.connect(self._save)
         buttons.rejected.connect(self.reject)
-        form.addWidget(buttons, 9, 0, 1, 2)
+        form.addWidget(self.plan_summary, 9, 0, 1, 2)
+        form.addWidget(buttons, 10, 0, 1, 2)
+        self.plan_combo.currentIndexChanged.connect(self._sync_plan)
+        self._sync_plan()
+
+    def _sync_plan(self):
+        plan = self.plan_combo.currentData() or {}
+        due = plan.get("due") or {}
+        label = due.get("preventive_label") or "P500"
+        next_hourmeter = due.get("next_due_hourmeter") or plan.get("next_due_hourmeter")
+        forecast = due.get("forecast_due_date")
+        summary = [f"Preventiva atual: {label} (ciclo fixo de 500 h)."]
+        if next_hourmeter is not None:
+            summary.append(f"Próximo horímetro: {float(next_hourmeter):.2f} h.")
+        if forecast:
+            summary.append(f"Previsão: {_date_text(forecast)}.")
+            parsed = QDate.fromString(str(forecast), "yyyy-MM-dd")
+            if parsed.isValid():
+                self.scheduled_date.setDate(parsed)
+        else:
+            summary.append("Previsão será calculada após duas leituras de horímetro.")
+        self.plan_summary.setText(" ".join(summary))
 
     def _save(self):
         plan = self.plan_combo.currentData() or {}
@@ -141,6 +170,7 @@ class PreventiveScheduleDialog(QDialog):
             "vehicle_id": plan.get("vehicle_id") or vehicle.get("id"),
             "status": "PROGRAMADA",
             "scheduled_date": self.scheduled_date.date().toString("yyyy-MM-dd"),
+            "cycle_hourmeter": (plan.get("due") or {}).get("preventive_step_hours") or 500,
             "hourmeter_start": self.hourmeter_start.value() or None,
             "responsible_user_id": self.responsible.currentData(),
             "observation": observation or None,
@@ -177,6 +207,7 @@ class PreventivePlanDialog(QDialog):
         )
         instruction.setWordWrap(True)
         instruction.setObjectName("PageSubtitle")
+        instruction.setText("Sequência automática: P500, P1000, P1500 até P6000. Cada preventiva vence a cada 500 horas.")
         form.addWidget(instruction, 1, 0, 1, 2)
 
         form.addWidget(QLabel("Equipamento"), 2, 0, 1, 2)
@@ -193,11 +224,10 @@ class PreventivePlanDialog(QDialog):
         self.vehicle_combo.currentIndexChanged.connect(self._update_preview)
         form.addWidget(self.vehicle_combo, 3, 0, 1, 2)
 
-        form.addWidget(QLabel("Ciclo entre preventivas (horas)"), 4, 0)
-        self.interval_hourmeter = QLineEdit()
-        self.interval_hourmeter.setPlaceholderText("Ex.: 250")
-        self.interval_hourmeter.textChanged.connect(self._update_preview)
-        form.addWidget(self.interval_hourmeter, 5, 0)
+        form.addWidget(QLabel("Sequência automática"), 4, 0)
+        self.sequence = QLabel("P500 → P1000 → P1500 → ... → P6000")
+        self.sequence.setObjectName("SectionCaption")
+        form.addWidget(self.sequence, 5, 0)
         form.addWidget(QLabel("Prioridade"), 4, 1)
         self.priority = QComboBox()
         for value, label in (("BAIXA", "Baixa"), ("MEDIA", "Média"), ("ALTA", "Alta"), ("CRITICA", "Crítica")):
@@ -207,6 +237,7 @@ class PreventivePlanDialog(QDialog):
 
         self.preview = QLabel("Próximo horímetro: informe o ciclo de horas.")
         self.preview.setObjectName("SectionCaption")
+        self.preview.setText("Primeira preventiva: P500 a cada 500 horas.")
         self.preview.setWordWrap(True)
         form.addWidget(self.preview, 6, 0, 1, 2)
 
@@ -224,16 +255,10 @@ class PreventivePlanDialog(QDialog):
     def _update_preview(self):
         row = self._selected_row()
         current = row.get("current")
-        try:
-            interval = float(self.interval_hourmeter.text().strip().replace(",", "."))
-        except ValueError:
-            interval = 0
         if current is None:
             self.preview.setText("Antes de criar o plano, registre o horímetro atual deste equipamento.")
-        elif interval > 0:
-            self.preview.setText(f"Próximo horímetro calculado: {float(current) + interval:.2f} h.")
         else:
-            self.preview.setText("Próximo horímetro: informe o ciclo de horas.")
+            self.preview.setText(f"Primeira preventiva: P500 | próximo horímetro: {float(current) + 500:.2f} h.")
 
     def _save(self):
         row = self._selected_row()
@@ -250,19 +275,12 @@ class PreventivePlanDialog(QDialog):
                 icon_name="warning",
             )
             return
-        try:
-            interval = float(self.interval_hourmeter.text().strip().replace(",", "."))
-        except ValueError:
-            interval = 0
-        if interval <= 0:
-            show_notice(self, "Ciclo obrigatório", "Informe um ciclo em horas maior que zero.", icon_name="warning")
-            return
         equipment_name = vehicle.get("frota") or vehicle.get("placa") or "Equipamento"
         payload = {
             "vehicle_id": vehicle["id"],
-            "title": f"Preventiva por horímetro — {equipment_name}",
+            "title": f"Preventivas P500 a P6000 — {equipment_name}",
             "trigger_type": "HORIMETRO",
-            "interval_hourmeter": interval,
+            "interval_hourmeter": 500,
             "priority": self.priority.currentData(),
         }
         try:
@@ -865,9 +883,9 @@ class PreventiveFamilyPage(QFrame):
         table_layout = QVBoxLayout(table_card)
         table_layout.setContentsMargins(12, 12, 12, 12)
         table_layout.addWidget(QLabel("Equipamentos RTG" if self.family == "RTG" else f"Equipamentos {self.family}"))
-        self.table = QTableWidget(0, 9)
+        self.table = QTableWidget(0, 11)
         self.table.setHorizontalHeaderLabels(
-            ["Status", "Equipamento", "Local", "Horímetro", "Última leitura", "Próx. h", "Restantes", "Progresso", "Situação"]
+            ["Status", "Equipamento", "Local", "Horímetro", "Última leitura", "Preventiva", "Próx. h", "Previsão", "Restantes", "Progresso", "Situação"]
         )
         configure_table(self.table, stretch_last=False)
         self.table.setMinimumHeight(420)
@@ -892,6 +910,7 @@ class PreventiveFamilyPage(QFrame):
             ("last", "Última leitura"),
             ("last_preventive", "Última preventiva"),
             ("next", "Próxima preventiva"),
+            ("forecast", "Data prevista"),
             ("remaining", "Horas restantes"),
             ("status", "Situação"),
         ):
@@ -1015,6 +1034,9 @@ class PreventiveFamilyPage(QFrame):
                     "current": state.get("latest_hourmeter"),
                     "last_reading_at": state.get("latest_hourmeter_at"),
                     "next_due": due.get("next_due_hourmeter") or (plan or {}).get("next_due_hourmeter"),
+                    "preventive_label": due.get("preventive_label") or "P500",
+                    "forecast_due_date": due.get("forecast_due_date"),
+                    "forecast_daily_hours": due.get("forecast_daily_hours"),
                     "remaining": due.get("hours_remaining"),
                     "percent": due.get("percent_used"),
                 })
@@ -1069,14 +1091,16 @@ class PreventiveFamilyPage(QFrame):
                 local,
                 f"{float(current):.2f} h" if current is not None else "-",
                 _date_text(row.get("last_reading_at")),
+                row.get("preventive_label") or "P500",
                 f"{float(next_due):.2f} h" if next_due is not None else "-",
+                _date_text(row.get("forecast_due_date")) if row.get("forecast_due_date") else "Sem previsão",
                 f"{float(remaining):.0f} h" if remaining is not None else "-",
                 progress,
                 STATUS_LABELS.get(row["status"], row["status"]),
             ]
             for column, value in enumerate(values):
                 item = make_table_item(value, payload=row if column == 1 else None)
-                if column in (0, 8):
+                if column in (0, 10):
                     background, foreground = STATUS_COLORS.get(row["status"], STATUS_COLORS["SEM_DADOS"])
                     item.setBackground(QColor(background))
                     item.setForeground(QColor(foreground))
@@ -1099,7 +1123,8 @@ class PreventiveFamilyPage(QFrame):
             if execution.get("vehicle_id") not in family_vehicle_ids:
                 continue
             vehicle = execution.get("vehicle") or {}
-            label = f"{vehicle.get('frota') or 'Equipamento'} | {execution.get('status') or '-'} | {_date_text(execution.get('scheduled_date'))}"
+            step = execution.get("preventive_label") or "Preventiva"
+            label = f"{vehicle.get('frota') or 'Equipamento'} | {step} | {execution.get('status') or '-'} | {_date_text(execution.get('scheduled_date'))}"
             self.execution_selector.addItem(label, execution)
         self.execution_selector.blockSignals(False)
         self._execution_selection_changed()
@@ -1123,6 +1148,14 @@ class PreventiveFamilyPage(QFrame):
             "remaining": f"{float(row['remaining']):.0f} h" if row.get("remaining") is not None else "-",
             "status": STATUS_LABELS.get(row["status"], row["status"]),
         }
+        next_hourmeter = row.get("next_due")
+        detail["next"] = (
+            f"{row.get('preventive_label') or 'P500'} | {float(next_hourmeter):.2f} h"
+            if next_hourmeter is not None
+            else f"{row.get('preventive_label') or 'P500'} | não calculada"
+        )
+        forecast = row.get("forecast_due_date")
+        detail["forecast"] = _date_text(forecast) if forecast else "Aguardando duas leituras"
         for key, value in detail.items():
             label = self.detail_labels[key]
             caption = label.text().split(":", 1)[0]
@@ -1148,6 +1181,8 @@ class PreventiveFamilyPage(QFrame):
             ("Horímetro", "horimetro"),
             ("Última leitura", "ultima_leitura"),
             ("Próxima preventiva", "proxima_preventiva"),
+            ("Tipo", "tipo_preventiva"),
+            ("Data prevista", "data_prevista"),
             ("Horas restantes", "horas_restantes"),
             ("Progresso", "progresso"),
             ("Situação", "situacao"),
@@ -1168,6 +1203,8 @@ class PreventiveFamilyPage(QFrame):
                     "horimetro": f"{float(current):.2f} h" if current is not None else "-",
                     "ultima_leitura": _date_text(row.get("last_reading_at")),
                     "proxima_preventiva": f"{float(next_due):.2f} h" if next_due is not None else "-",
+                    "tipo_preventiva": row.get("preventive_label") or "P500",
+                    "data_prevista": _date_text(row.get("forecast_due_date")) if row.get("forecast_due_date") else "Aguardando duas leituras",
                     "horas_restantes": f"{float(remaining):.0f} h" if remaining is not None else "-",
                     "progresso": f"{float(percent):.0f}%" if percent is not None else "-",
                     "situacao": STATUS_LABELS.get(row.get("status"), row.get("status") or "-"),
