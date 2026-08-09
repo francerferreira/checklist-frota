@@ -153,6 +153,126 @@ class PreventiveScheduleDialog(QDialog):
         self.accept()
 
 
+class PreventivePlanDialog(QDialog):
+    """Cria o plano mínimo necessário antes de agendar uma preventiva."""
+
+    def __init__(self, api_client, family: str, rows: list[dict], parent=None):
+        super().__init__(parent)
+        self.api_client = api_client
+        self.family = family.upper()
+        self.rows = list(rows or [])
+        self.setWindowTitle(f"Criar plano preventivo {self.family}")
+        self.setMinimumWidth(560)
+
+        form = QGridLayout(self)
+        form.setContentsMargins(18, 18, 18, 18)
+        form.setHorizontalSpacing(10)
+        form.setVerticalSpacing(8)
+
+        title = QLabel(f"CRIAR PLANO PREVENTIVO — {self.family}")
+        title.setObjectName("PageTitle")
+        form.addWidget(title, 0, 0, 1, 2)
+        instruction = QLabel(
+            "Informe o ciclo de horas. O sistema calcula automaticamente o próximo horímetro e, em seguida, abre o agendamento."
+        )
+        instruction.setWordWrap(True)
+        instruction.setObjectName("PageSubtitle")
+        form.addWidget(instruction, 1, 0, 1, 2)
+
+        form.addWidget(QLabel("Equipamento"), 2, 0, 1, 2)
+        self.vehicle_combo = QComboBox()
+        for row in self.rows:
+            vehicle = row.get("vehicle") or {}
+            current = row.get("current")
+            label = vehicle.get("frota") or vehicle.get("placa") or "Equipamento"
+            if current is not None:
+                label = f"{label} | horímetro atual: {float(current):.2f} h"
+            else:
+                label = f"{label} | sem leitura"
+            self.vehicle_combo.addItem(label, row)
+        self.vehicle_combo.currentIndexChanged.connect(self._update_preview)
+        form.addWidget(self.vehicle_combo, 3, 0, 1, 2)
+
+        form.addWidget(QLabel("Ciclo entre preventivas (horas)"), 4, 0)
+        self.interval_hourmeter = QLineEdit()
+        self.interval_hourmeter.setPlaceholderText("Ex.: 250")
+        self.interval_hourmeter.textChanged.connect(self._update_preview)
+        form.addWidget(self.interval_hourmeter, 5, 0)
+        form.addWidget(QLabel("Prioridade"), 4, 1)
+        self.priority = QComboBox()
+        for value, label in (("BAIXA", "Baixa"), ("MEDIA", "Média"), ("ALTA", "Alta"), ("CRITICA", "Crítica")):
+            self.priority.addItem(label, value)
+        self.priority.setCurrentIndex(self.priority.findData("MEDIA"))
+        form.addWidget(self.priority, 5, 1)
+
+        self.preview = QLabel("Próximo horímetro: informe o ciclo de horas.")
+        self.preview.setObjectName("SectionCaption")
+        self.preview.setWordWrap(True)
+        form.addWidget(self.preview, 6, 0, 1, 2)
+
+        buttons = QDialogButtonBox(QDialogButtonBox.Cancel | QDialogButtonBox.Save)
+        buttons.button(QDialogButtonBox.Save).setText("Criar plano e programar")
+        buttons.button(QDialogButtonBox.Save).setProperty("variant", "primary")
+        buttons.accepted.connect(self._save)
+        buttons.rejected.connect(self.reject)
+        form.addWidget(buttons, 7, 0, 1, 2)
+        self._update_preview()
+
+    def _selected_row(self) -> dict:
+        return self.vehicle_combo.currentData() or {}
+
+    def _update_preview(self):
+        row = self._selected_row()
+        current = row.get("current")
+        try:
+            interval = float(self.interval_hourmeter.text().strip().replace(",", "."))
+        except ValueError:
+            interval = 0
+        if current is None:
+            self.preview.setText("Antes de criar o plano, registre o horímetro atual deste equipamento.")
+        elif interval > 0:
+            self.preview.setText(f"Próximo horímetro calculado: {float(current) + interval:.2f} h.")
+        else:
+            self.preview.setText("Próximo horímetro: informe o ciclo de horas.")
+
+    def _save(self):
+        row = self._selected_row()
+        vehicle = row.get("vehicle") or {}
+        current = row.get("current")
+        if not vehicle.get("id"):
+            show_notice(self, "Equipamento obrigatório", "Selecione o equipamento da preventiva.", icon_name="warning")
+            return
+        if current is None:
+            show_notice(
+                self,
+                "Horímetro obrigatório",
+                "Registre primeiro o horímetro atual deste equipamento. Depois volte para programar a preventiva.",
+                icon_name="warning",
+            )
+            return
+        try:
+            interval = float(self.interval_hourmeter.text().strip().replace(",", "."))
+        except ValueError:
+            interval = 0
+        if interval <= 0:
+            show_notice(self, "Ciclo obrigatório", "Informe um ciclo em horas maior que zero.", icon_name="warning")
+            return
+        equipment_name = vehicle.get("frota") or vehicle.get("placa") or "Equipamento"
+        payload = {
+            "vehicle_id": vehicle["id"],
+            "title": f"Preventiva por horímetro — {equipment_name}",
+            "trigger_type": "HORIMETRO",
+            "interval_hourmeter": interval,
+            "priority": self.priority.currentData(),
+        }
+        try:
+            self.api_client.create_preventive_plan(payload)
+        except Exception as exc:
+            show_notice(self, "Plano não salvo", str(exc), icon_name="warning")
+            return
+        self.accept()
+
+
 class PreventiveExecutionDialog(QDialog):
     """Atualiza o início, etapas e conclusão de uma execução preventiva."""
 
@@ -665,7 +785,7 @@ class PreventiveFamilyPage(QFrame):
         title_wrap = QVBoxLayout()
         title = QLabel(f"PREVENTIVA {self.family}")
         title.setObjectName("PageTitle")
-        subtitle = QLabel("Controle de manutenção preventiva por horímetro")
+        subtitle = QLabel("Fluxo simples: registre o horímetro, programe a preventiva e execute o serviço.")
         subtitle.setObjectName("PageSubtitle")
         title_wrap.addWidget(title)
         title_wrap.addWidget(subtitle)
@@ -814,8 +934,15 @@ class PreventiveFamilyPage(QFrame):
     def _open_schedule_dialog(self):
         plans = self._plan_rows_for_family()
         if not plans:
-            show_notice(self, "Planos indisponíveis", f"Nenhum plano preventivo ativo foi encontrado para {self.family}.", icon_name="warning")
-            return
+            dialog = PreventivePlanDialog(self.api_client, self.family, self.rows, self)
+            if dialog.exec() != QDialog.Accepted:
+                return
+            self.refresh()
+            self.data_changed.emit()
+            plans = self._plan_rows_for_family()
+            if not plans:
+                show_notice(self, "Plano indisponível", "O plano foi salvo, mas não foi possível carregá-lo para agendar. Clique em Atualizar e tente novamente.", icon_name="warning")
+                return
         dialog = PreventiveScheduleDialog(self.api_client, self.family, plans, self)
         if dialog.exec() == QDialog.Accepted:
             self.refresh()
