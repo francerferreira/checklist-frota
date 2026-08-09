@@ -922,6 +922,48 @@ QLabel#MutedText, QLabel#DialogHeaderSubtitle, QLabel#PhotoCaption,
 QLabel#TopBarSessionText {
     color: #AFC4DF;
 }
+/* Indicadores do tema escuro: números e avisos precisam saltar aos olhos. */
+QLabel#CardTitle {
+    color: #8FC5FF;
+    font-weight: 750;
+}
+QLabel#CardValue {
+    color: #F8FBFF;
+    font-size: 38px;
+    font-weight: 800;
+}
+QLabel#CardSubtitle {
+    color: #B8CAE0;
+}
+QLabel#SummaryMetric {
+    color: #F8FBFF;
+}
+QLabel#SummaryMeta {
+    color: #B8CAE0;
+}
+QLabel#BadgeStrong {
+    background: #123B70;
+    color: #EAF4FF;
+    border-color: #3C82C8;
+}
+QLabel#BadgeSoft {
+    background: #1D3553;
+    color: #BFE0FF;
+    border-color: #4777A8;
+}
+QMessageBox {
+    background: #172437;
+    color: #EDF4FF;
+    border: 1px solid #4777A8;
+}
+QMessageBox QLabel {
+    color: #F3F8FF;
+}
+QMessageBox QPushButton {
+    background: #1768C7;
+    color: #FFFFFF;
+    border: 1px solid #3C82C8;
+}
 QGroupBox {
     border-color: #35516F;
     color: #EDF4FF;

@@ -1,6 +1,6 @@
 ﻿from __future__ import annotations
 
-from PySide6.QtCore import QSize, Qt, Signal
+from PySide6.QtCore import QSize, Qt, Signal, QSettings
 from PySide6.QtGui import QColor, QBrush
 from PySide6.QtWidgets import (
     QFrame,
@@ -298,6 +298,24 @@ class DashboardPage(QFrame):
         else:
             self.table_skeleton.hide_skeleton()
 
+    @staticmethod
+    def _executive_badge_style(executive: dict) -> str:
+        """Mantém o semáforo legível no tema escuro, sem alterar o tema claro."""
+        settings = QSettings("ChecklistFrota", "Desktop")
+        if str(settings.value("desktop_theme", "light")).strip().lower() != "dark":
+            return executive["style"]
+        label = str(executive.get("label") or "").upper()
+        if "ALTA" in label:
+            background, color, border = "#4A171D", "#FECACA", "#EF5350"
+        elif "MODERADA" in label:
+            background, color, border = "#422006", "#FDE68A", "#F59E0B"
+        else:
+            background, color, border = "#064E3B", "#A7F3D0", "#34D399"
+        return (
+            f"background:{background}; color:{color}; border:1px solid {border}; "
+            "border-radius:6px; padding:7px 10px; font-size:12px; font-weight:800;"
+        )
+
     def refresh(self):
         dashboard = self.api_client.get_dashboard()
         intelligence = dashboard.get("manutencao_portuaria") or {}
@@ -366,7 +384,7 @@ class DashboardPage(QFrame):
             open_total=dashboard.get("nc_abertas", 0),
         )
         self.hero_badge.setText(executive["label"])
-        self.hero_badge.setStyleSheet(executive["style"])
+        self.hero_badge.setStyleSheet(self._executive_badge_style(executive))
 
         severity_counts = {"Alta": 0, "Moderada": 0, "Controlada": 0}
         for item in critical_items:
