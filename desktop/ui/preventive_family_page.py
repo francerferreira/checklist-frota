@@ -793,6 +793,7 @@ class PreventiveFamilyPage(QFrame):
         self.rows: list[dict] = []
         self.visible_rows: list[dict] = []
         self.executions: list[dict] = []
+        self._preventive_alerted_plan_ids: set[int] = set()
         self.setObjectName("ContentSurface")
 
         layout = QVBoxLayout(self)
@@ -967,6 +968,52 @@ class PreventiveFamilyPage(QFrame):
             self.refresh()
             self.data_changed.emit()
 
+    def _prompt_preventive_schedule(self):
+        """Solicita programação quando uma preventiva entra na faixa de 150 h."""
+        active_plan_ids = {
+            execution.get("preventive_plan_id")
+            for execution in self.executions
+            if _text(execution.get("status")).upper() in {"PLANEJADA", "PROGRAMADA", "EM_EXECUCAO"}
+        }
+        candidates = []
+        for row in self.rows:
+            plan = row.get("plan") or {}
+            plan_id = plan.get("id")
+            remaining = row.get("remaining")
+            if plan_id in self._preventive_alerted_plan_ids or plan_id in active_plan_ids:
+                continue
+            try:
+                if plan_id and remaining is not None and float(remaining) <= 150:
+                    candidates.append(row)
+            except (TypeError, ValueError):
+                continue
+        if not candidates:
+            return
+
+        row = min(candidates, key=lambda item: float(item.get("remaining") or 0))
+        plan = row["plan"]
+        plan_id = plan.get("id")
+        self._preventive_alerted_plan_ids.add(plan_id)
+        vehicle = row.get("vehicle") or {}
+        equipment = vehicle.get("frota") or vehicle.get("placa") or "Equipamento"
+        remaining = float(row.get("remaining") or 0)
+        step = row.get("preventive_label") or "500 h"
+
+        message = QMessageBox(self)
+        message.setIcon(QMessageBox.Warning)
+        message.setWindowTitle("Programação preventiva necessária")
+        message.setText(f"{equipment} está a {remaining:.0f} h da preventiva de {step}.")
+        message.setInformativeText("Deseja programar agora? Na próxima tela você escolherá o dia da execução.")
+        schedule_button = message.addButton("Programar agora", QMessageBox.AcceptRole)
+        message.addButton("Depois", QMessageBox.RejectRole)
+        message.exec()
+        if message.clickedButton() is not schedule_button:
+            return
+        dialog = PreventiveScheduleDialog(self.api_client, self.family, [plan], self)
+        if dialog.exec() == QDialog.Accepted:
+            self.refresh()
+            self.data_changed.emit()
+
     def _open_execution_dialog(self):
         execution = self.execution_selector.currentData()
         if not execution:
@@ -1043,6 +1090,7 @@ class PreventiveFamilyPage(QFrame):
             self.last_update.setText(f"Última atualização: {datetime.now().strftime('%d/%m/%Y %H:%M')}")
             self._render_executions()
             self._render_rows()
+            self._prompt_preventive_schedule()
         except Exception as exc:
             show_notice(self, f"Falha ao carregar preventiva {self.family}", str(exc), icon_name="warning")
 
