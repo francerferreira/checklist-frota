@@ -57,9 +57,9 @@ def _number(value: Decimal | None) -> float | None:
 
 
 def _preventive_step(completed_count: int) -> Decimal:
-    """Retorna a próxima preventiva da série P500 até P6000.
+    """Retorna a próxima preventiva da série 500 h até 6000 h.
 
-    Depois da P6000 inicia uma nova série em P500. O marcador depende das
+    Depois de 6000 h inicia uma nova série em 500 h. O marcador depende das
     preventivas concluídas, nunca do valor absoluto do horímetro.
     """
     return PREVENTIVE_HOURMETER_STEPS[max(0, completed_count) % len(PREVENTIVE_HOURMETER_STEPS)]
@@ -274,7 +274,7 @@ def calculate_plan_state(
         "next_due_hourmeter": _number(_as_decimal(plan.next_due_hourmeter)),
         "next_due_date": plan.next_due_date.isoformat() if plan.next_due_date else None,
         "preventive_step_hours": _number(preventive_step),
-        "preventive_label": f"P{int(preventive_step)}",
+        "preventive_label": f"{int(preventive_step)} h",
         "forecast_due_date": forecast_due_date.isoformat() if forecast_due_date else None,
         "forecast_daily_hours": _number(daily_average),
         "stale_reading": stale,

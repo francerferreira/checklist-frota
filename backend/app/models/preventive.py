@@ -54,7 +54,7 @@ def _preventive_label(value):
         hours = int(Decimal(str(value)))
     except Exception:
         return None
-    return f"P{hours}" if 500 <= hours <= 6000 and hours % 500 == 0 else None
+    return f"{hours} h" if 500 <= hours <= 6000 and hours % 500 == 0 else None
 
 
 class PreventiveExecution(db.Model):
