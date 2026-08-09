@@ -58,6 +58,7 @@ class MaintenanceDashboardRoutesTests(unittest.TestCase):
             cls.admin_headers = {"Authorization": f"Bearer {generate_token(admin)}"}
             cls.mechanic_headers = {"Authorization": f"Bearer {generate_token(mechanic)}"}
             cls.admin_id = admin.id
+            cls.mechanic_id = mechanic.id
 
     @classmethod
     def tearDownClass(cls):
@@ -82,6 +83,7 @@ class MaintenanceDashboardRoutesTests(unittest.TestCase):
             vehicle = Vehicle(placa="", modelo="RTG", frota="RTG DASH 01", tipo="rtg", ativo=True)
             db.session.add(vehicle)
             db.session.flush()
+            self.vehicle_id = vehicle.id
             db.session.add(EquipmentProfile(vehicle_id=vehicle.id, family_id=family.id, criticality="CRITICA"))
             stopped_at = now_manaus_naive() - timedelta(days=2)
             db.session.add(
@@ -220,6 +222,30 @@ class MaintenanceDashboardRoutesTests(unittest.TestCase):
         item = critical.get_json()["data"]["items"][0]
         self.assertIn("STATUS_OPERACIONAL", item["reasons"])
         self.assertIn("PREVENTIVA_VENCENDO_OU_VENCIDA", item["reasons"])
+
+    def test_programmed_corrective_creates_calendar_item_and_work_order(self):
+        response = self.client.post(
+            "/manutencao/programacoes",
+            headers=self.admin_headers,
+            json={
+                "source_type": "CORRETIVA_PROGRAMADA",
+                "title": "Corretiva programada - troca de mangueira",
+                "item_name": "Troca de mangueira",
+                "vehicle_ids": [self.vehicle_id],
+                "assigned_mechanic_user_id": self.mechanic_id,
+                "start_date": today_manaus().isoformat(),
+                "daily_capacity": 1,
+                "status": "PROGRAMADA",
+                "observation": "Problema: vazamento\nCausa: desgaste\nAção planejada: substituir mangueira",
+            },
+        )
+        self.assertEqual(response.status_code, 201, response.get_json())
+        schedule = response.get_json()["data"]
+        self.assertEqual(schedule["source_type"], "ATIVIDADE")
+        self.assertEqual(schedule["source_origin_type"], "CORRETIVA_PROGRAMADA")
+        self.assertEqual(schedule["itens"][0]["status"], "PROGRAMADO")
+        self.assertEqual(schedule["itens"][0]["observation"], schedule["observation"])
+        self.assertIsNotNone(schedule["itens"][0]["work_order"])
 
     def test_dashboard_requires_management_access_and_valid_filters(self):
         unauthenticated = self.client.get("/dashboard-manutencao/resumo")

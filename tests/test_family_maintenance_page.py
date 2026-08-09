@@ -12,7 +12,7 @@ DESKTOP_ROOT = PROJECT_ROOT / "desktop"
 if str(DESKTOP_ROOT) not in sys.path:
     sys.path.insert(0, str(DESKTOP_ROOT))
 
-from PySide6.QtWidgets import QApplication
+from PySide6.QtWidgets import QApplication, QPushButton
 
 from ui.family_maintenance_page import FamilyMaintenancePage
 
@@ -58,6 +58,8 @@ class FamilyMaintenancePageTests(unittest.TestCase):
         self.assertEqual(page.table.item(0, 4).text(), "Programado")
         self.assertEqual(page.table.item(0, 6).text(), "OS-RTG-01")
         self.assertEqual(page.corrective_card.value_label.text(), "1")
+        self.assertEqual(page.findChild(type(page.corrective_card.value_label), "PageTitle").text(), "CORRETIVAS RTG")
+        self.assertIn("Nova corretiva programada", [button.text() for button in page.findChildren(QPushButton)])
         page.close()
 
 

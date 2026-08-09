@@ -101,7 +101,7 @@ class FamilyOperationalPage(QFrame):
         downtime_button.setProperty("variant", "primary")
         downtime_button.clicked.connect(lambda: self.open_page_requested.emit(self.downtime_page_key))
         if self.maintenance_page_key:
-            maintenance_button = QPushButton(f"Manutenções {self.family}")
+            maintenance_button = QPushButton(f"Corretivas {self.family}")
             maintenance_button.clicked.connect(lambda: self.open_page_requested.emit(self.maintenance_page_key))
             header.addWidget(maintenance_button, 0)
         if self.preventive_page_key:

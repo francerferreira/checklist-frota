@@ -2,6 +2,7 @@
 
 from calendar import monthrange
 from datetime import date, datetime, timedelta
+from uuid import uuid4
 
 from sqlalchemy.orm import lazyload
 
@@ -18,7 +19,7 @@ from app.models import (
     ResolutionPackage,
     WashQueueItem,
 )
-from app.models.maintenance import PACKAGE_SOURCE_PREFIX
+from app.models.maintenance import PACKAGE_SOURCE_PREFIX, PLANNED_CORRECTIVE_SOURCE_PREFIX
 from app.services.audit_service import record_event
 from app.services.material_service import register_material_movement
 
@@ -34,7 +35,7 @@ def _normalize_type(value: str | None) -> str:
     normalized = (_clean(value) or "CHECKLIST_NC").upper()
     if normalized == "PACOTE_RESOLUCAO":
         return normalized
-    if normalized not in {"CHECKLIST_NC", "ATIVIDADE", "PREVENTIVA"}:
+    if normalized not in {"CHECKLIST_NC", "ATIVIDADE", "PREVENTIVA", "CORRETIVA_PROGRAMADA"}:
         raise ValueError("Tipo de manutenção inválido.")
     return normalized
 
@@ -121,6 +122,8 @@ def _schedule_source_origin_type(schedule: MaintenanceSchedule | None) -> str:
     source_key = str(schedule.source_key or "")
     if source_key.startswith(PACKAGE_SOURCE_PREFIX):
         return "PACOTE_RESOLUCAO"
+    if source_key.startswith(PLANNED_CORRECTIVE_SOURCE_PREFIX):
+        return "CORRETIVA_PROGRAMADA"
     return str(schedule.source_type or "-").upper()
 
 
@@ -927,10 +930,19 @@ def create_maintenance_schedule(payload: dict, *, created_by_user_id: int) -> Ma
     start_date = _parse_date(payload.get("start_date") or payload.get("data_inicio"), default=today_manaus())
     daily_capacity = _normalize_daily_capacity(payload.get("daily_capacity") or payload.get("capacidade_diaria"))
 
+    # A tabela legada aceita ATIVIDADE. A chave especial preserva a origem
+    # correta para calendário, OS e relatórios sem exigir migração destrutiva.
+    if source_type == "CORRETIVA_PROGRAMADA":
+        source_type = "ATIVIDADE"
+        source_key = source_key or f"{PLANNED_CORRECTIVE_SOURCE_PREFIX}{uuid4().hex}"
+        if not source_key.startswith(PLANNED_CORRECTIVE_SOURCE_PREFIX):
+            source_key = f"{PLANNED_CORRECTIVE_SOURCE_PREFIX}{source_key}"
+
     if source_type in {"ATIVIDADE", "CHECKLIST_NC"}:
-        raise ValueError(
-            "Novas resoluções corretivas devem entrar pela Central de Resolução, virar Pacote de Resolução e só depois seguir para a manutenção."
-        )
+        if not (source_type == "ATIVIDADE" and source_key and source_key.startswith(PLANNED_CORRECTIVE_SOURCE_PREFIX)):
+            raise ValueError(
+                "Novas resoluções corretivas devem entrar pela Central de Resolução, virar Pacote de Resolução e só depois seguir para a manutenção."
+            )
 
     package_ids = [int(value) for value in payload.get("package_ids") or []]
     selected_packages: list[ResolutionPackage] = []
@@ -1025,6 +1037,7 @@ def create_maintenance_schedule(payload: dict, *, created_by_user_id: int) -> Ma
                 scheduled_date=assigned_dates[index],
                 status="PROGRAMADO",
                 assigned_mechanic_user_id=schedule.assigned_mechanic_user_id,
+                observation=schedule.observation,
             )
         )
 

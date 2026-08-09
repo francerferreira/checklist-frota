@@ -97,6 +97,93 @@ class CorrectiveEmergencyDialog(QDialog):
         self.accept()
 
 
+class CorrectiveScheduledDialog(QDialog):
+    """Programa uma corretiva e cria a OS sem abrir uma ocorrência emergencial."""
+
+    def __init__(self, api_client, family: str, vehicles: list[dict], parent=None):
+        super().__init__(parent)
+        self.api_client, self.family, self.vehicles = api_client, family, list(vehicles or [])
+        self.setWindowTitle(f"Corretiva programada - {family}")
+        self.setMinimumWidth(610)
+        layout = QVBoxLayout(self)
+        layout.setContentsMargins(22, 20, 22, 20)
+        layout.setSpacing(12)
+        title = QLabel(f"CORRETIVA PROGRAMADA - {family}")
+        title.setObjectName("PageTitle")
+        layout.addWidget(title)
+        subtitle = QLabel("Planeje uma correção sem caracterizar emergência. Ao salvar, será criada uma programação e a OS da família.")
+        subtitle.setObjectName("PageSubtitle")
+        subtitle.setWordWrap(True)
+        layout.addWidget(subtitle)
+        form = QFormLayout()
+        form.setSpacing(10)
+        self.vehicle = QComboBox()
+        self.vehicle.addItem("Selecione o equipamento", None)
+        for row in self.vehicles:
+            label = _text(row.get("frota") or row.get("placa") or row.get("modelo")) or "Equipamento"
+            local = _text((row.get("operational_location") or {}).get("full_name"))
+            self.vehicle.addItem(f"{label}{f' | {local}' if local else ''}", row.get("id"))
+        self.problem = QLineEdit()
+        self.problem.setPlaceholderText("Ex.: troca programada de mangueira hidráulica")
+        self.cause, self.action = QTextEdit(), QTextEdit()
+        self.cause.setPlaceholderText("Descreva a causa identificada.")
+        self.action.setPlaceholderText("Descreva a ação planejada.")
+        self.cause.setMaximumHeight(70)
+        self.action.setMaximumHeight(70)
+        self.mechanic = QComboBox()
+        self.mechanic.addItem("Selecione o responsável", None)
+        try:
+            for user in self.api_client.get_mechanics() or []:
+                self.mechanic.addItem(_text(user.get("nome") or user.get("login")), user.get("id"))
+        except Exception:
+            pass
+        self.scheduled_date = QDateEdit(QDate.currentDate())
+        self.scheduled_date.setDisplayFormat("dd/MM/yyyy")
+        self.scheduled_date.setCalendarPopup(True)
+        for label, field in (
+            ("Equipamento *", self.vehicle),
+            ("Problema *", self.problem),
+            ("Causa *", self.cause),
+            ("Ação planejada *", self.action),
+            ("Responsável *", self.mechanic),
+            ("Data programada *", self.scheduled_date),
+        ):
+            form.addRow(label, field)
+        layout.addLayout(form)
+        buttons = QDialogButtonBox(QDialogButtonBox.Cancel | QDialogButtonBox.Save)
+        buttons.button(QDialogButtonBox.Cancel).setText("Cancelar")
+        buttons.button(QDialogButtonBox.Save).setText("Programar corretiva e criar OS")
+        buttons.button(QDialogButtonBox.Save).setProperty("variant", "primary")
+        buttons.rejected.connect(self.reject)
+        buttons.accepted.connect(self._save)
+        layout.addWidget(buttons)
+
+    def _save(self):
+        vehicle_id, problem = self.vehicle.currentData(), self.problem.text().strip()
+        cause, action = self.cause.toPlainText().strip(), self.action.toPlainText().strip()
+        mechanic_id = self.mechanic.currentData()
+        if not vehicle_id or not mechanic_id or not problem or not cause or not action:
+            show_notice(self, "Campos obrigatórios", "Informe equipamento, responsável, problema, causa e ação planejada.", icon_name="warning")
+            return
+        payload = {
+            "source_type": "CORRETIVA_PROGRAMADA",
+            "title": f"Corretiva programada - {problem}",
+            "item_name": problem,
+            "vehicle_ids": [int(vehicle_id)],
+            "assigned_mechanic_user_id": int(mechanic_id),
+            "start_date": self.scheduled_date.date().toString("yyyy-MM-dd"),
+            "daily_capacity": 1,
+            "status": "PROGRAMADA",
+            "observation": f"Problema: {problem}\nCausa: {cause}\nAção planejada: {action}",
+        }
+        try:
+            self.api_client.create_maintenance_schedule(payload)
+        except Exception as exc:
+            show_notice(self, "Corretiva não programada", str(exc), icon_name="warning")
+            return
+        self.accept()
+
+
 class FamilyMaintenancePage(QFrame):
     """Manuten\u00e7\u00e3o simples por fam\u00edlia, sem Central de A\u00e7\u00f5es ou PCM."""
     open_page_requested = Signal(str)
@@ -113,9 +200,9 @@ class FamilyMaintenancePage(QFrame):
         layout.setSpacing(14)
         header = QHBoxLayout()
         title_wrap = QVBoxLayout()
-        title = QLabel(f"MANUTEN\u00c7\u00c3O {self.family}")
+        title = QLabel(f"CORRETIVAS {self.family}")
         title.setObjectName("PageTitle")
-        subtitle = QLabel("Rotina direta da \u00e1rea: agenda, preventivas, corretivas emergenciais, OS e hor\u00edmetros.")
+        subtitle = QLabel("Rotina direta da área: corretivas programadas e emergenciais, OS, preventivas e horímetros.")
         subtitle.setObjectName("PageSubtitle")
         subtitle.setWordWrap(True)
         title_wrap.addWidget(title)
@@ -124,12 +211,16 @@ class FamilyMaintenancePage(QFrame):
         corrective = QPushButton("Nova corretiva emergencial")
         corrective.setProperty("variant", "danger")
         corrective.clicked.connect(self._open_corrective)
+        scheduled_corrective = QPushButton("Nova corretiva programada")
+        scheduled_corrective.setProperty("variant", "primary")
+        scheduled_corrective.clicked.connect(self._open_scheduled_corrective)
         preventive = QPushButton("Preventivas e hor\u00edmetros")
         preventive.setProperty("variant", "primary")
         preventive.clicked.connect(self._open_preventive)
         refresh = QPushButton("Atualizar")
         refresh.clicked.connect(self.refresh)
         header.addWidget(corrective)
+        header.addWidget(scheduled_corrective)
         header.addWidget(preventive)
         header.addWidget(refresh)
         layout.addLayout(header)
@@ -137,7 +228,7 @@ class FamilyMaintenancePage(QFrame):
         cards.setHorizontalSpacing(14)
         cards.setVerticalSpacing(14)
         self.total_card = StatCard("Servi\u00e7os", "0", f"Itens {self.family}", icon_name="maintenance")
-        self.corrective_card = StatCard("Corretivas", "0", "Pendentes ou emergenciais", icon_name="warning")
+        self.corrective_card = StatCard("Corretivas", "0", "Programadas ou emergenciais", icon_name="warning")
         self.preventive_card = StatCard("Preventivas", "0", "Programa\u00e7\u00f5es da \u00e1rea", icon_name="activities")
         self.area_target_card = StatCard("Meta da \u00e1rea", "50 h", f"Meta operacional {self.family}", icon_name="dashboard")
         self.total_target_card = StatCard("Meta total", "100 h", "RTG e LBS somados", icon_name="dashboard")
@@ -192,6 +283,10 @@ class FamilyMaintenancePage(QFrame):
         dialog = CorrectiveEmergencyDialog(self.api_client, self.family, self.vehicles, self)
         if dialog.exec() == QDialog.Accepted:
             self.refresh(); self.data_changed.emit()
+    def _open_scheduled_corrective(self):
+        dialog = CorrectiveScheduledDialog(self.api_client, self.family, self.vehicles, self)
+        if dialog.exec() == QDialog.Accepted:
+            self.refresh(); self.data_changed.emit()
     def _clear_date_filter(self):
         self.selected_date = None; self.calendar_info.setText("Mostrando todas as programa\u00e7\u00f5es do per\u00edodo selecionado."); self._render_rows()
     def _select_calendar_date(self, selected: QDate):
@@ -233,12 +328,16 @@ class FamilyMaintenancePage(QFrame):
         for index, item in enumerate(rows):
             status, schedule = _text(item.get("status") or "PENDENTE").upper(), item.get("schedule") or {}
             origin = _text(schedule.get("source_origin_type") or schedule.get("source_type")).upper()
-            service_type = "Preventiva" if "PREVENT" in origin else "Corretiva"
-            preventive += service_type == "Preventiva"; corrective += service_type == "Corretiva"; pending += status in PENDING_STATUSES
+            service_type = "Preventiva" if "PREVENT" in origin else (
+                "Corretiva programada" if "CORRETIVA_PROGRAMADA" in origin else (
+                    "Corretiva emergencial" if "EMERGENC" in origin else "Corretiva"
+                )
+            )
+            preventive += service_type == "Preventiva"; corrective += service_type != "Preventiva"; pending += status in PENDING_STATUSES
             vehicle, order, activity, checklist = item.get("vehicle") or {}, item.get("work_order") or {}, item.get("activity") or {}, item.get("checklist_item") or {}
             service = _text(schedule.get("title") or activity.get("titulo") or checklist.get("nome") or checklist.get("item_principal")) or "Servi\u00e7o de manuten\u00e7\u00e3o"
             values = [item.get("scheduled_date") or "-", vehicle.get("frota") or vehicle.get("placa") or "-", service_type, service, STATUS_LABELS.get(status, status), _text(item.get("observation") or item.get("not_executed_reason")) or "-", order.get("order_number") or "-"]
             for column, value in enumerate(values): self.table.setItem(index, column, QTableWidgetItem(str(value)))
         self.total_card.set_content("Servi\u00e7os", str(len(rows)), f"Itens {self.family}")
-        self.corrective_card.set_content("Corretivas", str(corrective if corrective else pending), "Pendentes ou emergenciais")
+        self.corrective_card.set_content("Corretivas", str(corrective if corrective else pending), "Programadas ou emergenciais")
         self.preventive_card.set_content("Preventivas", str(preventive), "Programa\u00e7\u00f5es da \u00e1rea")

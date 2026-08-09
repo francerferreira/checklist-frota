@@ -8,6 +8,7 @@ from app.utils.timezone import now_manaus_naive
 
 PACKAGE_SOURCE_PREFIX = "PACOTE_RESOLUCAO:"
 EMERGENCY_SOURCE_PREFIX = "EMERGENCIA:"
+PLANNED_CORRECTIVE_SOURCE_PREFIX = "CORRETIVA_PROGRAMADA:"
 
 
 def _package_ids_from_source_key(source_key: str | None) -> list[int]:
@@ -139,6 +140,8 @@ class MaintenanceSchedule(db.Model):
             return "PACOTE_RESOLUCAO"
         if source_key.startswith(EMERGENCY_SOURCE_PREFIX):
             return "EMERGENCIAL"
+        if source_key.startswith(PLANNED_CORRECTIVE_SOURCE_PREFIX):
+            return "CORRETIVA_PROGRAMADA"
         return self.source_type
 
     def to_dict(self, include_items: bool = False, include_materials: bool = False, include_work_orders: bool = False) -> dict:

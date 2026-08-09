@@ -529,11 +529,11 @@ class MainWindow(QMainWindow):
             "checklist_history": "Histórico Checklist",
             "spreader_history": "Histórico Spreaders",
             "special_schedule": "Escala de Domingo e Feriado",
-            "rtg_module": "Manutenção RTG",
-            "lbs_module": "Manutenção LBS",
-            "rtg_maintenance": "Manutenções RTG",
+            "rtg_module": "Painel RTG",
+            "lbs_module": "Painel LBS",
+            "rtg_maintenance": "Corretivas RTG",
             "rtg_preventive": "Preventiva RTG",
-            "lbs_maintenance": "Manuten\u00e7\u00f5es LBS",
+            "lbs_maintenance": "Corretivas LBS",
             "lbs_preventive": "Preventiva LBS",
             "rtg_downtime": "Controle de Paradas RTG",
             "lbs_downtime": "Controle de Paradas LBS",
@@ -751,8 +751,8 @@ class MainWindow(QMainWindow):
             ("Dashboard", ["dashboard"]),
             ("Equipamentos", ["equipment_home", "equipment", "availability", "spreader_history", "checklist_items", "inspection_templates"]),
             ("RH", ["rh_home", "hr_management", "employees", "attendance_home", "attendance", "schedule_home", "special_schedule", "vacations", "employee_records"]),
-            ("Manutenção RTG", ["rtg_module", "rtg_maintenance", "rtg_preventive", "rtg_downtime"]),
-            ("Manutenção LBS", ["lbs_module", "lbs_maintenance", "lbs_preventive", "lbs_downtime"]),
+            ("RTG", ["rtg_module", "rtg_maintenance", "rtg_preventive", "rtg_downtime"]),
+            ("LBS", ["lbs_module", "lbs_maintenance", "lbs_preventive", "lbs_downtime"]),
             ("Relatórios", ["reports", "productivity", "checklist_history"]),
             ("Configurações", ["users", "admin_rules", "cloud_backup", "audit_logs"]),
             ("Materiais e Compras", ["materials", "supply_library", "purchases"]),
@@ -987,9 +987,9 @@ class MainWindow(QMainWindow):
         if page_key == "maintenance_home":
             return "MANUTENÇÃO"
         if page_key in {"rtg_module", "rtg_preventive", "rtg_maintenance", "rtg_downtime"}:
-            return "MANUTENÇÃO RTG"
+            return "RTG"
         if page_key in {"lbs_module", "lbs_preventive", "lbs_maintenance", "lbs_downtime"}:
-            return "MANUTENÇÃO LBS"
+            return "LBS"
         if page_key in {"reports", "productivity", "checklist_history"}:
             return "RELATÓRIOS"
         if page_key in {"users", "cloud_backup", "audit_logs", "admin_rules"}:
