@@ -1235,7 +1235,7 @@ def export_material_report_xlsx(
         [
             ("Referência", "referencia"),
             ("Descrição", "descricao"),
-            ("Família", "familia_veiculo"),
+            ("Módulo", "familia_veiculo"),
             ("Reservado", "reservado_total"),
             ("Necessário", "necessario_total"),
             ("Programações", "programacoes"),
@@ -1346,7 +1346,7 @@ def export_material_report_pdf(
             [
                 ("Referência", "referencia"),
                 ("Descrição", "descricao"),
-                ("Família", "familia_veiculo"),
+                ("Módulo", "familia_veiculo"),
                 ("Reservado", "reservado_total"),
                 ("Necessário", "necessario_total"),
                 ("Programações", "programacoes"),

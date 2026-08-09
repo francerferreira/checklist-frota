@@ -111,7 +111,7 @@ class CorrectiveScheduledDialog(QDialog):
         title = QLabel(f"CORRETIVA PROGRAMADA - {family}")
         title.setObjectName("PageTitle")
         layout.addWidget(title)
-        subtitle = QLabel("Planeje uma correção sem caracterizar emergência. Ao salvar, será criada uma programação e a OS da família.")
+        subtitle = QLabel("Planeje uma correção sem caracterizar emergência. Ao salvar, será criada uma programação e a OS do módulo.")
         subtitle.setObjectName("PageSubtitle")
         subtitle.setWordWrap(True)
         layout.addWidget(subtitle)

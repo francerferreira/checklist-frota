@@ -30,19 +30,19 @@ class SupplyLibraryPage(QFrame):
         self.setObjectName("ContentSurface")
         layout = QVBoxLayout(self); layout.setContentsMargins(16, 16, 16, 16); layout.setSpacing(12)
         title = QLabel("Suprimentos e Biblioteca Técnica"); title.setObjectName("PageTitle")
-        subtitle = QLabel("Depósitos distribuem o estoque atual; reservas protegem material para a OS; documentos ficam vinculados ao ativo ou sua família.")
+        subtitle = QLabel("Depósitos distribuem o estoque atual; reservas protegem material para a OS; documentos ficam vinculados ao ativo ou ao seu módulo.")
         subtitle.setObjectName("PageSubtitle"); subtitle.setWordWrap(True)
         actions = QHBoxLayout(); actions.addStretch()
         refresh = QPushButton("Atualizar"); refresh.clicked.connect(self.refresh); actions.addWidget(refresh)
         tabs = QTabWidget(); tabs.setDocumentMode(True)
         self.warehouse_table = self._table(["Código", "Depósito", "Local", "Ativo"])
         self.stock_table = self._table(["Depósito", "Material", "Saldo", "Reservado", "Disponível"])
-        self.application_table = self._table(["Material", "Aplicações por família"])
+        self.application_table = self._table(["Material", "Aplicações por módulo"])
         self.reservation_table = self._table(["Programação", "Material", "Depósito", "Qtd.", "Consumido", "Status"])
         self.document_table = self._table(["Código", "Título", "Tipo", "Rev.", "Vínculo", "Validade", "Situação"])
         tabs.addTab(self._tab("Depósitos", self.warehouse_table, [("Novo depósito", self.create_warehouse)]), "Depósitos")
         tabs.addTab(self._tab("Saldo por depósito", self.stock_table, [("Distribuir saldo", self.initialize_stock)]), "Estoques")
-        tabs.addTab(self._tab("Aplicação por família", self.application_table, [("Vincular família", self.link_material_family)]), "Aplicações")
+        tabs.addTab(self._tab("Aplicação por módulo", self.application_table, [("Vincular módulo", self.link_material_family)]), "Aplicações")
         tabs.addTab(self._tab("Reservas de OS", self.reservation_table, []), "Reservas")
         tabs.addTab(self._tab("Manuais e procedimentos", self.document_table, [("Novo documento", self.create_document)]), "Biblioteca")
         layout.addWidget(title); layout.addWidget(subtitle); layout.addLayout(actions); layout.addWidget(tabs, 1)
@@ -98,7 +98,7 @@ class SupplyLibraryPage(QFrame):
         material, family = QComboBox(), QComboBox()
         for row in self.materials: material.addItem(f"{row.get('referencia')} | {row.get('descricao')}", row)
         for row in self.families: family.addItem(row.get("name"), row.get("id"))
-        dialog = SimpleFormDialog("Vincular material à família", [("Material", material), ("Família", family)], self)
+        dialog = SimpleFormDialog("Vincular material ao módulo", [("Material", material), ("Módulo", family)], self)
         if dialog.exec() != QDialog.Accepted: return
         try:
             selected = material.currentData(); family_ids = [item.get("family_id") for item in selected.get("family_applications", [])] + [family.currentData()]
@@ -111,7 +111,7 @@ class SupplyLibraryPage(QFrame):
         family.addItem("Sem vínculo", None); vehicle.addItem("Sem vínculo", None)
         for row in self.families: family.addItem(row.get("name"), row.get("id"))
         for row in self.vehicles: vehicle.addItem(row.get("frota") or row.get("placa"), row.get("id"))
-        dialog = SimpleFormDialog("Novo documento técnico", [("Código", code), ("Título", title), ("Tipo", doc_type), ("Revisão", revision), ("Família", family), ("Equipamento", vehicle)], self)
+        dialog = SimpleFormDialog("Novo documento técnico", [("Código", code), ("Título", title), ("Tipo", doc_type), ("Revisão", revision), ("Módulo", family), ("Equipamento", vehicle)], self)
         if dialog.exec() != QDialog.Accepted: return
         file_path, _ = QFileDialog.getOpenFileName(self, "Selecionar PDF ou imagem", "", "Documentos (*.pdf *.jpg *.jpeg *.png *.webp)")
         if not file_path: return

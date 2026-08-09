@@ -3702,7 +3702,7 @@ class MaintenancePage(QFrame):
         blockers = schedule.get("bloqueios_resumo") or {}
         materials = schedule.get("materiais_resumo") or {}
         family = str(materials.get("familia_veiculo") or schedule.get("vehicle_family") or "ambos").replace("_", " ")
-        parts = [f"Família {family}"]
+        parts = [f"Módulo {family}"]
         if blockers.get("sem_responsavel"):
             parts.append("sem responsável")
         if int(blockers.get("materiais_bloqueados") or 0):

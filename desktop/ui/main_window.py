@@ -408,8 +408,8 @@ class MainWindow(QMainWindow):
             refresh_interval_ms=self.module_refresh_interval_ms,
         )
         self.maintenance_home_page = ModuleLandingPage(
-            "Manutenção por Família",
-            "Escolha RTG ou LBS. Cada família mantém sua própria agenda, preventivas, corretivas, paradas e horímetros.",
+            "Manutenção por Módulo",
+            "Escolha RTG ou LBS. Cada módulo mantém sua própria agenda, preventivas, corretivas, paradas e horímetros.",
             "Manutenção",
             [
                 ("RTG", "Agenda, corretivas, preventivas, paradas e horímetros dos RTGs.", "rtg_module", "equipment"),
@@ -523,7 +523,7 @@ class MainWindow(QMainWindow):
             "rh_home": "Painel de RH",
             "attendance_home": "Central de Absenteísmo",
             "schedule_home": "Central de Escala e DSR",
-            "maintenance_home": "Manutenção por Família",
+            "maintenance_home": "Manutenção por Módulo",
             "nc": "Central de Resolução",
             "productivity": "Produtividade",
             "operations_center": "Central Operacional",
@@ -1312,8 +1312,8 @@ class MainWindow(QMainWindow):
             "maintenance": ("Carregando manutenção", "Montando cronograma mensal e tabela de programação."),
             "emergencies": ("Carregando emergenciais", "Buscando ocorrências, criticidade e ordens de serviço."),
             "pcm": ("Carregando PCM", "Consolidando planos preventivos, agenda e backlog."),
-            "rtg_preventive": ("Carregando preventiva RTG", "Atualizando horímetros, ciclos e vencimentos da família RTG."),
-            "lbs_preventive": ("Carregando preventiva LBS", "Atualizando horímetros, ciclos e vencimentos da família LBS."),
+            "rtg_preventive": ("Carregando preventiva RTG", "Atualizando horímetros, ciclos e vencimentos do módulo RTG."),
+            "lbs_preventive": ("Carregando preventiva LBS", "Atualizando horímetros, ciclos e vencimentos do módulo LBS."),
             "supply_library": ("Carregando suprimentos", "Montando depósitos, reservas e biblioteca técnica."),
             "reports": ("Montando relatórios", "Consolidando dados macro, micro e exportações."),
             "checklist_history": ("Carregando histórico", "Montando matriz de checklists por frota e data."),

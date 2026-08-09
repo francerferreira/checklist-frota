@@ -788,7 +788,7 @@ class PreventiveFamilyPage(QFrame):
 
     def _open_hourmeter_dialog(self):
         if not self.rows:
-            show_notice(self, "Equipamentos indisponíveis", f"Nenhum equipamento ativo da família {self.family} foi carregado.", icon_name="warning")
+            show_notice(self, "Equipamentos indisponíveis", f"Nenhum equipamento ativo do módulo {self.family} foi carregado.", icon_name="warning")
             return
         dialog = HourmeterEntryDialog(self.api_client, self.family, self.rows, self)
         if dialog.exec() == QDialog.Accepted:
@@ -1002,7 +1002,7 @@ class PreventiveFamilyPage(QFrame):
     def _export_rows(self) -> tuple[list[tuple[str, str]], list[dict]]:
         """Converte a visão filtrada atual para o formato comum de exportação."""
         columns = [
-            ("Família", "familia"),
+            ("Módulo", "familia"),
             ("Equipamento", "equipamento"),
             ("Local", "local"),
             ("Horímetro", "horimetro"),
@@ -1081,7 +1081,7 @@ class PreventiveFamilyPage(QFrame):
                 rows,
                 filename,
                 generated_by=(self.api_client.user or {}).get("nome", ""),
-                period_label=f"Família {self.family} | {datetime.now().strftime('%d/%m/%Y %H:%M')}",
+                period_label=f"Módulo {self.family} | {datetime.now().strftime('%d/%m/%Y %H:%M')}",
             )
             progress(100, "Relatório pronto")
             return result

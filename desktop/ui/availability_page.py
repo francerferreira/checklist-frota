@@ -35,7 +35,7 @@ class AvailabilityPage(QFrame):
         title = QLabel("Disponibilidade Operacional")
         title.setObjectName("PageTitle")
         subtitle = QLabel(
-            "Visão consolidada dos equipamentos por família e local. Os apontamentos são realizados no web mobile."
+            "Visão consolidada dos equipamentos por módulo e local. Os apontamentos são realizados no web mobile."
         )
         subtitle.setObjectName("PageSubtitle")
         subtitle.setWordWrap(True)
@@ -61,7 +61,7 @@ class AvailabilityPage(QFrame):
         table_caption.setWordWrap(True)
         self.table = QTableWidget(0, 7)
         self.table.setHorizontalHeaderLabels(
-            ["Local", "Família", "Equipamento", "Status", "Atualizado em", "Horímetro", "Disponibilidade"]
+            ["Local", "Módulo", "Equipamento", "Status", "Atualizado em", "Horímetro", "Disponibilidade"]
         )
         configure_table(self.table, stretch_last=False)
         self.table.setMinimumHeight(480)

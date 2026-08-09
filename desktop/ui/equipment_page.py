@@ -288,7 +288,7 @@ class EquipmentDialog(QDialog):
             form_layout.addWidget(field, row, column, 1, col_span)
 
         add_field(0, 0, "Identificação / Frota", self.frota_input, highlight=True)
-        add_field(0, 1, "Família", self.family_combo, highlight=True)
+        add_field(0, 1, "Módulo", self.family_combo, highlight=True)
         add_field(1, 0, "Tipo técnico", self.tipo_combo)
         add_field(1, 1, "Placa", self.placa_input)
         add_field(2, 0, "Ano", self.ano_input)
@@ -708,7 +708,7 @@ class EquipmentPage(QFrame):
 
         self.table = QTableWidget(0, 9)
         self.table.setHorizontalHeaderLabels(
-            ["Identificação", "Família", "Tipo", "Série", "Modelo", "Status", "Criticidade", "Local", "Foto"]
+            ["Identificação", "Módulo", "Tipo", "Série", "Modelo", "Status", "Criticidade", "Local", "Foto"]
         )
         configure_table(self.table, stretch_last=False)
         self.table.setMinimumHeight(540)

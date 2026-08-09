@@ -258,7 +258,7 @@ class VehicleDetailDialog(QDialog):
             "\n".join(
                 [
                     f"Frota: {vehicle.get('frota') or '-'}",
-                    f"Família: {family.get('name') or vehicle.get('tipo') or '-'}",
+                    f"Módulo: {family.get('name') or vehicle.get('tipo') or '-'}",
                     f"Tipo: {(vehicle.get('tipo') or '-').title()}",
                     f"Placa: {vehicle.get('placa') or '-'}",
                     f"Modelo: {vehicle.get('modelo') or '-'}",
@@ -375,7 +375,7 @@ class VehicleDetailDialog(QDialog):
         hourmeter_rows = [[self._format(row.get("recorded_at")), row.get("reading"), row.get("source"), row.get("notes")] for row in self.hourmeter_history]
         tabs.addTab(self._table_tab("Horimetro", "Leituras registradas sem sobrescrever o historico.", ["Data", "Leitura", "Origem", "Observacao"], hourmeter_rows), "Horimetro")
         document_rows = [[row.get("code"), row.get("title"), row.get("document_type"), row.get("revision"), row.get("valid_until") or "Sem validade", row.get("effective_status") or row.get("status")] for row in self.technical_documents]
-        tabs.addTab(self._table_tab("Documentos tecnicos", "Manuais, diagramas e certificados vinculados ao equipamento ou a sua familia.", ["Codigo", "Documento", "Tipo", "Revisao", "Validade", "Situacao"], document_rows), "Documentos")
+        tabs.addTab(self._table_tab("Documentos tecnicos", "Manuais, diagramas e certificados vinculados ao equipamento ou ao seu módulo.", ["Codigo", "Documento", "Tipo", "Revisao", "Validade", "Situacao"], document_rows), "Documentos")
         seen_ids: set[int] = set()
         link_rows = []
         for row in self.equipment_links:

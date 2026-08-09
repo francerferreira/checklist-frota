@@ -476,7 +476,7 @@ class MaterialReportDialog(QDialog):
         self.exit_table = self._make_table(["Referência", "Descrição", "Saídas", "Último movimento"])
         self.entry_table = self._make_table(["Referência", "Descrição", "Entradas", "Último movimento"])
         self.reserve_table = self._make_table(
-            ["Referência", "Descrição", "Família", "Reservado", "Necessário", "Programações", "OS", "Pacotes", "Atualização"]
+            ["Referência", "Descrição", "Módulo", "Reservado", "Necessário", "Programações", "OS", "Pacotes", "Atualização"]
         )
         self.alert_table = self._make_table(
             ["Referência", "Descrição", "Reservado", "Consumo", "Programações", "Bloqueios", "Leitura"]

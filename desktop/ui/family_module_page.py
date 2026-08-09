@@ -26,7 +26,7 @@ class FamilyModulePage(QFrame):
         title = QLabel(f"GEST\u00c3O {self.family}")
         title.setObjectName("PageTitle")
         subtitle = QLabel(
-            f"Central de controle da familia {self.family}. "
+            f"Central de controle do módulo {self.family}. "
             "As telas de operacao, paradas e manutencao serao organizadas aqui."
         )
         subtitle.setObjectName("PageSubtitle")
@@ -39,7 +39,7 @@ class FamilyModulePage(QFrame):
         identity_layout = QHBoxLayout(identity_card)
         identity_layout.setContentsMargins(18, 16, 18, 16)
         identity_layout.setSpacing(16)
-        family_caption = QLabel("FAMILIA OPERACIONAL")
+        family_caption = QLabel("MÓDULO OPERACIONAL")
         family_caption.setObjectName("SectionCaption")
         family_value = QLabel(self.family)
         family_value.setObjectName("SectionTitle")
@@ -64,11 +64,11 @@ class FamilyModulePage(QFrame):
         grid.setHorizontalSpacing(14)
         grid.setVerticalSpacing(14)
         modules = (
-            ("01", "PAINEL OPERACIONAL", "Resumo de disponibilidade e situacao da familia."),
+            ("01", "PAINEL OPERACIONAL", "Resumo de disponibilidade e situacao do módulo."),
             ("02", "CONTROLE DE PARADAS", "Inicio, fim, motivo e horas paradas por equipamento."),
             ("03", "MANUTENCOES", "Preventivas, corretivas e servicos direcionados."),
             ("04", "ORDENS DE SERVICO", "Acompanhar abertura, execucao e conclusao das OS."),
-            ("05", "PCM", "Planejamento, agenda e backlog da familia."),
+            ("05", "PCM", "Planejamento, agenda e backlog do módulo."),
             ("06", "HISTORICO", "Linha do tempo de ocorrencias e intervencoes."),
         )
         for index, (number, label_text, description) in enumerate(modules):

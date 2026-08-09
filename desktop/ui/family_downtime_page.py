@@ -192,7 +192,7 @@ class FamilyDowntimePage(QFrame):
         title = QLabel(f"CONTROLE DE PARADAS - {self.family}")
         title.setObjectName("PageTitle")
         subtitle = QLabel(
-            f"Registre e acompanhe paradas da familia {self.family}. "
+            f"Registre e acompanhe paradas do módulo {self.family}. "
             "O encerramento da parada ocorre ao registrar uma nova situacao operacional."
         )
         subtitle.setObjectName("PageSubtitle")

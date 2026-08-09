@@ -57,12 +57,12 @@ class OperationalCenterPage(QFrame):
         filter_layout = QHBoxLayout(filter_bar)
         filter_layout.setContentsMargins(12, 10, 12, 10)
         filter_layout.setSpacing(10)
-        filter_layout.addWidget(QLabel("Família"))
+        filter_layout.addWidget(QLabel("Módulo"))
         self.family_filter = QComboBox()
         self.family_filter.addItem("Todos os ativos", "ALL")
         self.family_filter.addItem("RTG", "RTG")
         self.family_filter.addItem("LBS", "LBS")
-        self.family_filter.addItem("Demais famílias", "OTHER")
+        self.family_filter.addItem("Demais módulos", "OTHER")
         filter_layout.addWidget(self.family_filter)
         filter_layout.addWidget(QLabel("Pesquisar"))
         self.search_input = QLineEdit()
@@ -87,7 +87,7 @@ class OperationalCenterPage(QFrame):
         self.table.setHorizontalHeaderLabels(
             [
                 "Equipamento",
-                "Família",
+                "Módulo",
                 "Status",
                 "Local",
                 "Criticidade",
