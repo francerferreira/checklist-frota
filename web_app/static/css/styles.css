@@ -58,6 +58,14 @@ body {
     touch-action: pan-y;
 }
 
+/* Fundo operacional único: azul sólido em toda a navegação Web Mobile. */
+html,
+body,
+.mobile-shell {
+    background-color: #0756b5;
+    background-image: none;
+}
+
 body.entry-screen {
     background: var(--page);
 }
@@ -71,7 +79,7 @@ body.modal-open .mobile-shell {
 }
 
 body.first-access-only #home-screen { visibility: hidden; }
-body.first-access-only .app-modal-backdrop { background: linear-gradient(135deg, rgba(4, 38, 89, 0.92), rgba(8, 124, 146, 0.88)); }
+body.first-access-only .app-modal-backdrop { background: rgba(7, 86, 181, 0.94); }
 
 button,
 input,

@@ -6,9 +6,7 @@ body.dashboard-page {
 }
 
 body.dashboard-page {
-    background:
-        radial-gradient(circle at 82% 4%, rgba(47, 192, 185, 0.28), transparent 22%),
-        linear-gradient(180deg, #062d67 0, #0756b5 260px, #edf1f5 760px);
+    background: #0756b5;
 }
 
 .maintenance-dashboard-shell {
