@@ -2204,7 +2204,7 @@ function renderAvailability() {
     if (!rows.length) {
         renderStateCard(elements.availabilityList, {
             title: "NENHUM EQUIPAMENTO UNIFICADO",
-            message: "Cadastre a família do equipamento no desktop antes do apontamento.",
+            message: "Cadastre o módulo do equipamento no Desktop antes do apontamento.",
         });
         return;
     }
@@ -2497,7 +2497,7 @@ function renderTechnicalLibraryDocuments() {
     const rows = state.technicalDocuments || [];
     elements.technicalLibraryList.innerHTML = "";
     if (!rows.length) {
-        renderStateCard(elements.technicalLibraryList, { title: "SEM DOCUMENTOS", message: "A gestão ainda não vinculou documentos técnicos a este equipamento ou família." });
+        renderStateCard(elements.technicalLibraryList, { title: "SEM DOCUMENTOS", message: "A gestão ainda não vinculou documentos técnicos a este equipamento ou módulo." });
         return;
     }
     rows.forEach((documentRow) => {
@@ -2551,7 +2551,7 @@ function renderTechnicalInspectionSelectors() {
         elements.technicalInspectionTemplate.innerHTML = "";
         renderStateCard(elements.technicalInspectionForm, {
             title: "SEM EQUIPAMENTOS COM MODELO PUBLICADO",
-            message: "Publique um template para a família no desktop.",
+            message: "Publique um template para o módulo no Desktop.",
         });
         return;
     }
@@ -2870,7 +2870,7 @@ function renderChecklistHistory() {
         elements.checklistHistoryTableWrap.innerHTML = `
             <article class="empty-state">
                 <strong>NENHUMA FROTA ENCONTRADA NESTE FILTRO.</strong>
-                <span>AJUSTE A FAMÍLIA OU O PERÍODO.</span>
+                <span>AJUSTE O MÓDULO OU O PERÍODO.</span>
             </article>
         `;
         return;
@@ -4789,7 +4789,7 @@ function makeVehicleCard(vehicle) {
 
 function renderVehicleFamilyScreen() {
     const familyFilter = normalizeText(state.vehicleFamilyFilter).toUpperCase();
-    const familyLabel = familyFilter === "SPREADER" ? "SPREADERS" : familyFilter || "FAMÍLIA";
+    const familyLabel = familyFilter === "SPREADER" ? "SPREADERS" : familyFilter || "MÓDULO";
     const filteredVehicles = state.vehicles.filter((vehicle) => getVehicleFamilyKey(vehicle) === familyFilter);
     elements.vehicleFamilyTitle.textContent = familyLabel;
     elements.vehicleFamilyScreenCounter.textContent = `${filteredVehicles.length} EQUIPAMENTO${filteredVehicles.length === 1 ? "" : "S"}`;
@@ -4797,8 +4797,8 @@ function renderVehicleFamilyScreen() {
     if (!filteredVehicles.length) {
         elements.vehicleFamilyScreenList.innerHTML = `
             <article class="empty-state">
-                <strong>NENHUM EQUIPAMENTO ATIVO NESTA FAMÍLIA.</strong>
-                <span>ATUALIZE O CADASTRO OU VOLTE PARA ESCOLHER OUTRA FAMÍLIA.</span>
+                <strong>NENHUM EQUIPAMENTO ATIVO NESTE MÓDULO.</strong>
+                <span>ATUALIZE O CADASTRO OU VOLTE PARA ESCOLHER OUTRO MÓDULO.</span>
             </article>
         `;
         return;
