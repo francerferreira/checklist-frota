@@ -22,6 +22,7 @@ const OFFLINE_AVAILABILITY_KEY = "offlineAvailabilityOverview";
 const OFFLINE_EMERGENCIES_KEY = "offlineEmergencies";
 const OFFLINE_MAINTENANCE_KEY = "offlineMaintenanceOverview";
 const OFFLINE_HR_JOURNEY_KEY = "offlineHrJourney";
+const PORT_EQUIPMENT_FAMILIES = new Set(["LBS", "RTG", "SPREADER"]);
 const ACTIVE_CHECKLIST_DRAFT_KEY = "activeChecklistDraftVehicleId";
 const SESSION_STARTED_AT_KEY = "sessionStartedAt";
 const SESSION_LAST_ACTIVITY_AT_KEY = "sessionLastActivityAt";
@@ -866,7 +867,7 @@ async function loadVehiclesAndCatalog() {
             apiFetch(`/lavagens/visao?ano=${now.year}&mes=${now.month}`),
             apiFetch("/materiais?ativos=true"),
         ]);
-        state.vehicles = vehicles.filter((vehicle) => vehicle.ativo !== false);
+        state.vehicles = vehicles.filter((vehicle) => vehicle.ativo !== false && isPortEquipment(vehicle));
         state.catalog = normalizeCatalog(catalog);
         state.activities = activities || [];
         state.washOverview = washOverview;
@@ -2718,9 +2719,6 @@ async function loadMaintenanceOverview() {
 
 async function loadChecklistHistory() {
     const params = new URLSearchParams();
-    if (state.checklistHistory.tipo) {
-        params.set("tipo", state.checklistHistory.tipo);
-    }
     if (state.checklistHistory.dataInicio) {
         params.set("data_inicio", state.checklistHistory.dataInicio);
     }
@@ -2768,6 +2766,13 @@ function historyRowMatchesEquipmentSearch(row) {
     return haystack.includes(search);
 }
 
+function historyRowMatchesFamily(row) {
+    const selectedFamily = normalizeText(state.checklistHistory.tipo).toUpperCase();
+    const vehicle = state.vehicles.find((item) => Number(item.id) === Number(row.vehicle_id));
+    const family = getVehicleFamilyKey(vehicle || { tipo: row.tipo });
+    return Boolean(family) && (!selectedFamily || family === selectedFamily);
+}
+
 function compareChecklistHistoryRows(left, right) {
     const sortKey = state.checklistHistory.sortKey || "frota";
     const direction = state.checklistHistory.sortDirection === "desc" ? -1 : 1;
@@ -2805,6 +2810,7 @@ function compareChecklistHistoryRows(left, right) {
 function getVisibleChecklistHistoryRows() {
     return [...(state.checklistHistory.rows || [])]
         .filter(historyRowMatchesEquipmentSearch)
+        .filter(historyRowMatchesFamily)
         .sort(compareChecklistHistoryRows);
 }
 
@@ -2864,7 +2870,7 @@ function renderChecklistHistory() {
         elements.checklistHistoryTableWrap.innerHTML = `
             <article class="empty-state">
                 <strong>NENHUMA FROTA ENCONTRADA NESTE FILTRO.</strong>
-                <span>AJUSTE O TIPO CAVALO/CARRETA OU O PERÍODO.</span>
+                <span>AJUSTE A FAMÍLIA OU O PERÍODO.</span>
             </article>
         `;
         return;
@@ -4232,7 +4238,7 @@ function loadOfflineReferenceData() {
     if (!cachedVehicles || !cachedCatalog) {
         return false;
     }
-    state.vehicles = cachedVehicles;
+    state.vehicles = cachedVehicles.filter((vehicle) => isPortEquipment(vehicle));
     state.catalog = cachedCatalog;
     return true;
 }
@@ -4748,6 +4754,10 @@ function getVehicleFamilyKey(vehicle) {
     return "";
 }
 
+function isPortEquipment(vehicle) {
+    return PORT_EQUIPMENT_FAMILIES.has(getVehicleFamilyKey(vehicle));
+}
+
 function toggleAssetAccessPanel(forceOpen = null) {
     if (!elements.assetAccessPanel || !elements.assetAccessToggle) return;
     const isOpen = forceOpen === null
@@ -4811,6 +4821,9 @@ async function openMobileAssetByCode(rawCode) {
         : cachedVehicle ? { access_code: accessCode, vehicle: cachedVehicle } : null;
     if (!data) throw new Error("ATIVO NÃO ESTÁ NO CACHE DESTE APARELHO. CONECTE PARA CARREGÁ-LO.");
     const vehicle = data.vehicle;
+    if (!isPortEquipment(vehicle)) {
+        throw new Error("ESTE ATIVO NÃO FAZ PARTE DO CHECKLIST PORTUÁRIO. USE LBS, RTG OU SPREADER.");
+    }
     const index = state.vehicles.findIndex((item) => Number(item.id) === Number(vehicle.id));
     if (index >= 0) state.vehicles[index] = vehicle;
     else state.vehicles.push(vehicle);
