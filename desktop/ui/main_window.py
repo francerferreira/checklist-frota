@@ -464,7 +464,8 @@ class MainWindow(QMainWindow):
         self.rtg_downtime_page = FamilyDowntimePage(self.api_client, "RTG", self.user)
         self.lbs_downtime_page = FamilyDowntimePage(self.api_client, "LBS", self.user)
         self.supply_library_page = SupplyLibraryPage(self.api_client)
-        self.reports_page = ReportsPage(self.api_client)
+        self.reports_page = ReportsPage(self.api_client, report_mode="nc")
+        self.reports_equipment_page = ReportsPage(self.api_client, report_mode="equipment")
         self.users_page = UsersPage(self.api_client, self.user)
         self.cloud_backup_page = CloudBackupPage(self.api_client)
         self.audit_logs_page = AuditLogsPage(self.api_client)
@@ -483,6 +484,7 @@ class MainWindow(QMainWindow):
             "checklist_history": self.checklist_history_page,
             "spreader_history": self.spreader_history_page,
             "reports": self.reports_page,
+            "reports_equipment": self.reports_equipment_page,
             "equipment": self.equipment_page,
             "checklist_items": self.checklist_items_page,
             "inspection_templates": self.inspection_templates_page,
@@ -545,7 +547,8 @@ class MainWindow(QMainWindow):
             "hr_management": "Painel de RH",
             "vacations": "Férias",
             "supply_library": "Suprimentos e Biblioteca",
-            "reports": "Relatórios",
+            "reports": "Relatório por Tipo de NC",
+            "reports_equipment": "Relatório por Equipamento",
             "checklist_history": "Histórico Checklist",
             "spreader_history": "Histórico Spreaders",
             "special_schedule": "Escala de Domingo e Feriado",
@@ -638,7 +641,7 @@ class MainWindow(QMainWindow):
             "Equipamentos": ["equipment_home", "equipment", "availability", "spreader_history", "checklist_items", "inspection_templates"],
             "RH": ["rh_home", "hr_management", "employees", "attendance_home", "attendance", "schedule_home", "special_schedule", "vacations", "employee_records"],
             "Manutenção": ["maintenance_home", "rtg_module", "rtg_preventive", "rtg_maintenance", "rtg_downtime", "lbs_module", "lbs_preventive", "lbs_maintenance", "lbs_downtime"],
-            "Relatórios": ["reports", "productivity", "checklist_history"],
+            "Relatórios": ["reports", "reports_equipment", "productivity", "checklist_history"],
             "Configurações": ["users", "admin_rules", "cloud_backup", "audit_logs"],
             "Materiais e Compras": ["materials", "supply_library", "purchases"],
         }
@@ -786,7 +789,7 @@ class MainWindow(QMainWindow):
             ("RH", ["rh_home", "hr_management", "employees", "attendance_home", "attendance", "schedule_home", "special_schedule", "vacations", "employee_records"]),
             ("RTG", ["rtg_module", "rtg_maintenance", "rtg_preventive", "rtg_downtime"]),
             ("LBS", ["lbs_module", "lbs_maintenance", "lbs_preventive", "lbs_downtime"]),
-            ("Relatórios", ["reports", "productivity", "checklist_history"]),
+            ("Relatórios", ["reports", "reports_equipment", "productivity", "checklist_history"]),
             ("Configurações", ["users", "admin_rules", "cloud_backup", "audit_logs"]),
             ("Materiais e Compras", ["materials", "supply_library", "purchases"]),
         ]
@@ -1023,7 +1026,7 @@ class MainWindow(QMainWindow):
             return "RTG"
         if page_key in {"lbs_module", "lbs_preventive", "lbs_maintenance", "lbs_downtime"}:
             return "LBS"
-        if page_key in {"reports", "productivity", "checklist_history"}:
+        if page_key in {"reports", "reports_equipment", "productivity", "checklist_history"}:
             return "RELATÓRIOS"
         if page_key in {"users", "cloud_backup", "audit_logs", "admin_rules"}:
             return "CONFIGURAÇÕES"
@@ -1216,6 +1219,8 @@ class MainWindow(QMainWindow):
                 self.supply_library_page.refresh()
             elif page_key == "reports":
                 self.reports_page.refresh()
+            elif page_key == "reports_equipment":
+                self.reports_equipment_page.refresh()
             elif page_key == "checklist_history":
                 self.checklist_history_page.refresh()
             elif page_key == "spreader_history":
@@ -1271,7 +1276,7 @@ class MainWindow(QMainWindow):
         # Se equipamentos foram alterados, forcar refresh de tudo que usa frota
         if source_page_key == "equipment":
             self.dirty_pages.update([
-                "activities", "maintenance", "washes", "nc", "reports", "spreader_history",
+                "activities", "maintenance", "washes", "nc", "reports", "reports_equipment", "spreader_history",
                 "rtg_downtime", "lbs_downtime",
                 "rtg_preventive", "lbs_preventive",
             ])
@@ -1315,7 +1320,8 @@ class MainWindow(QMainWindow):
             "rtg_preventive": ("Carregando preventiva RTG", "Atualizando horímetros, ciclos e vencimentos do módulo RTG."),
             "lbs_preventive": ("Carregando preventiva LBS", "Atualizando horímetros, ciclos e vencimentos do módulo LBS."),
             "supply_library": ("Carregando suprimentos", "Montando depósitos, reservas e biblioteca técnica."),
-            "reports": ("Montando relatórios", "Consolidando dados macro, micro e exportações."),
+            "reports": ("Montando relatório por tipo", "Consolidando não conformidades por tipo."),
+            "reports_equipment": ("Montando relatório por equipamento", "Consolidando não conformidades por equipamento."),
             "checklist_history": ("Carregando histórico", "Montando matriz de checklists por frota e data."),
             "vacations": ("Carregando férias", "Montando o calendário e os períodos programados."),
             "spreader_history": ("Carregando histórico", "Montando conferências diárias, vínculos e evidências dos Spreaders."),

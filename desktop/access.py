@@ -15,6 +15,7 @@ PAGE_ACCESS_BY_ROLE = {
         "nc",
         "productivity",
         "reports",
+        "reports_equipment",
         "checklist_history",
         "spreader_history",
         "equipment",
@@ -60,6 +61,7 @@ PAGE_ACCESS_BY_ROLE = {
         "nc",
         "productivity",
         "reports",
+        "reports_equipment",
         "checklist_history",
         "spreader_history",
         "equipment",
@@ -150,6 +152,8 @@ def allowed_pages_for_user(user: Mapping[str, object] | None) -> set[str]:
     if not isinstance(custom, (list, tuple, set)) or not custom:
         return role_pages
     selected = {str(page).strip() for page in custom if str(page).strip()}
+    if "reports" in selected:
+        selected.add("reports_equipment")
     selected = (selected & role_pages) | {"dashboard"}
     return selected
 

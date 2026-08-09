@@ -18,7 +18,6 @@ from PySide6.QtWidgets import (
     QMessageBox,
     QPushButton,
     QSpinBox,
-    QTabWidget,
     QTableWidget,
     QTableWidgetItem,
     QTextEdit,
@@ -323,9 +322,10 @@ class ReportsPage(QFrame):
     pdf_export_finished = Signal(object, object)
     pdf_export_failed = Signal(object, str)
 
-    def __init__(self, api_client, parent=None):
+    def __init__(self, api_client, report_mode: str = "nc", parent=None):
         super().__init__(parent)
         self.api_client = api_client
+        self.report_mode = "equipment" if report_mode == "equipment" else "nc"
         self.setObjectName("ContentSurface")
         self.logo_path = asset_path("app-logo-cover.png")
         self.macro_rows = []
@@ -333,12 +333,8 @@ class ReportsPage(QFrame):
         self.item_rows = []
         self.resolved_rows = []
         self.vehicle_cache = {}
-        self.dirty_tabs: set[str] = {"macro", "micro", "item", "resolved", "vehicles"}
+        self.dirty_tabs: set[str] = {"micro", "vehicles"} if self.report_mode == "equipment" else {"macro"}
         self._export_jobs = []
-        self._item_period_sync = False
-        self._item_filter_timer = QTimer(self)
-        self._item_filter_timer.setSingleShot(True)
-        self._item_filter_timer.timeout.connect(self._refresh_filtered_tab)
         self.pdf_export_finished.connect(self._handle_pdf_export_finished)
         self.pdf_export_failed.connect(self._handle_pdf_export_failed)
 
@@ -348,110 +344,30 @@ class ReportsPage(QFrame):
 
         header = QHBoxLayout()
         text_wrap = QVBoxLayout()
-        title = QLabel("Relatórios")
+        title = QLabel("Relatório por Equipamento" if self.report_mode == "equipment" else "Relatório por Tipo de Não Conformidade")
         title.setObjectName("PageTitle")
         subtitle = QLabel(
-            "Visão gerencial com tabelas amplas, exportação executiva e abertura de detalhes operacionais por linha."
+            "Consulte as não conformidades agrupadas por equipamento."
+            if self.report_mode == "equipment"
+            else "Consulte as não conformidades agrupadas por tipo."
         )
         subtitle.setObjectName("SectionCaption")
         subtitle.setWordWrap(True)
         text_wrap.addWidget(title)
         text_wrap.addWidget(subtitle)
 
-        header.addLayout(text_wrap)
+        header.addLayout(text_wrap, 1)
         header.addStretch()
 
-        self.filter_card = QFrame()
-        style_filter_bar(self.filter_card)
-        filter_layout = QVBoxLayout(self.filter_card)
-        filter_layout.setContentsMargins(10, 8, 10, 8)
-        filter_layout.setSpacing(8)
-
-        top_filter_row = QHBoxLayout()
-        top_filter_row.setContentsMargins(0, 0, 0, 0)
-        top_filter_row.setSpacing(8)
-
-        self.item_filter = QLineEdit()
-        self.item_filter.setPlaceholderText("Buscar NC, equipamento, motorista ou item")
-        self.item_filter.setMinimumHeight(34)
-        self.item_filter.returnPressed.connect(self._refresh_filtered_tab)
-        self.item_filter.textChanged.connect(self._schedule_item_refresh)
-
-        search_button = QPushButton("Aplicar")
-        search_button.setProperty("variant", "primary")
-        search_button.setMinimumHeight(34)
-        search_button.clicked.connect(self._refresh_filtered_tab)
-
-        top_filter_row.addWidget(self.item_filter, 1)
-        top_filter_row.addWidget(search_button)
-
-        bottom_filter_row = QHBoxLayout()
-        bottom_filter_row.setContentsMargins(0, 0, 0, 0)
-        bottom_filter_row.setSpacing(8)
-
-        self.modulo_filter = QComboBox()
-        self.modulo_filter.addItem("Todos os módulos", "")
-        self.modulo_filter.addItem("Cavalos", "cavalo")
-        self.modulo_filter.addItem("Carretas", "carreta")
-        self.modulo_filter.addItem("Outros", "outros")
-        self.modulo_filter.setMinimumHeight(34)
-        self.modulo_filter.currentIndexChanged.connect(self._schedule_item_refresh)
-
-        self.nc_status_filter = QComboBox()
-        self.nc_status_filter.addItem("Todas as NC", "")
-        self.nc_status_filter.addItem("NC abertas", "abertas")
-        self.nc_status_filter.addItem("NC resolvidas", "resolvidas")
-        self.nc_status_filter.setMinimumHeight(34)
-        self.nc_status_filter.currentIndexChanged.connect(self._schedule_item_refresh)
-        self.nc_status_filter.setCurrentIndex(1)
-
-        self.period_mode_filter = QComboBox()
-        self.period_mode_filter.addItem("Todo período", "all")
-        self.period_mode_filter.addItem("Hoje", "today")
-        self.period_mode_filter.addItem("Mês atual", "month")
-        self.period_mode_filter.addItem("Período personalizado", "custom")
-        self.period_mode_filter.setMinimumHeight(34)
-        self.period_mode_filter.currentIndexChanged.connect(self._on_item_period_mode_changed)
-
-        self.start_date_filter = QDateEdit()
-        self.start_date_filter.setCalendarPopup(True)
-        self.start_date_filter.setDisplayFormat("dd/MM/yyyy")
-        self.start_date_filter.setMinimumHeight(34)
-        _apply_light_date_popup_style(self.start_date_filter)
-        self.start_date_filter.dateChanged.connect(self._on_item_period_date_changed)
-
-        self.end_date_filter = QDateEdit()
-        self.end_date_filter.setCalendarPopup(True)
-        self.end_date_filter.setDisplayFormat("dd/MM/yyyy")
-        self.end_date_filter.setMinimumHeight(34)
-        _apply_light_date_popup_style(self.end_date_filter)
-        self.end_date_filter.dateChanged.connect(self._on_item_period_date_changed)
-
-        clear_filter_button = QPushButton("Limpar filtros")
-        clear_filter_button.setMinimumHeight(34)
-        clear_filter_button.clicked.connect(self._clear_item_filters)
-
-        bottom_filter_row.addWidget(self.modulo_filter)
-        bottom_filter_row.addWidget(self.nc_status_filter)
-        bottom_filter_row.addWidget(self.period_mode_filter)
-        bottom_filter_row.addWidget(self.start_date_filter)
-        bottom_filter_row.addWidget(self.end_date_filter)
-        bottom_filter_row.addWidget(clear_filter_button)
-
-        filter_layout.addLayout(top_filter_row)
-        filter_layout.addLayout(bottom_filter_row)
-        self._on_item_period_mode_changed()
-
-        self.tabs = QTabWidget()
-        self.tabs.addTab(self._build_macro_tab(), "Macro (por NC)")
-        self.tabs.addTab(self._build_micro_tab(), "Micro")
-        self.tabs.addTab(self._build_item_tab(), "Detalhe (ocor.)")
-        self.tabs.addTab(self._build_resolved_tab(), "NC Resolvidas")
-        self.tabs.currentChanged.connect(self._on_tab_changed)
+        refresh_button = QPushButton("Atualizar")
+        refresh_button.setProperty("variant", "primary")
+        refresh_button.setMinimumHeight(34)
+        refresh_button.clicked.connect(self.refresh)
+        header.addWidget(refresh_button)
+        self.report_content = self._build_micro_tab() if self.report_mode == "equipment" else self._build_macro_tab()
 
         layout.addLayout(header)
-        layout.addWidget(self.filter_card)
-        layout.addWidget(self.tabs, 1)
+        layout.addWidget(self.report_content, 1)
 
     def _schedule_item_refresh(self, *_args):
         self._item_filter_timer.start(240)
@@ -541,17 +457,7 @@ class ReportsPage(QFrame):
         export_pdf = QPushButton("PDF Executivo")
         export_pdf.setMinimumHeight(34)
         export_pdf.clicked.connect(lambda: self.export_macro("pdf"))
-        self.create_mass_activity_button = QPushButton("Criar inspeção em massa")
-        self.create_mass_activity_button.setProperty("variant", "primary")
-        self.create_mass_activity_button.setMinimumHeight(34)
-        self.create_mass_activity_button.clicked.connect(self.create_macro_mass_activity)
-        message_button = QPushButton("Gerar mensagem")
-        message_button.setProperty("variant", "primary")
-        message_button.setMinimumHeight(34)
-        message_button.clicked.connect(self.generate_macro_message)
         top.addLayout(text_wrap, 1)
-        top.addWidget(self.create_mass_activity_button)
-        top.addWidget(message_button)
         top.addWidget(export_csv)
         top.addWidget(export_xlsx)
         top.addWidget(export_pdf)
@@ -562,13 +468,10 @@ class ReportsPage(QFrame):
         )
         configure_table(self.macro_table, stretch_last=False)
         self.macro_table.setMinimumHeight(520)
-        self.macro_table.itemDoubleClicked.connect(self.open_macro_item)
-        self.macro_table.itemSelectionChanged.connect(self._update_macro_action_state)
 
         card_layout.addLayout(top)
         card_layout.addWidget(self.macro_table)
         layout.addWidget(card)
-        self._update_macro_action_state()
         return tab
 
     def _build_micro_tab(self):
@@ -608,12 +511,7 @@ class ReportsPage(QFrame):
         audit_pdf = QPushButton("PDF Auditoria do equipamento")
         audit_pdf.setMinimumHeight(34)
         audit_pdf.clicked.connect(self.export_selected_vehicle_audit_pdf)
-        message_button = QPushButton("Gerar mensagem")
-        message_button.setProperty("variant", "primary")
-        message_button.setMinimumHeight(34)
-        message_button.clicked.connect(self.generate_micro_message)
         top.addLayout(text_wrap, 1)
-        top.addWidget(message_button)
         top.addWidget(export_csv)
         top.addWidget(export_xlsx)
         top.addWidget(export_pdf)
@@ -735,7 +633,9 @@ class ReportsPage(QFrame):
         return tab
 
     def refresh(self):
-        self.dirty_tabs.update({"macro", "micro", "item", "resolved", "vehicles"})
+        self.dirty_tabs.add(self.current_tab_key())
+        if self.report_mode == "equipment":
+            self.dirty_tabs.add("vehicles")
         self._load_visible_tab()
 
     def set_loading_state(self, loading: bool):
@@ -1037,16 +937,12 @@ class ReportsPage(QFrame):
         return [row for row in rows if row.get("vehicle_id") in active_ids]
 
     def open_macro_item(self, *_args):
-        selected = self.macro_table.selectedRanges()
-        if not selected:
-            return
-        row_item = self._payload_for_row(self.macro_table, selected[0].topRow(), self.macro_rows)
-        if not row_item:
-            return
-        item_name = row_item["item_nome"]
-        self.tabs.setCurrentIndex(1)
-        self.item_filter.setText(item_name)
-        self.refresh_item_table()
+        show_notice(
+            self,
+            "Consulta simplificada",
+            "Use a subtela Relatório por Equipamento para consultar as não conformidades por ativo.",
+            icon_name="reports",
+        )
 
     def open_micro_vehicle(self, *_args):
         selected = self.micro_table.selectedRanges()
@@ -1598,16 +1494,14 @@ class ReportsPage(QFrame):
         return sorted(rows, key=lambda item: item.get("date") or "", reverse=True)
 
     def current_tab_key(self) -> str:
-        return {0: "macro", 1: "micro", 2: "item", 3: "resolved"}.get(
-            self.tabs.currentIndex(), "macro"
-        )
+        return "micro" if self.report_mode == "equipment" else "macro"
 
     def _overlay_for_tab(self, tab_key: str):
         return {
-            "macro": self.macro_skeleton,
-            "micro": self.micro_skeleton,
-            "item": self.item_skeleton,
-            "resolved": self.resolved_skeleton,
+            "macro": getattr(self, "macro_skeleton", None),
+            "micro": getattr(self, "micro_skeleton", None),
+            "item": getattr(self, "item_skeleton", None),
+            "resolved": getattr(self, "resolved_skeleton", None),
         }.get(tab_key)
 
     @staticmethod
