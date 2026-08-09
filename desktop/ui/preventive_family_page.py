@@ -489,20 +489,33 @@ class HourmeterEntryDialog(QDialog):
         vehicle = ((self.selected_row or {}).get("vehicle") or {})
         meter_type = self.meter_type.currentData() if hasattr(self, "meter_type") else "DIESEL"
         current = None
+        latest_reading = None
         try:
             history = self.api_client.get_equipment_hourmeters(int(vehicle["id"])) if vehicle.get("id") else []
             readings = [row for row in history if str(row.get("meter_type") or "DIESEL").upper() == meter_type]
             if readings:
                 readings.sort(key=lambda row: str(row.get("recorded_at") or ""), reverse=True)
-                current = readings[0].get("reading")
+                latest_reading = readings[0]
+                current = latest_reading.get("reading")
         except Exception:
             current = None
         if current is None and meter_type == "DIESEL":
             current = (self.selected_row or {}).get("current") or ((self.selected_row or {}).get("state") or {}).get("latest_hourmeter")
         self.current_reading = float(current) if current is not None else None
         if self.current_reading is None:
+            self.last_reading_label.setText(f"Leitura anterior ({self.meter_type.currentText()}): Sem leitura")
             self.reading_spin.setValue(0)
         else:
+            recorded_at = str((latest_reading or {}).get("recorded_at") or "")
+            when = ""
+            if recorded_at:
+                try:
+                    when = f" | {datetime.fromisoformat(recorded_at.replace('Z', '+00:00')).strftime('%d/%m/%Y %H:%M')}"
+                except ValueError:
+                    when = f" | {recorded_at[:16].replace('T', ' ')}"
+            self.last_reading_label.setText(
+                f"Leitura anterior ({self.meter_type.currentText()}): {self.current_reading:.2f} h{when}"
+            )
             self.reading_spin.setValue(self.current_reading)
         self._update_difference()
         return
