@@ -264,7 +264,22 @@ def ensure_runtime_schema() -> None:
     if "hourmeter_readings" in inspector.get_table_names():
         columns = {column["name"] for column in inspector.get_columns("hourmeter_readings")}
         _ensure_column("hourmeter_readings", columns, "meter_type", "VARCHAR(20) NOT NULL DEFAULT 'DIESEL'")
+        # Bases SQLite criadas antes do controle preventivo auditável não possuem
+        # estes campos. Sem a atualização, o INSERT do horímetro falha ao tentar
+        # registrar a leitura anterior, a diferença e o status da validação.
+        for column_name, column_sql in (
+            ("previous_reading", "NUMERIC(12, 2)"),
+            ("difference_hours", "NUMERIC(12, 2)"),
+            ("validation_status", "VARCHAR(20) DEFAULT 'VALIDA'"),
+            ("exception_justification", "TEXT"),
+            ("cancelled_at", "DATETIME"),
+            ("cancelled_by_user_id", "INTEGER"),
+            ("cancellation_reason", "TEXT"),
+            ("replacement_reading_id", "INTEGER"),
+        ):
+            _ensure_column("hourmeter_readings", columns, column_name, column_sql)
         db.session.execute(text("UPDATE hourmeter_readings SET meter_type = 'DIESEL' WHERE meter_type IS NULL OR TRIM(meter_type) = ''"))
+        db.session.execute(text("UPDATE hourmeter_readings SET validation_status = 'VALIDA' WHERE validation_status IS NULL OR TRIM(validation_status) = ''"))
         db.session.commit()
 
     if "materials" in inspector.get_table_names():
