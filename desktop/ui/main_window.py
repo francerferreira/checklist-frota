@@ -29,7 +29,7 @@ from PySide6.QtWidgets import (
 from access import PAGE_ACCESS_BY_ROLE, allowed_pages_for_user, normalize_user_role
 from components import LoadingOverlay, make_icon, show_notice
 from runtime_paths import asset_path
-from theme import APP_STYLE, apply_button_styles, install_button_style_enforcer
+from theme import app_style_for, apply_button_styles, install_button_style_enforcer
 from ui.activities_page import ActivitiesPage
 from ui.availability_page import AvailabilityPage
 from ui.admin_rules_page import AdminRulesPage
@@ -253,7 +253,7 @@ class MainWindow(QMainWindow):
         app = QApplication.instance()
         if app is not None:
             if not app.styleSheet():
-                app.setStyleSheet(APP_STYLE)
+                app.setStyleSheet(app_style_for(self._load_desktop_theme()))
             install_button_style_enforcer(app)
         if self.app_icon_path.exists():
             self.setWindowIcon(QIcon(str(self.app_icon_path)))
@@ -304,6 +304,26 @@ class MainWindow(QMainWindow):
         except (TypeError, ValueError):
             value = 60_000
         return value if value in {30_000, 60_000, 300_000} else 60_000
+
+    @staticmethod
+    def _load_desktop_theme() -> str:
+        settings = QSettings("ChecklistFrota", "Desktop")
+        return "dark" if str(settings.value("desktop_theme", "light")).strip().lower() == "dark" else "light"
+
+    def set_desktop_theme(self, theme_name: str) -> None:
+        theme = "dark" if str(theme_name).strip().lower() == "dark" else "light"
+        app = QApplication.instance()
+        if app is not None:
+            app.setStyleSheet(app_style_for(theme))
+            install_button_style_enforcer(app)
+        settings = QSettings("ChecklistFrota", "Desktop")
+        settings.setValue("desktop_theme", theme)
+        settings.sync()
+        if hasattr(self, "mdi_area"):
+            color = "#101925" if theme == "dark" else "#FFFFFF"
+            self.mdi_area.setBackground(QBrush(QColor(color)))
+            self.mdi_area.viewport().setStyleSheet(f"background:{color};")
+        show_notice(self, "Tema atualizado", "O tema escuro foi aplicado." if theme == "dark" else "O tema claro foi aplicado.", icon_name="dashboard")
 
     def set_module_refresh_interval(self, interval_ms: int) -> None:
         """Propaga a preferência para todas as centrais já abertas."""
@@ -631,6 +651,19 @@ class MainWindow(QMainWindow):
             for key in available_keys:
                 action = menu.addAction(self.page_titles.get(key, key))
                 action.triggered.connect(lambda checked=False, page_key=key: self.switch_page(page_key))
+
+            if menu_title == "Configurações":
+                menu.addSeparator()
+                theme_menu = menu.addMenu("Tema do sistema")
+                current_theme = self._load_desktop_theme()
+                light_action = theme_menu.addAction("Tema claro")
+                light_action.setCheckable(True)
+                light_action.setChecked(current_theme == "light")
+                light_action.triggered.connect(lambda checked=False: self.set_desktop_theme("light"))
+                dark_action = theme_menu.addAction("Tema escuro")
+                dark_action.setCheckable(True)
+                dark_action.setChecked(current_theme == "dark")
+                dark_action.triggered.connect(lambda checked=False: self.set_desktop_theme("dark"))
 
         web_panels_menu = menubar.addMenu("Painéis Web")
         web_mobile_action = web_panels_menu.addAction("Abrir Web Mobile")

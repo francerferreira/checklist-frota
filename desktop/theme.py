@@ -824,6 +824,126 @@ QScrollBar::handle:horizontal {
 """
 
 
+# Tema escuro corporativo: mantém a identidade azul, reduz brilho e preserva
+# contraste para tabelas, formulários e indicadores operacionais.
+DARK_STYLE = APP_STYLE + """
+QWidget {
+    color: #EDF4FF;
+}
+QMainWindow, QWidget#MainContainer, QMdiArea {
+    background: #101925;
+}
+QFrame#Sidebar,
+QWidget#ContentSurface,
+QWidget#PanelCard,
+QWidget#ImagePanel,
+QWidget#HeaderCard,
+QWidget#FilterBar,
+QWidget#TableCard,
+QFrame#TopNavStrip,
+QFrame#TopNavGridHost,
+QFrame#TopBar,
+QFrame#TopBarActionCluster,
+QFrame#TopBarBadge,
+QDialog#PanelCard,
+QFrame#DialogInfoBlock,
+QFrame#PhotoFrame {
+    background: #172437;
+    border-color: #35516F;
+}
+QFrame#DialogHeader, QFrame#DialogFooter {
+    background: #1D2D43;
+    border-color: #35516F;
+}
+QLineEdit,
+QTextEdit,
+QPlainTextEdit,
+QComboBox,
+QDateEdit,
+QTimeEdit,
+QDateTimeEdit,
+QSpinBox,
+QDoubleSpinBox,
+QTreeWidget,
+QTreeView,
+QTableWidget,
+QListWidget {
+    background: #111D2D;
+    color: #EDF4FF;
+    border-color: #35516F;
+    selection-background-color: #1768C7;
+    selection-color: #FFFFFF;
+    alternate-background-color: #16263A;
+}
+QLineEdit:focus,
+QTextEdit:focus,
+QPlainTextEdit:focus,
+QComboBox:focus,
+QDateEdit:focus,
+QTimeEdit:focus,
+QDateTimeEdit:focus,
+QSpinBox:focus,
+QDoubleSpinBox:focus {
+    border: 2px solid #42A5F5;
+}
+QComboBox QAbstractItemView {
+    background: #172437;
+    color: #EDF4FF;
+    selection-background-color: #1768C7;
+}
+QHeaderView::section {
+    background: #123B70;
+    color: #F7FBFF;
+    border-color: #285A94;
+}
+QTableWidget::item:alternate, QTreeWidget::item:alternate {
+    background: #16263A;
+}
+QTableWidget::item:selected, QTreeWidget::item:selected, QListWidget::item:selected {
+    background: #1768C7;
+    color: #FFFFFF;
+}
+QMenuBar, QMenu, QStatusBar {
+    background: #111D2D;
+    color: #EDF4FF;
+    border-color: #35516F;
+}
+QMenuBar::item:selected, QMenu::item:selected {
+    background: #1768C7;
+    color: #FFFFFF;
+}
+QLabel#PageTitle, QLabel#TopBarTitle, QLabel#DialogHeaderTitle,
+QLabel#SectionTitle, QLabel#CompactTitle, QLabel#ImageTitle,
+QLabel#TopBarBadgeTitle, QLabel#DialogInfoValue {
+    color: #F4F8FF;
+}
+QLabel#PageSubtitle, QLabel#TopBarSubtitle, QLabel#SectionCaption,
+QLabel#MutedText, QLabel#DialogHeaderSubtitle, QLabel#PhotoCaption,
+QLabel#TopBarSessionText {
+    color: #AFC4DF;
+}
+QGroupBox {
+    border-color: #35516F;
+    color: #EDF4FF;
+}
+QScrollBar:vertical, QScrollBar:horizontal {
+    background: #111D2D;
+}
+QScrollBar::handle:vertical, QScrollBar::handle:horizontal {
+    background: #4777A8;
+}
+QToolTip {
+    background: #0B1320;
+    color: #F7FBFF;
+    border: 1px solid #4777A8;
+}
+"""
+
+
+def app_style_for(theme_name: str | None = None) -> str:
+    return DARK_STYLE if str(theme_name or "").strip().lower() == "dark" else APP_STYLE
+
+
 _BUTTON_PALETTE = {
     "default": ("#2C78D3", "#1E67BF", "#155AA8", "#1D67B8", "#8DB8E8", "#5E91CC"),
     "primary": ("#115FC0", "#0E56AE", "#0B468F", "#0E4E9E", "#85B2E6", "#4E86C8"),
