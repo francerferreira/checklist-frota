@@ -965,6 +965,8 @@ class MainWindow(QMainWindow):
             )
             page_scroll = QScrollArea(sub)
             page_scroll.setObjectName("PageScrollArea")
+            page_scroll.viewport().setObjectName("PageScrollViewport")
+            page_scroll.viewport().setAttribute(Qt.WA_StyledBackground, True)
             page_scroll.setFrameShape(QFrame.NoFrame)
             page_scroll.setWidgetResizable(True)
             page_scroll.setHorizontalScrollBarPolicy(Qt.ScrollBarAsNeeded)

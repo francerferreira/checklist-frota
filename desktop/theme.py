@@ -85,6 +85,9 @@ QLabel {
 QMainWindow, QWidget#MainContainer {
     background: #FFFFFF;
 }
+QWidget#PageScrollViewport {
+    background: #FFFFFF;
+}
 QFrame#Sidebar {
     background: #FFFFFF;
     border: 1px solid #B7CBE3;
@@ -831,6 +834,9 @@ QWidget {
     color: #EDF4FF;
 }
 QMainWindow, QWidget#MainContainer, QMdiArea {
+    background: #101925;
+}
+QWidget#PageScrollViewport {
     background: #101925;
 }
 QFrame#Sidebar,

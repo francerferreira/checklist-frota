@@ -53,6 +53,7 @@ class DashboardPage(QFrame):
         super().__init__(parent)
         self.api_client = api_client
         self.setObjectName("ContentSurface")
+        self.setAttribute(Qt.WA_StyledBackground, True)
 
         layout = QVBoxLayout(self)
         layout.setContentsMargins(16, 16, 16, 16)
