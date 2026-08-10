@@ -382,7 +382,7 @@ class MaterialReportDialog(QDialog):
     def __init__(self, api_client, parent=None):
         super().__init__(parent)
         self.api_client = api_client
-        self.logo_path = asset_path("app-logo-cover.png")
+        self.logo_path = asset_path("sis-mmp-logo.png")
         self.report = {}
         self._live_filter_timer = QTimer(self)
         self._live_filter_timer.setSingleShot(True)

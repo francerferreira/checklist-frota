@@ -77,7 +77,7 @@ def export_wash_month_pdf(
 
     story = _build_cover_page(
         "Relatório mensal de lavagens",
-        f"Checklist de Frota - {period_label}",
+        f"Sistema de Manutenção de Máquinas Pesadas - {period_label}",
         generated_by,
         logo_path,
         styles,
@@ -179,7 +179,7 @@ def export_wash_schedule_pdf(
 
     story = _build_cover_page(
         "Cronograma mensal de lavagens",
-        f"Checklist de Frota - {period_label}",
+        f"Sistema de Manutenção de Máquinas Pesadas - {period_label}",
         generated_by,
         logo_path,
         styles,

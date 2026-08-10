@@ -233,7 +233,7 @@ class MainWindow(QMainWindow):
         self.is_admin = self.user_role == "admin"
         self.can_manage = self.user_role in {"admin", "gestor"}
         self.allowed_pages = allowed_pages_for_user(self.user)
-        self.app_icon_path = asset_path("app-icon.ico")
+        self.app_icon_path = asset_path("app-icon.png")
         self.current_page_key = ""
         self.dirty_pages: set[str] = set()
         self.pending_refreshes: set[str] = set()
@@ -248,7 +248,7 @@ class MainWindow(QMainWindow):
         self.pending_navigation_target: dict | None = None
         self.module_refresh_interval_ms = self._load_module_refresh_interval()
 
-        self.setWindowTitle("Sistema de Manutenção de Frota")
+        self.setWindowTitle("Sistema de Manutenção de Máquinas Pesadas — SIS MMP")
         self.setMinimumSize(1280, 760)
         app = QApplication.instance()
         if app is not None:
@@ -882,7 +882,7 @@ class MainWindow(QMainWindow):
         self.mdi_logo_label.setAttribute(Qt.WA_TransparentForMouseEvents, True)
         self.mdi_logo_label.setStyleSheet("background: transparent;")
 
-        logo_path = asset_path("cf-logo-cover.png")
+        logo_path = asset_path("sis-mmp-logo.png")
         if not logo_path.exists():
             logo_path = asset_path("app-logo-cover.png")
         self._mdi_logo_pixmap = QPixmap(str(logo_path)) if logo_path.exists() else QPixmap()

@@ -194,12 +194,12 @@ class LoginWindow(QDialog):
         super().__init__(parent)
         self.api_client = api_client
         self.user = None
-        self.logo_path = asset_path("app-logo-cover.png")
-        self.app_icon_path = asset_path("app-icon.ico")
+        self.logo_path = asset_path("sis-mmp-logo.png")
+        self.app_icon_path = asset_path("app-icon.png")
         self.login_prefs_path = data_path("login_prefs.json")
         self._advanced_visible = False
 
-        self.setWindowTitle("Acesso ao CF - Checklist de Frota")
+        self.setWindowTitle("Acesso ao SIS MMP — Sistema de Manutenção de Máquinas Pesadas")
         if self.app_icon_path.exists():
             self.setWindowIcon(QIcon(str(self.app_icon_path)))
         self.setModal(True)
@@ -249,7 +249,7 @@ class LoginWindow(QDialog):
         eyebrow = QLabel("PLATAFORMA CORPORATIVA")
         eyebrow.setObjectName("HeroEyebrow")
 
-        title = QLabel("Checklist\nFrota")
+        title = QLabel("SIS MMP")
         title.setObjectName("HeroTitle")
 
         subtitle = QLabel(
@@ -274,7 +274,7 @@ class LoginWindow(QDialog):
         spacer = QWidget()
         spacer.setSizePolicy(QSizePolicy.Policy.Preferred, QSizePolicy.Policy.Expanding)
 
-        footer = QLabel("Checklist de Frota")
+        footer = QLabel("Sistema de Manutenção de Máquinas Pesadas")
         footer.setObjectName("HeroSubtitle")
 
         layout.addWidget(logo_label, 0, Qt.AlignLeft)

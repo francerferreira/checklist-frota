@@ -31,7 +31,7 @@ class NonConformityDetailDialog(QDialog):
         super().__init__(parent)
         self.api_client = api_client
         self.item = item
-        self.logo_path = asset_path("app-logo-cover.png")
+        self.logo_path = asset_path("sis-mmp-logo.png")
 
         self.setWindowTitle("Detalhe da não conformidade")
         configure_dialog_window(self, width=1260, height=800, min_width=980, min_height=680)
@@ -176,7 +176,7 @@ class VehicleDetailDialog(QDialog):
         super().__init__(parent)
         self.api_client = api_client
         self.vehicle = vehicle
-        self.logo_path = asset_path("app-logo-cover.png")
+        self.logo_path = asset_path("sis-mmp-logo.png")
         try:
             self.history = self.api_client.get_vehicle_history(vehicle["id"])
         except Exception:

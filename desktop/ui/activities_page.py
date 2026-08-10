@@ -863,7 +863,7 @@ class ActivityDetailDialog(QDialog):
         super().__init__(parent)
         self.api_client = api_client
         self.activity_id = activity_id
-        self.logo_path = asset_path("app-logo-cover.png")
+        self.logo_path = asset_path("sis-mmp-logo.png")
         self.activity = {}
         self.items = []
         self.updated = False

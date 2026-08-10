@@ -14,6 +14,7 @@ datas = [
     (str(desktop_root / "assets" / "app-icon.png"), "assets"),
     (str(desktop_root / "assets" / "app-logo-cover.png"), "assets"),
     (str(desktop_root / "assets" / "cf-logo-cover.png"), "assets"),
+    (str(desktop_root / "assets" / "sis-mmp-logo.png"), "assets"),
 ]
 
 excludes = []

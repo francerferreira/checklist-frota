@@ -50,8 +50,8 @@ def main():
     app.setStyleSheet(app_style_for(settings.value("desktop_theme", "light")))
     install_button_style_enforcer(app)
     app.setQuitOnLastWindowClosed(False)
-    app.setApplicationName("CF - Checklist de Frota")
-    icon_path = asset_path("app-icon.ico")
+    app.setApplicationName("SIS MMP")
+    icon_path = asset_path("app-icon.png")
     if icon_path.exists():
         app.setWindowIcon(QIcon(str(icon_path)))
     api_client = APIClient()

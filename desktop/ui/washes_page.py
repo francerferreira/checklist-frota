@@ -1677,7 +1677,7 @@ class WashesPage(QFrame):
             show_notice(self, "Falha ao gerar mensagem", str(exc), icon_name="warning")
 
     def export_month_pdf(self):
-        logo_path = asset_path("app-logo-cover.png")
+        logo_path = asset_path("sis-mmp-logo.png")
         overview = dict(self.overview)
         filename = choose_pdf_save_path(self, "Exportar PDF mensal de lavagens", make_default_export_path("lavagens_mensal", "pdf"))
         if not filename:
@@ -1702,7 +1702,7 @@ class WashesPage(QFrame):
         )
 
     def export_schedule_pdf(self):
-        logo_path = asset_path("app-logo-cover.png")
+        logo_path = asset_path("sis-mmp-logo.png")
         overview = dict(self.overview)
         filename = choose_pdf_save_path(self, "Exportar PDF do cronograma de lavagens", make_default_export_path("lavagens_cronograma", "pdf"))
         if not filename:

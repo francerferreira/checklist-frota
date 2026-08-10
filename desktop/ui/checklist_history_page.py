@@ -182,7 +182,7 @@ class ChecklistDetailDialog(QDialog):
         if not filename:
             return
         try:
-            logo_path = asset_path("app-logo-cover.png")
+            logo_path = asset_path("sis-mmp-logo.png")
             if not logo_path.exists():
                 logo_path = asset_path("cf-logo-cover.png")
             item_images = self._collect_non_conformity_images()

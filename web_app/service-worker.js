@@ -4,8 +4,7 @@ const STATIC_CACHE_PATHS = [
     "./manifest.json",
     "./static/icons/icon-192.png",
     "./static/icons/icon-512.png",
-    "./static/icons/cf-logo-mark.png",
-    "./static/icons/cf-logo-cover.png",
+    "./static/icons/sis-mmp-logo.png",
 ];
 
 self.addEventListener("install", (event) => {

@@ -1,7 +1,7 @@
 {
-  "name": "Checklist de Frota",
-  "short_name": "Checklist",
-  "description": "Checklist de frota, atividades e cronograma de lavagem em campo.",
+  "name": "Sistema de Manutenção de Máquinas Pesadas",
+  "short_name": "SIS MMP",
+  "description": "Sistema de manutenção de máquinas pesadas, atividades e inspeções em campo.",
   "start_url": "./?source=pwa",
   "scope": "./",
   "display": "standalone",

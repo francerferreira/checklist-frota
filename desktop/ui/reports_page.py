@@ -327,7 +327,7 @@ class ReportsPage(QFrame):
         self.api_client = api_client
         self.report_mode = "equipment" if report_mode == "equipment" else "nc"
         self.setObjectName("ContentSurface")
-        self.logo_path = asset_path("app-logo-cover.png")
+        self.logo_path = asset_path("sis-mmp-logo.png")
         self.macro_rows = []
         self.micro_rows = []
         self.item_rows = []

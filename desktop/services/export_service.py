@@ -1423,7 +1423,7 @@ def export_material_report_pdf(
 def _build_header(title: str, subtitle: str, generated_by: str, logo_path: str | Path | None, styles):
     story = []
     cover_band = Table(
-        [[Paragraph("Sistema de Checklist de Frota | Relatório corporativo", styles["cover_band"])]],
+        [[Paragraph("Sistema de Manutenção de Máquinas Pesadas | Relatório corporativo", styles["cover_band"])]],
         colWidths=[180 * mm],
     )
     cover_band.setStyle(
@@ -1452,7 +1452,7 @@ def _build_header(title: str, subtitle: str, generated_by: str, logo_path: str |
     metadata = [
         f"Gerado em: {datetime.now().strftime('%d/%m/%Y %H:%M')}",
         f"Emitido por: {generated_by or 'Sistema'}",
-        "Sistema de Checklist de Frota",
+        "Sistema de Manutenção de Máquinas Pesadas",
     ]
     header_row.append(Paragraph("<br/>".join(metadata), styles["meta"]))
 
@@ -1488,7 +1488,7 @@ def _build_cover_page(
     width = 250 * mm if landscape_mode else 180 * mm
 
     top_band = Table(
-        [[Paragraph("Relatório executivo | Sistema de Checklist de Frota", styles["cover_band_large"])]],
+        [[Paragraph("Relatório executivo | Sistema de Manutenção de Máquinas Pesadas", styles["cover_band_large"])]],
         colWidths=[width],
     )
     top_band.setStyle(
@@ -2106,7 +2106,7 @@ def _draw_report_page_header(
 
     canvas.setFillColor(colors.HexColor(MUTED))
     canvas.setFont("Helvetica-Bold", 8)
-    canvas.drawString(left, top, "Sistema de Checklist de Frota | Relatório corporativo")
+    canvas.drawString(left, top, "Sistema de Manutenção de Máquinas Pesadas | Relatório corporativo")
     canvas.setStrokeColor(colors.HexColor("#D9E2EF"))
     canvas.setLineWidth(0.45)
     canvas.line(left, line_y, right, line_y)
@@ -2142,7 +2142,7 @@ def _draw_report_page_header(
     metadata = [
         f"Gerado em: {datetime.now().strftime('%d/%m/%Y %H:%M')}",
         f"Emitido por: {generated_by or 'Sistema'}",
-        "Sistema de Checklist de Frota",
+        "Sistema de Manutenção de Máquinas Pesadas",
     ]
     canvas.setFont("Helvetica", 7)
     meta_y = title_y - 1 * mm
@@ -2170,7 +2170,7 @@ def _draw_footer(canvas, document, generated_by: str):
     canvas.line(document.leftMargin, footer_y + 4 * mm, document.leftMargin + width, footer_y + 4 * mm)
     canvas.setFillColor(colors.HexColor(MUTED))
     canvas.setFont("Helvetica", 8)
-    canvas.drawString(document.leftMargin, footer_y, "Sistema de Checklist de Frota")
+    canvas.drawString(document.leftMargin, footer_y, "Sistema de Manutenção de Máquinas Pesadas")
     canvas.drawCentredString(document.leftMargin + width / 2, footer_y, f"Emitido por: {generated_by or 'Sistema'}")
     canvas.drawRightString(document.leftMargin + width, footer_y, f"Página {canvas.getPageNumber()}")
     canvas.restoreState()
