@@ -323,6 +323,15 @@ class MainWindow(QMainWindow):
             color = "#101925" if theme == "dark" else "#FFFFFF"
             self.mdi_area.setBackground(QBrush(QColor(color)))
             self.mdi_area.viewport().setStyleSheet(f"background:{color};")
+            for subwindow in self.mdi_area.subWindowList():
+                page_scroll = subwindow.widget()
+                if isinstance(page_scroll, QScrollArea):
+                    viewport = page_scroll.viewport()
+                    viewport.setObjectName("PageScrollViewport")
+                    viewport.setAttribute(Qt.WA_StyledBackground, True)
+                    viewport.style().unpolish(viewport)
+                    viewport.style().polish(viewport)
+                    viewport.update()
         show_notice(self, "Tema atualizado", "O tema escuro foi aplicado." if theme == "dark" else "O tema claro foi aplicado.", icon_name="dashboard")
 
     def set_module_refresh_interval(self, interval_ms: int) -> None:
