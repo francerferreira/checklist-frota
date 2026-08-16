@@ -16,8 +16,8 @@ class WebMobileShellContractTests(unittest.TestCase):
         cls.legacy_readme = LEGACY_README_PATH.read_text(encoding="utf-8")
 
     def test_index_uses_canonical_frontend_bundle(self):
-        self.assertIn('./static/js/app.js?v=20260816-02', self.index_html)
-        self.assertIn('./static/css/styles.css?v=20260816-02', self.index_html)
+        self.assertIn('./static/js/app.js?v=20260816-04', self.index_html)
+        self.assertIn('./static/css/styles.css?v=20260816-04', self.index_html)
         self.assertNotIn("app-20260419-", self.index_html)
 
     def test_frontend_uses_manaus_timezone_for_dates(self):
@@ -111,6 +111,22 @@ class WebMobileShellContractTests(unittest.TestCase):
         self.assertIn('openModuleReports("maintenance")', app_js)
         self.assertIn('data-rh-admin-tab="reports"', self.index_html)
         self.assertNotIn('id="open-central-reports-menu"', self.index_html)
+
+    def test_admin_settings_web_area_is_restricted_and_connected(self):
+        app_js = (PROJECT_ROOT / "web_app" / "static" / "js" / "app.js").read_text(encoding="utf-8")
+        for fragment in [
+            'id="open-admin-settings-menu"',
+            'id="admin-settings-screen"',
+            'id="admin-settings-feedback"',
+        ]:
+            with self.subTest(fragment=fragment):
+                self.assertIn(fragment, self.index_html)
+        self.assertIn("openAdminSettings", app_js)
+        self.assertIn("hasAdminAccess()", app_js)
+        self.assertIn('apiFetch("/usuarios")', app_js)
+        self.assertIn('apiFetch("/admin/intelligent-rules")', app_js)
+        self.assertIn('apiFetch("/admin/audit-health")', app_js)
+        self.assertNotIn('id="open-public-admin-settings-menu"', self.index_html)
 
     def test_availability_and_hourmeter_mobile_operations_are_connected(self):
         app_js = (PROJECT_ROOT / "web_app" / "static" / "js" / "app.js").read_text(encoding="utf-8")

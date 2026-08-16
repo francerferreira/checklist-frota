@@ -5259,6 +5259,74 @@ button.rh-admin-operation-card:hover { border-color: #78aee6; transform: transla
 }
 
 /* Relatórios permanecem dentro do contexto de cada módulo operacional. */
+.screen-heading.compact.admin-settings-heading {
+    grid-template-columns: auto minmax(0, 1fr) auto;
+    gap: 14px;
+}
+
+.admin-settings-intro {
+    border-color: rgba(255, 255, 255, .78);
+}
+
+.admin-settings-card {
+    min-height: 178px;
+}
+
+.admin-settings-feedback {
+    margin-top: 14px;
+}
+
+#admin-settings-feedback-content {
+    margin-top: 0;
+    padding: 14px 18px;
+    border-radius: 0 0 16px 16px;
+    background: rgba(255, 255, 255, .96);
+    color: var(--ink);
+}
+
+#admin-settings-feedback-content > span,
+#admin-settings-feedback-content > strong {
+    color: var(--ink);
+}
+
+.admin-settings-user-list {
+    display: grid;
+    gap: 8px;
+    margin-top: 8px;
+}
+
+.admin-settings-user-list > span {
+    display: flex;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 8px 10px;
+    border-radius: 10px;
+    background: rgba(7, 86, 181, .06);
+}
+
+.admin-settings-user-list em {
+    color: var(--muted);
+    font-size: .68rem;
+    font-style: normal;
+    font-weight: 800;
+    letter-spacing: .05em;
+}
+
+@media (min-width: 760px) {
+    #admin-settings-screen {
+        max-width: 1280px;
+        margin-inline: auto;
+    }
+}
+
+@media (max-width: 759px) {
+    .admin-settings-user-list > span {
+        align-items: flex-start;
+        flex-direction: column;
+        gap: 3px;
+    }
+}
+
 .screen-heading.compact.module-reports-heading {
     grid-template-columns: auto minmax(0, 1fr) auto;
     gap: 14px;

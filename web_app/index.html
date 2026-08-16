@@ -14,7 +14,7 @@
     <title>SIS MMP | Sistema de Manutenção de Máquinas Pesadas</title>
     <link rel="icon" type="image/png" sizes="192x192" href="./static/icons/icon-192.png?v=sis-mmp-20260810">
     <link rel="apple-touch-icon" href="./static/icons/icon-192.png?v=sis-mmp-20260810">
-    <link rel="stylesheet" href="./static/css/styles.css?v=20260816-02">
+    <link rel="stylesheet" href="./static/css/styles.css?v=20260816-04">
 </head>
 <body>
     <div class="mobile-shell">
@@ -142,6 +142,13 @@
                         <span>ADM</span><strong>GESTÃO DE RH</strong><em>Administrar colaboradores, indicadores e rotinas do RH.</em>
                     </button>
 
+                    <div class="menu-group-heading" data-menu-heading="administracao">
+                        <span>ADM</span><strong>CONFIGURAÇÕES</strong><em>Controle de acessos, auditoria, regras e segurança do sistema.</em>
+                    </div>
+                    <button id="open-admin-settings-menu" class="menu-card hidden" type="button">
+                        <span>ADM</span><strong>SALA DE CONTROLE</strong><em>Administrar logins, permissões, backup e controles administrativos.</em>
+                    </button>
+
                     <div class="menu-group-heading" data-menu-heading="absenteismo">
                         <span>04</span><strong>ABSENTEÍSMO</strong><em>Registro diário por área, colaborador e status.</em>
                     </div>
@@ -156,6 +163,46 @@
                         <span>15</span><strong>ESCALA DE DOMINGO E FERIADO</strong><em>Selecionar quem trabalhará e registrar a DSR.</em>
                     </button>
                 </div>
+            </section>
+
+            <section id="admin-settings-screen" class="screen hidden">
+                <div class="screen-heading compact module-reports-heading admin-settings-heading">
+                    <button id="admin-settings-back-button" class="icon-button" type="button">MENU</button>
+                    <div>
+                        <h2>SALA DE CONTROLE</h2>
+                        <p class="screen-heading-note">Configurações administrativas e segurança do sistema.</p>
+                    </div>
+                    <span id="admin-settings-role-badge" class="rh-admin-role-badge">ADMIN</span>
+                </div>
+
+                <section class="module-reports-intro admin-settings-intro">
+                    <span>ACESSO RESTRITO</span>
+                    <strong>CONFIGURAÇÕES DO SISTEMA</strong>
+                    <p>Esta área funciona como a sala de controle: somente o administrador pode consultar e operar os controles sensíveis.</p>
+                </section>
+
+                <div id="admin-settings-grid" class="module-report-grid admin-settings-grid">
+                    <button class="module-report-card admin-settings-card" type="button" data-admin-settings-action="users">
+                        <span>IDENTIDADE</span><strong>LOGINS E PERMISSÕES</strong><em>Consultar usuários, perfis e telas liberadas para cada login.</em><b>CONSULTAR LOGINS</b>
+                    </button>
+                    <button class="module-report-card admin-settings-card" type="button" data-admin-settings-action="rules">
+                        <span>REGRAS</span><strong>CONFIGURAÇÃO ADMINISTRATIVA</strong><em>Verificar regras inteligentes e compatibilidade dos dados.</em><b>CONSULTAR REGRAS</b>
+                    </button>
+                    <button class="module-report-card admin-settings-card" type="button" data-admin-settings-action="audit">
+                        <span>SEGURANÇA</span><strong>AUDITORIA DO SISTEMA</strong><em>Verificar se os registros de auditoria estão funcionando.</em><b>VERIFICAR AUDITORIA</b>
+                    </button>
+                    <button class="module-report-card admin-settings-card" type="button" data-admin-settings-action="backup">
+                        <span>CONTINUIDADE</span><strong>BACKUP E ARMAZENAMENTO</strong><em>Consultar armazenamento e gerar uma cópia protegida do sistema.</em><b>ABRIR BACKUP</b>
+                    </button>
+                    <button class="module-report-card admin-settings-card" type="button" data-admin-settings-action="resets">
+                        <span>ACESSO</span><strong>SOLICITAÇÕES DE RESET</strong><em>Atender solicitações de recuperação de senha pendentes.</em><b>ABRIR RESETS</b>
+                    </button>
+                </div>
+
+                <section id="admin-settings-feedback" class="module-section admin-settings-feedback" aria-live="polite">
+                    <div class="module-header"><div><span>RETORNO DA CONSULTA</span><strong>AGUARDANDO AÇÃO</strong></div></div>
+                    <div id="admin-settings-feedback-content" class="sync-list">Escolha um controle acima para consultar seu estado.</div>
+                </section>
             </section>
 
             <section id="checklist-history-screen" class="screen hidden">
@@ -998,7 +1045,7 @@
 
     <div id="toast" class="toast hidden"></div>
     <script src="./static/js/config.js?v=20260719-01"></script>
-    <script src="./static/js/app.js?v=20260816-02"></script>
+    <script src="./static/js/app.js?v=20260816-04"></script>
 </body>
 </html>
 

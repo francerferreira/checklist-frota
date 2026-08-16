@@ -285,6 +285,10 @@ const state = {
         editingEmployeeId: null,
         existingEmployeePhoto: "",
     },
+    adminSettings: {
+        feedbackTitle: "AGUARDANDO AÇÃO",
+        feedbackHtml: "Escolha um controle acima para consultar seu estado.",
+    },
     moduleReports: "",
 };
 
@@ -300,6 +304,7 @@ const screens = {
     checklistHistory: document.getElementById("checklist-history-screen"),
     checklistCatalog: document.getElementById("checklist-catalog-screen"),
     rhAdmin: document.getElementById("rh-admin-screen"),
+    adminSettings: document.getElementById("admin-settings-screen"),
     moduleReports: document.getElementById("module-reports-screen"),
     nonConformities: document.getElementById("non-conformities-screen"),
     maintenance: document.getElementById("maintenance-screen"),
@@ -404,6 +409,7 @@ const elements = {
     openChecklistHistoryMenu: document.getElementById("open-checklist-history-menu"),
     openChecklistCatalogMenu: document.getElementById("open-checklist-catalog-menu"),
     openRhAdminMenu: document.getElementById("open-rh-admin-menu"),
+    openAdminSettingsMenu: document.getElementById("open-admin-settings-menu"),
     openEquipmentReportsMenu: document.getElementById("open-equipment-reports-menu"),
     openMaintenanceReportsMenu: document.getElementById("open-maintenance-reports-menu"),
     openActivitiesMenu: document.getElementById("open-activities-menu"),
@@ -494,6 +500,11 @@ const elements = {
     rhAdminEmployeePhotoStatus: document.getElementById("rh-admin-employee-photo-status"),
     rhAdminEmployeeCancel: document.getElementById("rh-admin-employee-cancel"),
     rhAdminEmployeeSave: document.getElementById("rh-admin-employee-save"),
+    adminSettingsBackButton: document.getElementById("admin-settings-back-button"),
+    adminSettingsRoleBadge: document.getElementById("admin-settings-role-badge"),
+    adminSettingsGrid: document.getElementById("admin-settings-grid"),
+    adminSettingsFeedback: document.getElementById("admin-settings-feedback"),
+    adminSettingsFeedbackContent: document.getElementById("admin-settings-feedback-content"),
     moduleReportsBackButton: document.getElementById("module-reports-back-button"),
     moduleReportsTitle: document.getElementById("module-reports-title"),
     moduleReportsSubtitle: document.getElementById("module-reports-subtitle"),
@@ -1008,6 +1019,7 @@ function syncMenuGroupHeadings() {
             "open-maintenance-reports-menu",
         ],
         rh: ["open-hr-journey-menu", "open-rh-admin-menu"],
+        administracao: ["open-admin-settings-menu"],
         absenteismo: ["open-absenteeism-menu"],
         "escala-dsr": ["open-special-schedule-menu"],
     };
@@ -1026,6 +1038,7 @@ function renderHome() {
     const canViewMaintenanceDashboard = ["admin", "gestor"].includes(String(state.user?.tipo || "").toLowerCase());
     elements.openChecklistCatalogMenu?.classList.toggle("hidden", !hasWashReportAccess());
     elements.openRhAdminMenu?.classList.toggle("hidden", !hasWashReportAccess());
+    elements.openAdminSettingsMenu?.classList.toggle("hidden", !hasAdminAccess());
     elements.openEquipmentReportsMenu?.classList.toggle("hidden", !hasWashReportAccess());
     elements.openMaintenanceReportsMenu?.classList.toggle("hidden", !hasWashReportAccess());
     elements.openMaintenanceDashboardMenu?.classList.toggle("hidden", !canViewMaintenanceDashboard);
@@ -1840,6 +1853,94 @@ function openModuleReportAction(action) {
     else if (action === "nonConformities") openNonConformitiesMenu();
     else if (action === "washes") openWashesMenu();
     else if (action === "maintenanceDashboard") window.location.href = "./dashboard-manutencao/";
+}
+
+function setAdminSettingsFeedback(title, html) {
+    state.adminSettings.feedbackTitle = title;
+    state.adminSettings.feedbackHtml = html;
+    const titleElement = elements.adminSettingsFeedback?.querySelector(".module-header strong");
+    if (titleElement) titleElement.textContent = title;
+    if (elements.adminSettingsFeedbackContent) elements.adminSettingsFeedbackContent.innerHTML = html;
+}
+
+function openAdminSettingsHomePanel(panelId) {
+    renderHome();
+    setActiveScreen("home");
+    const panel = document.getElementById(panelId);
+    panel?.scrollIntoView({ behavior: "smooth", block: "start" });
+}
+
+async function loadAdminSettingsUsers() {
+    setAdminSettingsFeedback("CONSULTANDO LOGINS", "Carregando usuários e permissões personalizadas...");
+    try {
+        const users = await apiFetch("/usuarios");
+        const rows = Array.isArray(users) ? users : [];
+        const active = rows.filter((user) => user.ativo !== false).length;
+        const content = rows.length ? `
+            <strong>${active} LOGIN(S) ATIVO(S) DE ${rows.length}</strong>
+            <div class="admin-settings-user-list">${rows.map((user) => `
+                <span><b>${escapeHtml(String(user.nome || user.login || "USUÁRIO").toUpperCase())}</b><em>${escapeHtml(String(user.tipo || "-").toUpperCase())} | ${user.ativo === false ? "INATIVO" : "ATIVO"}</em></span>
+            `).join("")}</div>
+        ` : "Nenhum login retornado pela API.";
+        setAdminSettingsFeedback("LOGINS E PERMISSÕES", content);
+    } catch (error) {
+        setAdminSettingsFeedback("FALHA NA CONSULTA", `<span>${escapeHtml(error.message || "Não foi possível consultar os logins.")}</span>`);
+    }
+}
+
+async function loadAdminSettingsRules() {
+    setAdminSettingsFeedback("CONSULTANDO REGRAS", "Carregando regras administrativas e compatibilidade...");
+    try {
+        const [rules, compatibility, homologation] = await Promise.all([
+            apiFetch("/admin/intelligent-rules"),
+            apiFetch("/admin/compatibility-status"),
+            apiFetch("/admin/homologation-status"),
+        ]);
+        const ruleCount = Object.keys(rules?.rules || {}).length;
+        setAdminSettingsFeedback("CONFIGURAÇÃO ADMINISTRATIVA", `
+            <strong>${ruleCount} regra(s) carregada(s)</strong>
+            <span>Compatibilidade: ${escapeHtml(String(compatibility?.status_geral || "-"))}</span>
+            <span>Homologação: ${escapeHtml(String(homologation?.status_geral || "-"))}</span>
+        `);
+    } catch (error) {
+        setAdminSettingsFeedback("FALHA NA CONSULTA", `<span>${escapeHtml(error.message || "Não foi possível consultar as regras.")}</span>`);
+    }
+}
+
+async function loadAdminSettingsAudit() {
+    setAdminSettingsFeedback("CONSULTANDO AUDITORIA", "Verificando o serviço de auditoria...");
+    try {
+        const status = await apiFetch("/admin/audit-health");
+        setAdminSettingsFeedback("AUDITORIA DO SISTEMA", `
+            <strong>${status?.healthy ? "AUDITORIA OPERACIONAL" : "AUDITORIA COM ALERTA"}</strong>
+            <span>Falhas registradas: ${Number(status?.failure_count || 0)}</span>
+            ${status?.last_failure_message ? `<span>Última falha: ${escapeHtml(status.last_failure_message)}</span>` : "<span>Nenhuma falha recente registrada.</span>"}
+        `);
+    } catch (error) {
+        setAdminSettingsFeedback("FALHA NA CONSULTA", `<span>${escapeHtml(error.message || "Não foi possível consultar a auditoria.")}</span>`);
+    }
+}
+
+function openAdminSettings() {
+    if (!hasAdminAccess()) {
+        showToast("SOMENTE ADMIN PODE ACESSAR A SALA DE CONTROLE.", true);
+        return;
+    }
+    elements.adminSettingsRoleBadge.textContent = String(state.user?.tipo || "ADMIN").toUpperCase();
+    setAdminSettingsFeedback(state.adminSettings.feedbackTitle, state.adminSettings.feedbackHtml);
+    setActiveScreen("adminSettings");
+}
+
+function openAdminSettingsAction(action) {
+    if (!hasAdminAccess()) {
+        showToast("SOMENTE ADMIN PODE OPERAR AS CONFIGURAÇÕES.", true);
+        return;
+    }
+    if (action === "users") loadAdminSettingsUsers();
+    else if (action === "rules") loadAdminSettingsRules();
+    else if (action === "audit") loadAdminSettingsAudit();
+    else if (action === "backup") openAdminSettingsHomePanel("cloud-admin-panel");
+    else if (action === "resets") openAdminSettingsHomePanel("admin-reset-panel");
 }
 
 function rhAdminStatusLabel(status) {
@@ -7718,6 +7819,7 @@ on(elements.openMaintenanceDashboardMenu, "click", () => {
 });
 on(elements.openHrJourneyMenu, "click", openHrJourneyMenu);
 on(elements.openRhAdminMenu, "click", openRhAdminMenu);
+on(elements.openAdminSettingsMenu, "click", openAdminSettings);
 on(elements.openEquipmentReportsMenu, "click", () => openModuleReports("equipment"));
 on(elements.openMaintenanceReportsMenu, "click", () => openModuleReports("maintenance"));
 on(elements.moduleReportsList, "click", (event) => {
@@ -7734,6 +7836,10 @@ on(elements.rhAdminEmployeeForm, "submit", submitRhAdminEmployee);
 on(elements.rhAdminEmployeeCancel, "click", closeRhAdminEmployeeModal);
 on(elements.rhAdminEmployeeModal, "click", (event) => {
     if (event.target instanceof HTMLElement && event.target.dataset.closeRhAdminEmployee === "true") closeRhAdminEmployeeModal();
+});
+on(elements.adminSettingsGrid, "click", (event) => {
+    const button = event.target instanceof HTMLElement ? event.target.closest("[data-admin-settings-action]") : null;
+    if (button) openAdminSettingsAction(button.dataset.adminSettingsAction);
 });
 on(elements.rhAdminEmployeesList, "click", (event) => {
     const button = event.target instanceof HTMLElement ? event.target.closest("[data-rh-admin-edit-employee]") : null;
@@ -7844,6 +7950,10 @@ on(elements.hrJourneyBackButton, "click", () => {
 });
 on(elements.rhAdminBackButton, "click", () => {
     closeRhAdminEmployeeModal();
+    renderHome();
+    setActiveScreen("home");
+});
+on(elements.adminSettingsBackButton, "click", () => {
     renderHome();
     setActiveScreen("home");
 });
