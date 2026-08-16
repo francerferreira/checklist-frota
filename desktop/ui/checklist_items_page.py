@@ -372,15 +372,22 @@ class ChecklistItemsPage(QFrame):
         self.type_filter.addItem("Onibus", "onibus")
         self.type_filter.addItem("Van", "van")
         self.type_filter.setMinimumHeight(34)
+        self.search_filter = QLineEdit()
+        self.search_filter.setPlaceholderText("Buscar item, agrupamento ou parte")
+        self.search_filter.setClearButtonEnabled(True)
+        self.search_filter.setMinimumHeight(34)
         self.active_filter = QComboBox()
         self.active_filter.addItem("Ativos", "true")
         self.active_filter.addItem("Todos", "all")
+        self.active_filter.addItem("Inativos", "false")
         self.active_filter.setMinimumHeight(34)
         self.type_filter.currentIndexChanged.connect(self._schedule_live_refresh)
         self.active_filter.currentIndexChanged.connect(self._schedule_live_refresh)
-        filter_button = QPushButton("Aplicar filtros")
+        self.search_filter.textChanged.connect(self._render_items)
+        filter_button = QPushButton("Atualizar catálogo")
         filter_button.setMinimumHeight(34)
         filter_button.clicked.connect(self.refresh)
+        filters.addWidget(self.search_filter, 2)
         filters.addWidget(self.type_filter)
         filters.addWidget(self.active_filter)
         filters.addWidget(filter_button)
@@ -398,6 +405,11 @@ class ChecklistItemsPage(QFrame):
         title_label.setObjectName("SectionTitle")
         self.summary_badge = QLabel("Nenhum item carregado")
         self.summary_badge.setObjectName("TopBarPill")
+        self.empty_state = QLabel("Nenhum item neste filtro. Ajuste a pesquisa ou selecione outro tipo.")
+        self.empty_state.setObjectName("EmptyStateText")
+        self.empty_state.setWordWrap(True)
+        self.empty_state.setAlignment(Qt.AlignCenter)
+        self.empty_state.hide()
         top.addWidget(title_label)
         top.addStretch()
         top.addWidget(self.summary_badge)
@@ -411,6 +423,7 @@ class ChecklistItemsPage(QFrame):
         self.table.itemDoubleClicked.connect(self.edit_selected)
 
         table_layout.addLayout(top)
+        table_layout.addWidget(self.empty_state)
         table_layout.addWidget(self.table)
 
         layout.addLayout(header)
@@ -480,7 +493,30 @@ class ChecklistItemsPage(QFrame):
             tipo=self.type_filter.currentData() or None,
             ativos=self.active_filter.currentData(),
         )
-        self.display_items = self._build_display_items(self.items)
+        self._render_items(preferred_item_id=preferred_item_id)
+
+    def _render_items(self, *_args, preferred_item_id: int | None = None):
+        display_items = self._build_display_items(self.items)
+        query = self.search_filter.text().strip().casefold()
+        if query:
+            filtered_items = []
+            for item in display_items:
+                group_type, parent_item, part = _grouping_labels(item)
+                searchable = " ".join(
+                    str(value or "")
+                    for value in (
+                        item.get("item_nome"),
+                        item.get("tipo") or item.get("vehicle_type"),
+                        group_type,
+                        parent_item,
+                        part,
+                        item.get("id"),
+                    )
+                ).casefold()
+                if query in searchable:
+                    filtered_items.append(item)
+            display_items = filtered_items
+        self.display_items = display_items
         self.table.setSortingEnabled(False)
         self.table.setUpdatesEnabled(False)
         self.table.blockSignals(True)
@@ -509,8 +545,20 @@ class ChecklistItemsPage(QFrame):
             self.table.setUpdatesEnabled(True)
             self.table.setSortingEnabled(True)
 
-        self.summary_badge.setText(f"{len(self.items)} itens")
-        if self.items:
+        active_count = sum(1 for item in self.items if item.get("ativo"))
+        grouped_count = sum(
+            1
+            for item in self.items
+            if ((item.get("agrupamento") or {}).get("tipo_agrupamento") or "simples") != "simples"
+        )
+        photo_count = sum(1 for item in self.items if item.get("foto_path"))
+        self.summary_badge.setText(
+            f"{len(self.display_items)} exibidos · {active_count} ativos · "
+            f"{grouped_count} agrupados · {photo_count} com foto"
+        )
+        self.empty_state.setVisible(not self.display_items)
+        self.table.setVisible(bool(self.display_items))
+        if self.display_items:
             selected_row = 0
             if preferred_item_id is not None:
                 for row_index, row_item in enumerate(self.display_items):

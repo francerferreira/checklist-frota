@@ -272,6 +272,12 @@ const state = {
         rows: [],
         expandedVehicleId: "",
     },
+    checklistCatalogAdmin: {
+        items: [],
+        filters: { search: "", type: "", active: "true" },
+        editingId: null,
+        existingPhotoPath: "",
+    },
 };
 
 const screens = {
@@ -284,6 +290,7 @@ const screens = {
     activityDetail: document.getElementById("activity-detail-screen"),
     washes: document.getElementById("washes-screen"),
     checklistHistory: document.getElementById("checklist-history-screen"),
+    checklistCatalog: document.getElementById("checklist-catalog-screen"),
     nonConformities: document.getElementById("non-conformities-screen"),
     maintenance: document.getElementById("maintenance-screen"),
     preventives: document.getElementById("preventives-screen"),
@@ -385,6 +392,7 @@ const elements = {
     photoViewerImage: document.getElementById("photo-viewer-image"),
     openChecklistMenu: document.getElementById("open-checklist-menu"),
     openChecklistHistoryMenu: document.getElementById("open-checklist-history-menu"),
+    openChecklistCatalogMenu: document.getElementById("open-checklist-catalog-menu"),
     openActivitiesMenu: document.getElementById("open-activities-menu"),
     openWashesMenu: document.getElementById("open-washes-menu"),
     openNonConformitiesMenu: document.getElementById("open-non-conformities-menu"),
@@ -416,6 +424,29 @@ const elements = {
     checklistHistoryEndDate: document.getElementById("checklist-history-end-date"),
     checklistHistorySummaryCard: document.getElementById("checklist-history-summary-card"),
     checklistHistoryTableWrap: document.getElementById("checklist-history-table-wrap"),
+    checklistCatalogBackButton: document.getElementById("checklist-catalog-back-button"),
+    checklistCatalogNewButton: document.getElementById("checklist-catalog-new-button"),
+    checklistCatalogCounter: document.getElementById("checklist-catalog-counter"),
+    checklistCatalogSearch: document.getElementById("checklist-catalog-search"),
+    checklistCatalogTypeFilter: document.getElementById("checklist-catalog-type-filter"),
+    checklistCatalogActiveFilter: document.getElementById("checklist-catalog-active-filter"),
+    checklistCatalogClearFilters: document.getElementById("checklist-catalog-clear-filters"),
+    checklistCatalogSummary: document.getElementById("checklist-catalog-summary"),
+    checklistCatalogList: document.getElementById("checklist-catalog-list"),
+    checklistCatalogModal: document.getElementById("checklist-catalog-modal"),
+    checklistCatalogModalTitle: document.getElementById("checklist-catalog-modal-title"),
+    checklistCatalogForm: document.getElementById("checklist-catalog-form"),
+    checklistCatalogItemName: document.getElementById("checklist-catalog-item-name"),
+    checklistCatalogItemType: document.getElementById("checklist-catalog-item-type"),
+    checklistCatalogPosition: document.getElementById("checklist-catalog-position"),
+    checklistCatalogGroupType: document.getElementById("checklist-catalog-group-type"),
+    checklistCatalogParentItem: document.getElementById("checklist-catalog-parent-item"),
+    checklistCatalogPart: document.getElementById("checklist-catalog-part"),
+    checklistCatalogPhoto: document.getElementById("checklist-catalog-photo"),
+    checklistCatalogPhotoStatus: document.getElementById("checklist-catalog-photo-status"),
+    checklistCatalogItemActive: document.getElementById("checklist-catalog-item-active"),
+    checklistCatalogCancel: document.getElementById("checklist-catalog-cancel"),
+    checklistCatalogSave: document.getElementById("checklist-catalog-save"),
     washCounter: document.getElementById("wash-counter"),
     washMonthTitle: document.getElementById("wash-month-title"),
     washPrevMonth: document.getElementById("wash-prev-month"),
@@ -907,6 +938,7 @@ function syncMenuGroupHeadings() {
         equipamentos: [
             "open-checklist-menu",
             "open-checklist-history-menu",
+            "open-checklist-catalog-menu",
             "open-activities-menu",
             "open-availability-menu",
             "open-technical-inspections-menu",
@@ -937,6 +969,7 @@ function syncMenuGroupHeadings() {
 
 function renderHome() {
     const canViewMaintenanceDashboard = ["admin", "gestor"].includes(String(state.user?.tipo || "").toLowerCase());
+    elements.openChecklistCatalogMenu?.classList.toggle("hidden", !hasWashReportAccess());
     elements.openMaintenanceDashboardMenu?.classList.toggle("hidden", !canViewMaintenanceDashboard);
     elements.openPreventivesMenu?.classList.toggle("hidden", !canViewMaintenanceDashboard);
     elements.openWeeklyDsrMenu?.classList.toggle("hidden", !canViewMaintenanceDashboard);
@@ -1142,6 +1175,239 @@ async function downloadAuthorizedFile(path, filename) {
     link.click();
     link.remove();
     window.setTimeout(() => URL.revokeObjectURL(url), 2000);
+}
+
+const CHECKLIST_CATALOG_TYPE_LABELS = {
+    cavalo: "CAVALO",
+    carreta: "CARRETA",
+    carro_simples: "CARRO SIMPLES",
+    cavalo_auxiliar: "CAVALO AUXILIAR",
+    ambulancia: "AMBULÂNCIA",
+    caminhao_pipa: "CAMINHÃO PIPA",
+    caminhao_brigada: "CAMINHÃO BRIGADA",
+    onibus: "ÔNIBUS",
+    van: "VAN",
+};
+
+function checklistCatalogGrouping(item) {
+    const grouping = item?.agrupamento || {};
+    return {
+        type: String(grouping.tipo_agrupamento || item?.tipo_agrupamento || "simples").toLowerCase(),
+        parent: String(grouping.item_principal || item?.item_principal || item?.item_nome || ""),
+        part: String(grouping.parte || item?.parte || ""),
+    };
+}
+
+function filteredChecklistCatalogItems() {
+    const filters = state.checklistCatalogAdmin.filters;
+    const query = filters.search.trim().toLocaleLowerCase("pt-BR");
+    return state.checklistCatalogAdmin.items
+        .filter((item) => {
+            const grouping = checklistCatalogGrouping(item);
+            const isActive = Boolean(item.ativo);
+            const activeMatches = filters.active === "all"
+                || (filters.active === "true" && isActive)
+                || (filters.active === "false" && !isActive);
+            const typeMatches = !filters.type || String(item.tipo || item.vehicle_type || "") === filters.type;
+            const searchable = [item.item_nome, item.tipo, grouping.type, grouping.parent, grouping.part, item.id]
+                .join(" ")
+                .toLocaleLowerCase("pt-BR");
+            return activeMatches && typeMatches && (!query || searchable.includes(query));
+        })
+        .sort((left, right) => {
+            const leftType = String(left.tipo || left.vehicle_type || "");
+            const rightType = String(right.tipo || right.vehicle_type || "");
+            return leftType.localeCompare(rightType, "pt-BR")
+                || Number(left.position || 0) - Number(right.position || 0)
+                || String(left.item_nome || "").localeCompare(String(right.item_nome || ""), "pt-BR");
+        });
+}
+
+function renderChecklistCatalogAdmin() {
+    if (!elements.checklistCatalogList) return;
+    const allItems = state.checklistCatalogAdmin.items;
+    const items = filteredChecklistCatalogItems();
+    const activeCount = allItems.filter((item) => item.ativo).length;
+    const inactiveCount = allItems.length - activeCount;
+    const groupedCount = allItems.filter((item) => checklistCatalogGrouping(item).type !== "simples").length;
+    const photoCount = allItems.filter((item) => item.foto_path).length;
+
+    elements.checklistCatalogCounter.textContent = `${items.length} DE ${allItems.length} ITENS`;
+    elements.checklistCatalogSummary.innerHTML = `
+        <article><span>TOTAL</span><strong>${allItems.length}</strong></article>
+        <article><span>ATIVOS</span><strong>${activeCount}</strong></article>
+        <article><span>INATIVOS</span><strong>${inactiveCount}</strong></article>
+        <article><span>AGRUPADOS / COM FOTO</span><strong>${groupedCount} / ${photoCount}</strong></article>
+    `;
+
+    if (!items.length) {
+        renderStateCard(elements.checklistCatalogList, {
+            title: allItems.length ? "NENHUM ITEM NESTE FILTRO" : "CATÁLOGO VAZIO",
+            message: allItems.length
+                ? "Ajuste a busca, o tipo ou a situação para localizar o item."
+                : "Use Novo item para cadastrar o primeiro item do checklist.",
+        });
+        return;
+    }
+
+    elements.checklistCatalogList.innerHTML = items.map((item) => {
+        const grouping = checklistCatalogGrouping(item);
+        const type = String(item.tipo || item.vehicle_type || "");
+        const photo = item.foto_path
+            ? `<img src="${escapeHtml(makeAbsoluteUrl(item.foto_path))}" alt="Foto de referência de ${escapeHtml(item.item_nome || "item")}" loading="lazy">`
+            : `<span class="checklist-catalog-photo-empty">SEM FOTO</span>`;
+        return `
+            <article class="checklist-catalog-card${item.ativo ? "" : " inactive"}">
+                <div class="checklist-catalog-photo">${photo}</div>
+                <div class="checklist-catalog-card-body">
+                    <div class="checklist-catalog-card-top">
+                        <span>${escapeHtml(CHECKLIST_CATALOG_TYPE_LABELS[type] || type.toUpperCase() || "SEM TIPO")} · ORDEM ${escapeHtml(String(item.position || "-"))}</span>
+                        <em class="checklist-catalog-status ${item.ativo ? "active" : "inactive"}">${item.ativo ? "ATIVO" : "INATIVO"}</em>
+                    </div>
+                    <strong>${escapeHtml(item.item_nome || "ITEM SEM NOME")}</strong>
+                    <p>${grouping.type === "simples" ? "ITEM SIMPLES" : `${grouping.type.toUpperCase()} · ${grouping.parent}${grouping.part ? ` · ${grouping.part}` : ""}`}</p>
+                    <div class="checklist-catalog-card-actions">
+                        <button class="icon-button" type="button" data-checklist-catalog-action="edit" data-checklist-catalog-id="${Number(item.id)}">EDITAR</button>
+                        <button class="icon-button ${item.ativo ? "danger" : ""}" type="button" data-checklist-catalog-action="${item.ativo ? "inactivate" : "activate"}" data-checklist-catalog-id="${Number(item.id)}">${item.ativo ? "INATIVAR" : "REATIVAR"}</button>
+                    </div>
+                </div>
+            </article>
+        `;
+    }).join("");
+}
+
+async function loadChecklistCatalogItems() {
+    renderStateCard(elements.checklistCatalogList, {
+        title: "CARREGANDO CATÁLOGO",
+        message: "Buscando os itens ativos e inativos.",
+        tone: "loading",
+    });
+    const items = await apiFetch("/checklist-itens?ativos=all");
+    state.checklistCatalogAdmin.items = Array.isArray(items) ? items : [];
+    renderChecklistCatalogAdmin();
+}
+
+async function openChecklistCatalogMenu() {
+    if (!hasWashReportAccess()) {
+        showToast("SOMENTE ADMIN OU GESTOR PODE CONFIGURAR O CATÁLOGO.", true);
+        return;
+    }
+    setActiveScreen("checklistCatalog");
+    try {
+        await loadChecklistCatalogItems();
+    } catch (error) {
+        renderStateCard(elements.checklistCatalogList, {
+            title: "NÃO FOI POSSÍVEL CARREGAR",
+            message: error.message || "Tente novamente.",
+            tone: "error",
+        });
+        showToast(error.message || "FALHA AO CARREGAR CATÁLOGO.", true);
+    }
+}
+
+function syncChecklistCatalogGroupingFields() {
+    const grouped = elements.checklistCatalogGroupType.value !== "simples";
+    elements.checklistCatalogParentItem.disabled = !grouped;
+    elements.checklistCatalogPart.disabled = !grouped;
+    elements.checklistCatalogParentItem.required = grouped;
+    elements.checklistCatalogPart.required = grouped;
+    if (!grouped) {
+        elements.checklistCatalogParentItem.value = "";
+        elements.checklistCatalogPart.value = "";
+    } else if (!elements.checklistCatalogParentItem.value.trim()) {
+        elements.checklistCatalogParentItem.value = elements.checklistCatalogItemName.value.trim();
+    }
+}
+
+function openChecklistCatalogModal(item = null) {
+    state.checklistCatalogAdmin.editingId = item ? Number(item.id) : null;
+    state.checklistCatalogAdmin.existingPhotoPath = item?.foto_path || "";
+    const grouping = checklistCatalogGrouping(item || {});
+    elements.checklistCatalogModalTitle.textContent = item ? "Editar item" : "Novo item";
+    elements.checklistCatalogItemName.value = item?.item_nome || "";
+    elements.checklistCatalogItemType.value = item?.tipo || item?.vehicle_type || state.checklistCatalogAdmin.filters.type || "cavalo";
+    elements.checklistCatalogPosition.value = String(item?.position || 1);
+    elements.checklistCatalogGroupType.value = grouping.type;
+    elements.checklistCatalogParentItem.value = grouping.type === "simples" ? "" : grouping.parent;
+    elements.checklistCatalogPart.value = grouping.type === "simples" ? "" : grouping.part;
+    elements.checklistCatalogItemActive.checked = item ? Boolean(item.ativo) : true;
+    elements.checklistCatalogPhoto.value = "";
+    elements.checklistCatalogPhotoStatus.textContent = item?.foto_path ? "Foto atual será mantida se nenhuma nova for escolhida." : "Nenhuma foto cadastrada.";
+    syncChecklistCatalogGroupingFields();
+    elements.checklistCatalogModal.classList.remove("hidden");
+    document.body.classList.add("modal-open");
+    elements.checklistCatalogItemName.focus();
+}
+
+function closeChecklistCatalogModal() {
+    elements.checklistCatalogModal.classList.add("hidden");
+    document.body.classList.remove("modal-open");
+    elements.checklistCatalogForm.reset();
+    state.checklistCatalogAdmin.editingId = null;
+    state.checklistCatalogAdmin.existingPhotoPath = "";
+}
+
+async function submitChecklistCatalogItem(event) {
+    event.preventDefault();
+    if (!hasWashReportAccess()) return;
+    const itemName = elements.checklistCatalogItemName.value.trim();
+    const groupType = elements.checklistCatalogGroupType.value;
+    if (!itemName) {
+        showToast("INFORME O NOME DO ITEM.", true);
+        return;
+    }
+    const payload = {
+        item_nome: itemName,
+        tipo: elements.checklistCatalogItemType.value,
+        position: Number(elements.checklistCatalogPosition.value || 1),
+        ativo: elements.checklistCatalogItemActive.checked,
+        tipo_agrupamento: groupType,
+        item_principal: groupType === "simples" ? "" : elements.checklistCatalogParentItem.value.trim(),
+        parte: groupType === "simples" ? null : elements.checklistCatalogPart.value.trim(),
+        foto_path: state.checklistCatalogAdmin.existingPhotoPath || null,
+    };
+    const photo = elements.checklistCatalogPhoto.files?.[0];
+    elements.checklistCatalogSave.disabled = true;
+    elements.checklistCatalogSave.textContent = "SALVANDO...";
+    try {
+        if (photo) {
+            payload.foto_path = await uploadEvidence(photo, payload.tipo, itemName, "referencia", "CATALOGO_CHECKLIST");
+        }
+        const editingId = state.checklistCatalogAdmin.editingId;
+        await apiFetch(editingId ? `/checklist-itens/${editingId}` : "/checklist-itens", {
+            method: editingId ? "PUT" : "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(payload),
+        });
+        closeChecklistCatalogModal();
+        await loadChecklistCatalogItems();
+        showToast(editingId ? "ITEM ATUALIZADO." : "ITEM CADASTRADO.");
+    } catch (error) {
+        showToast(error.message || "FALHA AO SALVAR ITEM.", true);
+    } finally {
+        elements.checklistCatalogSave.disabled = false;
+        elements.checklistCatalogSave.textContent = "SALVAR ITEM";
+    }
+}
+
+async function changeChecklistCatalogItemStatus(item, activate) {
+    if (!item || !hasWashReportAccess()) return;
+    if (!activate && !window.confirm(`Inativar o item ${item.item_nome || item.id}?`)) return;
+    try {
+        if (activate) {
+            await apiFetch(`/checklist-itens/${item.id}`, {
+                method: "PUT",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ ativo: true }),
+            });
+        } else {
+            await apiFetch(`/checklist-itens/${item.id}`, { method: "DELETE" });
+        }
+        await loadChecklistCatalogItems();
+        showToast(activate ? "ITEM REATIVADO." : "ITEM INATIVADO.");
+    } catch (error) {
+        showToast(error.message || "FALHA AO ALTERAR ITEM.", true);
+    }
 }
 
 function openChecklistMenu() {
@@ -7079,6 +7345,47 @@ elements.vehicleFamilyCards.forEach((card) => {
 });
 on(elements.openChecklistMenu, "click", openChecklistMenu);
 on(elements.openChecklistHistoryMenu, "click", openChecklistHistoryMenu);
+on(elements.openChecklistCatalogMenu, "click", openChecklistCatalogMenu);
+on(elements.checklistCatalogNewButton, "click", () => openChecklistCatalogModal());
+on(elements.checklistCatalogSearch, "input", () => {
+    state.checklistCatalogAdmin.filters.search = elements.checklistCatalogSearch.value;
+    renderChecklistCatalogAdmin();
+});
+on(elements.checklistCatalogTypeFilter, "change", () => {
+    state.checklistCatalogAdmin.filters.type = elements.checklistCatalogTypeFilter.value;
+    renderChecklistCatalogAdmin();
+});
+on(elements.checklistCatalogActiveFilter, "change", () => {
+    state.checklistCatalogAdmin.filters.active = elements.checklistCatalogActiveFilter.value;
+    renderChecklistCatalogAdmin();
+});
+on(elements.checklistCatalogClearFilters, "click", () => {
+    state.checklistCatalogAdmin.filters = { search: "", type: "", active: "true" };
+    elements.checklistCatalogSearch.value = "";
+    elements.checklistCatalogTypeFilter.value = "";
+    elements.checklistCatalogActiveFilter.value = "true";
+    renderChecklistCatalogAdmin();
+});
+on(elements.checklistCatalogGroupType, "change", syncChecklistCatalogGroupingFields);
+on(elements.checklistCatalogForm, "submit", submitChecklistCatalogItem);
+on(elements.checklistCatalogCancel, "click", closeChecklistCatalogModal);
+on(elements.checklistCatalogModal, "click", (event) => {
+    if (event.target instanceof HTMLElement && event.target.dataset.closeChecklistCatalog === "true") {
+        closeChecklistCatalogModal();
+    }
+});
+on(elements.checklistCatalogList, "click", (event) => {
+    const button = event.target instanceof HTMLElement
+        ? event.target.closest("[data-checklist-catalog-action]")
+        : null;
+    if (!button) return;
+    const itemId = Number(button.dataset.checklistCatalogId || 0);
+    const item = state.checklistCatalogAdmin.items.find((entry) => Number(entry.id) === itemId);
+    if (!item) return;
+    if (button.dataset.checklistCatalogAction === "edit") openChecklistCatalogModal(item);
+    if (button.dataset.checklistCatalogAction === "activate") changeChecklistCatalogItemStatus(item, true);
+    if (button.dataset.checklistCatalogAction === "inactivate") changeChecklistCatalogItemStatus(item, false);
+});
 on(elements.openActivitiesMenu, "click", openActivitiesMenu);
 on(elements.openWashesMenu, "click", openWashesMenu);
 on(elements.openNonConformitiesMenu, "click", openNonConformitiesMenu);
@@ -7177,6 +7484,11 @@ on(elements.washesBackButton, "click", () => {
     setActiveScreen("home");
 });
 on(elements.checklistHistoryBackButton, "click", () => {
+    renderHome();
+    setActiveScreen("home");
+});
+on(elements.checklistCatalogBackButton, "click", () => {
+    closeChecklistCatalogModal();
     renderHome();
     setActiveScreen("home");
 });

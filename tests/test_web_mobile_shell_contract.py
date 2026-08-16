@@ -16,8 +16,8 @@ class WebMobileShellContractTests(unittest.TestCase):
         cls.legacy_readme = LEGACY_README_PATH.read_text(encoding="utf-8")
 
     def test_index_uses_canonical_frontend_bundle(self):
-        self.assertIn('./static/js/app.js?v=20260726-07', self.index_html)
-        self.assertIn('./static/css/styles.css?v=20260726-07', self.index_html)
+        self.assertIn('./static/js/app.js?v=20260815-01', self.index_html)
+        self.assertIn('./static/css/styles.css?v=20260815-01', self.index_html)
         self.assertNotIn("app-20260419-", self.index_html)
 
     def test_frontend_uses_manaus_timezone_for_dates(self):
@@ -50,10 +50,14 @@ class WebMobileShellContractTests(unittest.TestCase):
     def test_operational_screens_and_wash_structure_remain_available(self):
         expected_fragments = [
             'id="open-checklist-history-menu"',
+            'id="open-checklist-catalog-menu"',
             'id="open-maintenance-menu"',
             'id="open-availability-menu"',
             'id="open-technical-inspections-menu"',
             'id="checklist-history-screen"',
+            'id="checklist-catalog-screen"',
+            'id="checklist-catalog-list"',
+            'id="checklist-catalog-modal"',
             'class="module-section history-filter-card"',
             'id="checklist-history-equipment-search"',
             'id="checklist-history-summary-card"',
@@ -75,6 +79,14 @@ class WebMobileShellContractTests(unittest.TestCase):
             with self.subTest(fragment=fragment):
                 self.assertIn(fragment, self.index_html)
         self.assertNotIn('id="checklist-history-apply-filter"', self.index_html)
+
+    def test_checklist_catalog_admin_crud_is_connected(self):
+        app_js = (PROJECT_ROOT / "web_app" / "static" / "js" / "app.js").read_text(encoding="utf-8")
+        self.assertIn("openChecklistCatalogMenu", app_js)
+        self.assertIn('apiFetch("/checklist-itens?ativos=all")', app_js)
+        self.assertIn('method: editingId ? "PUT" : "POST"', app_js)
+        self.assertIn('method: "DELETE"', app_js)
+        self.assertIn("hasWashReportAccess()", app_js)
 
     def test_availability_and_hourmeter_mobile_operations_are_connected(self):
         app_js = (PROJECT_ROOT / "web_app" / "static" / "js" / "app.js").read_text(encoding="utf-8")

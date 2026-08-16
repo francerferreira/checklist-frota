@@ -14,7 +14,7 @@
     <title>SIS MMP | Sistema de Manutenção de Máquinas Pesadas</title>
     <link rel="icon" type="image/png" sizes="192x192" href="./static/icons/icon-192.png?v=sis-mmp-20260810">
     <link rel="apple-touch-icon" href="./static/icons/icon-192.png?v=sis-mmp-20260810">
-    <link rel="stylesheet" href="./static/css/styles.css?v=20260808-02">
+    <link rel="stylesheet" href="./static/css/styles.css?v=20260815-01">
 </head>
 <body>
     <div class="mobile-shell">
@@ -87,6 +87,9 @@
                     </button>
                     <button id="open-checklist-history-menu" class="menu-card" type="button">
                         <span>02</span><strong>HISTÓRICO DE CHECKLIST</strong><em>Matriz por equipamento, data e usuário executor.</em>
+                    </button>
+                    <button id="open-checklist-catalog-menu" class="menu-card hidden" type="button">
+                        <span>ADM</span><strong>CATÁLOGO DE CHECKLIST</strong><em>Cadastrar, organizar e inativar os itens mostrados na operação.</em>
                     </button>
                     <button id="open-activities-menu" class="menu-card" type="button">
                         <span>03</span><strong>INSPEÇÕES</strong><em>Conferir inspeções abertas e registrar evidências.</em>
@@ -191,6 +194,39 @@
                     <div id="checklist-history-summary-card" class="history-summary-card"></div>
                     <div id="checklist-history-table-wrap" class="history-table-wrap"></div>
                 </section>
+            </section>
+
+            <section id="checklist-catalog-screen" class="screen hidden">
+                <div class="screen-heading compact checklist-catalog-heading">
+                    <button id="checklist-catalog-back-button" class="icon-button" type="button">MENU</button>
+                    <div>
+                        <h2>CATÁLOGO DE CHECKLIST</h2>
+                        <p class="screen-heading-note">Administração dos itens exibidos no checklist operacional da Web.</p>
+                    </div>
+                    <button id="checklist-catalog-new-button" class="primary-button" type="button">NOVO ITEM</button>
+                </div>
+
+                <section class="module-section checklist-catalog-filter-card">
+                    <div class="module-header">
+                        <div><span>FILTROS</span><strong>LOCALIZAR ITENS</strong></div>
+                        <em id="checklist-catalog-counter">0 ITENS</em>
+                    </div>
+                    <div class="checklist-catalog-filters">
+                        <label class="checklist-catalog-search"><span>BUSCAR</span><input id="checklist-catalog-search" type="search" placeholder="ITEM, AGRUPAMENTO OU PARTE"></label>
+                        <label><span>TIPO DE EQUIPAMENTO</span><select id="checklist-catalog-type-filter">
+                            <option value="">TODOS</option>
+                            <option value="cavalo">CAVALO</option><option value="carreta">CARRETA</option>
+                            <option value="carro_simples">CARRO SIMPLES</option><option value="cavalo_auxiliar">CAVALO AUXILIAR</option>
+                            <option value="ambulancia">AMBULÂNCIA</option><option value="caminhao_pipa">CAMINHÃO PIPA</option>
+                            <option value="caminhao_brigada">CAMINHÃO BRIGADA</option><option value="onibus">ÔNIBUS</option><option value="van">VAN</option>
+                        </select></label>
+                        <label><span>SITUAÇÃO</span><select id="checklist-catalog-active-filter"><option value="true">ATIVOS</option><option value="all">TODOS</option><option value="false">INATIVOS</option></select></label>
+                        <button id="checklist-catalog-clear-filters" class="icon-button" type="button">LIMPAR</button>
+                    </div>
+                </section>
+
+                <div id="checklist-catalog-summary" class="checklist-catalog-summary" aria-live="polite"></div>
+                <div id="checklist-catalog-list" class="checklist-catalog-list"></div>
             </section>
 
             <section id="vehicles-screen" class="screen hidden">
@@ -747,6 +783,32 @@
         </div>
     </div>
 
+    <div id="checklist-catalog-modal" class="app-modal hidden" role="dialog" aria-modal="true" aria-labelledby="checklist-catalog-modal-title">
+        <div class="app-modal-backdrop" data-close-checklist-catalog="true"></div>
+        <div class="app-modal-card checklist-catalog-modal-card" role="document">
+            <div class="app-modal-header">
+                <h3 id="checklist-catalog-modal-title">Novo item</h3>
+                <p>Defina como o item aparecerá durante a execução do checklist.</p>
+            </div>
+            <form id="checklist-catalog-form" class="checklist-catalog-form">
+                <label class="modal-field checklist-catalog-field-wide"><span>NOME DO ITEM</span><input id="checklist-catalog-item-name" maxlength="180" required placeholder="Ex.: Lanterna traseira"></label>
+                <label class="modal-field"><span>TIPO DE EQUIPAMENTO</span><select id="checklist-catalog-item-type" required>
+                    <option value="cavalo">CAVALO</option><option value="carreta">CARRETA</option>
+                    <option value="carro_simples">CARRO SIMPLES</option><option value="cavalo_auxiliar">CAVALO AUXILIAR</option>
+                    <option value="ambulancia">AMBULÂNCIA</option><option value="caminhao_pipa">CAMINHÃO PIPA</option>
+                    <option value="caminhao_brigada">CAMINHÃO BRIGADA</option><option value="onibus">ÔNIBUS</option><option value="van">VAN</option>
+                </select></label>
+                <label class="modal-field"><span>ORDEM</span><input id="checklist-catalog-position" type="number" min="1" max="999" value="1" required></label>
+                <label class="modal-field"><span>AGRUPAMENTO</span><select id="checklist-catalog-group-type"><option value="simples">SIMPLES</option><option value="lado">LADO</option><option value="compartimento">COMPARTIMENTO</option></select></label>
+                <label class="modal-field"><span>ITEM PRINCIPAL</span><input id="checklist-catalog-parent-item" maxlength="180" placeholder="Ex.: Paralama"></label>
+                <label class="modal-field"><span>PARTE</span><input id="checklist-catalog-part" maxlength="100" placeholder="Ex.: Lado direito"></label>
+                <label class="modal-field checklist-catalog-field-wide"><span>FOTO DE REFERÊNCIA</span><input id="checklist-catalog-photo" type="file" accept="image/*"><small id="checklist-catalog-photo-status">Nenhuma foto cadastrada.</small></label>
+                <label class="checklist-catalog-active"><input id="checklist-catalog-item-active" type="checkbox" checked><span>ITEM ATIVO NA OPERAÇÃO</span></label>
+                <div class="password-change-actions checklist-catalog-field-wide"><button id="checklist-catalog-cancel" class="icon-button" type="button">CANCELAR</button><button id="checklist-catalog-save" class="primary-button" type="submit">SALVAR ITEM</button></div>
+            </form>
+        </div>
+    </div>
+
     <div id="password-modal" class="app-modal hidden" role="dialog" aria-modal="true" aria-labelledby="password-modal-title">
         <div class="app-modal-backdrop" data-close-password-modal="true"></div>
         <div class="app-modal-card" role="document">
@@ -840,7 +902,7 @@
 
     <div id="toast" class="toast hidden"></div>
     <script src="./static/js/config.js?v=20260719-01"></script>
-    <script src="./static/js/app.js?v=20260809-02"></script>
+    <script src="./static/js/app.js?v=20260815-01"></script>
 </body>
 </html>
 
