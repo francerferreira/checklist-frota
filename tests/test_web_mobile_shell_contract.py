@@ -16,8 +16,8 @@ class WebMobileShellContractTests(unittest.TestCase):
         cls.legacy_readme = LEGACY_README_PATH.read_text(encoding="utf-8")
 
     def test_index_uses_canonical_frontend_bundle(self):
-        self.assertIn('./static/js/app.js?v=20260815-01', self.index_html)
-        self.assertIn('./static/css/styles.css?v=20260815-01', self.index_html)
+        self.assertIn('./static/js/app.js?v=20260816-01', self.index_html)
+        self.assertIn('./static/css/styles.css?v=20260816-01', self.index_html)
         self.assertNotIn("app-20260419-", self.index_html)
 
     def test_frontend_uses_manaus_timezone_for_dates(self):
@@ -51,6 +51,7 @@ class WebMobileShellContractTests(unittest.TestCase):
         expected_fragments = [
             'id="open-checklist-history-menu"',
             'id="open-checklist-catalog-menu"',
+            'id="open-rh-admin-menu"',
             'id="open-maintenance-menu"',
             'id="open-availability-menu"',
             'id="open-technical-inspections-menu"',
@@ -58,6 +59,8 @@ class WebMobileShellContractTests(unittest.TestCase):
             'id="checklist-catalog-screen"',
             'id="checklist-catalog-list"',
             'id="checklist-catalog-modal"',
+            'id="rh-admin-screen"',
+            'id="rh-admin-employee-form"',
             'class="module-section history-filter-card"',
             'id="checklist-history-equipment-search"',
             'id="checklist-history-summary-card"',
@@ -86,6 +89,15 @@ class WebMobileShellContractTests(unittest.TestCase):
         self.assertIn('apiFetch("/checklist-itens?ativos=all")', app_js)
         self.assertIn('method: editingId ? "PUT" : "POST"', app_js)
         self.assertIn('method: "DELETE"', app_js)
+        self.assertIn("hasWashReportAccess()", app_js)
+
+    def test_rh_admin_web_area_is_connected_to_management_routes(self):
+        app_js = (PROJECT_ROOT / "web_app" / "static" / "js" / "app.js").read_text(encoding="utf-8")
+        self.assertIn("openRhAdminMenu", app_js)
+        self.assertIn('apiFetch("/rh/gestao")', app_js)
+        self.assertIn('apiFetch("/rh/colaboradores")', app_js)
+        self.assertIn('method: editingId ? "PUT" : "POST"', app_js)
+        self.assertIn("/rh/colaboradores/usuarios-disponiveis", app_js)
         self.assertIn("hasWashReportAccess()", app_js)
 
     def test_availability_and_hourmeter_mobile_operations_are_connected(self):

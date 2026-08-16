@@ -278,6 +278,13 @@ const state = {
         editingId: null,
         existingPhotoPath: "",
     },
+    rhAdmin: {
+        tab: "overview",
+        overview: null,
+        employees: [],
+        editingEmployeeId: null,
+        existingEmployeePhoto: "",
+    },
 };
 
 const screens = {
@@ -291,6 +298,7 @@ const screens = {
     washes: document.getElementById("washes-screen"),
     checklistHistory: document.getElementById("checklist-history-screen"),
     checklistCatalog: document.getElementById("checklist-catalog-screen"),
+    rhAdmin: document.getElementById("rh-admin-screen"),
     nonConformities: document.getElementById("non-conformities-screen"),
     maintenance: document.getElementById("maintenance-screen"),
     preventives: document.getElementById("preventives-screen"),
@@ -393,6 +401,7 @@ const elements = {
     openChecklistMenu: document.getElementById("open-checklist-menu"),
     openChecklistHistoryMenu: document.getElementById("open-checklist-history-menu"),
     openChecklistCatalogMenu: document.getElementById("open-checklist-catalog-menu"),
+    openRhAdminMenu: document.getElementById("open-rh-admin-menu"),
     openActivitiesMenu: document.getElementById("open-activities-menu"),
     openWashesMenu: document.getElementById("open-washes-menu"),
     openNonConformitiesMenu: document.getElementById("open-non-conformities-menu"),
@@ -447,6 +456,39 @@ const elements = {
     checklistCatalogItemActive: document.getElementById("checklist-catalog-item-active"),
     checklistCatalogCancel: document.getElementById("checklist-catalog-cancel"),
     checklistCatalogSave: document.getElementById("checklist-catalog-save"),
+    rhAdminBackButton: document.getElementById("rh-admin-back-button"),
+    rhAdminRoleBadge: document.getElementById("rh-admin-role-badge"),
+    rhAdminTabs: Array.from(document.querySelectorAll("[data-rh-admin-tab]")),
+    rhAdminOverviewPanel: document.getElementById("rh-admin-overview-panel"),
+    rhAdminEmployeesPanel: document.getElementById("rh-admin-employees-panel"),
+    rhAdminOperationsPanel: document.getElementById("rh-admin-operations-panel"),
+    rhAdminRefreshOverview: document.getElementById("rh-admin-refresh-overview"),
+    rhAdminOverviewCards: document.getElementById("rh-admin-overview-cards"),
+    rhAdminAlertCount: document.getElementById("rh-admin-alert-count"),
+    rhAdminAlertList: document.getElementById("rh-admin-alert-list"),
+    rhAdminTeamList: document.getElementById("rh-admin-team-list"),
+    rhAdminNewEmployee: document.getElementById("rh-admin-new-employee"),
+    rhAdminEmployeeSearch: document.getElementById("rh-admin-employee-search"),
+    rhAdminEmployeeStatus: document.getElementById("rh-admin-employee-status"),
+    rhAdminRefreshEmployees: document.getElementById("rh-admin-refresh-employees"),
+    rhAdminEmployeesCounter: document.getElementById("rh-admin-employees-counter"),
+    rhAdminEmployeesList: document.getElementById("rh-admin-employees-list"),
+    rhAdminEmployeeModal: document.getElementById("rh-admin-employee-modal"),
+    rhAdminEmployeeModalTitle: document.getElementById("rh-admin-employee-modal-title"),
+    rhAdminEmployeeForm: document.getElementById("rh-admin-employee-form"),
+    rhAdminEmployeeRegistration: document.getElementById("rh-admin-employee-registration"),
+    rhAdminEmployeeName: document.getElementById("rh-admin-employee-name"),
+    rhAdminEmployeeFunction: document.getElementById("rh-admin-employee-function"),
+    rhAdminEmployeeTeam: document.getElementById("rh-admin-employee-team"),
+    rhAdminEmployeeShift: document.getElementById("rh-admin-employee-shift"),
+    rhAdminEmployeeStatusField: document.getElementById("rh-admin-employee-status-field"),
+    rhAdminEmployeeHiredOn: document.getElementById("rh-admin-employee-hired-on"),
+    rhAdminEmployeeUser: document.getElementById("rh-admin-employee-user"),
+    rhAdminEmployeeNotes: document.getElementById("rh-admin-employee-notes"),
+    rhAdminEmployeePhoto: document.getElementById("rh-admin-employee-photo"),
+    rhAdminEmployeePhotoStatus: document.getElementById("rh-admin-employee-photo-status"),
+    rhAdminEmployeeCancel: document.getElementById("rh-admin-employee-cancel"),
+    rhAdminEmployeeSave: document.getElementById("rh-admin-employee-save"),
     washCounter: document.getElementById("wash-counter"),
     washMonthTitle: document.getElementById("wash-month-title"),
     washPrevMonth: document.getElementById("wash-prev-month"),
@@ -952,7 +994,7 @@ function syncMenuGroupHeadings() {
             "open-preventives-menu",
             "open-maintenance-dashboard-menu",
         ],
-        rh: ["open-hr-journey-menu"],
+        rh: ["open-hr-journey-menu", "open-rh-admin-menu"],
         absenteismo: ["open-absenteeism-menu"],
         "escala-dsr": ["open-special-schedule-menu"],
     };
@@ -970,6 +1012,7 @@ function syncMenuGroupHeadings() {
 function renderHome() {
     const canViewMaintenanceDashboard = ["admin", "gestor"].includes(String(state.user?.tipo || "").toLowerCase());
     elements.openChecklistCatalogMenu?.classList.toggle("hidden", !hasWashReportAccess());
+    elements.openRhAdminMenu?.classList.toggle("hidden", !hasWashReportAccess());
     elements.openMaintenanceDashboardMenu?.classList.toggle("hidden", !canViewMaintenanceDashboard);
     elements.openPreventivesMenu?.classList.toggle("hidden", !canViewMaintenanceDashboard);
     elements.openWeeklyDsrMenu?.classList.toggle("hidden", !canViewMaintenanceDashboard);
@@ -1721,6 +1764,184 @@ async function openPreventivesMenu() {
         });
         showToast(error.message, true);
     }
+}
+
+function rhAdminStatusLabel(status) {
+    return String(status || "PRE_CADASTRO").replaceAll("_", " ");
+}
+
+function setRhAdminTab(tab) {
+    const selected = ["overview", "employees", "operations"].includes(tab) ? tab : "overview";
+    state.rhAdmin.tab = selected;
+    elements.rhAdminTabs.forEach((button) => button.classList.toggle("is-active", button.dataset.rhAdminTab === selected));
+    elements.rhAdminOverviewPanel.classList.toggle("hidden", selected !== "overview");
+    elements.rhAdminEmployeesPanel.classList.toggle("hidden", selected !== "employees");
+    elements.rhAdminOperationsPanel.classList.toggle("hidden", selected !== "operations");
+}
+
+function renderRhAdminOverview() {
+    const overview = state.rhAdmin.overview || {};
+    const employees = overview.employees || {};
+    const attendance = overview.attendance || {};
+    const alerts = Array.isArray(overview.alerts) ? overview.alerts : [];
+    const alertSummary = overview.alert_summary || {};
+    const cards = [
+        ["COLABORADORES ATIVOS", employees.active || 0, "TOTAL EM ATIVIDADE"],
+        ["ABSENTEÍSMO", `${Number(attendance.absenteeism_percent || 0).toFixed(2)}%`, "NO PERÍODO"],
+        ["ALERTAS VENCIDOS", alertSummary.expired || 0, "DOCUMENTOS E TREINAMENTOS"],
+        ["VENCENDO EM BREVE", alertSummary.expiring || 0, "ACOMPANHAR PRAZOS"],
+    ];
+    elements.rhAdminOverviewCards.innerHTML = cards.map(([label, value, hint]) => `
+        <article class="rh-admin-summary-card"><span>${label}</span><strong>${escapeHtml(String(value))}</strong><em>${hint}</em></article>
+    `).join("");
+    elements.rhAdminAlertCount.textContent = `${alerts.length} alerta${alerts.length === 1 ? "" : "s"}`;
+    elements.rhAdminAlertList.innerHTML = alerts.length
+        ? alerts.slice(0, 8).map((alert) => `<div class="rh-admin-list-row"><strong>${escapeHtml(alert.kind || "ALERTA")}</strong><span>${escapeHtml((alert.employee || {}).full_name || "Colaborador não identificado")}</span><em>${escapeHtml(alert.status || "-")}</em></div>`).join("")
+        : `<div class="rh-admin-empty">Nenhum alerta de vencimento no período.</div>`;
+    const teams = Array.isArray(employees.by_team) ? employees.by_team : [];
+    elements.rhAdminTeamList.innerHTML = teams.length
+        ? teams.map((team) => `<div class="rh-admin-list-row"><strong>${escapeHtml(team.team_name || "Sem atividade")}</strong><span>${Number(team.total || 0)} colaborador(es)</span></div>`).join("")
+        : `<div class="rh-admin-empty">Nenhum agrupamento disponível.</div>`;
+}
+
+async function loadRhAdminOverview() {
+    elements.rhAdminOverviewCards.innerHTML = `<div class="rh-admin-loading">CARREGANDO INDICADORES...</div>`;
+    try {
+        state.rhAdmin.overview = await apiFetch("/rh/gestao");
+        renderRhAdminOverview();
+    } catch (error) {
+        renderStateCard(elements.rhAdminOverviewCards, { title: "PAINEL INDISPONÍVEL", message: error.message || "Tente novamente.", tone: "error" });
+        showToast(error.message || "FALHA AO CARREGAR PAINEL DE RH.", true);
+    }
+}
+
+function filteredRhAdminEmployees() {
+    const query = elements.rhAdminEmployeeSearch.value.trim().toLocaleLowerCase("pt-BR");
+    const status = elements.rhAdminEmployeeStatus.value;
+    return state.rhAdmin.employees.filter((employee) => {
+        const searchable = `${employee.full_name || ""} ${employee.registration || ""} ${employee.team_name || ""}`.toLocaleLowerCase("pt-BR");
+        return (!query || searchable.includes(query)) && (!status || employee.status === status);
+    });
+}
+
+function renderRhAdminEmployees() {
+    const employees = filteredRhAdminEmployees();
+    elements.rhAdminEmployeesCounter.textContent = `${employees.length} de ${state.rhAdmin.employees.length} colaborador(es)`;
+    if (!employees.length) {
+        renderStateCard(elements.rhAdminEmployeesList, { title: "NENHUM COLABORADOR ENCONTRADO", message: "Ajuste os filtros ou cadastre um novo colaborador." });
+        return;
+    }
+    elements.rhAdminEmployeesList.innerHTML = employees.map((employee) => `
+        <article class="rh-admin-employee-row">
+            <div class="rh-admin-employee-avatar">${escapeHtml((employee.full_name || "?").trim().slice(0, 1).toUpperCase())}</div>
+            <div class="rh-admin-employee-main"><strong>${escapeHtml(employee.full_name || "Sem nome")}</strong><span>${escapeHtml(employee.registration || "Sem matrícula")} · ${escapeHtml(employee.function_name || "Sem função")}</span><small>${escapeHtml(employee.team_name || "Sem atividade")} · ${escapeHtml(employee.shift_name || "Sem turno")}</small></div>
+            <em class="rh-admin-employee-status status-${String(employee.status || "").toLowerCase()}">${escapeHtml(rhAdminStatusLabel(employee.status))}</em>
+            <button class="icon-button" type="button" data-rh-admin-edit-employee="${Number(employee.id)}">EDITAR</button>
+        </article>
+    `).join("");
+}
+
+async function loadRhAdminEmployees() {
+    renderStateCard(elements.rhAdminEmployeesList, { title: "CARREGANDO COLABORADORES", message: "Consultando o cadastro funcional.", tone: "loading" });
+    try {
+        const rows = await apiFetch("/rh/colaboradores");
+        state.rhAdmin.employees = Array.isArray(rows) ? rows : [];
+        renderRhAdminEmployees();
+    } catch (error) {
+        renderStateCard(elements.rhAdminEmployeesList, { title: "CADASTRO INDISPONÍVEL", message: error.message || "Tente novamente.", tone: "error" });
+        showToast(error.message || "FALHA AO CARREGAR COLABORADORES.", true);
+    }
+}
+
+async function loadRhAdminLinkableUsers(selectedId = null) {
+    const users = await apiFetch("/rh/colaboradores/usuarios-disponiveis");
+    elements.rhAdminEmployeeUser.innerHTML = `<option value="">SEM LOGIN VINCULADO</option>${(Array.isArray(users) ? users : []).map((user) => `<option value="${Number(user.id)}">${escapeHtml(user.nome || user.login || "Usuário")} (${escapeHtml(user.login || "")})</option>`).join("")}`;
+    elements.rhAdminEmployeeUser.value = selectedId ? String(selectedId) : "";
+}
+
+async function openRhAdminEmployeeModal(employee = null) {
+    state.rhAdmin.editingEmployeeId = employee ? Number(employee.id) : null;
+    state.rhAdmin.existingEmployeePhoto = employee?.photo_path || "";
+    elements.rhAdminEmployeeModalTitle.textContent = employee ? "Editar colaborador" : "Novo colaborador";
+    elements.rhAdminEmployeeRegistration.value = employee?.registration || "";
+    elements.rhAdminEmployeeName.value = employee?.full_name || "";
+    elements.rhAdminEmployeeFunction.value = employee?.function_name || "";
+    elements.rhAdminEmployeeTeam.value = employee?.team_name || "";
+    elements.rhAdminEmployeeShift.value = employee?.shift_name || "";
+    elements.rhAdminEmployeeStatusField.value = employee?.status || "PRE_CADASTRO";
+    elements.rhAdminEmployeeHiredOn.value = employee?.hired_on || "";
+    elements.rhAdminEmployeeNotes.value = employee?.notes || "";
+    elements.rhAdminEmployeePhoto.value = "";
+    elements.rhAdminEmployeePhotoStatus.textContent = employee?.photo_path ? "Foto atual mantida se nenhuma nova for escolhida." : "Nenhuma foto nova selecionada.";
+    elements.rhAdminEmployeeModal.classList.remove("hidden");
+    document.body.classList.add("modal-open");
+    try {
+        await loadRhAdminLinkableUsers(employee?.user_id || null);
+    } catch (error) {
+        elements.rhAdminEmployeeUser.innerHTML = `<option value="">NÃO FOI POSSÍVEL CARREGAR LOGINS</option>`;
+        showToast(error.message || "FALHA AO CARREGAR LOGINS DISPONÍVEIS.", true);
+    }
+    elements.rhAdminEmployeeRegistration.focus();
+}
+
+function closeRhAdminEmployeeModal() {
+    elements.rhAdminEmployeeModal.classList.add("hidden");
+    document.body.classList.remove("modal-open");
+    elements.rhAdminEmployeeForm.reset();
+    state.rhAdmin.editingEmployeeId = null;
+    state.rhAdmin.existingEmployeePhoto = "";
+}
+
+async function submitRhAdminEmployee(event) {
+    event.preventDefault();
+    if (!hasWashReportAccess()) return;
+    const payload = {
+        registration: elements.rhAdminEmployeeRegistration.value.trim(),
+        full_name: elements.rhAdminEmployeeName.value.trim(),
+        function_name: elements.rhAdminEmployeeFunction.value.trim(),
+        team_name: elements.rhAdminEmployeeTeam.value.trim(),
+        shift_name: elements.rhAdminEmployeeShift.value.trim(),
+        status: elements.rhAdminEmployeeStatusField.value,
+        hired_on: elements.rhAdminEmployeeHiredOn.value || null,
+        user_id: elements.rhAdminEmployeeUser.value ? Number(elements.rhAdminEmployeeUser.value) : null,
+        notes: elements.rhAdminEmployeeNotes.value.trim() || null,
+        photo_path: state.rhAdmin.existingEmployeePhoto || null,
+    };
+    if (!payload.registration || !payload.full_name || !payload.function_name || !payload.team_name || !payload.shift_name) {
+        showToast("PREENCHA OS CAMPOS OBRIGATÓRIOS.", true);
+        return;
+    }
+    const photo = elements.rhAdminEmployeePhoto.files?.[0];
+    const editingId = state.rhAdmin.editingEmployeeId;
+    elements.rhAdminEmployeeSave.disabled = true;
+    elements.rhAdminEmployeeSave.textContent = "SALVANDO...";
+    try {
+        if (photo) payload.photo_path = await uploadEvidence(photo, "RH", payload.full_name, "perfil", "COLABORADORES");
+        await apiFetch(editingId ? `/rh/colaboradores/${editingId}` : "/rh/colaboradores", {
+            method: editingId ? "PUT" : "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(payload),
+        });
+        closeRhAdminEmployeeModal();
+        await Promise.all([loadRhAdminEmployees(), loadRhAdminOverview()]);
+        showToast(editingId ? "COLABORADOR ATUALIZADO." : "COLABORADOR CADASTRADO.");
+    } catch (error) {
+        showToast(error.message || "FALHA AO SALVAR COLABORADOR.", true);
+    } finally {
+        elements.rhAdminEmployeeSave.disabled = false;
+        elements.rhAdminEmployeeSave.textContent = "SALVAR COLABORADOR";
+    }
+}
+
+async function openRhAdminMenu() {
+    if (!hasWashReportAccess()) {
+        showToast("SOMENTE ADMIN OU GESTOR PODE ACESSAR A GESTÃO DE RH.", true);
+        return;
+    }
+    setActiveScreen("rhAdmin");
+    setRhAdminTab("overview");
+    elements.rhAdminRoleBadge.textContent = String(state.user?.tipo || "gestor").toUpperCase();
+    await Promise.all([loadRhAdminOverview(), loadRhAdminEmployees()]);
 }
 
 async function openHrJourneyMenu() {
@@ -7419,6 +7640,34 @@ on(elements.openMaintenanceDashboardMenu, "click", () => {
     window.location.href = "./dashboard-manutencao/";
 });
 on(elements.openHrJourneyMenu, "click", openHrJourneyMenu);
+on(elements.openRhAdminMenu, "click", openRhAdminMenu);
+elements.rhAdminTabs.forEach((button) => on(button, "click", () => setRhAdminTab(button.dataset.rhAdminTab)));
+on(elements.rhAdminRefreshOverview, "click", loadRhAdminOverview);
+on(elements.rhAdminNewEmployee, "click", () => openRhAdminEmployeeModal());
+on(elements.rhAdminRefreshEmployees, "click", loadRhAdminEmployees);
+on(elements.rhAdminEmployeeSearch, "input", renderRhAdminEmployees);
+on(elements.rhAdminEmployeeStatus, "change", renderRhAdminEmployees);
+on(elements.rhAdminEmployeeForm, "submit", submitRhAdminEmployee);
+on(elements.rhAdminEmployeeCancel, "click", closeRhAdminEmployeeModal);
+on(elements.rhAdminEmployeeModal, "click", (event) => {
+    if (event.target instanceof HTMLElement && event.target.dataset.closeRhAdminEmployee === "true") closeRhAdminEmployeeModal();
+});
+on(elements.rhAdminEmployeesList, "click", (event) => {
+    const button = event.target instanceof HTMLElement ? event.target.closest("[data-rh-admin-edit-employee]") : null;
+    if (!button) return;
+    const employee = state.rhAdmin.employees.find((row) => Number(row.id) === Number(button.dataset.rhAdminEditEmployee));
+    if (employee) openRhAdminEmployeeModal(employee);
+});
+document.querySelectorAll("[data-rh-admin-open]").forEach((button) => on(button, "click", () => {
+    const target = button.dataset.rhAdminOpen;
+    if (target === "attendance") {
+        showToast("A EDIÇÃO DE FREQUÊNCIA SERÁ CONECTADA NA PRÓXIMA ETAPA.");
+    } else if (target === "absenteeism") {
+        openAbsenteeismMenu();
+    } else if (target === "schedule") {
+        openSpecialScheduleMenu();
+    }
+}));
 on(elements.openWeeklyDsrMenu, "click", openWeeklyDsrMenu);
 on(elements.openSpecialScheduleMenu, "click", openSpecialScheduleMenu);
 on(elements.openAbsenteeismMenu, "click", openAbsenteeismMenu);
@@ -7505,6 +7754,11 @@ on(elements.preventivesBackButton, "click", () => {
     setActiveScreen("home");
 });
 on(elements.hrJourneyBackButton, "click", () => {
+    renderHome();
+    setActiveScreen("home");
+});
+on(elements.rhAdminBackButton, "click", () => {
+    closeRhAdminEmployeeModal();
     renderHome();
     setActiveScreen("home");
 });
