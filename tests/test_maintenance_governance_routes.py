@@ -4,6 +4,7 @@ import os
 import sys
 import tempfile
 import unittest
+from datetime import date
 from pathlib import Path
 
 
@@ -88,7 +89,12 @@ class MaintenanceGovernanceRoutesTests(unittest.TestCase):
             )
             db.session.add(schedule)
             db.session.flush()
-            item = MaintenanceScheduleItem(schedule_id=schedule.id, vehicle_id=vehicle.id, status="PENDENTE")
+            item = MaintenanceScheduleItem(
+                schedule_id=schedule.id,
+                vehicle_id=vehicle.id,
+                scheduled_date=date.today(),
+                status="PENDENTE",
+            )
             db.session.add(item)
             db.session.flush()
             order = MaintenanceWorkOrder(
@@ -192,6 +198,38 @@ class MaintenanceGovernanceRoutesTests(unittest.TestCase):
             headers=self.mechanic_headers,
         )
         self.assertEqual(response.status_code, 403, response.get_json())
+
+    def test_overview_filters_by_family_at_api_boundary(self):
+        current = date.today()
+        rtg = self.client.get(
+            f"/manutencao/visao?ano={current.year}&mes={current.month}&familia=rtg",
+            headers=self.admin_headers,
+        )
+        self.assertEqual(rtg.status_code, 200, rtg.get_json())
+        self.assertEqual(len(rtg.get_json()["data"]["itens"]), 1)
+        self.assertEqual(rtg.get_json()["data"]["itens"][0]["vehicle"]["family"]["code"], "rtg")
+
+        lbs = self.client.get(
+            f"/manutencao/visao?ano={current.year}&mes={current.month}&familia=lbs",
+            headers=self.admin_headers,
+        )
+        self.assertEqual(lbs.status_code, 200, lbs.get_json())
+        self.assertEqual(lbs.get_json()["data"]["itens"], [])
+
+        invalid = self.client.get(
+            f"/manutencao/visao?ano={current.year}&mes={current.month}&familia=rtg/bad",
+            headers=self.admin_headers,
+        )
+        self.assertEqual(invalid.status_code, 400, invalid.get_json())
+
+    def test_mechanic_schedule_list_is_scoped_to_assignments(self):
+        mechanic = self.client.get("/manutencao/programacoes", headers=self.mechanic_headers)
+        self.assertEqual(mechanic.status_code, 200, mechanic.get_json())
+        self.assertEqual(mechanic.get_json()["data"], [])
+
+        manager = self.client.get("/manutencao/programacoes", headers=self.admin_headers)
+        self.assertEqual(manager.status_code, 200, manager.get_json())
+        self.assertEqual(len(manager.get_json()["data"]), 1)
 
     def test_reprogramming_requires_reason_and_records_audit(self):
         missing_reason = self.client.put(

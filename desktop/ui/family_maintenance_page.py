@@ -298,7 +298,11 @@ class FamilyMaintenancePage(QFrame):
     def refresh(self):
         try:
             selected = self.month.date()
-            overview = self.api_client.get_maintenance_overview(selected.year(), selected.month()) or {}
+            overview = self.api_client.get_maintenance_overview(
+                selected.year(),
+                selected.month(),
+                family=self.family.lower(),
+            ) or {}
             self.items = [item for item in overview.get("itens", []) if _is_family(item, self.family)]
             self.vehicles = self.api_client.get_equipment(tipo=self.family.lower(), ativos=True) or []
             self._refresh_calendar(); self._render_rows()

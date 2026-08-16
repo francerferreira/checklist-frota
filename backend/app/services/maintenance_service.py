@@ -268,6 +268,23 @@ def _vehicle_family_from_type(value: str | None) -> str:
     return "ambos"
 
 
+def _maintenance_vehicle_family(vehicle) -> str:
+    """Retorna o código da família do ativo, priorizando o cadastro estruturado."""
+    profile = getattr(vehicle, "equipment_profile", None) if vehicle else None
+    family = getattr(profile, "family", None) if profile else None
+    return str(getattr(family, "code", None) or getattr(vehicle, "tipo", None) or "").strip().lower()
+
+
+def _normalize_family_filter(value: str | None) -> str | None:
+    family = _clean(value)
+    if not family:
+        return None
+    family = family.lower()
+    if len(family) > 20 or any(not (char.isalnum() or char in "_-") for char in family):
+        raise ValueError("Família de manutenção inválida.")
+    return family
+
+
 def _schedule_primary_package_id(schedule: MaintenanceSchedule | None) -> int | None:
     if not schedule:
         return None
@@ -798,11 +815,18 @@ def _build_month_calendar(items: list[MaintenanceScheduleItem], *, year: int, mo
     return {"days": days}
 
 
-def build_maintenance_overview(*, year: int | None = None, month: int | None = None, assigned_to_user_id: int | None = None) -> dict:
+def build_maintenance_overview(
+    *,
+    year: int | None = None,
+    month: int | None = None,
+    assigned_to_user_id: int | None = None,
+    family: str | None = None,
+) -> dict:
     _ensure_work_orders_backfilled()
     today = today_manaus()
     year = year or today.year
     month = month or today.month
+    family_filter = _normalize_family_filter(family)
     # As relações da manutenção têm várias associações profundas configuradas
     # como eager loading. No SQLite isso pode ultrapassar o limite de 64 tabelas
     # em um único JOIN. A visão só precisa dos registros e serializa os detalhes
@@ -836,6 +860,17 @@ def build_maintenance_overview(*, year: int | None = None, month: int | None = N
             or (item.schedule and item.schedule.assigned_mechanic_user_id == assigned_to_user_id)
         ]
         work_orders = [row for row in work_orders if row.assigned_mechanic_user_id == assigned_to_user_id]
+
+    if family_filter:
+        items = [item for item in items if _maintenance_vehicle_family(item.vehicle) == family_filter]
+        item_ids = {item.id for item in items}
+        schedule_ids = {item.schedule_id for item in items if item.schedule_id}
+        schedules = [schedule for schedule in schedules if schedule.id in schedule_ids]
+        materials = [material for material in materials if material.schedule_id in schedule_ids]
+        work_orders = [
+            row for row in work_orders
+            if row.schedule_item_id in item_ids or _maintenance_vehicle_family(row.vehicle) == family_filter
+        ]
 
     programmed = [item for item in items if item.scheduled_date]
     installed = sum(1 for item in items if item.status == "INSTALADO")

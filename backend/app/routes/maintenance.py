@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import re
 import tempfile
 from io import BytesIO
 from pathlib import Path
@@ -54,6 +55,15 @@ def _guard_workspace_access():
     return None
 
 
+def _maintenance_family_arg():
+    value = str(request.args.get("familia") or "").strip().lower()
+    if not value:
+        return None, None
+    if len(value) > 20 or not re.fullmatch(r"[a-z0-9_-]+", value):
+        return None, api_response(False, error="Família de manutenção inválida.", status_code=400)
+    return value, None
+
+
 @bp.get("/manutencao/visao")
 @auth_required
 def maintenance_overview():
@@ -63,10 +73,21 @@ def maintenance_overview():
 
     year = request.args.get("ano", type=int)
     month = request.args.get("mes", type=int)
+    family, family_error = _maintenance_family_arg()
+    if family_error:
+        return family_error
     mechanic_id = request.args.get("mecanico_id", type=int)
     if g.current_user.tipo == "mecanico":
         mechanic_id = g.current_user.id
-    return api_response(True, data=build_maintenance_overview(year=year, month=month, assigned_to_user_id=mechanic_id))
+    return api_response(
+        True,
+        data=build_maintenance_overview(
+            year=year,
+            month=month,
+            assigned_to_user_id=mechanic_id,
+            family=family,
+        ),
+    )
 
 
 @bp.get("/manutencao/mecanico")
@@ -92,6 +113,12 @@ def list_maintenance_schedules():
 
     query = MaintenanceSchedule.query.options(lazyload("*")).order_by(MaintenanceSchedule.created_at.desc())
     schedules = query.all()
+    if g.current_user.tipo == "mecanico":
+        schedules = [
+            schedule for schedule in schedules
+            if schedule.assigned_mechanic_user_id == g.current_user.id
+            or any(item.assigned_mechanic_user_id == g.current_user.id for item in schedule.items)
+        ]
     return api_response(True, data=[schedule.to_dict(include_items=True, include_materials=True) for schedule in schedules])
 
 

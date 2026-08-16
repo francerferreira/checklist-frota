@@ -21,7 +21,7 @@ class FakeMaintenanceAPI:
     def get_equipment(self, **kwargs):
         return []
 
-    def get_maintenance_overview(self, year, month):
+    def get_maintenance_overview(self, year, month, family=None):
         return {
             "itens": [
                 {

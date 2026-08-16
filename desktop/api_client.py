@@ -423,6 +423,7 @@ class APIClient:
         year: int | None = None,
         month: int | None = None,
         mechanic_id: int | None = None,
+        family: str | None = None,
     ):
         params = {}
         if year:
@@ -431,6 +432,8 @@ class APIClient:
             params["mes"] = month
         if mechanic_id:
             params["mecanico_id"] = mechanic_id
+        if family:
+            params["familia"] = family
         return self._request("GET", "/manutencao/visao", params=params or None)
 
     def get_maintenance_schedules(self):

@@ -1329,11 +1329,12 @@ async function openMaintenanceMenu() {
     try {
         await refreshPendingMaintenanceItemIds();
         await loadMaintenanceOverview();
-        localStorage.setItem(OFFLINE_MAINTENANCE_KEY, JSON.stringify(state.maintenanceOverview));
+        localStorage.setItem(maintenanceOfflineCacheKey(), JSON.stringify(state.maintenanceOverview));
         renderHome();
         renderMaintenance();
     } catch (error) {
-        const cachedOverview = readJsonStorage(OFFLINE_MAINTENANCE_KEY, null);
+        const cachedOverview = readJsonStorage(maintenanceOfflineCacheKey(), null)
+            || (state.maintenanceFamilyFilter === "TODOS" ? readJsonStorage(OFFLINE_MAINTENANCE_KEY, null) : null);
         if (cachedOverview) {
             state.maintenanceOverview = cachedOverview;
             renderHome();
@@ -2718,7 +2719,15 @@ async function loadNonConformityHubData() {
 }
 
 async function loadMaintenanceOverview() {
-    state.maintenanceOverview = await apiFetch(`/manutencao/visao?ano=${state.maintenanceYear}&mes=${state.maintenanceMonth}`);
+    const family = state.maintenanceFamilyFilter && state.maintenanceFamilyFilter !== "TODOS"
+        ? `&familia=${encodeURIComponent(state.maintenanceFamilyFilter.toLowerCase())}`
+        : "";
+    state.maintenanceOverview = await apiFetch(`/manutencao/visao?ano=${state.maintenanceYear}&mes=${state.maintenanceMonth}${family}`);
+}
+
+function maintenanceOfflineCacheKey() {
+    const family = String(state.maintenanceFamilyFilter || "TODOS").toUpperCase();
+    return family === "TODOS" ? OFFLINE_MAINTENANCE_KEY : `${OFFLINE_MAINTENANCE_KEY}:${family.toLowerCase()}`;
 }
 
 async function loadChecklistHistory() {
@@ -7011,8 +7020,17 @@ on(elements.washExportPdfButton, "click", exportWashMonthPdf);
 on(elements.maintenancePrevMonth, "click", () => changeMaintenanceMonth(-1));
 on(elements.maintenanceNextMonth, "click", () => changeMaintenanceMonth(1));
 elements.maintenanceFamilyTabs.forEach((button) => {
-    on(button, "click", () => {
+    on(button, "click", async () => {
         state.maintenanceFamilyFilter = String(button.dataset.maintenanceFamily || "TODOS").toUpperCase();
+        state.selectedMaintenanceDate = "";
+        if (state.token && navigator.onLine) {
+            try {
+                await loadMaintenanceOverview();
+                localStorage.setItem(maintenanceOfflineCacheKey(), JSON.stringify(state.maintenanceOverview));
+            } catch (error) {
+                showToast(`FILTRO ${state.maintenanceFamilyFilter} APLICADO LOCALMENTE: ${error.message || "sem conexão"}.`, true);
+            }
+        }
         renderMaintenance();
     });
 });
