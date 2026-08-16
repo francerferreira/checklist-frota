@@ -637,7 +637,9 @@ function setActiveScreen(key) {
         screen.classList.toggle("hidden", screenKey !== key);
     });
     const isEntryScreen = key === "login";
+    const isEquipmentScreen = key === "vehicles" || key === "vehicleFamily";
     document.body.classList.toggle("entry-screen", isEntryScreen);
+    document.body.classList.toggle("equipment-screen", isEquipmentScreen);
     appTopbar?.classList.toggle("hidden", isEntryScreen);
     elements.mobileShell?.scrollTo({ top: 0, behavior: "auto" });
 }
