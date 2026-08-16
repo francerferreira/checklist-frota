@@ -239,6 +239,7 @@ const state = {
     absenteeism: { rows: [], summary: {} },
     pendingAbsenteeismAtestado: null,
     availabilityOverview: null,
+    availabilityFilters: { search: "", family: "TODOS", status: "" },
     technicalInspectionTemplates: [],
     emergencies: [],
     technicalDocuments: [],
@@ -500,6 +501,10 @@ const elements = {
     availabilityCounter: document.getElementById("availability-counter"),
     availabilitySummary: document.getElementById("availability-summary"),
     availabilityList: document.getElementById("availability-list"),
+    availabilitySearch: document.getElementById("availability-search"),
+    availabilityStatusFilter: document.getElementById("availability-status-filter"),
+    availabilityClearFilters: document.getElementById("availability-clear-filters"),
+    availabilityFamilyTabs: Array.from(document.querySelectorAll("[data-availability-family]")),
     technicalInspectionsBackButton: document.getElementById("technical-inspections-back-button"),
     technicalInspectionVehicle: document.getElementById("technical-inspection-vehicle"),
     technicalInspectionTemplate: document.getElementById("technical-inspection-template"),
@@ -2192,11 +2197,22 @@ async function openAvailabilityMenu(options = {}) {
 
 function renderAvailability() {
     const overview = state.availabilityOverview || { summary: {}, rows: [] };
-    const summary = overview.summary || {};
-    const counts = summary.status_counts || {};
     const rows = overview.rows || [];
-    elements.availabilityCounter.textContent = `${rows.length} EQUIPAMENTO${rows.length === 1 ? "" : "S"}`;
-    const average = summary.average_availability_percentage;
+    const visibleRows = filterAvailabilityRows(rows);
+    const counts = availabilityCounts(visibleRows);
+    const measured = visibleRows
+        .map((row) => row.availability_percentage)
+        .filter((value) => value !== null && value !== undefined)
+        .map(Number);
+    const average = measured.length ? measured.reduce((total, value) => total + value, 0) / measured.length : null;
+    elements.availabilityCounter.textContent = visibleRows.length === rows.length
+        ? `${rows.length} EQUIPAMENTO${rows.length === 1 ? "" : "S"}`
+        : `${visibleRows.length} DE ${rows.length} EQUIPAMENTOS`;
+    elements.availabilityFamilyTabs.forEach((button) => {
+        const active = String(button.dataset.availabilityFamily || "TODOS").toUpperCase() === state.availabilityFilters.family;
+        button.classList.toggle("is-active", active);
+        button.setAttribute("aria-selected", String(active));
+    });
     elements.availabilitySummary.innerHTML = `
         <article><span>DISPONÍVEIS</span><strong>${Number(counts.DISPONIVEL || 0)}</strong></article>
         <article><span>INDISPONÍVEIS</span><strong>${Number(counts.INDISPONIVEL || 0)}</strong></article>
@@ -2206,18 +2222,70 @@ function renderAvailability() {
         <article><span>DISPONIBILIDADE MEDIDA</span><strong>${average == null ? "-" : `${Number(average).toFixed(2)}%`}</strong></article>
     `;
     elements.availabilityList.innerHTML = "";
-    if (!rows.length) {
+    if (!visibleRows.length) {
         renderStateCard(elements.availabilityList, {
-            title: "NENHUM EQUIPAMENTO UNIFICADO",
-            message: "Cadastre o módulo do equipamento no Desktop antes do apontamento.",
+            title: rows.length ? "NENHUM EQUIPAMENTO NESTE FILTRO" : "NENHUM EQUIPAMENTO UNIFICADO",
+            message: rows.length
+                ? "Limpe os filtros ou selecione outro módulo para continuar."
+                : "Cadastre o módulo do equipamento no Desktop antes do apontamento.",
         });
         return;
     }
-    rows.forEach((row) => elements.availabilityList.appendChild(makeAvailabilityCard(row)));
+    visibleRows.forEach((row) => elements.availabilityList.appendChild(makeAvailabilityCard(row)));
     if (state.focusedAvailabilityVehicleId) {
         const focusedCard = elements.availabilityList.querySelector(`[data-vehicle-id="${state.focusedAvailabilityVehicleId}"]`);
         focusedCard?.scrollIntoView({ behavior: "smooth", block: "start" });
     }
+}
+
+function availabilityFamilyKey(row) {
+    const vehicle = row?.vehicle || {};
+    return getVehicleFamilyKey({
+        ...vehicle,
+        family: row?.family || vehicle.family,
+        family_name: row?.family?.name || vehicle.family_name,
+    });
+}
+
+function filterAvailabilityRows(rows) {
+    const search = normalizeText(state.availabilityFilters.search);
+    const family = String(state.availabilityFilters.family || "TODOS").toUpperCase();
+    const status = String(state.availabilityFilters.status || "").toUpperCase();
+    const priority = { INDISPONIVEL: 0, MANUTENCAO: 1, RESTRICAO: 2, SEM_APONTAMENTO: 3, DISPONIVEL: 4 };
+    return rows.filter((row) => {
+        const vehicle = row.vehicle || {};
+        const operationalStatus = String(vehicle.operational_state?.operational_status || "SEM_APONTAMENTO").toUpperCase();
+        const haystack = normalizeText([
+            vehicle.frota,
+            vehicle.placa,
+            vehicle.modelo,
+            vehicle.tipo,
+            row.family?.name,
+            row.location?.full_name,
+        ].join(" "));
+        return (!search || haystack.includes(search))
+            && (family === "TODOS" || availabilityFamilyKey(row) === family)
+            && (!status || operationalStatus === status);
+    }).sort((left, right) => {
+        const leftStatus = String(left.vehicle?.operational_state?.operational_status || "SEM_APONTAMENTO").toUpperCase();
+        const rightStatus = String(right.vehicle?.operational_state?.operational_status || "SEM_APONTAMENTO").toUpperCase();
+        const statusDifference = (priority[leftStatus] ?? 9) - (priority[rightStatus] ?? 9);
+        if (statusDifference) return statusDifference;
+        return String(left.vehicle?.frota || left.vehicle?.placa || "").localeCompare(
+            String(right.vehicle?.frota || right.vehicle?.placa || ""),
+            "pt-BR",
+            { numeric: true, sensitivity: "base" },
+        );
+    });
+}
+
+function availabilityCounts(rows) {
+    const counts = { DISPONIVEL: 0, INDISPONIVEL: 0, RESTRICAO: 0, MANUTENCAO: 0, SEM_APONTAMENTO: 0 };
+    rows.forEach((row) => {
+        const status = String(row.vehicle?.operational_state?.operational_status || "SEM_APONTAMENTO").toUpperCase();
+        counts[status] = Number(counts[status] || 0) + 1;
+    });
+    return counts;
 }
 
 function makeAvailabilityCard(row) {
@@ -2241,29 +2309,43 @@ function makeAvailabilityCard(row) {
             <strong>${operationalState.latest_hourmeter == null ? "SEM LEITURA" : `${Number(operationalState.latest_hourmeter).toFixed(2)} h`}</strong>
             <small>${operationalState.latest_hourmeter_at ? formatManausDateTime(operationalState.latest_hourmeter_at) : ""}</small>
         </div>
-        <div class="availability-form-grid">
-            <label><span>NOVA SITUAÇÃO</span>
-                <select class="availability-status">
-                    <option value="DISPONIVEL">DISPONÍVEL</option>
-                    <option value="INDISPONIVEL">INDISPONÍVEL</option>
-                    <option value="RESTRICAO">COM RESTRIÇÃO</option>
-                    <option value="MANUTENCAO">EM MANUTENÇÃO</option>
-                </select>
-            </label>
-            <label><span>MOTIVO / CONDIÇÃO</span><input class="availability-reason" maxlength="255" placeholder="Obrigatório fora da condição disponível"></label>
-            <label><span>EVIDÊNCIA DO STATUS</span><input class="availability-status-photo" type="file" accept="image/*" capture="environment"></label>
-            <button class="primary-button availability-status-save" type="button">SALVAR SITUAÇÃO</button>
-        </div>
-        <div class="availability-form-grid hourmeter-form">
-            <label><span>NOVA LEITURA</span><input class="availability-hourmeter" type="number" min="0" step="0.01" inputmode="decimal" placeholder="Ex.: 1250,50"></label>
-            <label><span>OBSERVAÇÃO</span><input class="availability-hourmeter-notes" maxlength="255" placeholder="Opcional"></label>
-            <label><span>FOTO DO PAINEL</span><input class="availability-hourmeter-photo" type="file" accept="image/*" capture="environment"></label>
-            <button class="primary-button availability-hourmeter-save" type="button">REGISTRAR HORÍMETRO</button>
-        </div>
+        <details class="availability-action-panel availability-action-status" open>
+            <summary><span>01</span><div><strong>ATUALIZAR SITUAÇÃO</strong><small>Informe a condição observada agora.</small></div></summary>
+            <div class="availability-form-grid">
+                <label><span>NOVA SITUAÇÃO</span>
+                    <select class="availability-status">
+                        <option value="DISPONIVEL">DISPONÍVEL</option>
+                        <option value="INDISPONIVEL">INDISPONÍVEL</option>
+                        <option value="RESTRICAO">COM RESTRIÇÃO</option>
+                        <option value="MANUTENCAO">EM MANUTENÇÃO</option>
+                    </select>
+                </label>
+                <label><span>MOTIVO / CONDIÇÃO</span><input class="availability-reason" maxlength="255" placeholder="Obrigatório fora da condição disponível"></label>
+                <label><span>EVIDÊNCIA DO STATUS</span><input class="availability-status-photo" type="file" accept="image/*" capture="environment"></label>
+                <button class="primary-button availability-status-save" type="button">SALVAR SITUAÇÃO</button>
+            </div>
+        </details>
+        <details class="availability-action-panel availability-action-hourmeter">
+            <summary><span>02</span><div><strong>REGISTRAR HORÍMETRO</strong><small>Digite a leitura mostrada no painel.</small></div></summary>
+            <div class="availability-form-grid hourmeter-form">
+                <label><span>NOVA LEITURA</span><input class="availability-hourmeter" type="number" min="0" step="0.01" inputmode="decimal" placeholder="Ex.: 1250,50"></label>
+                <label><span>OBSERVAÇÃO</span><input class="availability-hourmeter-notes" maxlength="255" placeholder="Opcional"></label>
+                <label><span>FOTO DO PAINEL</span><input class="availability-hourmeter-photo" type="file" accept="image/*" capture="environment"></label>
+                <button class="primary-button availability-hourmeter-save" type="button">REGISTRAR HORÍMETRO</button>
+            </div>
+        </details>
     `;
     card.querySelector(".availability-status").value = status === "SEM_APONTAMENTO" ? "DISPONIVEL" : status;
     card.querySelector(".availability-status-save").addEventListener("click", () => submitOperationalStatus(card, vehicle));
     card.querySelector(".availability-hourmeter-save").addEventListener("click", () => submitHourmeter(card, vehicle));
+    card.querySelectorAll(".availability-action-panel").forEach((panel) => {
+        panel.addEventListener("toggle", () => {
+            if (!panel.open) return;
+            card.querySelectorAll(".availability-action-panel").forEach((other) => {
+                if (other !== panel) other.open = false;
+            });
+        });
+    });
     return card;
 }
 
@@ -7003,6 +7085,26 @@ on(elements.openNonConformitiesMenu, "click", openNonConformitiesMenu);
 on(elements.openMaintenanceMenu, "click", openMaintenanceMenu);
 on(elements.openPreventivesMenu, "click", openPreventivesMenu);
 on(elements.openAvailabilityMenu, "click", openAvailabilityMenu);
+on(elements.availabilitySearch, "input", () => {
+    state.availabilityFilters.search = elements.availabilitySearch.value;
+    renderAvailability();
+});
+on(elements.availabilityStatusFilter, "change", () => {
+    state.availabilityFilters.status = elements.availabilityStatusFilter.value;
+    renderAvailability();
+});
+elements.availabilityFamilyTabs.forEach((button) => {
+    on(button, "click", () => {
+        state.availabilityFilters.family = String(button.dataset.availabilityFamily || "TODOS").toUpperCase();
+        renderAvailability();
+    });
+});
+on(elements.availabilityClearFilters, "click", () => {
+    state.availabilityFilters = { search: "", family: "TODOS", status: "" };
+    elements.availabilitySearch.value = "";
+    elements.availabilityStatusFilter.value = "";
+    renderAvailability();
+});
 on(elements.openTechnicalInspectionsMenu, "click", openTechnicalInspectionsMenu);
 on(elements.openEmergenciesMenu, "click", openEmergenciesMenu);
 on(elements.openTechnicalLibraryMenu, "click", openTechnicalLibraryMenu);

@@ -607,6 +607,7 @@
                     <button id="availability-back-button" class="icon-button" type="button">MENU</button>
                     <div>
                         <h2>DISPONIBILIDADE E HORÍMETRO</h2>
+                        <p class="screen-heading-note">Consulte RTG e LBS e registre somente o que foi observado em campo.</p>
                     </div>
                 </div>
 
@@ -614,6 +615,29 @@
                     <strong id="availability-counter">0 EQUIPAMENTOS</strong>
                     <span>APONTE SOMENTE A SITUAÇÃO REAL OBSERVADA EM CAMPO.</span>
                 </div>
+                <section class="availability-filter-panel" aria-label="Filtros de disponibilidade">
+                    <div class="availability-family-tabs" role="tablist" aria-label="Filtro por módulo">
+                        <button type="button" class="availability-family-tab is-active" data-availability-family="TODOS" role="tab" aria-selected="true">TODOS</button>
+                        <button type="button" class="availability-family-tab" data-availability-family="RTG" role="tab" aria-selected="false">RTG</button>
+                        <button type="button" class="availability-family-tab" data-availability-family="LBS" role="tab" aria-selected="false">LBS</button>
+                    </div>
+                    <label>
+                        <span>BUSCAR EQUIPAMENTO</span>
+                        <input id="availability-search" type="search" placeholder="Frota, placa, modelo ou local" autocomplete="off">
+                    </label>
+                    <label>
+                        <span>SITUAÇÃO</span>
+                        <select id="availability-status-filter">
+                            <option value="">TODAS AS SITUAÇÕES</option>
+                            <option value="DISPONIVEL">DISPONÍVEL</option>
+                            <option value="INDISPONIVEL">INDISPONÍVEL</option>
+                            <option value="RESTRICAO">COM RESTRIÇÃO</option>
+                            <option value="MANUTENCAO">EM MANUTENÇÃO</option>
+                            <option value="SEM_APONTAMENTO">SEM APONTAMENTO</option>
+                        </select>
+                    </label>
+                    <button id="availability-clear-filters" class="secondary-button" type="button">LIMPAR FILTROS</button>
+                </section>
                 <div id="availability-summary" class="availability-summary"></div>
                 <div id="availability-list" class="availability-list"></div>
             </section>

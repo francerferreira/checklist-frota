@@ -1,10 +1,10 @@
 from __future__ import annotations
 
 from PySide6.QtGui import QBrush, QColor
-from PySide6.QtWidgets import QFrame, QGridLayout, QLabel, QTableWidget, QVBoxLayout
+from PySide6.QtWidgets import QComboBox, QFrame, QGridLayout, QLabel, QLineEdit, QTableWidget, QVBoxLayout
 
 from components import StatCard, TableSkeletonOverlay
-from theme import configure_table, make_table_item, style_table_card
+from theme import configure_table, make_table_item, style_filter_bar, style_table_card
 
 
 STATUS_LABELS = {
@@ -27,6 +27,7 @@ class AvailabilityPage(QFrame):
     def __init__(self, api_client, parent=None):
         super().__init__(parent)
         self.api_client = api_client
+        self.rows = []
         self.setObjectName("ContentSurface")
 
         layout = QVBoxLayout(self)
@@ -49,6 +50,33 @@ class AvailabilityPage(QFrame):
         for column, card in enumerate((self.total_card, self.available_card, self.unavailable_card, self.average_card)):
             cards.addWidget(card, 0, column)
             cards.setColumnStretch(column, 1)
+
+        filters = QFrame()
+        style_filter_bar(filters)
+        filter_layout = QGridLayout(filters)
+        filter_layout.setContentsMargins(14, 12, 14, 12)
+        filter_layout.setHorizontalSpacing(12)
+        self.search = QLineEdit()
+        self.search.setPlaceholderText("Buscar frota, placa, modelo ou local")
+        self.family_filter = QComboBox()
+        self.family_filter.addItem("Todos os módulos", "")
+        self.family_filter.addItem("RTG", "RTG")
+        self.family_filter.addItem("LBS", "LBS")
+        self.status_filter = QComboBox()
+        self.status_filter.addItem("Todas as situações", "")
+        for key, label in STATUS_LABELS.items():
+            self.status_filter.addItem(label, key)
+        for column, (label, field) in enumerate((
+            ("Pesquisa", self.search),
+            ("Módulo", self.family_filter),
+            ("Situação", self.status_filter),
+        )):
+            filter_layout.addWidget(QLabel(label), 0, column)
+            filter_layout.addWidget(field, 1, column)
+            filter_layout.setColumnStretch(column, 1)
+        self.search.textChanged.connect(self._render_rows)
+        self.family_filter.currentIndexChanged.connect(self._render_rows)
+        self.status_filter.currentIndexChanged.connect(self._render_rows)
 
         table_card = QFrame()
         style_table_card(table_card)
@@ -73,6 +101,7 @@ class AvailabilityPage(QFrame):
         layout.addWidget(title)
         layout.addWidget(subtitle)
         layout.addLayout(cards)
+        layout.addWidget(filters)
         layout.addWidget(table_card, 1)
 
     def set_loading_state(self, loading: bool):
@@ -101,7 +130,35 @@ class AvailabilityPage(QFrame):
             "Disponibilidade média", f"{average:.2f}%" if average is not None else "-",
             f"{summary.get('measured_equipment', 0)} equipamentos medidos",
         )
-        rows = overview.get("rows", [])
+        self.rows = overview.get("rows", [])
+        self._render_rows()
+
+    def _render_rows(self):
+        query = self.search.text().strip().casefold()
+        family_filter = str(self.family_filter.currentData() or "").upper()
+        status_filter = str(self.status_filter.currentData() or "").upper()
+        rows = []
+        for row in self.rows:
+            vehicle = row.get("vehicle") or {}
+            state = vehicle.get("operational_state") or {}
+            status = str(state.get("operational_status") or "SEM_APONTAMENTO").upper()
+            family = str((row.get("family") or {}).get("code") or (row.get("family") or {}).get("name") or vehicle.get("tipo") or "").upper()
+            searchable = " ".join(str(value or "") for value in (
+                vehicle.get("frota"), vehicle.get("placa"), vehicle.get("modelo"),
+                (row.get("location") or {}).get("full_name"), family,
+            )).casefold()
+            if query and query not in searchable:
+                continue
+            if family_filter and family_filter not in family:
+                continue
+            if status_filter and status_filter != status:
+                continue
+            rows.append(row)
+        priority = {"INDISPONIVEL": 0, "MANUTENCAO": 1, "RESTRICAO": 2, "SEM_APONTAMENTO": 3, "DISPONIVEL": 4}
+        rows.sort(key=lambda row: (
+            priority.get(str(((row.get("vehicle") or {}).get("operational_state") or {}).get("operational_status") or "SEM_APONTAMENTO").upper(), 9),
+            str((row.get("vehicle") or {}).get("frota") or (row.get("vehicle") or {}).get("placa") or ""),
+        ))
         self.table.setSortingEnabled(False)
         self.table.setRowCount(len(rows))
         for row_index, row in enumerate(rows):

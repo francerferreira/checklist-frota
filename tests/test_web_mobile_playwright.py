@@ -369,6 +369,7 @@ class WebMobilePlaywrightTests(unittest.TestCase):
         card.locator(".availability-status").select_option("DISPONIVEL")
         card.locator(".availability-status-save").tap()
         expect(self.page.locator(".availability-card header b")).to_have_text("DISPONÍVEL")
+        card.locator(".availability-action-hourmeter summary").tap()
         self.page.locator(".availability-hourmeter").fill("1250.50")
         self.page.locator(".availability-hourmeter-save").tap()
         expect(self.page.locator(".availability-reading strong")).to_contain_text("1250.50 h")
