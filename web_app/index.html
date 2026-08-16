@@ -210,13 +210,14 @@
                     <input type="search" id="vehicle-search" placeholder="FROTA, PLACA OU MODELO">
                 </label>
 
-                <button id="asset-access-toggle" class="asset-access-toggle primary-button" type="button" aria-expanded="false" aria-controls="asset-access-panel">ACESSAR ATIVO POR QR/NFC</button>
+                <button id="asset-access-toggle" class="asset-access-toggle primary-button" type="button" aria-expanded="false" aria-controls="asset-access-panel">ACESSAR ATIVO POR ETIQUETA</button>
 
                 <section id="asset-access-panel" class="asset-access-panel hidden" aria-label="Acesso móvel por ativo">
                     <div>
                         <span>ACESSO POR ATIVO</span>
                         <strong>QR CODE OU NFC</strong>
                         <em>Leia a etiqueta para abrir o equipamento sem procurar na lista.</em>
+                        <small class="asset-access-platform-note">QR usa a câmera. NFC depende do aparelho, navegador e permissões disponíveis.</small>
                     </div>
                     <label class="asset-code-input"><span>CÓDIGO DA ETIQUETA</span><input id="asset-access-code" autocomplete="off" autocapitalize="characters" placeholder="CF-ATIVO-000001"></label>
                     <div class="asset-access-actions">
@@ -252,6 +253,8 @@
                         <span class="vehicle-family-card-caption">equipamentos ativos</span>
                     </button>
                 </section>
+
+                <p class="vehicle-selection-hint">Selecione um cartão para abrir os equipamentos daquele módulo. Depois escolha o ativo para iniciar o checklist ou consultar a disponibilidade.</p>
 
                 <div id="vehicles-list" class="vehicle-list hidden" aria-hidden="true"></div>
             </section>

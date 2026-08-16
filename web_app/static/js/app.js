@@ -4762,12 +4762,20 @@ function isPortEquipment(vehicle) {
 
 function toggleAssetAccessPanel(forceOpen = null) {
     if (!elements.assetAccessPanel || !elements.assetAccessToggle) return;
+    const nfcSupported = "NDEFReader" in window;
+    if (elements.scanAssetNfcButton) {
+        elements.scanAssetNfcButton.disabled = !nfcSupported;
+        elements.scanAssetNfcButton.textContent = nfcSupported ? "LER NFC" : "NFC INDISPONÍVEL";
+        elements.scanAssetNfcButton.title = nfcSupported
+            ? "Ler uma etiqueta NFC neste aparelho"
+            : "NFC não é compatível neste navegador ou aparelho";
+    }
     const isOpen = forceOpen === null
         ? elements.assetAccessPanel.classList.contains("hidden")
         : Boolean(forceOpen);
     elements.assetAccessPanel.classList.toggle("hidden", !isOpen);
     elements.assetAccessToggle.setAttribute("aria-expanded", String(isOpen));
-    elements.assetAccessToggle.textContent = isOpen ? "FECHAR ACESSO POR QR/NFC" : "ACESSAR POR QR/NFC";
+    elements.assetAccessToggle.textContent = isOpen ? "FECHAR ACESSO POR ETIQUETA" : "ACESSAR ATIVO POR ETIQUETA";
 }
 
 function makeVehicleCard(vehicle) {
