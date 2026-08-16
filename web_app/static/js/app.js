@@ -285,6 +285,7 @@ const state = {
         editingEmployeeId: null,
         existingEmployeePhoto: "",
     },
+    moduleReports: "",
 };
 
 const screens = {
@@ -299,6 +300,7 @@ const screens = {
     checklistHistory: document.getElementById("checklist-history-screen"),
     checklistCatalog: document.getElementById("checklist-catalog-screen"),
     rhAdmin: document.getElementById("rh-admin-screen"),
+    moduleReports: document.getElementById("module-reports-screen"),
     nonConformities: document.getElementById("non-conformities-screen"),
     maintenance: document.getElementById("maintenance-screen"),
     preventives: document.getElementById("preventives-screen"),
@@ -402,6 +404,8 @@ const elements = {
     openChecklistHistoryMenu: document.getElementById("open-checklist-history-menu"),
     openChecklistCatalogMenu: document.getElementById("open-checklist-catalog-menu"),
     openRhAdminMenu: document.getElementById("open-rh-admin-menu"),
+    openEquipmentReportsMenu: document.getElementById("open-equipment-reports-menu"),
+    openMaintenanceReportsMenu: document.getElementById("open-maintenance-reports-menu"),
     openActivitiesMenu: document.getElementById("open-activities-menu"),
     openWashesMenu: document.getElementById("open-washes-menu"),
     openNonConformitiesMenu: document.getElementById("open-non-conformities-menu"),
@@ -462,6 +466,7 @@ const elements = {
     rhAdminOverviewPanel: document.getElementById("rh-admin-overview-panel"),
     rhAdminEmployeesPanel: document.getElementById("rh-admin-employees-panel"),
     rhAdminOperationsPanel: document.getElementById("rh-admin-operations-panel"),
+    rhAdminReportsPanel: document.getElementById("rh-admin-reports-panel"),
     rhAdminRefreshOverview: document.getElementById("rh-admin-refresh-overview"),
     rhAdminOverviewCards: document.getElementById("rh-admin-overview-cards"),
     rhAdminAlertCount: document.getElementById("rh-admin-alert-count"),
@@ -489,6 +494,12 @@ const elements = {
     rhAdminEmployeePhotoStatus: document.getElementById("rh-admin-employee-photo-status"),
     rhAdminEmployeeCancel: document.getElementById("rh-admin-employee-cancel"),
     rhAdminEmployeeSave: document.getElementById("rh-admin-employee-save"),
+    moduleReportsBackButton: document.getElementById("module-reports-back-button"),
+    moduleReportsTitle: document.getElementById("module-reports-title"),
+    moduleReportsSubtitle: document.getElementById("module-reports-subtitle"),
+    moduleReportsBadge: document.getElementById("module-reports-badge"),
+    moduleReportsContext: document.getElementById("module-reports-context"),
+    moduleReportsList: document.getElementById("module-reports-list"),
     washCounter: document.getElementById("wash-counter"),
     washMonthTitle: document.getElementById("wash-month-title"),
     washPrevMonth: document.getElementById("wash-prev-month"),
@@ -985,6 +996,7 @@ function syncMenuGroupHeadings() {
             "open-availability-menu",
             "open-technical-inspections-menu",
             "open-technical-library-menu",
+            "open-equipment-reports-menu",
         ],
         manutencao: [
             "open-maintenance-menu",
@@ -993,6 +1005,7 @@ function syncMenuGroupHeadings() {
             "open-washes-menu",
             "open-preventives-menu",
             "open-maintenance-dashboard-menu",
+            "open-maintenance-reports-menu",
         ],
         rh: ["open-hr-journey-menu", "open-rh-admin-menu"],
         absenteismo: ["open-absenteeism-menu"],
@@ -1013,6 +1026,8 @@ function renderHome() {
     const canViewMaintenanceDashboard = ["admin", "gestor"].includes(String(state.user?.tipo || "").toLowerCase());
     elements.openChecklistCatalogMenu?.classList.toggle("hidden", !hasWashReportAccess());
     elements.openRhAdminMenu?.classList.toggle("hidden", !hasWashReportAccess());
+    elements.openEquipmentReportsMenu?.classList.toggle("hidden", !hasWashReportAccess());
+    elements.openMaintenanceReportsMenu?.classList.toggle("hidden", !hasWashReportAccess());
     elements.openMaintenanceDashboardMenu?.classList.toggle("hidden", !canViewMaintenanceDashboard);
     elements.openPreventivesMenu?.classList.toggle("hidden", !canViewMaintenanceDashboard);
     elements.openWeeklyDsrMenu?.classList.toggle("hidden", !canViewMaintenanceDashboard);
@@ -1766,17 +1781,79 @@ async function openPreventivesMenu() {
     }
 }
 
+const MODULE_REPORT_DEFINITIONS = {
+    equipment: {
+        title: "RELATÓRIOS DE EQUIPAMENTOS",
+        subtitle: "Históricos e indicadores operacionais dos ativos.",
+        badge: "EQUIPAMENTOS",
+        context: "EQUIPAMENTOS",
+        reports: [
+            { label: "CHECKLIST", title: "HISTÓRICO DE CHECKLIST", description: "Matriz por equipamento, período e usuário executor.", action: "checklistHistory" },
+            { label: "OPERAÇÃO", title: "DISPONIBILIDADE E HORÍMETRO", description: "Situação operacional, motivos, evidências e leituras.", action: "availability" },
+            { label: "INSPEÇÕES", title: "INSPEÇÃO TÉCNICA", description: "Execuções dos modelos publicados por equipamento.", action: "technicalInspections" },
+        ],
+    },
+    maintenance: {
+        title: "RELATÓRIOS DE MANUTENÇÃO",
+        subtitle: "Acompanhamento de ordens, preventivas, paradas e tratativas.",
+        badge: "MANUTENÇÃO",
+        context: "MANUTENÇÃO",
+        reports: [
+            { label: "ORDENS", title: "MANUTENÇÕES E OS", description: "Serviços direcionados, execução e histórico mensal.", action: "maintenance" },
+            { label: "PLANOS", title: "PREVENTIVAS", description: "Vencimentos por horímetro, data e criticidade.", action: "preventives" },
+            { label: "TRATATIVAS", title: "CENTRAL DE RESOLUÇÃO", description: "Não conformidades abertas, concluídas e evidências.", action: "nonConformities" },
+            { label: "LAVAGENS", title: "HISTÓRICO DE LAVAGENS", description: "Programação, execução e exportação do período.", action: "washes" },
+            { label: "INDICADORES", title: "DASHBOARD DE MANUTENÇÃO", description: "Disponibilidade, ordens e equipamentos críticos.", action: "maintenanceDashboard" },
+        ],
+    },
+};
+
+function openModuleReports(moduleKey) {
+    if (!hasWashReportAccess()) {
+        showToast("RELATÓRIOS RESTRITOS AO ADMIN E GESTOR.", true);
+        return;
+    }
+    const definition = MODULE_REPORT_DEFINITIONS[moduleKey];
+    if (!definition) return;
+    state.moduleReports = moduleKey;
+    elements.moduleReportsTitle.textContent = definition.title;
+    elements.moduleReportsSubtitle.textContent = definition.subtitle;
+    elements.moduleReportsBadge.textContent = definition.badge;
+    elements.moduleReportsContext.textContent = definition.context;
+    elements.moduleReportsList.innerHTML = definition.reports.map((report) => `
+        <button class="module-report-card" type="button" data-module-report-action="${escapeHtml(report.action)}">
+            <span>${escapeHtml(report.label)}</span>
+            <strong>${escapeHtml(report.title)}</strong>
+            <em>${escapeHtml(report.description)}</em>
+            <b>ABRIR RELATÓRIO</b>
+        </button>
+    `).join("");
+    setActiveScreen("moduleReports");
+}
+
+function openModuleReportAction(action) {
+    if (action === "checklistHistory") openChecklistHistoryMenu();
+    else if (action === "availability") openAvailabilityMenu();
+    else if (action === "technicalInspections") openTechnicalInspectionsMenu();
+    else if (action === "maintenance") openMaintenanceMenu();
+    else if (action === "preventives") openPreventivesMenu();
+    else if (action === "nonConformities") openNonConformitiesMenu();
+    else if (action === "washes") openWashesMenu();
+    else if (action === "maintenanceDashboard") window.location.href = "./dashboard-manutencao/";
+}
+
 function rhAdminStatusLabel(status) {
     return String(status || "PRE_CADASTRO").replaceAll("_", " ");
 }
 
 function setRhAdminTab(tab) {
-    const selected = ["overview", "employees", "operations"].includes(tab) ? tab : "overview";
+    const selected = ["overview", "employees", "operations", "reports"].includes(tab) ? tab : "overview";
     state.rhAdmin.tab = selected;
     elements.rhAdminTabs.forEach((button) => button.classList.toggle("is-active", button.dataset.rhAdminTab === selected));
     elements.rhAdminOverviewPanel.classList.toggle("hidden", selected !== "overview");
     elements.rhAdminEmployeesPanel.classList.toggle("hidden", selected !== "employees");
     elements.rhAdminOperationsPanel.classList.toggle("hidden", selected !== "operations");
+    elements.rhAdminReportsPanel.classList.toggle("hidden", selected !== "reports");
 }
 
 function renderRhAdminOverview() {
@@ -7641,6 +7718,12 @@ on(elements.openMaintenanceDashboardMenu, "click", () => {
 });
 on(elements.openHrJourneyMenu, "click", openHrJourneyMenu);
 on(elements.openRhAdminMenu, "click", openRhAdminMenu);
+on(elements.openEquipmentReportsMenu, "click", () => openModuleReports("equipment"));
+on(elements.openMaintenanceReportsMenu, "click", () => openModuleReports("maintenance"));
+on(elements.moduleReportsList, "click", (event) => {
+    const button = event.target instanceof HTMLElement ? event.target.closest("[data-module-report-action]") : null;
+    if (button) openModuleReportAction(button.dataset.moduleReportAction);
+});
 elements.rhAdminTabs.forEach((button) => on(button, "click", () => setRhAdminTab(button.dataset.rhAdminTab)));
 on(elements.rhAdminRefreshOverview, "click", loadRhAdminOverview);
 on(elements.rhAdminNewEmployee, "click", () => openRhAdminEmployeeModal());
@@ -7660,7 +7743,9 @@ on(elements.rhAdminEmployeesList, "click", (event) => {
 });
 document.querySelectorAll("[data-rh-admin-open]").forEach((button) => on(button, "click", () => {
     const target = button.dataset.rhAdminOpen;
-    if (target === "attendance") {
+    if (target === "overview") {
+        setRhAdminTab("overview");
+    } else if (target === "attendance") {
         showToast("A EDIÇÃO DE FREQUÊNCIA SERÁ CONECTADA NA PRÓXIMA ETAPA.");
     } else if (target === "absenteeism") {
         openAbsenteeismMenu();
@@ -7759,6 +7844,11 @@ on(elements.hrJourneyBackButton, "click", () => {
 });
 on(elements.rhAdminBackButton, "click", () => {
     closeRhAdminEmployeeModal();
+    renderHome();
+    setActiveScreen("home");
+});
+on(elements.moduleReportsBackButton, "click", () => {
+    state.moduleReports = "";
     renderHome();
     setActiveScreen("home");
 });

@@ -5257,3 +5257,126 @@ button.rh-admin-operation-card:hover { border-color: #78aee6; transform: transla
     .rh-admin-employee-status,
     .rh-admin-employee-row > .icon-button { grid-column: 2; justify-self: start; }
 }
+
+/* Relatórios permanecem dentro do contexto de cada módulo operacional. */
+.screen-heading.compact.module-reports-heading {
+    grid-template-columns: auto minmax(0, 1fr) auto;
+    gap: 14px;
+}
+
+.module-reports-heading .screen-heading-note {
+    color: rgba(255, 255, 255, .8);
+}
+
+.module-reports-intro {
+    display: grid;
+    gap: 5px;
+    margin: 12px 0;
+    padding: 16px 18px;
+    border: 1px solid rgba(255, 255, 255, .7);
+    border-radius: 18px;
+    background: rgba(255, 255, 255, .96);
+    box-shadow: 0 14px 30px rgba(15, 23, 42, .08);
+}
+
+.module-reports-intro > span,
+.module-report-context {
+    color: var(--muted);
+    font-size: .67rem;
+    font-style: normal;
+    font-weight: 900;
+    letter-spacing: .08em;
+}
+
+.module-reports-intro > strong {
+    color: var(--ink);
+    font-size: 1.08rem;
+}
+
+.module-reports-intro > p {
+    margin: 0;
+    color: var(--muted);
+    font-size: .78rem;
+    line-height: 1.45;
+}
+
+.module-report-grid {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 12px;
+}
+
+.module-report-card {
+    display: grid;
+    align-content: start;
+    gap: 8px;
+    min-height: 168px;
+    padding: 18px;
+    border: 1px solid #d7e2ee;
+    border-radius: 17px;
+    background: #fff;
+    color: var(--ink);
+    box-shadow: 0 12px 26px rgba(15, 23, 42, .07);
+    text-align: left;
+    font: inherit;
+    cursor: pointer;
+    transition: transform .15s ease, border-color .15s ease, box-shadow .15s ease;
+}
+
+.module-report-card:hover {
+    transform: translateY(-2px);
+    border-color: #76abe1;
+    box-shadow: 0 16px 30px rgba(7, 86, 181, .13);
+}
+
+.module-report-card > span {
+    color: var(--blue);
+    font-size: .66rem;
+    font-weight: 900;
+    letter-spacing: .08em;
+}
+
+.module-report-card > strong {
+    color: var(--ink);
+    font-size: .94rem;
+}
+
+.module-report-card > em {
+    color: var(--muted);
+    font-size: .76rem;
+    font-style: normal;
+    line-height: 1.45;
+}
+
+.module-report-card > b {
+    align-self: end;
+    margin-top: auto;
+    color: var(--blue);
+    font-size: .67rem;
+    letter-spacing: .06em;
+}
+
+@media (min-width: 760px) {
+    #module-reports-screen {
+        max-width: 1280px;
+        margin-inline: auto;
+    }
+}
+
+@media (max-width: 759px) {
+    .screen-heading.compact.module-reports-heading {
+        grid-template-columns: auto minmax(0, 1fr);
+    }
+
+    .module-reports-heading .rh-admin-role-badge {
+        grid-column: 1 / -1;
+    }
+
+    .module-report-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .module-report-card {
+        min-height: 142px;
+    }
+}

@@ -16,8 +16,8 @@ class WebMobileShellContractTests(unittest.TestCase):
         cls.legacy_readme = LEGACY_README_PATH.read_text(encoding="utf-8")
 
     def test_index_uses_canonical_frontend_bundle(self):
-        self.assertIn('./static/js/app.js?v=20260816-01', self.index_html)
-        self.assertIn('./static/css/styles.css?v=20260816-01', self.index_html)
+        self.assertIn('./static/js/app.js?v=20260816-02', self.index_html)
+        self.assertIn('./static/css/styles.css?v=20260816-02', self.index_html)
         self.assertNotIn("app-20260419-", self.index_html)
 
     def test_frontend_uses_manaus_timezone_for_dates(self):
@@ -52,6 +52,8 @@ class WebMobileShellContractTests(unittest.TestCase):
             'id="open-checklist-history-menu"',
             'id="open-checklist-catalog-menu"',
             'id="open-rh-admin-menu"',
+            'id="open-equipment-reports-menu"',
+            'id="open-maintenance-reports-menu"',
             'id="open-maintenance-menu"',
             'id="open-availability-menu"',
             'id="open-technical-inspections-menu"',
@@ -61,6 +63,8 @@ class WebMobileShellContractTests(unittest.TestCase):
             'id="checklist-catalog-modal"',
             'id="rh-admin-screen"',
             'id="rh-admin-employee-form"',
+            'id="module-reports-screen"',
+            'id="rh-admin-reports-panel"',
             'class="module-section history-filter-card"',
             'id="checklist-history-equipment-search"',
             'id="checklist-history-summary-card"',
@@ -99,6 +103,14 @@ class WebMobileShellContractTests(unittest.TestCase):
         self.assertIn('method: editingId ? "PUT" : "POST"', app_js)
         self.assertIn("/rh/colaboradores/usuarios-disponiveis", app_js)
         self.assertIn("hasWashReportAccess()", app_js)
+
+    def test_reports_are_scoped_inside_operational_modules(self):
+        app_js = (PROJECT_ROOT / "web_app" / "static" / "js" / "app.js").read_text(encoding="utf-8")
+        self.assertIn("MODULE_REPORT_DEFINITIONS", app_js)
+        self.assertIn('openModuleReports("equipment")', app_js)
+        self.assertIn('openModuleReports("maintenance")', app_js)
+        self.assertIn('data-rh-admin-tab="reports"', self.index_html)
+        self.assertNotIn('id="open-central-reports-menu"', self.index_html)
 
     def test_availability_and_hourmeter_mobile_operations_are_connected(self):
         app_js = (PROJECT_ROOT / "web_app" / "static" / "js" / "app.js").read_text(encoding="utf-8")
