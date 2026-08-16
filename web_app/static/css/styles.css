@@ -3510,6 +3510,64 @@ textarea {
     }
 }
 
+/* Manutenção integrada: o operador escolhe o módulo antes de executar o serviço. */
+.maintenance-family-tabs {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 8px;
+    max-width: 720px;
+    margin: 12px auto 16px;
+    padding: 6px;
+    border: 1px solid rgba(255, 255, 255, 0.72);
+    border-radius: 16px;
+    background: rgba(255, 255, 255, 0.78);
+    box-shadow: 0 8px 20px rgba(9, 26, 52, 0.07);
+}
+
+.maintenance-family-tab {
+    min-height: 42px;
+    border: 1px solid rgba(84, 100, 126, 0.18);
+    border-radius: 12px;
+    background: #f7fbff;
+    color: var(--muted);
+    font: inherit;
+    font-size: 0.78rem;
+    font-weight: 950;
+    letter-spacing: 0.04em;
+    cursor: pointer;
+}
+
+.maintenance-family-tab.is-active {
+    border-color: transparent;
+    background: linear-gradient(135deg, #0b65c2, #1477d4);
+    color: #ffffff;
+    box-shadow: 0 10px 20px rgba(7, 86, 181, 0.22);
+}
+
+.screen-heading-note {
+    margin: 4px 0 0;
+    color: var(--muted);
+    font-size: 0.74rem;
+    font-weight: 750;
+}
+
+@media (max-width: 520px) {
+    .maintenance-family-tabs {
+        margin: 10px 0 14px;
+        padding: 5px;
+    }
+
+    .maintenance-family-tab {
+        min-height: 44px;
+        font-size: 0.72rem;
+    }
+
+    .screen-heading-note {
+        max-width: 220px;
+        line-height: 1.25;
+    }
+}
+
 /* Agrupadores do menu inicial: cada modulo funciona como uma secao visual
    independente, sem transformar os cartoes operacionais em um menu confuso. */
 .menu-group-heading {

@@ -431,13 +431,20 @@
                 <div class="screen-heading compact">
                     <button id="maintenance-back-button" class="icon-button" type="button">MENU</button>
                     <div>
-                        <h2>MANUTENÇÃO</h2>
+                        <h2>MANUTENÇÃO POR MÓDULO</h2>
+                        <p class="screen-heading-note">O mesmo fluxo operacional para RTG e LBS.</p>
                     </div>
                 </div>
 
                 <div class="list-toolbar">
                     <strong id="maintenance-counter">0 ITENS</strong>
-                    <span>EXECUÇÃO DAS PROGRAMAÇÕES DIRECIONADAS PELO DESKTOP.</span>
+                    <span>RTG E LBS | EXECUÇÃO E ACOMPANHAMENTO NO WEB.</span>
+                </div>
+
+                <div id="maintenance-family-tabs" class="maintenance-family-tabs" role="tablist" aria-label="Filtro de módulo de manutenção">
+                    <button type="button" class="maintenance-family-tab is-active" data-maintenance-family="TODOS" role="tab" aria-selected="true">TODOS</button>
+                    <button type="button" class="maintenance-family-tab" data-maintenance-family="RTG" role="tab" aria-selected="false">RTG</button>
+                    <button type="button" class="maintenance-family-tab" data-maintenance-family="LBS" role="tab" aria-selected="false">LBS</button>
                 </div>
 
                 <div id="maintenance-summary" class="progress-card"></div>

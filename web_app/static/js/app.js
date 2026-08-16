@@ -252,6 +252,7 @@ const state = {
     maintenanceMonth: INITIAL_MANAUS_DATE.month,
     selectedMaintenanceDate: "",
     maintenanceStatusFilter: "ABERTAS",
+    maintenanceFamilyFilter: "TODOS",
     selectedActivity: null,
     selectedVehicle: null,
     focusedAvailabilityVehicleId: null,
@@ -443,6 +444,7 @@ const elements = {
     maintenanceMonthTitle: document.getElementById("maintenance-month-title"),
     maintenancePrevMonth: document.getElementById("maintenance-prev-month"),
     maintenanceNextMonth: document.getElementById("maintenance-next-month"),
+    maintenanceFamilyTabs: Array.from(document.querySelectorAll("[data-maintenance-family]")),
     maintenanceCalendar: document.getElementById("maintenance-calendar"),
     maintenanceDayPanel: document.getElementById("maintenance-day-panel"),
     maintenanceList: document.getElementById("maintenance-list"),
@@ -3213,11 +3215,15 @@ function renderMaintenance() {
     const selectedDay = ensureSelectedMaintenanceDate(days);
     const selectedItems = filterMaintenanceItemsForMobile(selectedDay?.items || []);
     const selectedDayLabel = selectedDay?.date ? formatDate(selectedDay.date) : "SEM DIA";
+    const familyLabel = state.maintenanceFamilyFilter === "TODOS" ? "RTG E LBS" : state.maintenanceFamilyFilter;
+    const familyItems = filterMaintenanceItemsByFamily(days.flatMap((day) => day.items || []));
+    const visibleSummary = buildMaintenanceFamilySummary(resumo, familyItems);
 
-    elements.maintenanceCounter.textContent = `${Number(resumo.programados || resumo.itens || 0)} PROGRAMADOS`;
+    updateMaintenanceFamilyTabs();
+    elements.maintenanceCounter.textContent = `${Number(visibleSummary.programados || visibleSummary.itens || 0)} PROGRAMADOS · ${familyLabel}`;
     elements.maintenanceMonthTitle.textContent = String(overview.periodo?.rotulo || `${state.maintenanceMonth}/${state.maintenanceYear}`).toUpperCase();
-    screens.maintenance.querySelector(".list-toolbar span").textContent = `${selectedDayLabel} | ${selectedItems.length} SERVIÇO${selectedItems.length === 1 ? "" : "S"} NO DIA SELECIONADO.`;
-    renderMaintenanceSummary(resumo);
+    screens.maintenance.querySelector(".list-toolbar span").textContent = `${familyLabel} | ${selectedDayLabel} | ${selectedItems.length} SERVIÇO${selectedItems.length === 1 ? "" : "S"} NO DIA SELECIONADO.`;
+    renderMaintenanceSummary(visibleSummary);
     renderMaintenanceCalendar(days);
     renderMaintenanceDayPanel(selectedDay);
     elements.maintenanceList.innerHTML = "";
@@ -3235,6 +3241,54 @@ function renderMaintenance() {
     selectedItems.forEach((item, index) => {
         elements.maintenanceList.appendChild(makeMaintenanceItemCard(item, index + 1));
     });
+}
+
+function updateMaintenanceFamilyTabs() {
+    elements.maintenanceFamilyTabs?.forEach((button) => {
+        const active = String(button.dataset.maintenanceFamily || "TODOS").toUpperCase() === state.maintenanceFamilyFilter;
+        button.classList.toggle("is-active", active);
+        button.setAttribute("aria-selected", String(active));
+    });
+}
+
+function maintenanceFamilyKey(item) {
+    const vehicle = item?.vehicle || {};
+    const family = getVehicleFamilyKey({
+        ...vehicle,
+        family_name: vehicle.family_name || item?.family_name || item?.familia_veiculo,
+        tipo: vehicle.tipo || item?.tipo || item?.family_code,
+    });
+    if (family) return family;
+    const raw = normalizeText(vehicle.family?.code || vehicle.family?.name || item?.family_code || item?.family_name || item?.familia_veiculo);
+    if (raw.includes("rtg")) return "RTG";
+    if (raw.includes("lbs")) return "LBS";
+    return "";
+}
+
+function filterMaintenanceItemsByFamily(items) {
+    const family = String(state.maintenanceFamilyFilter || "TODOS").toUpperCase();
+    if (family === "TODOS") return items;
+    return items.filter((item) => maintenanceFamilyKey(item) === family);
+}
+
+function buildMaintenanceFamilySummary(resumo, familyItems) {
+    if (state.maintenanceFamilyFilter === "TODOS") return resumo;
+    const openStatuses = new Set(["PENDENTE", "PROGRAMADO", "REPROGRAMADO"]);
+    const pending = familyItems.filter((item) => openStatuses.has(String(item.status || "").toUpperCase())).length;
+    const installed = familyItems.filter((item) => String(item.status || "").toUpperCase() === "INSTALADO").length;
+    const notExecuted = familyItems.filter((item) => String(item.status || "").toUpperCase() === "NAO_EXECUTADO").length;
+    const blocked = familyItems.filter((item) => String(item.status || "").toUpperCase() === "AGUARDANDO_MATERIAL").length;
+    const total = familyItems.length;
+    return {
+        ...resumo,
+        itens: total,
+        programados: total,
+        pendentes: pending,
+        instalados: installed,
+        nao_executados: notExecuted,
+        aguardando_material: blocked,
+        percentual_conclusao: total ? Math.round((installed / total) * 100) : 0,
+    };
 }
 
 function renderMaintenanceSummary(resumo) {
@@ -3279,12 +3333,13 @@ function renderMaintenanceSummary(resumo) {
 }
 
 function ensureSelectedMaintenanceDate(days) {
-    if (days.find((day) => day.date === state.selectedMaintenanceDate)) {
-        return days.find((day) => day.date === state.selectedMaintenanceDate);
+    const selected = days.find((day) => day.date === state.selectedMaintenanceDate);
+    if (selected && (state.maintenanceFamilyFilter === "TODOS" || filterMaintenanceItemsByFamily(selected.items || []).length)) {
+        return selected;
     }
     const today = getManausDateParts();
     const todayKey = formatDateKey(today.year, today.month, today.day);
-    const firstDayWithItems = days.find((day) => (day.items || []).length);
+    const firstDayWithItems = days.find((day) => filterMaintenanceItemsByFamily(day.items || []).length);
     if (today.year === state.maintenanceYear && today.month === state.maintenanceMonth) {
         state.selectedMaintenanceDate = todayKey;
     } else {
@@ -3317,7 +3372,8 @@ function renderMaintenanceCalendar(days) {
     for (let dayNumber = 1; dayNumber <= totalDays; dayNumber += 1) {
         const dateKey = formatDateKey(state.maintenanceYear, state.maintenanceMonth, dayNumber);
         const day = daysByDate.get(dateKey) || { date: dateKey, day: dayNumber, items: [] };
-        elements.maintenanceCalendar.appendChild(makeMaintenanceDayButton(day, dateKey === todayKey));
+        const familyItems = filterMaintenanceItemsByFamily(day.items || []);
+        elements.maintenanceCalendar.appendChild(makeMaintenanceDayButton({ ...day, items: familyItems, total: familyItems.length }, dateKey === todayKey));
     }
 }
 
@@ -3351,10 +3407,11 @@ function renderMaintenanceDayPanel(day) {
         return;
     }
     const selectedDay = day || { date: state.selectedMaintenanceDate, items: [] };
-    const total = Number(selectedDay.total || selectedDay.items?.length || 0);
-    const pending = Number(selectedDay.pendentes || 0);
-    const installed = Number(selectedDay.instalados || 0);
-    const notExecuted = Number(selectedDay.nao_executados || 0);
+    const familyItems = filterMaintenanceItemsByFamily(selectedDay.items || []);
+    const total = familyItems.length;
+    const pending = familyItems.filter((item) => ["PENDENTE", "PROGRAMADO", "REPROGRAMADO"].includes(String(item.status || "").toUpperCase())).length;
+    const installed = familyItems.filter((item) => String(item.status || "").toUpperCase() === "INSTALADO").length;
+    const notExecuted = familyItems.filter((item) => String(item.status || "").toUpperCase() === "NAO_EXECUTADO").length;
     const filter = state.maintenanceStatusFilter || "ABERTAS";
     elements.maintenanceDayPanel.innerHTML = `
         <section class="wash-day-summary maintenance-focus">
@@ -3395,6 +3452,7 @@ function filterMaintenanceItemsForMobile(items) {
     const filter = state.maintenanceStatusFilter || "ABERTAS";
     const todayKey = getManausDateKey();
     const openStatuses = new Set(["PENDENTE", "PROGRAMADO", "REPROGRAMADO"]);
+    items = filterMaintenanceItemsByFamily(items);
     if (filter === "ABERTAS") {
         return items.filter((item) => openStatuses.has(String(item.status || "").toUpperCase()));
     }
@@ -3467,7 +3525,7 @@ function makeMaintenanceItemCard(item, index) {
         </div>
         <div class="activity-meta">
             <strong>${escapeHtml(String(vehicle.frota || "EQUIPAMENTO").toUpperCase())} | ${escapeHtml(String(vehicle.placa || "-").toUpperCase())}</strong>
-            <span>${escapeHtml(String(vehicle.modelo || "-").toUpperCase())}</span>
+            <span>${escapeHtml(maintenanceFamilyKey(item) || "MÓDULO NÃO INFORMADO")} · ${escapeHtml(String(vehicle.modelo || "-").toUpperCase())}</span>
         </div>
         <div class="nc-meta-list">
             <span>DATA PROGRAMADA: ${item.scheduled_date ? formatDateTime(`${item.scheduled_date}T00:00:00`) : "SEM DATA"}</span>
@@ -6952,6 +7010,12 @@ on(elements.washNextMonth, "click", () => changeWashMonth(1));
 on(elements.washExportPdfButton, "click", exportWashMonthPdf);
 on(elements.maintenancePrevMonth, "click", () => changeMaintenanceMonth(-1));
 on(elements.maintenanceNextMonth, "click", () => changeMaintenanceMonth(1));
+elements.maintenanceFamilyTabs.forEach((button) => {
+    on(button, "click", () => {
+        state.maintenanceFamilyFilter = String(button.dataset.maintenanceFamily || "TODOS").toUpperCase();
+        renderMaintenance();
+    });
+});
 on(elements.syncNowButton, "click", async () => {
     await syncPendingChecklists({ silent: false });
     await syncPendingMobileOperations({ silent: false });

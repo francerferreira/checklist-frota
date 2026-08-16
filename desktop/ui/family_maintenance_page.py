@@ -202,7 +202,10 @@ class FamilyMaintenancePage(QFrame):
         title_wrap = QVBoxLayout()
         title = QLabel(f"CORRETIVAS {self.family}")
         title.setObjectName("PageTitle")
-        subtitle = QLabel("Rotina direta da área: corretivas programadas e emergenciais, OS, preventivas e horímetros.")
+        subtitle = QLabel(
+            f"Fluxo padrão RTG/LBS: corretivas programadas e emergenciais, OS, preventivas e horímetros. "
+            f"Esta tela mostra somente o módulo {self.family}."
+        )
         subtitle.setObjectName("PageSubtitle")
         subtitle.setWordWrap(True)
         title_wrap.addWidget(title)
