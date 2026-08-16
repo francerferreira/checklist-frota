@@ -1,6 +1,7 @@
 ﻿from __future__ import annotations
 
-from PySide6.QtCore import QTimer, Qt, Signal
+from PySide6.QtCore import QThreadPool, QTimer, Qt, QRunnable, QObject, QSize, Signal
+from PySide6.QtGui import QIcon, QPixmap
 from PySide6.QtWidgets import (
     QCheckBox,
     QComboBox,
@@ -287,25 +288,37 @@ class EquipmentDialog(QDialog):
             field_layout.addWidget(widget)
             form_layout.addWidget(field, row, column, 1, col_span)
 
-        add_field(0, 0, "Identificação / Frota", self.frota_input, highlight=True)
-        add_field(0, 1, "Módulo", self.family_combo, highlight=True)
-        add_field(1, 0, "Tipo técnico", self.tipo_combo)
-        add_field(1, 1, "Placa", self.placa_input)
-        add_field(2, 0, "Ano", self.ano_input)
-        add_field(2, 1, "Modelo", self.modelo_input)
-        add_field(3, 0, "Número de série", self.serial_number_input, highlight=True)
-        add_field(3, 1, "Fabricante", self.manufacturer_input)
-        add_field(4, 0, "Capacidade", self.capacity_input)
-        add_field(4, 1, "Criticidade", self.criticality_combo, highlight=True)
-        add_field(5, 0, "Chassi", self.chassi_input)
-        add_field(5, 1, "Configuração", self.configuracao_input)
-        add_field(6, 0, "Atividade", self.atividade_input)
-        add_field(6, 1, "Status cadastral", self.status_combo, highlight=True)
-        add_field(7, 0, "Local operacional", self.location_combo, highlight=True)
-        add_field(7, 1, "Local legado / observação", self.local_input)
-        add_field(8, 0, "LBS vinculada (para Spreader)", self.parent_equipment_combo)
-        add_field(8, 1, "Tipo do vínculo", self.link_type_combo)
-        add_field(9, 0, "Descrição", self.descricao_input, 2)
+        def add_section(row: int, title: str):
+            section = QLabel(title)
+            section.setObjectName("SectionTitle")
+            form_layout.addWidget(section, row, 0, 1, 2)
+
+        add_section(0, "Identificação")
+        add_field(1, 0, "Identificação / Frota", self.frota_input, highlight=True)
+        add_field(1, 1, "Módulo", self.family_combo, highlight=True)
+        add_field(2, 0, "Tipo técnico", self.tipo_combo)
+        add_field(2, 1, "Placa", self.placa_input)
+        add_field(3, 0, "Ano", self.ano_input)
+        add_field(3, 1, "Modelo", self.modelo_input)
+        add_field(4, 0, "Número de série", self.serial_number_input, highlight=True)
+        add_field(4, 1, "Fabricante", self.manufacturer_input)
+        add_field(5, 0, "Capacidade", self.capacity_input)
+        add_field(5, 1, "Chassi", self.chassi_input)
+        add_field(6, 0, "Configuração", self.configuracao_input)
+        add_field(6, 1, "Atividade", self.atividade_input)
+
+        add_section(7, "Operação")
+        add_field(8, 0, "Criticidade", self.criticality_combo, highlight=True)
+        add_field(8, 1, "Status cadastral", self.status_combo, highlight=True)
+        add_field(9, 0, "Local operacional", self.location_combo, highlight=True)
+        add_field(9, 1, "Local legado / observação", self.local_input)
+
+        add_section(10, "Vínculos")
+        add_field(11, 0, "LBS vinculada (para Spreader)", self.parent_equipment_combo)
+        add_field(11, 1, "Tipo do vínculo", self.link_type_combo)
+
+        add_section(12, "Descrição e mídia")
+        add_field(13, 0, "Descrição", self.descricao_input, 2)
 
         media_field = QFrame()
         media_field.setObjectName("DialogInfoBlock")
@@ -323,7 +336,7 @@ class EquipmentDialog(QDialog):
         media_actions.addWidget(self.file_label, 1)
         media_layout.addLayout(media_actions)
         media_layout.addWidget(self.ativo_checkbox, 0, Qt.AlignLeft)
-        form_layout.addWidget(media_field, 10, 0, 1, 2)
+        form_layout.addWidget(media_field, 14, 0, 1, 2)
 
         footer = QFrame()
         footer.setObjectName("DialogFooter")
@@ -570,6 +583,28 @@ class SpreaderTimelineDialog(QDialog):
             show_notice(self, "Falha ao carregar linha do tempo", str(exc), icon_name="warning")
 
 
+class _ThumbnailSignals(QObject):
+    loaded = Signal(int, int, bytes)
+
+
+class _ThumbnailTask(QRunnable):
+    def __init__(self, api_client, generation: int, equipment_id: int, photo_path: str):
+        super().__init__()
+        self.api_client = api_client
+        self.generation = generation
+        self.equipment_id = equipment_id
+        self.photo_path = photo_path
+        self.signals = _ThumbnailSignals()
+
+    def run(self):
+        try:
+            image_data = self.api_client.fetch_image(self.photo_path)
+            if image_data:
+                self.signals.loaded.emit(self.generation, self.equipment_id, image_data)
+        except Exception:
+            return
+
+
 class EquipmentPage(QFrame):
     data_changed = Signal()
 
@@ -578,6 +613,8 @@ class EquipmentPage(QFrame):
         self.api_client = api_client
         self.items = []
         self.current_item = None
+        self._thumbnail_generation = 0
+        self._thumbnail_pool = QThreadPool(self)
         self._live_filter_timer = QTimer(self)
         self._live_filter_timer.setSingleShot(True)
         self._live_filter_timer.timeout.connect(self.refresh)
@@ -599,7 +636,7 @@ class EquipmentPage(QFrame):
         text_wrap.addWidget(title)
         text_wrap.addWidget(subtitle)
 
-        buttons = QHBoxLayout()
+        buttons = QGridLayout()
         buttons.setSpacing(8)
 
         self.add_button = QPushButton("Adicionar")
@@ -628,12 +665,16 @@ class EquipmentPage(QFrame):
         self.retire_button.setMinimumHeight(34)
         self.retire_button.clicked.connect(self.retire_selected)
 
-        buttons.addWidget(self.structure_button)
-        buttons.addWidget(self.add_button)
-        buttons.addWidget(self.edit_button)
-        buttons.addWidget(self.open_button)
-        buttons.addWidget(self.timeline_button)
-        buttons.addWidget(self.retire_button)
+        action_buttons = (
+            self.structure_button,
+            self.add_button,
+            self.edit_button,
+            self.open_button,
+            self.timeline_button,
+            self.retire_button,
+        )
+        for index, button in enumerate(action_buttons):
+            buttons.addWidget(button, index // 3, index % 3)
 
         header.addLayout(text_wrap)
         header.addStretch()
@@ -667,18 +708,16 @@ class EquipmentPage(QFrame):
         self.type_filter.addItem("LBSs", "lbs")
         self.type_filter.addItem("Spreaders", "spreader")
         self.type_filter.setMinimumHeight(34)
-        self.type_filter.currentIndexChanged.connect(self.refresh)
+        self.type_filter.currentIndexChanged.connect(lambda *_args: self.refresh())
 
-        filter_button = QPushButton("Aplicar filtros")
-        filter_button.setMinimumHeight(34)
-        filter_button.clicked.connect(self.refresh)
+        self.active_only_checkbox = QCheckBox("Somente ativos")
+        self.active_only_checkbox.setChecked(True)
+        self.active_only_checkbox.setMinimumHeight(34)
+        self.active_only_checkbox.stateChanged.connect(lambda *_args: self.refresh())
 
         filters.addWidget(self.search_input, 1)
         filters.addWidget(self.type_filter)
-        active_badge = QLabel("Exibe apenas ativos")
-        active_badge.setObjectName("TopBarPill")
-        filters.addWidget(active_badge)
-        filters.addWidget(filter_button)
+        filters.addWidget(self.active_only_checkbox)
 
         table_card = QFrame()
         style_table_card(table_card)
@@ -701,10 +740,17 @@ class EquipmentPage(QFrame):
         table_top.addWidget(self.summary_badge)
 
         table_caption = QLabel(
-            "A tabela e o foco principal desta tela. Clique duas vezes em qualquer linha para abrir a ficha completa."
+            "A tabela é o foco principal desta tela. Clique duas vezes em qualquer linha para abrir a ficha completa."
         )
         table_caption.setObjectName("SectionCaption")
         table_caption.setWordWrap(True)
+
+        self.empty_state = QLabel()
+        self.empty_state.setObjectName("SectionCaption")
+        self.empty_state.setAlignment(Qt.AlignCenter)
+        self.empty_state.setWordWrap(True)
+        self.empty_state.setMinimumHeight(180)
+        self.empty_state.hide()
 
         self.table = QTableWidget(0, 9)
         self.table.setHorizontalHeaderLabels(
@@ -718,6 +764,7 @@ class EquipmentPage(QFrame):
 
         table_layout.addLayout(table_top)
         table_layout.addWidget(table_caption)
+        table_layout.addWidget(self.empty_state)
         table_layout.addWidget(self.table)
 
         layout.addLayout(header)
@@ -760,7 +807,10 @@ class EquipmentPage(QFrame):
         return filtered
 
     def refresh(self, preferred_item_id: int | None = None):
-        rows = self.api_client.get_equipment(self.type_filter.currentData() or None, True)
+        self._thumbnail_generation += 1
+        self._thumbnail_pool.clear()
+        active_filter = True if self.active_only_checkbox.isChecked() else None
+        rows = self.api_client.get_equipment(self.type_filter.currentData() or None, active_filter)
         self.items = self._filtered_rows(rows)
         self.table.setSortingEnabled(False)
         self.table.setUpdatesEnabled(False)
@@ -780,13 +830,30 @@ class EquipmentPage(QFrame):
                 self.table.setItem(row, 5, make_table_item(item.get("status") or ""))
                 self.table.setItem(row, 6, make_table_item(item.get("criticality") or "MEDIA"))
                 self.table.setItem(row, 7, make_table_item(location.get("full_name") or item.get("local") or ""))
-                self.table.setItem(row, 8, make_table_item("Sim" if item.get("foto_path") else "Não"))
+                photo_path = item.get("foto_path")
+                photo_item = make_table_item("Com foto" if photo_path else "Sem foto")
+                if photo_path:
+                    photo_item.setToolTip("Carregando miniatura... Abra a ficha para visualizar em tamanho completo.")
+                    self._queue_thumbnail(row, item)
+                self.table.setItem(row, 8, photo_item)
         finally:
             self.table.blockSignals(False)
             self.table.setUpdatesEnabled(True)
             self.table.setSortingEnabled(True)
 
         self.summary_badge.setText(f"{len(self.items)} registros")
+        if self.items:
+            self.empty_state.hide()
+            self.table.show()
+        else:
+            self.table.hide()
+            if self.search_input.text().strip():
+                self.empty_state.setText("Nenhum equipamento encontrado para esta busca.\nAjuste o texto ou limpe o filtro.")
+            elif self.active_only_checkbox.isChecked():
+                self.empty_state.setText("Nenhum equipamento ativo encontrado.\nDesmarque ‘Somente ativos’ para consultar a base completa.")
+            else:
+                self.empty_state.setText("Nenhum equipamento cadastrado para os filtros selecionados.")
+            self.empty_state.show()
         if self.items:
             selected_row = 0
             if preferred_item_id is not None:
@@ -803,9 +870,38 @@ class EquipmentPage(QFrame):
 
     def set_loading_state(self, loading: bool):
         if loading:
+            self.empty_state.hide()
+            self.table.show()
             self.table_skeleton.show_skeleton("Carregando base de equipamentos")
         else:
             self.table_skeleton.hide_skeleton()
+
+    def _queue_thumbnail(self, row: int, item: dict):
+        equipment_id = int(item.get("id") or 0)
+        photo_path = str(item.get("foto_path") or "")
+        if not equipment_id or not photo_path:
+            return
+        task = _ThumbnailTask(self.api_client, self._thumbnail_generation, equipment_id, photo_path)
+        task.signals.loaded.connect(self._apply_thumbnail)
+        self._thumbnail_pool.start(task)
+
+    def _apply_thumbnail(self, generation: int, equipment_id: int, image_data: bytes):
+        if generation != self._thumbnail_generation:
+            return
+        for row in range(self.table.rowCount()):
+            item = self._item_for_row(row)
+            if int((item or {}).get("id") or 0) != equipment_id:
+                continue
+            pixmap = QPixmap()
+            if not pixmap.loadFromData(image_data):
+                return
+            thumbnail = pixmap.scaled(QSize(34, 34), Qt.KeepAspectRatio, Qt.SmoothTransformation)
+            cell = self.table.item(row, 8)
+            if cell is not None:
+                cell.setIcon(QIcon(thumbnail))
+                cell.setText("")
+                cell.setToolTip("Miniatura carregada. Abra a ficha para visualizar em tamanho completo.")
+            return
 
     def _selection_changed(self):
         selected = self.table.selectedRanges()
