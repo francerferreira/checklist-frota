@@ -16,8 +16,8 @@ class WebMobileShellContractTests(unittest.TestCase):
         cls.legacy_readme = LEGACY_README_PATH.read_text(encoding="utf-8")
 
     def test_index_uses_canonical_frontend_bundle(self):
-        self.assertIn('./static/js/app.js?v=20260817-05', self.index_html)
-        self.assertIn('./static/css/styles.css?v=20260817-05', self.index_html)
+        self.assertIn('./static/js/app.js?v=20260817-06', self.index_html)
+        self.assertIn('./static/css/styles.css?v=20260817-06', self.index_html)
         self.assertNotIn("app-20260419-", self.index_html)
 
     def test_login_uses_institutional_glass_layout_with_sis_mmp_identity(self):
@@ -373,6 +373,13 @@ class WebMobileShellContractTests(unittest.TestCase):
         self.assertIn(".special-schedule-filter > label { color: #111827; text-shadow: none; }", styles)
         self.assertIn("color: #111827 !important;", styles)
         self.assertIn("text-shadow: none;", styles)
+
+    def test_local_web_prefers_local_api_and_keeps_explicit_api_override(self):
+        app_js = (PROJECT_ROOT / "web_app" / "static" / "js" / "app.js").read_text(encoding="utf-8")
+        self.assertIn("const isLocalAccess = currentHost === \"127.0.0.1\" || currentHost === \"localhost\";", app_js)
+        self.assertIn("if (isLocalAccess) {", app_js)
+        self.assertIn("const localUrl = isSavedLocal ? savedUrl : currentUrl;", app_js)
+        self.assertIn("?api=", app_js)
 
     def test_technical_library_is_available_for_field_consultation(self):
         app_js = (PROJECT_ROOT / "web_app" / "static" / "js" / "app.js").read_text(encoding="utf-8")

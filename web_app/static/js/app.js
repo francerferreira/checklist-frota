@@ -764,12 +764,22 @@ function resolveApiBaseUrl() {
     const currentHost = window.location.hostname || "127.0.0.1";
     const currentProtocol = window.location.protocol === "https:" ? "https:" : "http:";
     const currentUrl = `${currentProtocol}//${currentHost}:5000`;
+    const isLocalAccess = currentHost === "127.0.0.1" || currentHost === "localhost";
     const isRemoteAccess = currentHost !== "127.0.0.1" && currentHost !== "localhost";
     const isSavedLocal = savedUrl?.includes("127.0.0.1") || savedUrl?.includes("localhost");
 
     if (requestedUrl && /^https?:\/\//i.test(requestedUrl)) {
         localStorage.setItem("apiBaseUrl", requestedUrl);
         return requestedUrl;
+    }
+
+    // Quando a Web é aberta localmente, a fonte de dados principal é o
+    // backend local. A URL pública só deve ser usada mediante o parâmetro
+    // ?api= ou quando a interface estiver hospedada fora do computador.
+    if (isLocalAccess) {
+        const localUrl = isSavedLocal ? savedUrl : currentUrl;
+        localStorage.setItem("apiBaseUrl", localUrl);
+        return localUrl;
     }
 
     if (configuredUrl && (!savedUrl || isSavedLocal)) {
