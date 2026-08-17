@@ -14,7 +14,7 @@
     <title>SIS MMP | Sistema de Manutenção de Máquinas Pesadas</title>
     <link rel="icon" type="image/png" sizes="192x192" href="./static/icons/icon-192.png?v=sis-mmp-20260810">
     <link rel="apple-touch-icon" href="./static/icons/icon-192.png?v=sis-mmp-20260810">
-    <link rel="stylesheet" href="./static/css/styles.css?v=20260817-07">
+    <link rel="stylesheet" href="./static/css/styles.css?v=20260817-08">
 </head>
 <body>
     <div class="mobile-shell">
@@ -39,6 +39,29 @@
                             <div><span>NOTIFICAÇÕES</span><strong id="topbar-notifications-count">Nenhuma não lida</strong></div>
                             <button id="topbar-notifications-mark-read" type="button">MARCAR TODAS COMO LIDAS</button>
                         </header>
+                        <div class="topbar-notifications-filters" role="group" aria-label="Filtros de notificações">
+                            <label><span>ORIGEM</span><select id="topbar-notifications-origin-filter" aria-label="Filtrar por origem">
+                                <option value="">TODAS</option>
+                                <option value="MAINTENANCE">MANUTENÇÃO</option>
+                                <option value="HR">RH</option>
+                                <option value="PURCHASES">COMPRAS</option>
+                                <option value="MMP_STOCK">ESTOQUE MMP</option>
+                                <option value="EMERGENCY">EMERGÊNCIA</option>
+                                <option value="EQUIPMENT">EQUIPAMENTOS</option>
+                                <option value="ADMIN">ADMINISTRAÇÃO</option>
+                            </select></label>
+                            <label><span>PRIORIDADE</span><select id="topbar-notifications-priority-filter" aria-label="Filtrar por prioridade">
+                                <option value="">TODAS</option>
+                                <option value="INFO">INFORMAÇÃO</option>
+                                <option value="SUCCESS">SUCESSO</option>
+                                <option value="WARNING">ATENÇÃO</option>
+                                <option value="CRITICAL">CRÍTICA</option>
+                            </select></label>
+                            <label><span>DE</span><input id="topbar-notifications-from-filter" type="date" aria-label="Data inicial"></label>
+                            <label><span>ATÉ</span><input id="topbar-notifications-to-filter" type="date" aria-label="Data final"></label>
+                            <button id="topbar-notifications-reset-filters" class="topbar-notifications-reset" type="button">LIMPAR FILTROS</button>
+                        </div>
+                        <p id="topbar-notifications-filter-summary" class="topbar-notifications-filter-summary" aria-live="polite"></p>
                         <div id="topbar-notifications-list" class="topbar-notifications-list" aria-live="polite"></div>
                         <button id="topbar-notifications-clear" class="topbar-notifications-clear" type="button">LIMPAR HISTÓRICO</button>
                     </section>
@@ -1397,7 +1420,7 @@
 
     <div id="toast" class="toast hidden"></div>
     <script src="./static/js/config.js?v=20260719-01"></script>
-    <script src="./static/js/app.js?v=20260817-07"></script>
+    <script src="./static/js/app.js?v=20260817-08"></script>
 </body>
 </html>
 

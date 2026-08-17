@@ -30,6 +30,7 @@ const SESSION_INACTIVITY_LIMIT_MS = 30 * 60 * 1000;
 const THEME_STORAGE_KEY = "sisMmpTheme";
 const NOTIFICATIONS_STORAGE_KEY = "sisMmpNotifications";
 const NOTIFICATION_CENTER_STORAGE_KEY = "sisMmpNotificationCenter";
+const NOTIFICATION_FILTER_STORAGE_KEY = "sisMmpNotificationFilters";
 const NOTIFICATION_CENTER_LIMIT = 40;
 const LANGUAGE_STORAGE_KEY = "sisMmpLanguage";
 const DENSITY_STORAGE_KEY = "sisMmpDensity";
@@ -364,6 +365,12 @@ const elements = {
     topbarNotificationsList: document.getElementById("topbar-notifications-list"),
     topbarNotificationsMarkRead: document.getElementById("topbar-notifications-mark-read"),
     topbarNotificationsClear: document.getElementById("topbar-notifications-clear"),
+    topbarNotificationsOriginFilter: document.getElementById("topbar-notifications-origin-filter"),
+    topbarNotificationsPriorityFilter: document.getElementById("topbar-notifications-priority-filter"),
+    topbarNotificationsFromFilter: document.getElementById("topbar-notifications-from-filter"),
+    topbarNotificationsToFilter: document.getElementById("topbar-notifications-to-filter"),
+    topbarNotificationsResetFilters: document.getElementById("topbar-notifications-reset-filters"),
+    topbarNotificationsFilterSummary: document.getElementById("topbar-notifications-filter-summary"),
     topbarUserSettingsButton: document.getElementById("topbar-user-settings-button"),
     topbarSettingsMenu: document.getElementById("topbar-settings-menu"),
     topbarSettingsItems: Array.from(document.querySelectorAll("[data-settings-action]")),
@@ -1117,8 +1124,94 @@ function saveInternalNotifications(notifications) {
     );
 }
 
+function readNotificationFilters() {
+    const stored = readJsonStorage(NOTIFICATION_FILTER_STORAGE_KEY, {});
+    return {
+        origin: notificationOriginKey(stored?.origin || ""),
+        priority: String(stored?.priority || "").toUpperCase(),
+        from: String(stored?.from || ""),
+        to: String(stored?.to || ""),
+    };
+}
+
+function notificationOriginKey(value) {
+    const normalized = String(value || "")
+        .normalize("NFD")
+        .replace(/[\u0300-\u036f]/g, "")
+        .trim()
+        .toUpperCase()
+        .replace(/\s+/g, "_");
+    return {
+        MANUTENCAO: "MAINTENANCE",
+        RH: "HR",
+        HR: "HR",
+        COMPRAS: "PURCHASES",
+        ESTOQUE_MMP: "MMP_STOCK",
+        EMERGENCIA: "EMERGENCY",
+        EQUIPAMENTOS: "EQUIPMENT",
+        ADMINISTRACAO: "ADMIN",
+    }[normalized] || normalized;
+}
+
+function saveNotificationFilters(filters) {
+    localStorage.setItem(NOTIFICATION_FILTER_STORAGE_KEY, JSON.stringify(filters));
+}
+
+function syncNotificationFilterControls() {
+    const filters = readNotificationFilters();
+    if (elements.topbarNotificationsOriginFilter) elements.topbarNotificationsOriginFilter.value = filters.origin;
+    if (elements.topbarNotificationsPriorityFilter) elements.topbarNotificationsPriorityFilter.value = filters.priority;
+    if (elements.topbarNotificationsFromFilter) elements.topbarNotificationsFromFilter.value = filters.from;
+    if (elements.topbarNotificationsToFilter) elements.topbarNotificationsToFilter.value = filters.to;
+    return filters;
+}
+
+function notificationDateKey(value) {
+    const date = new Date(value || "");
+    if (Number.isNaN(date.getTime())) return "";
+    const parts = new Intl.DateTimeFormat("en-US", {
+        timeZone: MANAUS_TIME_ZONE,
+        year: "numeric",
+        month: "2-digit",
+        day: "2-digit",
+    }).formatToParts(date).reduce((result, part) => {
+        if (part.type !== "literal") result[part.type] = part.value;
+        return result;
+    }, {});
+    return `${parts.year}-${parts.month}-${parts.day}`;
+}
+
+function notificationMatchesFilters(item, filters) {
+    const origin = notificationOriginKey(item.origin || "SYSTEM");
+    const priority = String(item.type || "INFO").toUpperCase();
+    const date = notificationDateKey(item.createdAt);
+    if (filters.origin && origin !== filters.origin) return false;
+    if (filters.priority && priority !== filters.priority) return false;
+    if (filters.from && (!date || date < filters.from)) return false;
+    if (filters.to && (!date || date > filters.to)) return false;
+    return true;
+}
+
+function notificationFiltersActive(filters) {
+    return Boolean(filters.origin || filters.priority || filters.from || filters.to);
+}
+
+function renderNotificationFilterSummary(total, visible, filters) {
+    if (!elements.topbarNotificationsFilterSummary) return;
+    const english = document.documentElement.lang === "en-US";
+    if (!notificationFiltersActive(filters)) {
+        elements.topbarNotificationsFilterSummary.textContent = "";
+        return;
+    }
+    elements.topbarNotificationsFilterSummary.textContent = english
+        ? `${visible} of ${total} notifications shown.`
+        : `${visible} de ${total} notificações exibidas.`;
+}
+
 function renderInternalNotifications() {
     const notifications = readInternalNotifications();
+    const filters = syncNotificationFilterControls();
+    const visibleNotifications = notifications.filter((item) => notificationMatchesFilters(item, filters));
     const unread = notifications.filter((item) => !item.read).length;
     const english = document.documentElement.lang === "en-US";
     if (elements.topbarNotificationsBadge) {
@@ -1130,12 +1223,16 @@ function renderInternalNotifications() {
             ? (english ? `${unread} unread` : `${unread} não lida(s)`)
             : (english ? "No unread notifications" : "Nenhuma não lida");
     }
+    renderNotificationFilterSummary(notifications.length, visibleNotifications.length, filters);
     if (!elements.topbarNotificationsList) return;
-    if (!notifications.length) {
-        elements.topbarNotificationsList.innerHTML = `<p class="topbar-notifications-empty">${english ? "No internal notifications." : "Nenhuma notificação interna."}</p>`;
+    if (!visibleNotifications.length) {
+        const emptyMessage = notifications.length && notificationFiltersActive(filters)
+            ? (english ? "No notification matches the selected filters." : "Nenhuma notificação corresponde aos filtros selecionados.")
+            : (english ? "No internal notifications." : "Nenhuma notificação interna.");
+        elements.topbarNotificationsList.innerHTML = `<p class="topbar-notifications-empty">${emptyMessage}</p>`;
         return;
     }
-    elements.topbarNotificationsList.innerHTML = notifications.map((item) => `
+    elements.topbarNotificationsList.innerHTML = visibleNotifications.map((item) => `
         <article class="topbar-notification-item ${item.read ? "" : "is-unread"}">
             <span class="topbar-notification-dot" aria-hidden="true"></span>
             <div><strong>${escapeHtml(localizedMessage(item.title || (english ? "Notification" : "Notificação")))}</strong>
@@ -1143,6 +1240,21 @@ function renderInternalNotifications() {
             <small>${escapeHtml(formatManausDateTime(item.createdAt, { short: true }))}</small></div>
         </article>
     `).join("");
+}
+
+function updateNotificationFilters() {
+    saveNotificationFilters({
+        origin: elements.topbarNotificationsOriginFilter?.value || "",
+        priority: elements.topbarNotificationsPriorityFilter?.value || "",
+        from: elements.topbarNotificationsFromFilter?.value || "",
+        to: elements.topbarNotificationsToFilter?.value || "",
+    });
+    renderInternalNotifications();
+}
+
+function clearNotificationFilters() {
+    saveNotificationFilters({ origin: "", priority: "", from: "", to: "" });
+    renderInternalNotifications();
 }
 
 function addInternalNotification(title, message, type = "info") {
@@ -9496,6 +9608,11 @@ on(elements.topbarNotificationsButton, "click", (event) => {
 });
 on(elements.topbarNotificationsMarkRead, "click", markInternalNotificationsRead);
 on(elements.topbarNotificationsClear, "click", clearInternalNotifications);
+on(elements.topbarNotificationsOriginFilter, "change", updateNotificationFilters);
+on(elements.topbarNotificationsPriorityFilter, "change", updateNotificationFilters);
+on(elements.topbarNotificationsFromFilter, "change", updateNotificationFilters);
+on(elements.topbarNotificationsToFilter, "change", updateNotificationFilters);
+on(elements.topbarNotificationsResetFilters, "click", clearNotificationFilters);
 on(elements.topbarSettingsMenu, "click", (event) => {
     const button = event.target instanceof HTMLElement ? event.target.closest("[data-settings-action]") : null;
     if (button) openTopbarSettingsAction(button.dataset.settingsAction || "");
