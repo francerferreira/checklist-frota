@@ -5,6 +5,7 @@ from app.models import PasswordResetRequest, User
 from app.services.audit_service import record_event, record_login_event, record_logout_event
 from app.services.auth_service import auth_required, generate_token, revoke_token
 from app.services.identity_service import normalize_login
+from app.services.notification_service import create_notification
 from app.utils.responses import api_response
 from app.utils.timezone import now_manaus_naive
 
@@ -33,6 +34,15 @@ def login():
         return api_response(False, error="Login ou senha invalidos.", status_code=401)
 
     record_login_event(user, success=True)
+    create_notification(
+        user_id=user.id,
+        title="Acesso realizado",
+        message="Sua sessão no SIS MMP foi iniciada.",
+        priority="SUCCESS",
+        origin="AUTH",
+        entity_type="SESSION",
+        entity_id=user.id,
+    )
     db.session.commit()
     return api_response(
         True,

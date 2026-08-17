@@ -1159,12 +1159,61 @@ function addInternalNotification(title, message, type = "info") {
     renderInternalNotifications();
 }
 
-function markInternalNotificationsRead() {
+function normalizeServerNotification(item) {
+    return {
+        id: `server-${item.id}`,
+        serverId: item.id,
+        title: item.title,
+        message: item.message,
+        type: String(item.priority || "INFO").toLowerCase(),
+        origin: item.origin || "SYSTEM",
+        entityType: item.entity_type || null,
+        entityId: item.entity_id || null,
+        createdAt: item.created_at,
+        read: Boolean(item.read_at || item.read),
+        server: true,
+    };
+}
+
+async function syncServerNotifications({ silent = true } = {}) {
+    if (!state.token || !state.user) return false;
+    try {
+        const payload = await apiFetch("/notifications?limit=40");
+        const items = Array.isArray(payload) ? payload : (payload?.items || []);
+        saveInternalNotifications(items.map(normalizeServerNotification));
+        renderInternalNotifications();
+        return true;
+    } catch (error) {
+        if (!silent) showToast(error.message || "NÃO FOI POSSÍVEL ATUALIZAR AS NOTIFICAÇÕES.", true);
+        return false;
+    }
+}
+
+async function markInternalNotificationsRead() {
+    if (state.token) {
+        try {
+            await apiFetch("/notifications/read-all", { method: "POST" });
+            await syncServerNotifications();
+            return;
+        } catch {
+            // O histórico local continua disponível quando o servidor está offline.
+        }
+    }
     saveInternalNotifications(readInternalNotifications().map((item) => ({ ...item, read: true })));
     renderInternalNotifications();
 }
 
-function clearInternalNotifications() {
+async function clearInternalNotifications() {
+    if (state.token) {
+        try {
+            await apiFetch("/notifications", { method: "DELETE" });
+            saveInternalNotifications([]);
+            renderInternalNotifications();
+            return;
+        } catch {
+            // Permite limpar a cópia local mesmo sem conexão.
+        }
+    }
     saveInternalNotifications([]);
     renderInternalNotifications();
 }
@@ -1174,9 +1223,10 @@ function closeTopbarNotificationsMenu() {
     elements.topbarNotificationsButton?.setAttribute("aria-expanded", "false");
 }
 
-function toggleTopbarNotificationsMenu() {
+async function toggleTopbarNotificationsMenu() {
     if (!elements.topbarNotificationsMenu || !state.user) return;
     closeTopbarSettingsMenu();
+    await syncServerNotifications();
     renderInternalNotifications();
     const open = elements.topbarNotificationsMenu.classList.toggle("hidden");
     elements.topbarNotificationsButton?.setAttribute("aria-expanded", String(!open));
@@ -1574,7 +1624,6 @@ async function login(credentials) {
     state.firstAccessRequired = Boolean(payload.first_access_required);
     state.user.first_access_required = state.firstAccessRequired;
     saveSession(payload.token, payload.user);
-    addInternalNotification("Acesso realizado", "Sua sessão no SIS MMP foi iniciada.", "success");
 }
 
 async function bootstrap() {
@@ -1598,6 +1647,7 @@ async function bootstrap() {
 
 async function enterAuthenticatedApp() {
     try {
+        await syncServerNotifications();
         if (state.firstAccessRequired || state.user?.first_access_required) {
             setActiveScreen("home");
             openFirstAccessModal();
@@ -9798,6 +9848,7 @@ window.addEventListener("offline", updateConnectionStatus);
 window.addEventListener("visibilitychange", () => {
     if (document.visibilityState === "visible") {
         trackSessionActivity();
+        syncServerNotifications();
     }
 });
 window.addEventListener("focus", trackSessionActivity);

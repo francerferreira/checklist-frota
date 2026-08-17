@@ -18,6 +18,7 @@ from app.models.material import Material, MaterialMovement
 from app.models.mechanic_non_conformity import MechanicNonConformity
 from app.models.mobile_operation import MobileSyncOperation
 from app.models.navigation import UserNavigationPreference, UserPagePermission
+from app.models.notification import Notification
 from app.models.operational_availability import EquipmentOperationalState, EquipmentStatusEvent, HourmeterReading
 from app.models.pcm import PreventivePlan
 from app.models.preventive import PreventiveExecution, PreventiveMaterial, PreventiveStage
@@ -89,6 +90,7 @@ __all__ = [
     "MobileSyncOperation",
     "UserNavigationPreference",
     "UserPagePermission",
+    "Notification",
     "OperationalLocation",
     "PreventivePlan",
     "PreventiveExecution",
