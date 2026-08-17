@@ -872,6 +872,111 @@ const I18N_MESSAGES = {
     },
 };
 
+// Mensagens devolvidas pela API. O backend continua com seu contrato em
+// português; a Web traduz a mensagem somente no ponto de apresentação.
+const API_MESSAGE_TRANSLATIONS = {
+    "Login ou senha invalidos.": "Invalid login or password.",
+    "Nao autorizado.": "Not authorized.",
+    "Não autorizado.": "Not authorized.",
+    "Servidor indisponível ou sem conexão.": "Server unavailable or offline.",
+    "FALHA NA COMUNICAÇÃO COM A API.": "API communication failed.",
+    "Veículo não encontrado.": "Vehicle not found.",
+    "Ordem de serviço não encontrada.": "Work order not found.",
+    "Colaborador nao encontrado.": "Employee not found.",
+    "Colaborador não encontrado.": "Employee not found.",
+    "Material nao encontrado.": "Material not found.",
+    "Backup nao encontrado.": "Backup not found.",
+    "Escala não encontrada.": "Roster not found.",
+    "Nenhuma não conformidade encontrada.": "No nonconformities found.",
+    "Checklist incompleto.": "Checklist incomplete.",
+    "Solicitação de reset não encontrada ou já atendida.": "Password reset request not found or already handled.",
+    "A nova senha deve ter pelo menos 6 caracteres.": "The new password must contain at least 6 characters.",
+    "Informe uma nova senha com pelo menos 6 caracteres.": "Enter a new password with at least 6 characters.",
+    "Senha atual invalida.": "Current password is invalid.",
+    "Informe a senha atual e a nova senha.": "Enter the current and new passwords.",
+    "Login ja cadastrado.": "Login is already registered.",
+    "Ja existe um item com este nome para este tipo de equipamento.": "An item with this name already exists for this equipment type.",
+    "Ja existe um material com esta referencia.": "A material with this reference already exists.",
+    "Ja existe leitura neste mesmo instante.": "A reading already exists for this exact time.",
+    "A data final deve ser maior ou igual à data inicial.": "The end date must be on or after the start date.",
+    "A escala já possui lançamento para um dos colaboradores.": "This roster already has an entry for one of the employees.",
+    "Esta escala já foi concluída.": "This roster has already been completed.",
+    "Este periodo de ferias ja esta cancelado.": "This vacation period has already been cancelled.",
+    "Lancamento cancelado nao pode ser alterado.": "A cancelled entry cannot be changed.",
+    "Lancamento ja esta cancelado.": "This entry has already been cancelled.",
+    "Não foi possível registrar a presença e a DSR.": "Attendance and the weekly roster could not be recorded.",
+    "Não foi possível identificar equipamentos válidos.": "Valid equipment could not be identified.",
+    "Não é permitido alterar material de item já instalado.": "The material of an installed item cannot be changed.",
+    "Importação direta de NC para manutenção foi desativada. Use a Central de Resolução para criar pacote e depois enviar para a manutenção.": "Direct nonconformity import to maintenance is disabled. Use the Resolution Center to create a package and send it to maintenance.",
+    "Este login nao esta vinculado a um colaborador.": "This login is not linked to an employee.",
+    "Este login não está vinculado a um colaborador.": "This login is not linked to an employee.",
+    "Acesso restrito a manutencao.": "Access restricted to maintenance.",
+    "Acesso negado para resolução.": "Access denied for resolution.",
+    "Acesso negado para abertura de atividade.": "Access denied for opening an activity.",
+    "Perfil sem permissão para registrar aplicação no Estoque MMP.": "Your profile cannot register an issue in MMP Stock.",
+    "Material informado é inválido ou inativo.": "The selected material is invalid or inactive.",
+    "Material inválido ou inativo.": "Material is invalid or inactive.",
+    "Quantidade deve ser maior que zero.": "Quantity must be greater than zero.",
+    "Quantidade por equipamento inválida.": "Quantity per equipment is invalid.",
+    "Quantidade do material inválida.": "Material quantity is invalid.",
+    "Informe ao menos um campo de material para atualizar.": "Enter at least one material field to update.",
+    "Selecione ao menos um equipamento para atualizar material.": "Select at least one equipment to update the material.",
+    "Selecione ao menos um equipamento para a atividade.": "Select at least one equipment for the activity.",
+    "Selecione ao menos um equipamento para atualizar material.": "Select at least one equipment to update the material.",
+    "Informe a não conformidade para abrir a atividade.": "Enter the nonconformity to open the activity.",
+    "Informe o colaborador.": "Select an employee.",
+    "Informe o mecânico para consulta.": "Select a mechanic for the query.",
+    "Informe o motivo do cancelamento.": "Enter the cancellation reason.",
+    "Informe o motivo da correcao.": "Enter the correction reason.",
+    "Informe o usuário para solicitar o reset.": "Enter the user to request a reset.",
+    "Informe codigo e nome da familia.": "Enter the family code and name.",
+    "Informe codigo e nome do local.": "Enter the location code and name.",
+    "Informe o Spreader do vinculo.": "Select the Spreader for the link.",
+    "Selecione DOMINGO ou FERIADO para o tipo da escala.": "Select SUNDAY or HOLIDAY as the roster type.",
+    "A busca pode ter no maximo 80 caracteres.": "The search can contain up to 80 characters.",
+    "Informe ao menos 2 caracteres para a busca.": "Enter at least 2 characters to search.",
+    "Tipo de local invalido.": "Location type is invalid.",
+    "Local superior invalido.": "Parent location is invalid.",
+    "Local superior nao encontrado.": "Parent location not found.",
+    "Um local nao pode ser superior de si mesmo.": "A location cannot be its own parent.",
+    "Spreader nao encontrado.": "Spreader not found.",
+    "Formato de exportacao invalido.": "Export format is invalid.",
+    "Formato invalido. Use json, csv ou xlsx.": "Invalid format. Use json, csv or xlsx.",
+    "Arquivo de inventário não encontrado.": "Inventory file not found.",
+    "Envie o arquivo Excel no campo file ou informe source_path.": "Upload the Excel file in the file field or provide source_path.",
+};
+
+const API_MESSAGE_REPLACEMENTS = [
+    [/^Somente admin, gestor ou mecânico podem/i, "Only an administrator, manager or mechanic can"],
+    [/^Somente admin ou gestor podem/i, "Only an administrator or manager can"],
+    [/^Somente admin pode/i, "Only an administrator can"],
+    [/^Somente o administrador pode/i, "Only the administrator can"],
+    [/^Somente gestão/i, "Only management"],
+    [/^Somente admin/i, "Only an administrator can"],
+    [/^Apenas admin ou gestor pode/i, "Only an administrator or manager can"],
+    [/^Acesso restrito/i, "Access restricted"],
+    [/^Acesso negado/i, "Access denied"],
+    [/^Não autorizado\.?$/i, "Not authorized."],
+    [/^Nao autorizado\.?$/i, "Not authorized."],
+    [/\bgerenciar\b/gi, "manage"],
+    [/\bconsultar\b/gi, "view"],
+    [/\bacessar\b/gi, "access"],
+    [/\bvisualizar\b/gi, "view"],
+    [/\bexportar\b/gi, "export"],
+    [/\bcriar\b/gi, "create"],
+    [/\batualizar\b/gi, "update"],
+    [/\beditar\b/gi, "edit"],
+    [/\bregistrar\b/gi, "record"],
+    [/\brealizar\b/gi, "perform"],
+    [/\bgerar\b/gi, "generate"],
+    [/\binválid[ao]\b/gi, "invalid"],
+    [/\binvalido\b/gi, "invalid"],
+    [/\bnão encontrado\b/gi, "not found"],
+    [/\bnao encontrado\b/gi, "not found"],
+    [/\bnão encontrada\b/gi, "not found"],
+    [/\bnao encontrada\b/gi, "not found"],
+];
+
 const i18nOriginalTextNodes = new WeakMap();
 const i18nOriginalAttributes = new WeakMap();
 
@@ -886,8 +991,11 @@ function translateStaticText(language) {
         const raw = node.nodeValue || "";
         const current = raw.trim();
         if (!current) return;
-        const original = i18nOriginalTextNodes.get(node) || current;
+        const original = (parent === elements.topbarContext && parent.dataset.i18nKey)
+            || i18nOriginalTextNodes.get(node)
+            || current;
         i18nOriginalTextNodes.set(node, original);
+        if (parent.childNodes.length === 1 && !parent.dataset.i18nKey) parent.dataset.i18nKey = original;
         const translated = messages[original] || original;
         node.nodeValue = raw.replace(current, translated);
     });
@@ -902,11 +1010,18 @@ function translateStaticText(language) {
         });
         i18nOriginalAttributes.set(element, attrs);
     });
+    if (elements.topbarContext?.dataset.i18nKey) {
+        elements.topbarContext.textContent = localizedMessage(elements.topbarContext.dataset.i18nKey).toUpperCase();
+    }
 }
 
 function localizedMessage(value) {
     const language = document.documentElement.lang === "en-US" ? "en-US" : "pt-BR";
-    return I18N_MESSAGES[language]?.[value] || value;
+    const message = String(value ?? "");
+    if (language !== "en-US" || !message) return message;
+    if (I18N_MESSAGES[language]?.[message]) return I18N_MESSAGES[language][message];
+    if (API_MESSAGE_TRANSLATIONS[message]) return API_MESSAGE_TRANSLATIONS[message];
+    return API_MESSAGE_REPLACEMENTS.reduce((current, [pattern, replacement]) => current.replace(pattern, replacement), message);
 }
 
 function applyTheme(theme) {
@@ -1142,7 +1257,7 @@ function registerServiceWorker() {
 }
 
 function showToast(message, isError = false) {
-    elements.toast.textContent = message;
+    elements.toast.textContent = localizedMessage(message);
     elements.toast.classList.toggle("error", isError);
     elements.toast.classList.remove("hidden");
     window.clearTimeout(showToast.timeoutId);
@@ -1157,8 +1272,8 @@ function renderStateCard(target, { title, message = "", tone = "neutral", compac
     }
     target.innerHTML = `
         <article class="state-card ${tone}${compact ? " compact" : ""}">
-            <strong>${escapeHtml(title || "AGUARDE")}</strong>
-            ${message ? `<span>${escapeHtml(message)}</span>` : ""}
+            <strong>${escapeHtml(localizedMessage(title || "AGUARDE"))}</strong>
+            ${message ? `<span>${escapeHtml(localizedMessage(message))}</span>` : ""}
         </article>
     `;
 }
@@ -1172,7 +1287,7 @@ function setLoginStatus(message, isError = false) {
     if (!status) {
         return;
     }
-    status.textContent = message || "";
+    status.textContent = localizedMessage(message || "");
     status.className = `login-status${isError ? " error" : ""}`;
 }
 
@@ -1192,7 +1307,8 @@ function setActiveScreen(key) {
 
 function topbarActionLabel(action) {
     const button = elements.topbarActionButtons.find((item) => item.dataset.topbarAction === action);
-    return button?.querySelector("strong")?.textContent?.trim().toUpperCase() || localizedMessage("CENTRAL OPERACIONAL");
+    const strong = button?.querySelector("strong");
+    return localizedMessage(strong?.dataset.i18nKey || strong?.textContent?.trim() || "CENTRAL OPERACIONAL").toUpperCase();
 }
 
 function topbarUserInitials(name) {
@@ -1252,7 +1368,12 @@ function syncTopbarActiveScreen(screenKey) {
     document.querySelectorAll(".topbar-module[data-topbar-module]").forEach((module) => {
         module.classList.toggle("has-active-item", Boolean(module.querySelector("[data-topbar-action].is-active")));
     });
-    if (elements.topbarContext) elements.topbarContext.textContent = selectedAction ? topbarActionLabel(selectedAction) : localizedMessage("CENTRAL OPERACIONAL");
+    if (elements.topbarContext) {
+        const activeButton = elements.topbarActionButtons.find((button) => button.dataset.topbarAction === selectedAction);
+        const sourceLabel = activeButton?.querySelector("strong")?.dataset.i18nKey || "CENTRAL OPERACIONAL";
+        elements.topbarContext.dataset.i18nKey = selectedAction ? sourceLabel : "CENTRAL OPERACIONAL";
+        elements.topbarContext.textContent = selectedAction ? topbarActionLabel(selectedAction) : localizedMessage("CENTRAL OPERACIONAL");
+    }
 }
 
 function setTopbarModuleOpen(moduleKey, open) {
@@ -1373,7 +1494,7 @@ async function apiFetch(path, options = {}) {
 
         const body = await response.json().catch(() => ({}));
         if (!response.ok || (Object.prototype.hasOwnProperty.call(body, "success") && body.success === false)) {
-            const error = new Error(body.error || body.message || "FALHA NA COMUNICAÇÃO COM A API.");
+            const error = new Error(localizedMessage(body.error || body.message || "FALHA NA COMUNICAÇÃO COM A API."));
             error.status = response.status;
             throw error;
         }
@@ -1381,10 +1502,10 @@ async function apiFetch(path, options = {}) {
         return Object.prototype.hasOwnProperty.call(body, "data") ? body.data : body;
     } catch (error) {
         if (error.name === "AbortError") {
-            throw new Error("A API demorou demais para responder. Tente novamente em instantes.");
+            throw new Error(localizedMessage("A API demorou demais para responder. Tente novamente em instantes."));
         }
         if (error.name === "TypeError" && (error.message.includes("fetch") || error.message.includes("NetworkError"))) {
-            throw new Error("SERVIDOR INDISPONÍVEL OU SEM CONEXÃO.");
+            throw new Error(localizedMessage("SERVIDOR INDISPONÍVEL OU SEM CONEXÃO."));
         }
         throw error;
     }
@@ -1403,7 +1524,7 @@ async function downloadAuthenticatedFile(path, filenameHint = "arquivo.pdf") {
         } catch {
             payload = {};
         }
-        throw new Error(payload.error || "Falha ao baixar arquivo.");
+        throw new Error(localizedMessage(payload.error || "Falha ao baixar arquivo."));
     }
     const blob = await response.blob();
     const objectUrl = URL.createObjectURL(blob);
@@ -1437,14 +1558,14 @@ async function login(credentials) {
         }, 45000);
     } catch (error) {
         if (error.name === "AbortError") {
-            throw new Error("A API nao respondeu em 45 segundos (" + state.apiBaseUrl + "). Verifique a conexao ou abra pelo iniciar local.");
+        throw new Error(localizedMessage("A API nao respondeu em 45 segundos (" + state.apiBaseUrl + "). Verifique a conexao ou abra pelo iniciar local."));
         }
         throw error;
     }
 
     const body = await response.json().catch(() => ({}));
     if (!response.ok || (Object.prototype.hasOwnProperty.call(body, "success") && body.success === false)) {
-        throw new Error(body.error || "NÃO FOI POSSÍVEL ENTRAR.");
+        throw new Error(localizedMessage(body.error || "NÃO FOI POSSÍVEL ENTRAR."));
     }
 
     const payload = Object.prototype.hasOwnProperty.call(body, "data") ? body.data : body;
