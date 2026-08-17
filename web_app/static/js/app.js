@@ -867,6 +867,8 @@ const I18N_MESSAGES = {
         "CRÍTICA": "CRITICAL",
         "NENHUMA NÃO LIDA": "NO UNREAD NOTIFICATIONS",
         "Nenhuma notificação interna.": "No internal notifications.",
+        "Acesso realizado": "Sign-in completed",
+        "Sua sessão no SIS MMP foi iniciada.": "Your SIS MMP session has started.",
     },
 };
 
@@ -1021,8 +1023,8 @@ function renderInternalNotifications() {
     elements.topbarNotificationsList.innerHTML = notifications.map((item) => `
         <article class="topbar-notification-item ${item.read ? "" : "is-unread"}">
             <span class="topbar-notification-dot" aria-hidden="true"></span>
-            <div><strong>${escapeHtml(item.title || (english ? "Notification" : "Notificação"))}</strong>
-            <span>${escapeHtml(item.message || "")}</span>
+            <div><strong>${escapeHtml(localizedMessage(item.title || (english ? "Notification" : "Notificação")))}</strong>
+            <span>${escapeHtml(localizedMessage(item.message || ""))}</span>
             <small>${escapeHtml(formatManausDateTime(item.createdAt, { short: true }))}</small></div>
         </article>
     `).join("");
