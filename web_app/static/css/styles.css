@@ -2056,6 +2056,98 @@ body[data-theme="dark"] .admin-settings-user-identity span,
 body[data-theme="dark"] .admin-settings-user-meta b { color: #a9b9cc !important; }
 body[data-theme="dark"] .app-modal-backdrop { background: rgba(3,8,14,.82) !important; }
 
+/* Ajustes finais de contraste: estes seletores ficam no fim para vencer as
+   regras corporativas de componentes que usam body:not(.entry-screen). */
+body[data-theme="dark"]:not(.entry-screen) .icon-button,
+body[data-theme="dark"]:not(.entry-screen) .secondary-button {
+    background: #1b2b3d !important;
+    border-color: #40566f !important;
+    color: #dce9f7 !important;
+    box-shadow: none !important;
+}
+
+body[data-theme="dark"]:not(.entry-screen) .icon-button:hover,
+body[data-theme="dark"]:not(.entry-screen) .secondary-button:hover,
+body[data-theme="dark"]:not(.entry-screen) .icon-button:focus-visible,
+body[data-theme="dark"]:not(.entry-screen) .secondary-button:focus-visible {
+    background: #274563 !important;
+    border-color: #6b8cad !important;
+    color: #ffffff !important;
+}
+
+body[data-theme="dark"]:not(.entry-screen) .sync-panel strong {
+    color: #e8eef7 !important;
+    text-shadow: none !important;
+}
+
+body[data-theme="dark"]:not(.entry-screen) .menu-group-heading > strong {
+    color: #c7d5e5 !important;
+}
+
+body[data-theme="dark"]:not(.entry-screen) .menu-group-heading > em {
+    color: #9fb3c9 !important;
+}
+
+body[data-theme="dark"]:not(.entry-screen) .menu-group-heading > span,
+body[data-theme="dark"]:not(.entry-screen) .menu-card > span,
+body[data-theme="dark"]:not(.entry-screen) .module-report-card > span {
+    background: #244d78 !important;
+    border-color: #46617d !important;
+    color: #d6ebff !important;
+}
+
+body[data-theme="dark"]:not(.entry-screen) .menu-card,
+body[data-theme="dark"]:not(.entry-screen) .module-report-card,
+body[data-theme="dark"]:not(.entry-screen) .sync-panel,
+body[data-theme="dark"]:not(.entry-screen) .sync-panel .sync-row {
+    background: #151f2c !important;
+    border-color: #344a62 !important;
+    color: #e8eef7 !important;
+}
+
+body[data-theme="dark"]:not(.entry-screen) .sync-panel .sync-row {
+    background: #1b2a3b !important;
+}
+
+body[data-theme="dark"]:not(.entry-screen) .sync-panel .sync-row strong {
+    color: #e8eef7 !important;
+}
+
+body[data-theme="dark"]:not(.entry-screen) .sync-panel .sync-row span {
+    color: #b5c6d9 !important;
+}
+
+/* Componentes que possuem estilos próprios claros no painel inicial. */
+body[data-theme="dark"] .topbar-user-avatar { background: #1b2b3d !important; border-color: #46617d !important; color: #b9dcff !important; }
+body[data-theme="dark"] .icon-button,
+body[data-theme="dark"] .secondary-button { background: #1b2b3d !important; border-color: #40566f !important; color: #dce9f7 !important; }
+body[data-theme="dark"] .icon-button:hover,
+body[data-theme="dark"] .secondary-button:hover { background: #274563 !important; border-color: #6b8cad !important; color: #ffffff !important; }
+body[data-theme="dark"] .menu-group-heading { border-bottom-color: #344a62 !important; }
+body[data-theme="dark"] .menu-group-heading > span,
+body[data-theme="dark"] .menu-card > span,
+body[data-theme="dark"] .module-report-card > span { background: #244d78 !important; color: #d6ebff !important; }
+body[data-theme="dark"] .menu-group-heading strong,
+body[data-theme="dark"] .menu-group-heading em { color: #c7d5e5 !important; }
+body[data-theme="dark"] .menu-group-heading em { color: #9fb3c9 !important; }
+body[data-theme="dark"] #cloud-admin-panel { background: #151f2c !important; border-color: #344a62 !important; color: #e8eef7 !important; }
+body[data-theme="dark"] #cloud-admin-panel span { color: #a9b9cc !important; }
+body[data-theme="dark"] #cloud-admin-panel strong { color: #e8eef7 !important; }
+body[data-theme="dark"] #cloud-admin-panel .icon-button { background: #1b3b60 !important; border-color: #52749a !important; color: #dceeff !important; }
+body[data-theme="dark"] #cloud-admin-panel .sync-row { background: #1b2a3b !important; border-color: #344a62 !important; box-shadow: none !important; }
+body[data-theme="dark"] #cloud-admin-panel .sync-row strong { color: #e8eef7 !important; }
+body[data-theme="dark"] #cloud-admin-panel .sync-row span { color: #b5c6d9 !important; }
+body[data-theme="dark"] #cloud-admin-panel .sync-row em { background: #244d78 !important; color: #d6ebff !important; }
+body[data-theme="dark"] .sync-panel span { color: #a9b9cc !important; text-shadow: none !important; }
+body[data-theme="dark"] .sync-panel strong { color: #e8eef7 !important; text-shadow: none !important; }
+body[data-theme="dark"]:not(.entry-screen) .icon-button,
+body[data-theme="dark"]:not(.entry-screen) .secondary-button { background: #1b2b3d !important; border-color: #40566f !important; color: #dce9f7 !important; }
+body[data-theme="dark"]:not(.entry-screen) .icon-button:hover,
+body[data-theme="dark"]:not(.entry-screen) .secondary-button:hover { background: #274563 !important; border-color: #6b8cad !important; color: #ffffff !important; }
+body[data-theme="dark"]:not(.entry-screen) .sync-panel strong { color: #e8eef7 !important; }
+body[data-theme="dark"]:not(.entry-screen) .menu-group-heading > strong { color: #c7d5e5 !important; }
+body[data-theme="dark"]:not(.entry-screen) .menu-group-heading > em { color: #9fb3c9 !important; }
+
 @media (min-width: 861px) {
     body:not(.entry-screen) .topbar-navigation {
         display: grid;
