@@ -16,9 +16,24 @@ class WebMobileShellContractTests(unittest.TestCase):
         cls.legacy_readme = LEGACY_README_PATH.read_text(encoding="utf-8")
 
     def test_index_uses_canonical_frontend_bundle(self):
-        self.assertIn('./static/js/app.js?v=20260816-10', self.index_html)
-        self.assertIn('./static/css/styles.css?v=20260816-10', self.index_html)
+        self.assertIn('./static/js/app.js?v=20260816-11', self.index_html)
+        self.assertIn('./static/css/styles.css?v=20260816-11', self.index_html)
         self.assertNotIn("app-20260419-", self.index_html)
+
+    def test_login_uses_institutional_glass_layout_with_sis_mmp_identity(self):
+        styles = (PROJECT_ROOT / "web_app" / "static" / "css" / "styles.css").read_text(encoding="utf-8")
+        for fragment in [
+            'class="login-hero login-brand-panel"',
+            'class="login-brand-kicker"',
+            '<h1>SIS MMP</h1>',
+            'class="login-card-footer"',
+            'id="forgot-password-button"',
+        ]:
+            with self.subTest(fragment=fragment):
+                self.assertIn(fragment, self.index_html)
+        self.assertIn('url("../icons/sis-mmp-logo.png")', styles)
+        self.assertIn("backdrop-filter: blur(16px)", styles)
+        self.assertIn("body.entry-screen .mobile-shell", styles)
 
     def test_frontend_uses_manaus_timezone_for_dates(self):
         app_js = (PROJECT_ROOT / "web_app" / "static" / "js" / "app.js").read_text(encoding="utf-8")

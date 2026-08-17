@@ -164,7 +164,7 @@ function resetLoginControls() {
     }
     if (elements.loginButton) {
         elements.loginButton.disabled = false;
-        elements.loginButton.textContent = "ENTRAR NO SISTEMA";
+        elements.loginButton.textContent = "Entrar";
     }
 }
 
@@ -8327,7 +8327,7 @@ async function handleLoginSubmit() {
     state.apiBaseUrl = elements.apiBaseUrl.value.replace(/\/$/, "");
     localStorage.setItem("apiBaseUrl", state.apiBaseUrl);
     elements.loginButton.disabled = true;
-    elements.loginButton.textContent = "ENTRANDO...";
+    elements.loginButton.textContent = "Entrando...";
 
     try {
         await login({
@@ -8341,7 +8341,7 @@ async function handleLoginSubmit() {
         showToast(error.message, true);
     } finally {
         elements.loginButton.disabled = false;
-        elements.loginButton.textContent = "ENTRAR NO SISTEMA";
+        elements.loginButton.textContent = "Entrar";
     }
 }
 
