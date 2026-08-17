@@ -3781,7 +3781,7 @@ async function loadMaintenanceOverview() {
     const family = state.maintenanceFamilyFilter && state.maintenanceFamilyFilter !== "TODOS"
         ? `&familia=${encodeURIComponent(state.maintenanceFamilyFilter.toLowerCase())}`
         : "";
-    state.maintenanceOverview = await apiFetch(`/manutencao/visao?ano=${state.maintenanceYear}&mes=${state.maintenanceMonth}${family}`);
+    state.maintenanceOverview = await apiFetch(`/manutencao/visao?ano=${state.maintenanceYear}&mes=${state.maintenanceMonth}${family}&excluir_checklist=true`);
 }
 
 function maintenanceOfflineCacheKey() {
@@ -4279,7 +4279,10 @@ function renderMaintenance() {
 
     const overview = state.maintenanceOverview || { resumo: {}, cronograma: { days: [] }, programacoes: [] };
     const resumo = overview.resumo || {};
-    const days = overview.cronograma?.days || [];
+    const days = (overview.cronograma?.days || []).map((day) => ({
+        ...day,
+        items: (day.items || []).filter((item) => String(item.schedule?.source_type || item.source_type || "").toUpperCase() !== "CHECKLIST_NC"),
+    }));
     const selectedDay = ensureSelectedMaintenanceDate(days);
     const selectedItems = filterMaintenanceItemsForMobile(selectedDay?.items || []);
     const selectedDayLabel = selectedDay?.date ? formatDate(selectedDay.date) : "SEM DIA";

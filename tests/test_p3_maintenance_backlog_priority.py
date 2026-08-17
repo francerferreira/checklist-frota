@@ -97,6 +97,37 @@ class P3MaintenanceBacklogPriorityTests(unittest.TestCase):
         self.assertGreater(rows[0]["age_days"], rows[-1]["age_days"])
         self.assertEqual(rows[0]["reference_type"], "DATA_PROGRAMADA")
 
+    def test_web_operational_overview_can_exclude_checklist_occurrences(self):
+        with self.app.app_context():
+            admin_id = User.query.filter_by(login="admin").one().id
+            schedule = MaintenanceSchedule(
+                source_type="CHECKLIST_NC",
+                source_key="CHECKLIST-NC-P3",
+                title="Ocorrência de checklist",
+                status="PROGRAMADA",
+                start_date=date.today(),
+                end_date=date.today(),
+                daily_capacity=1,
+                created_by_user_id=admin_id,
+            )
+            db.session.add(schedule)
+            db.session.flush()
+            db.session.add(MaintenanceScheduleItem(
+                schedule_id=schedule.id,
+                vehicle_id=1,
+                scheduled_date=date.today(),
+                status="PROGRAMADO",
+            ))
+            db.session.commit()
+        response = self.client.get(
+            f"/manutencao/visao?ano={date.today().year}&mes={date.today().month}&excluir_checklist=true",
+            headers=self.headers,
+        )
+        self.assertEqual(response.status_code, 200, response.get_json())
+        data = response.get_json()["data"]
+        self.assertFalse(any(row.get("source_type") == "CHECKLIST_NC" for row in data["programacoes"]))
+        self.assertFalse(any(row.get("schedule", {}).get("source_type") == "CHECKLIST_NC" for row in data["itens"]))
+
 
 if __name__ == "__main__":
     unittest.main()

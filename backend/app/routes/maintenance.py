@@ -77,6 +77,7 @@ def maintenance_overview():
     if family_error:
         return family_error
     mechanic_id = request.args.get("mecanico_id", type=int)
+    exclude_checklist = request.args.get("excluir_checklist", "false").lower() in {"1", "true", "sim"}
     if g.current_user.tipo == "mecanico":
         mechanic_id = g.current_user.id
     return api_response(
@@ -86,6 +87,7 @@ def maintenance_overview():
             month=month,
             assigned_to_user_id=mechanic_id,
             family=family,
+            exclude_checklist=exclude_checklist,
         ),
     )
 

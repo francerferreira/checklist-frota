@@ -821,6 +821,7 @@ def build_maintenance_overview(
     month: int | None = None,
     assigned_to_user_id: int | None = None,
     family: str | None = None,
+    exclude_checklist: bool = False,
 ) -> dict:
     _ensure_work_orders_backfilled()
     today = today_manaus()
@@ -839,6 +840,13 @@ def build_maintenance_overview(
     items = MaintenanceScheduleItem.query.order_by(MaintenanceScheduleItem.scheduled_date.asc().nullslast()).all()
     materials = MaintenanceMaterial.query.order_by(MaintenanceMaterial.created_at.desc()).all()
     work_orders = MaintenanceWorkOrder.query.order_by(MaintenanceWorkOrder.scheduled_date.asc().nullslast(), MaintenanceWorkOrder.id.asc()).all()
+
+    if exclude_checklist:
+        checklist_schedule_ids = {schedule.id for schedule in schedules if schedule.source_type == "CHECKLIST_NC"}
+        schedules = [schedule for schedule in schedules if schedule.id not in checklist_schedule_ids]
+        items = [item for item in items if item.schedule_id not in checklist_schedule_ids]
+        materials = [material for material in materials if material.schedule_id not in checklist_schedule_ids]
+        work_orders = [row for row in work_orders if row.schedule_id not in checklist_schedule_ids]
 
     items = [
         item
