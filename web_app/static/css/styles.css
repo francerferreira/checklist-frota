@@ -3953,6 +3953,97 @@ textarea {
     color: #536a82;
 }
 
+.planning-toolbar {
+    display: grid;
+    gap: 12px;
+}
+
+.planning-month-controls {
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr) auto;
+    align-items: center;
+    gap: 10px;
+}
+
+.planning-month-controls strong {
+    color: #153a63;
+    text-align: center;
+    font-size: 0.9rem;
+    font-weight: 950;
+}
+
+.planning-toolbar .status-group {
+    flex-wrap: wrap;
+}
+
+.planning-list {
+    display: grid;
+    gap: 10px;
+}
+
+.planning-item-card {
+    display: grid;
+    gap: 12px;
+    padding: 15px;
+    border: 1px solid rgba(84, 100, 126, 0.16);
+    border-radius: 16px;
+    background: #ffffff;
+    box-shadow: 0 8px 18px rgba(9, 26, 52, 0.06);
+}
+
+.planning-item-card .item-topline {
+    margin: 0;
+}
+
+.planning-item-grid {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 10px;
+}
+
+.planning-item-grid span {
+    display: grid;
+    gap: 4px;
+    color: var(--muted);
+    font-size: 0.72rem;
+}
+
+.planning-item-grid strong {
+    color: #7890a8;
+    font-size: 0.62rem;
+    letter-spacing: 0.04em;
+}
+
+.planning-reprogram-row {
+    display: flex;
+    align-items: end;
+    gap: 10px;
+    padding-top: 8px;
+    border-top: 1px solid rgba(84, 100, 126, 0.12);
+}
+
+.planning-reprogram-row label {
+    display: grid;
+    flex: 1 1 220px;
+    gap: 5px;
+}
+
+.planning-reprogram-row label span {
+    color: #7890a8;
+    font-size: 0.62rem;
+    font-weight: 900;
+}
+
+.planning-reprogram-row .secondary-button {
+    min-height: 42px;
+}
+
+@media (max-width: 700px) {
+    .planning-item-grid {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+}
+
 @media (max-width: 900px) {
     .maintenance-kanban {
         grid-template-columns: repeat(5, minmax(210px, 1fr));
@@ -3971,6 +4062,15 @@ textarea {
 
     .maintenance-kanban-items {
         max-height: none;
+    }
+
+    .planning-item-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .planning-reprogram-row {
+        align-items: stretch;
+        flex-direction: column;
     }
 }
 

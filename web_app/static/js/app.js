@@ -254,6 +254,7 @@ const state = {
     selectedMaintenanceDate: "",
     maintenanceStatusFilter: "ABERTAS",
     maintenanceFamilyFilter: "TODOS",
+    planningStatusFilter: "ABERTAS",
     selectedActivity: null,
     selectedVehicle: null,
     focusedAvailabilityVehicleId: null,
@@ -322,6 +323,7 @@ const screens = {
     moduleReports: document.getElementById("module-reports-screen"),
     nonConformities: document.getElementById("non-conformities-screen"),
     maintenance: document.getElementById("maintenance-screen"),
+    planning: document.getElementById("planning-screen"),
     preventives: document.getElementById("preventives-screen"),
     hrJourney: document.getElementById("hr-journey-screen"),
     weeklyDsr: document.getElementById("weekly-dsr-screen"),
@@ -432,6 +434,7 @@ const elements = {
     openWashesMenu: document.getElementById("open-washes-menu"),
     openNonConformitiesMenu: document.getElementById("open-non-conformities-menu"),
     openMaintenanceMenu: document.getElementById("open-maintenance-menu"),
+    openPlanningMenu: document.getElementById("open-planning-menu"),
     openPreventivesMenu: document.getElementById("open-preventives-menu"),
     openAvailabilityMenu: document.getElementById("open-availability-menu"),
     openTechnicalInspectionsMenu: document.getElementById("open-technical-inspections-menu"),
@@ -597,6 +600,16 @@ const elements = {
     maintenanceDayPanel: document.getElementById("maintenance-day-panel"),
     maintenanceKanban: document.getElementById("maintenance-kanban"),
     maintenanceList: document.getElementById("maintenance-list"),
+    planningBackButton: document.getElementById("planning-back-button"),
+    planningCounter: document.getElementById("planning-counter"),
+    planningPeriodLabel: document.getElementById("planning-period-label"),
+    planningMonthTitle: document.getElementById("planning-month-title"),
+    planningPrevMonth: document.getElementById("planning-prev-month"),
+    planningNextMonth: document.getElementById("planning-next-month"),
+    planningRefreshButton: document.getElementById("planning-refresh-button"),
+    planningSummary: document.getElementById("planning-summary"),
+    planningList: document.getElementById("planning-list"),
+    planningFilterButtons: Array.from(document.querySelectorAll("[data-planning-filter]")),
     preventivesBackButton: document.getElementById("preventives-back-button"),
     preventivesCounter: document.getElementById("preventives-counter"),
     preventivesSummary: document.getElementById("preventives-summary"),
@@ -1097,6 +1110,7 @@ function renderHome() {
     elements.openPurchasesMenu?.classList.toggle("hidden", !hasWashReportAccess());
     elements.openEquipmentReportsMenu?.classList.toggle("hidden", !hasWashReportAccess());
     elements.openMaintenanceReportsMenu?.classList.toggle("hidden", !hasWashReportAccess());
+    elements.openPlanningMenu?.classList.toggle("hidden", !hasWashReportAccess());
     elements.openMaintenanceDashboardMenu?.classList.toggle("hidden", !canViewMaintenanceDashboard);
     elements.openPreventivesMenu?.classList.toggle("hidden", !canViewMaintenanceDashboard);
     elements.openWeeklyDsrMenu?.classList.toggle("hidden", !canViewMaintenanceDashboard);
@@ -1749,6 +1763,42 @@ async function openMaintenanceMenu() {
         if (elements.maintenanceKanban) elements.maintenanceKanban.innerHTML = "";
         renderStateCard(elements.maintenanceList, {
             title: "NÃO FOI POSSÍVEL CARREGAR A MANUTENÇÃO",
+            message: error.message || "Verifique a conexão e tente novamente.",
+            tone: "error",
+        });
+        showToast(error.message, true);
+    }
+}
+
+async function openPlanningMenu() {
+    if (!hasWashReportAccess()) {
+        showToast("PLANEJAMENTO RESTRITO AO GESTOR E ADMINISTRADOR.", true);
+        return;
+    }
+    state.planningStatusFilter = "ABERTAS";
+    state.maintenanceFamilyFilter = "TODOS";
+    setActiveScreen("planning");
+    elements.planningCounter.textContent = "CARREGANDO...";
+    renderStateCard(elements.planningList, {
+        title: "CARREGANDO PLANEJAMENTO",
+        message: "Buscando programações, pendências e bloqueios.",
+        tone: "loading",
+    });
+    try {
+        await loadMaintenanceOverview();
+        localStorage.setItem(maintenanceOfflineCacheKey(), JSON.stringify(state.maintenanceOverview));
+        renderHome();
+        renderPlanning();
+    } catch (error) {
+        const cachedOverview = readJsonStorage(maintenanceOfflineCacheKey(), null);
+        if (cachedOverview) {
+            state.maintenanceOverview = cachedOverview;
+            renderPlanning();
+            showToast("PLANEJAMENTO OFFLINE CARREGADO. REPROGRAMAR EXIGE CONEXÃO.");
+            return;
+        }
+        renderStateCard(elements.planningList, {
+            title: "NÃO FOI POSSÍVEL CARREGAR O PLANEJAMENTO",
             message: error.message || "Verifique a conexão e tente novamente.",
             tone: "error",
         });
@@ -4279,10 +4329,7 @@ function renderMaintenance() {
 
     const overview = state.maintenanceOverview || { resumo: {}, cronograma: { days: [] }, programacoes: [] };
     const resumo = overview.resumo || {};
-    const days = (overview.cronograma?.days || []).map((day) => ({
-        ...day,
-        items: (day.items || []).filter((item) => String(item.schedule?.source_type || item.source_type || "").toUpperCase() !== "CHECKLIST_NC"),
-    }));
+    const days = maintenanceOverviewDays(overview);
     const selectedDay = ensureSelectedMaintenanceDate(days);
     const selectedItems = filterMaintenanceItemsForMobile(selectedDay?.items || []);
     const selectedDayLabel = selectedDay?.date ? formatDate(selectedDay.date) : "SEM DIA";
@@ -4312,6 +4359,72 @@ function renderMaintenance() {
 
     selectedItems.forEach((item, index) => {
         elements.maintenanceList.appendChild(makeMaintenanceItemCard(item, index + 1));
+    });
+}
+
+function maintenanceOverviewDays(overview = state.maintenanceOverview) {
+    return (overview?.cronograma?.days || []).map((day) => ({
+        ...day,
+        items: (day.items || []).filter((item) => String(item.schedule?.source_type || item.source_type || "").toUpperCase() !== "CHECKLIST_NC"),
+    }));
+}
+
+function renderPlanning() {
+    if (!elements.planningList || !elements.planningCounter) return;
+    const overview = state.maintenanceOverview || { resumo: {}, cronograma: { days: [] } };
+    const items = maintenanceOverviewDays(overview).flatMap((day) => (day.items || []).map((item) => ({
+        ...item,
+        planning_date: item.scheduled_date || day.date,
+    })));
+    const filter = state.planningStatusFilter || "ABERTAS";
+    const visibleItems = items.filter((item) => {
+        const stage = maintenanceKanbanStage(item);
+        if (filter === "BLOQUEADAS") return stage === "BLOQUEADO";
+        if (filter === "CONCLUIDAS") return stage === "CONCLUIDO";
+        if (filter === "ABERTAS") return stage !== "CONCLUIDO" && String(item.status || "").toUpperCase() !== "CANCELADO";
+        return true;
+    });
+    const openCount = items.filter((item) => maintenanceKanbanStage(item) !== "CONCLUIDO").length;
+    const blockedCount = items.filter((item) => maintenanceKanbanStage(item) === "BLOQUEADO").length;
+    const completedCount = items.filter((item) => maintenanceKanbanStage(item) === "CONCLUIDO").length;
+    elements.planningCounter.textContent = `${visibleItems.length} ITEM${visibleItems.length === 1 ? "" : "S"} NO BACKLOG`;
+    elements.planningPeriodLabel.textContent = "SOMENTE PROGRAMAÇÕES DE MANUTENÇÃO · CHECKLIST SEPARADO";
+    elements.planningMonthTitle.textContent = String(overview.periodo?.rotulo || `${state.maintenanceMonth}/${state.maintenanceYear}`).toUpperCase();
+    elements.planningSummary.innerHTML = `
+        <div><strong>${openCount} ABERTAS</strong><span>Itens disponíveis para organização.</span></div>
+        <div><strong>${blockedCount} BLOQUEADAS</strong><span>Aguardando material ou condição.</span></div>
+        <div><strong>${completedCount} CONCLUÍDAS</strong><span>Execuções registradas.</span></div>
+        <span class="progress-hint">A área operacional executa no Kanban. Aqui, a gestão organiza datas e prioridades.</span>
+    `;
+    elements.planningFilterButtons?.forEach((button) => {
+        const active = String(button.dataset.planningFilter || "") === filter;
+        button.classList.toggle("active", active);
+        button.setAttribute("aria-pressed", String(active));
+    });
+    elements.planningList.innerHTML = "";
+    if (!visibleItems.length) {
+        elements.planningList.innerHTML = `<article class="empty-state"><strong>NENHUM ITEM NESTE FILTRO.</strong><span>As ocorrências de Checklist ficam no módulo próprio.</span></article>`;
+        return;
+    }
+    visibleItems.forEach((item, index) => {
+        const vehicle = item.vehicle || {};
+        const schedule = item.schedule || {};
+        const workOrder = item.work_order || {};
+        const stage = maintenanceKanbanStage(item);
+        const card = document.createElement("article");
+        card.className = "planning-item-card";
+        card.innerHTML = `
+            <div class="item-topline"><span>${String(index + 1).padStart(2, "0")}</span><h3>${escapeHtml(String(schedule.title || item.item_name || "PROGRAMAÇÃO").toUpperCase())}</h3></div>
+            <div class="planning-item-grid">
+                <span><strong>EQUIPAMENTO</strong>${escapeHtml(String(vehicle.frota || vehicle.placa || "-").toUpperCase())} · ${escapeHtml(maintenanceFamilyKey(item) || "MÓDULO")}</span>
+                <span><strong>OS</strong>${escapeHtml(String(workOrder.order_number || "-").toUpperCase())}</span>
+                <span><strong>ETAPA</strong>${escapeHtml(stage.replaceAll("_", " "))}</span>
+                <span><strong>RESPONSÁVEL</strong>${escapeHtml(String(schedule.assigned_mechanic?.nome || item.assigned_mechanic?.nome || "SEM RESPONSÁVEL").toUpperCase())}</span>
+            </div>
+            ${stage !== "CONCLUIDO" ? `<div class="planning-reprogram-row"><label><span>NOVA DATA</span><input type="date" class="maintenance-reprogram-date" value="${escapeHtml(item.planning_date || "")}"></label><button type="button" class="secondary-button maintenance-reprogram-button">REPROGRAMAR ITEM</button></div>` : `<span class="nc-resolved-flag">CONCLUÍDO</span>`}
+        `;
+        card.querySelector(".maintenance-reprogram-button")?.addEventListener("click", () => reprogramMaintenanceItem(card, item));
+        elements.planningList.appendChild(card);
     });
 }
 
@@ -4783,7 +4896,8 @@ async function reprogramMaintenanceItem(card, item) {
         });
         state.selectedMaintenanceDate = scheduledDate;
         await loadMaintenanceOverview();
-        renderMaintenance();
+        if (screens.planning && !screens.planning.classList.contains("hidden")) renderPlanning();
+        else renderMaintenance();
         showToast("MANUTENÇÃO REPROGRAMADA.");
     } catch (error) {
         showToast(error.message || "FALHA AO REPROGRAMAR A MANUTENÇÃO.", true);
@@ -6756,7 +6870,8 @@ async function changeMaintenanceMonth(delta) {
 
     try {
         await loadMaintenanceOverview();
-        renderMaintenance();
+        if (screens.planning && !screens.planning.classList.contains("hidden")) renderPlanning();
+        else renderMaintenance();
     } catch (error) {
         showToast(error.message, true);
     }
@@ -8163,6 +8278,7 @@ on(elements.openActivitiesMenu, "click", openActivitiesMenu);
 on(elements.openWashesMenu, "click", openWashesMenu);
 on(elements.openNonConformitiesMenu, "click", openNonConformitiesMenu);
 on(elements.openMaintenanceMenu, "click", openMaintenanceMenu);
+on(elements.openPlanningMenu, "click", openPlanningMenu);
 on(elements.openPreventivesMenu, "click", openPreventivesMenu);
 on(elements.openAvailabilityMenu, "click", openAvailabilityMenu);
 on(elements.availabilitySearch, "input", () => {
@@ -8316,6 +8432,17 @@ on(elements.maintenanceBackButton, "click", () => {
     renderHome();
     setActiveScreen("home");
 });
+on(elements.planningBackButton, "click", () => {
+    renderHome();
+    setActiveScreen("home");
+});
+on(elements.planningPrevMonth, "click", () => changeMaintenanceMonth(-1));
+on(elements.planningNextMonth, "click", () => changeMaintenanceMonth(1));
+on(elements.planningRefreshButton, "click", openPlanningMenu);
+elements.planningFilterButtons.forEach((button) => on(button, "click", () => {
+    state.planningStatusFilter = String(button.dataset.planningFilter || "ABERTAS");
+    renderPlanning();
+}));
 on(elements.preventivesBackButton, "click", () => {
     renderHome();
     setActiveScreen("home");
