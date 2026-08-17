@@ -16,8 +16,8 @@ class WebMobileShellContractTests(unittest.TestCase):
         cls.legacy_readme = LEGACY_README_PATH.read_text(encoding="utf-8")
 
     def test_index_uses_canonical_frontend_bundle(self):
-        self.assertIn('./static/js/app.js?v=20260817-10', self.index_html)
-        self.assertIn('./static/css/styles.css?v=20260817-10', self.index_html)
+        self.assertIn('./static/js/app.js?v=20260817-11', self.index_html)
+        self.assertIn('./static/css/styles.css?v=20260817-11', self.index_html)
         self.assertNotIn("app-20260419-", self.index_html)
 
     def test_login_uses_institutional_glass_layout_with_sis_mmp_identity(self):
@@ -100,7 +100,15 @@ class WebMobileShellContractTests(unittest.TestCase):
         self.assertIn("z-index: var(--layer-modal)", styles)
 
     def test_floating_surfaces_use_shared_layer_tokens(self):
+        index_html = self.index_html
         styles = (PROJECT_ROOT / "web_app" / "static" / "css" / "styles.css").read_text(encoding="utf-8")
+        for fragment in [
+            'class="floating-panel topbar-notifications-menu',
+            'class="floating-panel topbar-settings-menu',
+            'class="floating-panel topbar-dropdown',
+        ]:
+            with self.subTest(fragment=fragment):
+                self.assertIn(fragment, index_html)
         for token in [
             "--layer-topbar",
             "--layer-dropdown",

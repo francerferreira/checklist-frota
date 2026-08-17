@@ -49,6 +49,7 @@
     --theme-table-header: #eef2f6;
     --theme-accent-warm: #b45309;
     --theme-shadow: 0 5px 15px rgba(25, 50, 78, .06);
+    --theme-shadow-floating: 0 18px 38px rgba(15, 35, 58, .18);
 
     /* Escada única de camadas: quanto maior, mais à frente fica o elemento. */
     --layer-pull-refresh: 6;
@@ -138,6 +139,7 @@ body[data-theme="dark"] {
     --theme-table-header: #223247;
     --theme-accent-warm: #ffd36a;
     --theme-shadow: 0 5px 15px rgba(0, 0, 0, .26);
+    --theme-shadow-floating: 0 20px 42px rgba(0, 0, 0, .42);
 
     --state-available-bg: #143d31;
     --state-available-text: #8ee8c2;
@@ -169,6 +171,23 @@ body[data-theme="dark"] {
     --state-maintenance-bg: #273646;
     --state-maintenance-text: #c7d5e5;
     --state-maintenance-border: #6b7f93;
+}
+
+/* Componente visual padrão para qualquer painel que flutue sobre a tela. */
+.floating-panel {
+    box-sizing: border-box;
+    display: grid;
+    gap: 8px;
+    max-width: calc(100vw - 24px);
+    max-height: min(70dvh, 560px);
+    padding: 12px;
+    overflow: auto;
+    z-index: var(--layer-floating-panel);
+    border: 1px solid var(--theme-border);
+    border-radius: 14px;
+    background: var(--theme-surface-elevated);
+    color: var(--theme-text);
+    box-shadow: var(--theme-shadow-floating);
 }
 
 body[data-theme="dark"] .app-topbar {

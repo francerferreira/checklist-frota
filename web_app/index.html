@@ -14,7 +14,7 @@
     <title>SIS MMP | Sistema de Manutenção de Máquinas Pesadas</title>
     <link rel="icon" type="image/png" sizes="192x192" href="./static/icons/icon-192.png?v=sis-mmp-20260810">
     <link rel="apple-touch-icon" href="./static/icons/icon-192.png?v=sis-mmp-20260810">
-    <link rel="stylesheet" href="./static/css/styles.css?v=20260817-10">
+    <link rel="stylesheet" href="./static/css/styles.css?v=20260817-11">
 </head>
 <body>
     <div class="mobile-shell">
@@ -34,7 +34,7 @@
                     <button id="topbar-notifications-button" class="topbar-notifications-button" type="button" title="Abrir notificações" aria-label="Abrir notificações" aria-haspopup="region" aria-expanded="false">
                         <span aria-hidden="true">🔔</span><b id="topbar-notifications-badge" class="topbar-notifications-badge hidden">0</b>
                     </button>
-                    <section id="topbar-notifications-menu" class="topbar-notifications-menu hidden" role="region" aria-label="Centro de notificações">
+                    <section id="topbar-notifications-menu" class="floating-panel topbar-notifications-menu hidden" role="region" aria-label="Centro de notificações">
                         <header class="topbar-notifications-header">
                             <div><span>NOTIFICAÇÕES</span><strong id="topbar-notifications-count">Nenhuma não lida</strong></div>
                             <button id="topbar-notifications-mark-read" type="button">MARCAR TODAS COMO LIDAS</button>
@@ -66,7 +66,7 @@
                         <button id="topbar-notifications-clear" class="topbar-notifications-clear" type="button">LIMPAR HISTÓRICO</button>
                     </section>
                     <button id="topbar-user-settings-button" class="topbar-user-settings-button" type="button" title="Configurações de usuários" aria-label="Abrir configurações de usuários" aria-haspopup="menu" aria-expanded="false"><span aria-hidden="true">⚙</span></button>
-                    <div id="topbar-settings-menu" class="topbar-settings-menu hidden" role="menu" aria-label="Configurações do usuário">
+                    <div id="topbar-settings-menu" class="floating-panel topbar-settings-menu hidden" role="menu" aria-label="Configurações do usuário">
                         <span class="topbar-settings-title">CONFIGURAÇÕES</span>
                         <button type="button" role="menuitem" data-settings-action="users" data-settings-admin-only="true"><b>ADM</b><span><strong>Usuários</strong><em>Logins, perfis e permissões.</em></span></button>
                         <button type="button" role="menuitem" data-settings-action="password"><b>🔑</b><span><strong>Minha senha</strong><em>Alterar sua senha de acesso.</em></span></button>
@@ -83,7 +83,7 @@
             <nav id="topbar-navigation" class="topbar-navigation" aria-label="Módulos do sistema">
                 <div class="topbar-module" data-topbar-module="equipment">
                     <button class="topbar-module-trigger" type="button" data-topbar-module-trigger="equipment" aria-expanded="false" aria-controls="topbar-dropdown-equipment">EQUIPAMENTOS <i aria-hidden="true"></i></button>
-                    <div id="topbar-dropdown-equipment" class="topbar-dropdown" role="group" aria-label="Subtelas de Equipamentos">
+                    <div id="topbar-dropdown-equipment" class="floating-panel topbar-dropdown" role="group" aria-label="Subtelas de Equipamentos">
                         <span class="topbar-dropdown-title">OPERAÇÃO E CONTROLE</span>
                         <button type="button" data-topbar-action="checklist" data-source-menu="open-checklist-menu"><b>01</b><span><strong>Realizar checklist</strong><em>Selecionar ativo e registrar inspeção.</em></span></button>
                         <button type="button" data-topbar-action="checklistHistory" data-source-menu="open-checklist-history-menu"><b>02</b><span><strong>Histórico de checklist</strong><em>Consultar registros por equipamento.</em></span></button>
@@ -97,7 +97,7 @@
                 </div>
                 <div class="topbar-module" data-topbar-module="maintenance">
                     <button class="topbar-module-trigger" type="button" data-topbar-module-trigger="maintenance" aria-expanded="false" aria-controls="topbar-dropdown-maintenance">MANUTENÇÃO <i aria-hidden="true"></i></button>
-                    <div id="topbar-dropdown-maintenance" class="topbar-dropdown" role="group" aria-label="Subtelas de Manutenção">
+                    <div id="topbar-dropdown-maintenance" class="floating-panel topbar-dropdown" role="group" aria-label="Subtelas de Manutenção">
                         <span class="topbar-dropdown-title">PLANEJAMENTO E EXECUÇÃO</span>
                         <button type="button" data-topbar-action="maintenance" data-source-menu="open-maintenance-menu"><b>07</b><span><strong>Manutenção</strong><em>Serviços, preventivas e instalações.</em></span></button>
                         <button type="button" data-topbar-action="planning" data-source-menu="open-planning-menu"><b>PCM</b><span><strong>Planejamento e backlog</strong><em>Programar e reprogramar serviços.</em></span></button>
@@ -111,7 +111,7 @@
                 </div>
                 <div class="topbar-module" data-topbar-module="people">
                     <button class="topbar-module-trigger" type="button" data-topbar-module-trigger="people" aria-expanded="false" aria-controls="topbar-dropdown-people">PESSOAS <i aria-hidden="true"></i></button>
-                    <div id="topbar-dropdown-people" class="topbar-dropdown" role="group" aria-label="Subtelas de Pessoas">
+                    <div id="topbar-dropdown-people" class="floating-panel topbar-dropdown" role="group" aria-label="Subtelas de Pessoas">
                         <span class="topbar-dropdown-title">RH, JORNADA E ESCALA</span>
                         <button type="button" data-topbar-action="hrJourney" data-source-menu="open-hr-journey-menu"><b>RH</b><span><strong>Minha jornada</strong><em>Consultar vínculo, frequência e treinamentos.</em></span></button>
                         <button type="button" data-topbar-action="rhAdmin" data-source-menu="open-rh-admin-menu"><b>ADM</b><span><strong>Gestão de RH</strong><em>Administrar colaboradores e rotinas.</em></span></button>
@@ -122,7 +122,7 @@
                 </div>
                 <div class="topbar-module" data-topbar-module="materials">
                     <button class="topbar-module-trigger" type="button" data-topbar-module-trigger="materials" aria-expanded="false" aria-controls="topbar-dropdown-materials">MATERIAIS E COMPRAS <i aria-hidden="true"></i></button>
-                    <div id="topbar-dropdown-materials" class="topbar-dropdown" role="group" aria-label="Subtelas de Materiais e Compras">
+                    <div id="topbar-dropdown-materials" class="floating-panel topbar-dropdown" role="group" aria-label="Subtelas de Materiais e Compras">
                         <span class="topbar-dropdown-title">ESTOQUE E AQUISIÇÃO</span>
                         <button type="button" data-topbar-action="mmpStock" data-source-menu="open-mmp-stock-menu"><b>MMP</b><span><strong>Armazém e Estoque MMP</strong><em>Saldo, prateleira e aplicação.</em></span></button>
                         <button type="button" data-topbar-action="purchases" data-source-menu="open-purchases-menu"><b>SC</b><span><strong>Área de compras</strong><em>Solicitações e histórico de materiais.</em></span></button>
@@ -130,7 +130,7 @@
                 </div>
                 <div class="topbar-module" data-topbar-module="admin">
                     <button class="topbar-module-trigger" type="button" data-topbar-module-trigger="admin" aria-expanded="false" aria-controls="topbar-dropdown-admin">ADMINISTRAÇÃO <i aria-hidden="true"></i></button>
-                    <div id="topbar-dropdown-admin" class="topbar-dropdown" role="group" aria-label="Subtelas de Administração">
+                    <div id="topbar-dropdown-admin" class="floating-panel topbar-dropdown" role="group" aria-label="Subtelas de Administração">
                         <span class="topbar-dropdown-title">CONTROLE ADMINISTRATIVO</span>
                         <button type="button" data-topbar-action="adminCatalogs" data-source-menu="open-admin-catalogs-menu"><b>ADM</b><span><strong>Cadastros</strong><em>Central de cadastros administrativos.</em></span></button>
                         <button type="button" data-topbar-action="adminSettings" data-source-menu="open-admin-settings-menu"><b>ADM</b><span><strong>Sala de controle</strong><em>Acessos, auditoria e segurança.</em></span></button>
@@ -1420,7 +1420,7 @@
 
     <div id="toast" class="toast hidden"></div>
     <script src="./static/js/config.js?v=20260719-01"></script>
-    <script src="./static/js/app.js?v=20260817-10"></script>
+    <script src="./static/js/app.js?v=20260817-11"></script>
 </body>
 </html>
 
