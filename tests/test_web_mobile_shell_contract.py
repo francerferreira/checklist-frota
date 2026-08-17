@@ -16,8 +16,8 @@ class WebMobileShellContractTests(unittest.TestCase):
         cls.legacy_readme = LEGACY_README_PATH.read_text(encoding="utf-8")
 
     def test_index_uses_canonical_frontend_bundle(self):
-        self.assertIn('./static/js/app.js?v=20260816-11', self.index_html)
-        self.assertIn('./static/css/styles.css?v=20260816-11', self.index_html)
+        self.assertIn('./static/js/app.js?v=20260817-01', self.index_html)
+        self.assertIn('./static/css/styles.css?v=20260817-01', self.index_html)
         self.assertNotIn("app-20260419-", self.index_html)
 
     def test_login_uses_institutional_glass_layout_with_sis_mmp_identity(self):
@@ -34,6 +34,29 @@ class WebMobileShellContractTests(unittest.TestCase):
         self.assertIn('url("../icons/sis-mmp-logo.png")', styles)
         self.assertIn("backdrop-filter: blur(16px)", styles)
         self.assertIn("body.entry-screen .mobile-shell", styles)
+
+    def test_topbar_organizes_modules_and_subscreens_for_desktop_and_mobile(self):
+        app_js = (PROJECT_ROOT / "web_app" / "static" / "js" / "app.js").read_text(encoding="utf-8")
+        styles = (PROJECT_ROOT / "web_app" / "static" / "css" / "styles.css").read_text(encoding="utf-8")
+        for fragment in [
+            'class="app-topbar hidden"',
+            'id="topbar-navigation"',
+            'data-topbar-module="equipment"',
+            'data-topbar-module="maintenance"',
+            'data-topbar-module="people"',
+            'data-topbar-module="materials"',
+            'data-topbar-module="admin"',
+            'data-topbar-action="checklist"',
+            'data-topbar-action="purchases"',
+            'data-topbar-action="adminCatalogs"',
+        ]:
+            with self.subTest(fragment=fragment):
+                self.assertIn(fragment, self.index_html)
+        self.assertIn("syncTopbarNavigation", app_js)
+        self.assertIn("openTopbarAction", app_js)
+        self.assertIn("topbarActionAllowed", app_js)
+        self.assertIn("@media (max-width: 860px)", styles)
+        self.assertIn(".topbar-module:hover .topbar-dropdown", styles)
 
     def test_frontend_uses_manaus_timezone_for_dates(self):
         app_js = (PROJECT_ROOT / "web_app" / "static" / "js" / "app.js").read_text(encoding="utf-8")

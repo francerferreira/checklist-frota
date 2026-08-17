@@ -341,6 +341,12 @@ const screens = {
 
 const elements = {
     mobileShell: document.querySelector(".mobile-shell"),
+    topbarHomeButton: document.getElementById("topbar-home-button"),
+    topbarMobileToggle: document.getElementById("topbar-mobile-toggle"),
+    topbarNavigation: document.getElementById("topbar-navigation"),
+    topbarContext: document.getElementById("topbar-context"),
+    topbarModuleTriggers: Array.from(document.querySelectorAll("[data-topbar-module-trigger]")),
+    topbarActionButtons: Array.from(document.querySelectorAll("[data-topbar-action]")),
     pullRefreshIndicator: document.getElementById("pull-refresh-indicator"),
     apiBaseUrl: document.getElementById("api-base-url"),
     loginForm: document.getElementById("login-form"),
@@ -832,7 +838,117 @@ function setActiveScreen(key) {
     document.body.classList.toggle("entry-screen", isEntryScreen);
     document.body.classList.toggle("equipment-screen", isEquipmentScreen);
     appTopbar?.classList.toggle("hidden", isEntryScreen);
+    syncTopbarActiveScreen(key);
     elements.mobileShell?.scrollTo({ top: 0, behavior: "auto" });
+}
+
+function topbarActionLabel(action) {
+    const button = elements.topbarActionButtons.find((item) => item.dataset.topbarAction === action);
+    return button?.querySelector("strong")?.textContent?.trim().toUpperCase() || "CENTRAL OPERACIONAL";
+}
+
+function syncTopbarActiveScreen(screenKey) {
+    const screenActions = {
+        home: "",
+        vehicles: "checklist",
+        vehicleFamily: "checklist",
+        checklist: "checklist",
+        checklistHistory: "checklistHistory",
+        checklistCatalog: "checklistCatalog",
+        activities: "activities",
+        activityDetail: "activities",
+        availability: "availability",
+        technicalInspections: "technicalInspections",
+        technicalLibrary: "technicalLibrary",
+        maintenance: "maintenance",
+        planning: "planning",
+        nonConformities: "nonConformities",
+        emergencies: "emergencies",
+        washes: "washes",
+        preventives: "preventives",
+        hrJourney: "hrJourney",
+        rhAdmin: "rhAdmin",
+        weeklyDsr: "weeklyDsr",
+        specialSchedule: "specialSchedule",
+        absenteeism: "absenteeism",
+        mmpStock: "mmpStock",
+        purchases: "purchases",
+        adminCatalogs: "adminCatalogs",
+        adminSettings: "adminSettings",
+    };
+    const selectedAction = screenActions[screenKey] || "";
+    elements.topbarActionButtons.forEach((button) => {
+        const active = button.dataset.topbarAction === selectedAction;
+        button.classList.toggle("is-active", active);
+    });
+    document.querySelectorAll(".topbar-module[data-topbar-module]").forEach((module) => {
+        module.classList.toggle("has-active-item", Boolean(module.querySelector("[data-topbar-action].is-active")));
+    });
+    if (elements.topbarContext) elements.topbarContext.textContent = selectedAction ? topbarActionLabel(selectedAction) : "CENTRAL OPERACIONAL";
+}
+
+function setTopbarModuleOpen(moduleKey, open) {
+    document.querySelectorAll(".topbar-module[data-topbar-module]").forEach((module) => {
+        const active = module.dataset.topbarModule === moduleKey && open;
+        module.classList.toggle("is-open", active);
+        module.querySelector("[data-topbar-module-trigger]")?.setAttribute("aria-expanded", String(active));
+    });
+}
+
+function closeTopbarNavigation() {
+    setTopbarModuleOpen("", false);
+    elements.topbarNavigation?.classList.remove("is-open");
+    elements.topbarMobileToggle?.setAttribute("aria-expanded", "false");
+}
+
+function topbarActionAllowed(button) {
+    const sourceId = button.dataset.sourceMenu;
+    if (sourceId) return !document.getElementById(sourceId)?.classList.contains("hidden");
+    if (button.dataset.topbarAccess === "management") return hasWashReportAccess();
+    return true;
+}
+
+function syncTopbarNavigation() {
+    if (!elements.topbarNavigation) return;
+    elements.topbarActionButtons.forEach((button) => button.classList.toggle("hidden", !topbarActionAllowed(button)));
+    document.querySelectorAll(".topbar-module[data-topbar-module]").forEach((module) => {
+        const hasVisibleAction = Array.from(module.querySelectorAll("[data-topbar-action]")).some((button) => !button.classList.contains("hidden"));
+        module.classList.toggle("is-empty", !hasVisibleAction);
+    });
+}
+
+async function openTopbarAction(action) {
+    const actions = {
+        checklist: openChecklistMenu,
+        checklistHistory: openChecklistHistoryMenu,
+        checklistCatalog: openChecklistCatalogMenu,
+        activities: openActivitiesMenu,
+        availability: openAvailabilityMenu,
+        technicalInspections: openTechnicalInspectionsMenu,
+        technicalLibrary: openTechnicalLibraryMenu,
+        equipmentReports: () => openModuleReports("equipment"),
+        maintenance: openMaintenanceMenu,
+        planning: openPlanningMenu,
+        nonConformities: openNonConformitiesMenu,
+        emergencies: openEmergenciesMenu,
+        washes: openWashesMenu,
+        preventives: openPreventivesMenu,
+        maintenanceDashboard: () => { window.location.href = "./dashboard-manutencao/"; },
+        maintenanceReports: () => openModuleReports("maintenance"),
+        hrJourney: openHrJourneyMenu,
+        rhAdmin: openRhAdminMenu,
+        absenteeism: openAbsenteeismMenu,
+        weeklyDsr: openWeeklyDsrMenu,
+        specialSchedule: openSpecialScheduleMenu,
+        mmpStock: openMmpStockMenu,
+        purchases: openPurchasesMenu,
+        adminCatalogs: openAdminCatalogs,
+        adminSettings: openAdminSettings,
+    };
+    const handler = actions[action];
+    if (!handler) return;
+    closeTopbarNavigation();
+    await handler();
 }
 
 async function fetchWithTimeout(url, options = {}, timeoutMs = 20000) {
@@ -1168,6 +1284,7 @@ function renderHome() {
         elements.openMaintenanceMenu.classList.toggle("hidden", !canAccessMechanicModule);
     }
     syncMenuGroupHeadings();
+    syncTopbarNavigation();
     refreshSyncQueuePanel();
     refreshCloudAdminPanel();
     refreshAdminResetPanel();
@@ -8317,6 +8434,27 @@ function on(element, eventName, handler) {
         element.addEventListener(eventName, handler);
     }
 }
+
+on(elements.topbarHomeButton, "click", () => {
+    closeTopbarNavigation();
+    renderHome();
+    setActiveScreen("home");
+});
+on(elements.topbarMobileToggle, "click", () => {
+    const open = !elements.topbarNavigation?.classList.contains("is-open");
+    elements.topbarNavigation?.classList.toggle("is-open", open);
+    elements.topbarMobileToggle?.setAttribute("aria-expanded", String(open));
+    if (!open) setTopbarModuleOpen("", false);
+});
+elements.topbarModuleTriggers.forEach((trigger) => on(trigger, "click", () => {
+    const moduleKey = trigger.dataset.topbarModuleTrigger || "";
+    const module = trigger.closest(".topbar-module");
+    setTopbarModuleOpen(moduleKey, !module?.classList.contains("is-open"));
+}));
+elements.topbarActionButtons.forEach((button) => on(button, "click", () => openTopbarAction(button.dataset.topbarAction)));
+document.addEventListener("click", (event) => {
+    if (appTopbar && !appTopbar.contains(event.target)) closeTopbarNavigation();
+});
 
 on(elements.loginForm, "submit", async (event) => {
     event.preventDefault();

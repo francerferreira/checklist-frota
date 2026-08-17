@@ -14,11 +14,79 @@
     <title>SIS MMP | Sistema de Manutenção de Máquinas Pesadas</title>
     <link rel="icon" type="image/png" sizes="192x192" href="./static/icons/icon-192.png?v=sis-mmp-20260810">
     <link rel="apple-touch-icon" href="./static/icons/icon-192.png?v=sis-mmp-20260810">
-    <link rel="stylesheet" href="./static/css/styles.css?v=20260816-11">
+    <link rel="stylesheet" href="./static/css/styles.css?v=20260817-01">
 </head>
 <body>
     <div class="mobile-shell">
         <div id="pull-refresh-indicator" class="pull-refresh-indicator" aria-live="polite">PUXE PARA ATUALIZAR</div>
+        <header class="app-topbar hidden" aria-label="Navegação principal">
+            <div class="topbar-main-row">
+                <button id="topbar-home-button" class="topbar-brand" type="button" aria-label="Voltar ao início do SIS MMP">
+                    <img src="./static/icons/icon-192.png" alt="">
+                    <span><strong>SIS MMP</strong><em id="topbar-context">CENTRAL OPERACIONAL</em></span>
+                </button>
+                <button id="topbar-mobile-toggle" class="topbar-mobile-toggle" type="button" aria-expanded="false" aria-controls="topbar-navigation">
+                    <span>MÓDULOS</span><i aria-hidden="true"></i>
+                </button>
+            </div>
+            <nav id="topbar-navigation" class="topbar-navigation" aria-label="Módulos do sistema">
+                <div class="topbar-module" data-topbar-module="equipment">
+                    <button class="topbar-module-trigger" type="button" data-topbar-module-trigger="equipment" aria-expanded="false" aria-controls="topbar-dropdown-equipment">EQUIPAMENTOS <i aria-hidden="true"></i></button>
+                    <div id="topbar-dropdown-equipment" class="topbar-dropdown" role="group" aria-label="Subtelas de Equipamentos">
+                        <span class="topbar-dropdown-title">OPERAÇÃO E CONTROLE</span>
+                        <button type="button" data-topbar-action="checklist" data-source-menu="open-checklist-menu"><b>01</b><span><strong>Realizar checklist</strong><em>Selecionar ativo e registrar inspeção.</em></span></button>
+                        <button type="button" data-topbar-action="checklistHistory" data-source-menu="open-checklist-history-menu"><b>02</b><span><strong>Histórico de checklist</strong><em>Consultar registros por equipamento.</em></span></button>
+                        <button type="button" data-topbar-action="checklistCatalog" data-source-menu="open-checklist-catalog-menu"><b>ADM</b><span><strong>Catálogo de checklist</strong><em>Administrar itens de inspeção.</em></span></button>
+                        <button type="button" data-topbar-action="activities" data-source-menu="open-activities-menu"><b>03</b><span><strong>Inspeções</strong><em>Conferir atividades abertas.</em></span></button>
+                        <button type="button" data-topbar-action="availability" data-source-menu="open-availability-menu"><b>04</b><span><strong>Disponibilidade e horímetro</strong><em>Apontar condição operacional.</em></span></button>
+                        <button type="button" data-topbar-action="technicalInspections" data-source-menu="open-technical-inspections-menu"><b>05</b><span><strong>Inspeção técnica</strong><em>Executar modelos publicados.</em></span></button>
+                        <button type="button" data-topbar-action="technicalLibrary" data-source-menu="open-technical-library-menu"><b>06</b><span><strong>Biblioteca técnica</strong><em>Consultar manuais e procedimentos.</em></span></button>
+                        <button type="button" data-topbar-action="equipmentReports" data-source-menu="open-equipment-reports-menu"><b>REL</b><span><strong>Relatórios de equipamentos</strong><em>Indicadores e históricos do módulo.</em></span></button>
+                    </div>
+                </div>
+                <div class="topbar-module" data-topbar-module="maintenance">
+                    <button class="topbar-module-trigger" type="button" data-topbar-module-trigger="maintenance" aria-expanded="false" aria-controls="topbar-dropdown-maintenance">MANUTENÇÃO <i aria-hidden="true"></i></button>
+                    <div id="topbar-dropdown-maintenance" class="topbar-dropdown" role="group" aria-label="Subtelas de Manutenção">
+                        <span class="topbar-dropdown-title">PLANEJAMENTO E EXECUÇÃO</span>
+                        <button type="button" data-topbar-action="maintenance" data-source-menu="open-maintenance-menu"><b>07</b><span><strong>Manutenção</strong><em>Serviços, preventivas e instalações.</em></span></button>
+                        <button type="button" data-topbar-action="planning" data-source-menu="open-planning-menu"><b>PCM</b><span><strong>Planejamento e backlog</strong><em>Programar e reprogramar serviços.</em></span></button>
+                        <button type="button" data-topbar-action="nonConformities" data-source-menu="open-non-conformities-menu"><b>08</b><span><strong>Central de resolução</strong><em>Acompanhar tratativas operacionais.</em></span></button>
+                        <button type="button" data-topbar-action="emergencies" data-source-menu="open-emergencies-menu"><b>09</b><span><strong>Emergencial</strong><em>Comunicar parada e abrir OS.</em></span></button>
+                        <button type="button" data-topbar-action="washes" data-source-menu="open-washes-menu"><b>10</b><span><strong>Lavagens</strong><em>Registrar atendimento programado.</em></span></button>
+                        <button type="button" data-topbar-action="preventives" data-source-menu="open-preventives-menu"><b>11</b><span><strong>Preventivas</strong><em>Acompanhar prazos e materiais.</em></span></button>
+                        <button type="button" data-topbar-action="maintenanceDashboard" data-source-menu="open-maintenance-dashboard-menu"><b>12</b><span><strong>Dashboard de manutenção</strong><em>Abrir painel executivo.</em></span></button>
+                        <button type="button" data-topbar-action="maintenanceReports" data-source-menu="open-maintenance-reports-menu"><b>REL</b><span><strong>Relatórios de manutenção</strong><em>Ordens, paradas e preventivas.</em></span></button>
+                    </div>
+                </div>
+                <div class="topbar-module" data-topbar-module="people">
+                    <button class="topbar-module-trigger" type="button" data-topbar-module-trigger="people" aria-expanded="false" aria-controls="topbar-dropdown-people">PESSOAS <i aria-hidden="true"></i></button>
+                    <div id="topbar-dropdown-people" class="topbar-dropdown" role="group" aria-label="Subtelas de Pessoas">
+                        <span class="topbar-dropdown-title">RH, JORNADA E ESCALA</span>
+                        <button type="button" data-topbar-action="hrJourney" data-source-menu="open-hr-journey-menu"><b>RH</b><span><strong>Minha jornada</strong><em>Consultar vínculo, frequência e treinamentos.</em></span></button>
+                        <button type="button" data-topbar-action="rhAdmin" data-source-menu="open-rh-admin-menu"><b>ADM</b><span><strong>Gestão de RH</strong><em>Administrar colaboradores e rotinas.</em></span></button>
+                        <button type="button" data-topbar-action="absenteeism" data-source-menu="open-absenteeism-menu"><b>14</b><span><strong>Absenteísmo diário</strong><em>Apurar presença, falta e férias.</em></span></button>
+                        <button type="button" data-topbar-action="weeklyDsr" data-topbar-access="management"><b>DSR</b><span><strong>DSR semanal</strong><em>Consultar a escala da semana.</em></span></button>
+                        <button type="button" data-topbar-action="specialSchedule" data-source-menu="open-special-schedule-menu"><b>15</b><span><strong>Escala de domingo e feriado</strong><em>Planejar equipes e DSR.</em></span></button>
+                    </div>
+                </div>
+                <div class="topbar-module" data-topbar-module="materials">
+                    <button class="topbar-module-trigger" type="button" data-topbar-module-trigger="materials" aria-expanded="false" aria-controls="topbar-dropdown-materials">MATERIAIS E COMPRAS <i aria-hidden="true"></i></button>
+                    <div id="topbar-dropdown-materials" class="topbar-dropdown" role="group" aria-label="Subtelas de Materiais e Compras">
+                        <span class="topbar-dropdown-title">ESTOQUE E AQUISIÇÃO</span>
+                        <button type="button" data-topbar-action="mmpStock" data-source-menu="open-mmp-stock-menu"><b>MMP</b><span><strong>Armazém e Estoque MMP</strong><em>Saldo, prateleira e aplicação.</em></span></button>
+                        <button type="button" data-topbar-action="purchases" data-source-menu="open-purchases-menu"><b>SC</b><span><strong>Área de compras</strong><em>Solicitações e histórico de materiais.</em></span></button>
+                    </div>
+                </div>
+                <div class="topbar-module" data-topbar-module="admin">
+                    <button class="topbar-module-trigger" type="button" data-topbar-module-trigger="admin" aria-expanded="false" aria-controls="topbar-dropdown-admin">ADMINISTRAÇÃO <i aria-hidden="true"></i></button>
+                    <div id="topbar-dropdown-admin" class="topbar-dropdown" role="group" aria-label="Subtelas de Administração">
+                        <span class="topbar-dropdown-title">CONTROLE ADMINISTRATIVO</span>
+                        <button type="button" data-topbar-action="adminCatalogs" data-source-menu="open-admin-catalogs-menu"><b>ADM</b><span><strong>Cadastros</strong><em>Central de cadastros administrativos.</em></span></button>
+                        <button type="button" data-topbar-action="adminSettings" data-source-menu="open-admin-settings-menu"><b>ADM</b><span><strong>Sala de controle</strong><em>Acessos, auditoria e segurança.</em></span></button>
+                    </div>
+                </div>
+            </nav>
+        </header>
         <main class="app-main">
             <section id="login-screen" class="screen active">
                 <form id="login-form" class="login-card login-card-refined">
@@ -1259,7 +1327,7 @@
 
     <div id="toast" class="toast hidden"></div>
     <script src="./static/js/config.js?v=20260719-01"></script>
-    <script src="./static/js/app.js?v=20260816-11"></script>
+    <script src="./static/js/app.js?v=20260817-01"></script>
 </body>
 </html>
 
