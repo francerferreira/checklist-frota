@@ -1,5 +1,5 @@
 const CACHE_PREFIX = "cf-checklist-frota-pwa";
-const CACHE_NAME = `${CACHE_PREFIX}-20260816-purchases-foundation`;
+const CACHE_NAME = `${CACHE_PREFIX}-20260816-private-purchase-import`;
 const STATIC_CACHE_PATHS = [
     "./manifest.json",
     "./static/icons/icon-192.png",

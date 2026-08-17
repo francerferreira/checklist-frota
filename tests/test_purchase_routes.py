@@ -110,6 +110,16 @@ class PurchaseRouteTests(unittest.TestCase):
         with self.app.app_context():
             self.assertEqual(db.session.get(Material, self.material_id).quantidade_estoque, 5)
 
+    def test_purchase_import_controls_are_admin_only(self):
+        denied = self.client.get("/compras/importacoes", headers=self.gestor_headers)
+        self.assertEqual(denied.status_code, 403, denied.get_json())
+
+        denied_upload = self.client.post("/compras/importacoes", headers=self.gestor_headers)
+        self.assertEqual(denied_upload.status_code, 403, denied_upload.get_json())
+
+        allowed = self.client.get("/compras/importacoes", headers=self.admin_headers)
+        self.assertEqual(allowed.status_code, 200, allowed.get_json())
+
 
 if __name__ == "__main__":
     unittest.main()

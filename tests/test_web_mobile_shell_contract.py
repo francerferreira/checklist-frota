@@ -16,8 +16,8 @@ class WebMobileShellContractTests(unittest.TestCase):
         cls.legacy_readme = LEGACY_README_PATH.read_text(encoding="utf-8")
 
     def test_index_uses_canonical_frontend_bundle(self):
-        self.assertIn('./static/js/app.js?v=20260816-06', self.index_html)
-        self.assertIn('./static/css/styles.css?v=20260816-06', self.index_html)
+        self.assertIn('./static/js/app.js?v=20260816-07', self.index_html)
+        self.assertIn('./static/css/styles.css?v=20260816-07', self.index_html)
         self.assertNotIn("app-20260419-", self.index_html)
 
     def test_frontend_uses_manaus_timezone_for_dates(self):
@@ -126,6 +126,9 @@ class WebMobileShellContractTests(unittest.TestCase):
         self.assertIn('apiFetch("/usuarios")', app_js)
         self.assertIn('apiFetch("/admin/intelligent-rules")', app_js)
         self.assertIn('apiFetch("/admin/audit-health")', app_js)
+        self.assertIn('data-admin-settings-action="purchase-import"', self.index_html)
+        self.assertIn('id="admin-purchases-import-file"', app_js)
+        self.assertIn("openAdminPurchaseImport", app_js)
         self.assertNotIn('id="open-public-admin-settings-menu"', self.index_html)
 
     def test_mmp_stock_web_flow_is_connected(self):
@@ -150,12 +153,14 @@ class WebMobileShellContractTests(unittest.TestCase):
         app_js = (PROJECT_ROOT / "web_app" / "static" / "js" / "app.js").read_text(encoding="utf-8")
         self.assertIn("openPurchasesMenu", app_js)
         self.assertIn('apiFetch("/compras/solicitacoes")', app_js)
-        self.assertIn('apiFetch("/compras/importacoes")', app_js)
+        self.assertIn('apiFetch("/compras/importacoes",', app_js)
         self.assertIn("submitPurchaseImport", app_js)
         self.assertIn("loadMaterialPurchaseHistory", app_js)
         self.assertIn('id="purchases-screen"', self.index_html)
-        self.assertIn('id="purchases-import-file"', self.index_html)
         self.assertIn('id="purchases-material-history"', self.index_html)
+        self.assertNotIn('id="purchases-import-panel"', self.index_html)
+        self.assertNotIn('id="purchases-import-count"', self.index_html)
+        self.assertIn("Solicitações, pedidos, notas fiscais, recebimentos e histórico de materiais.", self.index_html)
 
     def test_availability_and_hourmeter_mobile_operations_are_connected(self):
         app_js = (PROJECT_ROOT / "web_app" / "static" / "js" / "app.js").read_text(encoding="utf-8")

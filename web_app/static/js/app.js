@@ -299,7 +299,6 @@ const state = {
     },
     purchases: {
         requests: [],
-        imports: [],
         materialHistory: null,
     },
     moduleReports: "",
@@ -550,11 +549,6 @@ const elements = {
     purchasesOpenCount: document.getElementById("purchases-open-count"),
     purchasesAwaitingPcCount: document.getElementById("purchases-awaiting-pc-count"),
     purchasesAwaitingNfCount: document.getElementById("purchases-awaiting-nf-count"),
-    purchasesImportCount: document.getElementById("purchases-import-count"),
-    purchasesImportFile: document.getElementById("purchases-import-file"),
-    purchasesImportPanel: document.getElementById("purchases-import-panel"),
-    purchasesImportButton: document.getElementById("purchases-import-button"),
-    purchasesImportFeedback: document.getElementById("purchases-import-feedback"),
     purchasesMaterialId: document.getElementById("purchases-material-id"),
     purchasesMaterialHistoryButton: document.getElementById("purchases-material-history-button"),
     purchasesMaterialHistory: document.getElementById("purchases-material-history"),
@@ -2006,6 +2000,21 @@ function openAdminSettingsAction(action) {
     else if (action === "audit") loadAdminSettingsAudit();
     else if (action === "backup") openAdminSettingsHomePanel("cloud-admin-panel");
     else if (action === "resets") openAdminSettingsHomePanel("admin-reset-panel");
+    else if (action === "purchase-import") openAdminPurchaseImport();
+}
+
+function openAdminPurchaseImport() {
+    if (!hasAdminAccess()) return;
+    setAdminSettingsFeedback("MIGRAÇÃO HISTÓRICA DE COMPRAS", `
+        <strong>CONTROLE RESTRITO AO ADMINISTRADOR</strong>
+        <span>Use somente para migrar uma fonte histórica autorizada. O mesmo arquivo não será duplicado.</span>
+        <div class="purchases-import-row">
+            <input id="admin-purchases-import-file" type="file" accept=".xlsx">
+            <button id="admin-purchases-import-button" class="secondary-button" type="button">IMPORTAR BASE HISTÓRICA</button>
+        </div>
+        <div id="admin-purchases-import-feedback">Aguardando arquivo autorizado.</div>
+    `);
+    document.getElementById("admin-purchases-import-button")?.addEventListener("click", submitPurchaseImport);
 }
 
 function renderPurchaseOverview() {
@@ -2016,41 +2025,34 @@ function renderPurchaseOverview() {
     if (elements.purchasesOpenCount) elements.purchasesOpenCount.textContent = String(open.length);
     if (elements.purchasesAwaitingPcCount) elements.purchasesAwaitingPcCount.textContent = String(awaitingPc.length);
     if (elements.purchasesAwaitingNfCount) elements.purchasesAwaitingNfCount.textContent = String(awaitingNf.length);
-    if (elements.purchasesImportCount) elements.purchasesImportCount.textContent = String(state.purchases.imports.length);
 }
 
 async function loadPurchasesData() {
     try {
-        const [requests, imports] = await Promise.all([
-            apiFetch("/compras/solicitacoes"),
-            apiFetch("/compras/importacoes"),
-        ]);
+        const requests = await apiFetch("/compras/solicitacoes");
         state.purchases.requests = requests || [];
-        state.purchases.imports = imports || [];
         renderPurchaseOverview();
-        if (elements.purchasesImportFeedback && state.purchases.imports.length) {
-            const latest = state.purchases.imports[0];
-            elements.purchasesImportFeedback.innerHTML = `<strong>ÚLTIMO LOTE: ${escapeHtml(latest.source_filename || "-")}</strong><span>${latest.rows_read || 0} linhas | ${latest.status || "-"} | ${formatDateTime(latest.finished_at)}</span>`;
-        }
     } catch (error) {
-        if (elements.purchasesImportFeedback) elements.purchasesImportFeedback.textContent = error.message || "Não foi possível carregar Compras.";
         showToast(error.message || "FALHA AO CARREGAR COMPRAS.", true);
     }
 }
 
 async function submitPurchaseImport() {
-    const file = elements.purchasesImportFile?.files?.[0];
+    if (!hasAdminAccess()) { showToast("SOMENTE ADMIN PODE IMPORTAR A BASE HISTÓRICA.", true); return; }
+    const fileInput = document.getElementById("admin-purchases-import-file");
+    const importButton = document.getElementById("admin-purchases-import-button");
+    const feedback = document.getElementById("admin-purchases-import-feedback");
+    const file = fileInput?.files?.[0];
     if (!file) { showToast("SELECIONE A PLANILHA XLSX DE COMPRAS.", true); return; }
     const body = new FormData(); body.append("file", file);
-    if (elements.purchasesImportButton) elements.purchasesImportButton.disabled = true;
+    if (importButton) importButton.disabled = true;
     try {
         const result = await apiFetch("/compras/importacoes", { method: "POST", body });
         const reconciliation = result.reconciliation || {};
-        if (elements.purchasesImportFeedback) elements.purchasesImportFeedback.innerHTML = `<strong>IMPORTAÇÃO ${escapeHtml(result.status || "CONCLUÍDA")}.</strong><span>${reconciliation.source_rows || 0} linhas | ${reconciliation.purchase_requests || 0} SCs | ${reconciliation.materials || 0} materiais | ${reconciliation.purchase_orders || 0} PCs.</span>`;
+        if (feedback) feedback.innerHTML = `<strong>IMPORTAÇÃO ${escapeHtml(result.status || "CONCLUÍDA")}.</strong><span>${reconciliation.source_rows || 0} linhas | ${reconciliation.purchase_requests || 0} SCs | ${reconciliation.materials || 0} materiais | ${reconciliation.purchase_orders || 0} PCs.</span>`;
         showToast("HISTÓRICO DE COMPRAS IMPORTADO.");
-        await loadPurchasesData();
     } catch (error) { showToast(error.message || "FALHA NA IMPORTAÇÃO.", true); }
-    finally { if (elements.purchasesImportButton) elements.purchasesImportButton.disabled = false; }
+    finally { if (importButton) importButton.disabled = false; }
 }
 
 async function loadMaterialPurchaseHistory() {
@@ -2069,7 +2071,6 @@ async function loadMaterialPurchaseHistory() {
 async function openPurchasesMenu() {
     if (!hasWashReportAccess()) return;
     if (elements.purchasesRoleBadge) elements.purchasesRoleBadge.textContent = hasAdminAccess() ? "ADMINISTRAÇÃO" : "GESTÃO";
-    if (elements.purchasesImportPanel) elements.purchasesImportPanel.classList.toggle("hidden", !hasAdminAccess());
     setActiveScreen("purchases");
     await loadPurchasesData();
 }
@@ -8276,7 +8277,6 @@ on(elements.purchasesBackButton, "click", () => {
     renderHome();
     setActiveScreen("home");
 });
-on(elements.purchasesImportButton, "click", submitPurchaseImport);
 on(elements.purchasesMaterialHistoryButton, "click", loadMaterialPurchaseHistory);
 on(elements.mmpCreatePrincipalButton, "click", () => createMmpWarehouse("PRINCIPAL"));
 on(elements.mmpCreateWarehouseButton, "click", () => createMmpWarehouse("MMP"));
