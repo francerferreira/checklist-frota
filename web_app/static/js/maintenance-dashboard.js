@@ -368,7 +368,7 @@ function renderGovernanceOrder(data) {
     dashboardElements.governanceCostSummary.textContent = `TOTAL: ${formatMoney(summary.total)} | PEÇAS: ${formatMoney(categories.PECA)} | MÃO DE OBRA: ${formatMoney(categories.MAO_DE_OBRA)} | EXTERNO: ${formatMoney(categories.SERVICO_EXTERNO)}`;
     const costs = data.costs || [];
     dashboardElements.governanceCostList.innerHTML = costs.length ? costs.map((cost) => `<article class="dashboard-governance-cost-row">
-        <div><strong>${escapeHtml(cost.category)} | ${escapeHtml(cost.description)}</strong><span>${escapeHtml(cost.supplier_name || "SEM FORNECEDOR")} | ${escapeHtml(cost.affected_component || "SEM COMPONENTE")}</span><small>${escapeHtml(formatTvAccessDate(cost.occurred_at))} | ${formatMoney(cost.amount)}</small></div>
+        <div><strong>${escapeHtml(cost.category)} | ${escapeHtml(cost.description)}</strong><span>${escapeHtml(cost.supplier_name || "SEM PROVEDOR")} | ${escapeHtml(cost.affected_component || "SEM COMPONENTE")}</span><small>${escapeHtml(formatTvAccessDate(cost.occurred_at))} | ${formatMoney(cost.amount)}</small></div>
         <button type="button" data-governance-cost-delete="${cost.id}">EXCLUIR</button>
     </article>`).join("") : '<span class="dashboard-empty">Nenhum custo registrado nesta OS.</span>';
     dashboardElements.governanceCostList.querySelectorAll("[data-governance-cost-delete]").forEach((button) => {

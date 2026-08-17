@@ -5535,9 +5535,64 @@ button.rh-admin-operation-card:hover { border-color: #78aee6; transform: transla
 .purchases-history-list article { display: grid; grid-template-columns: 120px 1fr auto; gap: 10px; padding: 10px 0; border-top: 1px solid #dbe5f2; }
 .purchases-history-list em { color: #537095; font-style: normal; }
 
+.purchases-provider-panel {
+    margin: 14px 0;
+    padding: 18px;
+    border: 1px solid rgba(255, 255, 255, .68);
+    border-radius: 18px;
+    background: rgba(255, 255, 255, .96);
+    box-shadow: 0 14px 30px rgba(0, 45, 105, .12);
+}
+
+.purchases-provider-form {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 12px;
+}
+
+.purchases-provider-form > label {
+    display: grid;
+    gap: 6px;
+}
+
+.purchases-provider-form > label > span {
+    color: var(--muted);
+    font-size: .68rem;
+    font-weight: 900;
+    letter-spacing: .07em;
+}
+
+.purchases-provider-form input:not([type="checkbox"]),
+.purchases-provider-form textarea {
+    width: 100%;
+    min-height: 44px;
+    padding: 10px 12px;
+    border: 1px solid #cdd8e5;
+    border-radius: 11px;
+    background: #fff;
+    color: var(--ink);
+}
+
+.purchases-provider-wide { grid-column: 1 / -1; }
+.purchases-provider-flags,
+.purchases-provider-actions { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+.purchases-provider-flags label { display: flex; align-items: center; gap: 7px; color: #29496f; font-size: .72rem; font-weight: 850; }
+.purchases-provider-list { display: grid; gap: 9px; margin-top: 8px; }
+.purchases-provider-card { display: grid; grid-template-columns: minmax(0, 1fr) auto auto; align-items: center; gap: 12px; padding: 13px; border: 1px solid #dbe5f2; border-radius: 13px; background: #f8fbff; }
+.purchases-provider-card > div { display: grid; gap: 3px; min-width: 0; }
+.purchases-provider-card span { color: var(--accent); font-size: .67rem; font-weight: 900; letter-spacing: .07em; }
+.purchases-provider-card strong { color: #09284f; }
+.purchases-provider-card em,
+.purchases-provider-card small { color: #537095; font-style: normal; }
+.purchases-provider-card.is-inactive { opacity: .68; }
+
 @media (max-width: 760px) {
     .purchases-summary-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
     .purchases-history-list article { grid-template-columns: 1fr; gap: 3px; }
+    .purchases-provider-form { grid-template-columns: 1fr; }
+    .purchases-provider-wide { grid-column: auto; }
+    .purchases-provider-card { grid-template-columns: 1fr; }
+    .purchases-provider-card > button { justify-self: start; }
 }
 .screen-heading.compact.admin-settings-heading {
     grid-template-columns: auto minmax(0, 1fr) auto;

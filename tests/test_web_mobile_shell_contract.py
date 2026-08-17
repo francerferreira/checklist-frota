@@ -16,8 +16,8 @@ class WebMobileShellContractTests(unittest.TestCase):
         cls.legacy_readme = LEGACY_README_PATH.read_text(encoding="utf-8")
 
     def test_index_uses_canonical_frontend_bundle(self):
-        self.assertIn('./static/js/app.js?v=20260816-09', self.index_html)
-        self.assertIn('./static/css/styles.css?v=20260816-09', self.index_html)
+        self.assertIn('./static/js/app.js?v=20260816-10', self.index_html)
+        self.assertIn('./static/css/styles.css?v=20260816-10', self.index_html)
         self.assertNotIn("app-20260419-", self.index_html)
 
     def test_frontend_uses_manaus_timezone_for_dates(self):
@@ -170,6 +170,23 @@ class WebMobileShellContractTests(unittest.TestCase):
         self.assertIn("renderPlanning", app_js)
         self.assertIn("/manutencao/visao?ano=", app_js)
         self.assertIn("excluir_checklist=true", app_js)
+
+    def test_admin_catalogs_and_purchase_providers_are_connected(self):
+        app_js = (PROJECT_ROOT / "web_app" / "static" / "js" / "app.js").read_text(encoding="utf-8")
+        for fragment in [
+            'id="open-admin-catalogs-menu"',
+            'id="admin-catalogs-screen"',
+            'data-admin-catalog-action="providers"',
+            'id="purchases-provider-panel"',
+            'id="purchases-provider-form"',
+            'id="purchases-provider-list"',
+        ]:
+            with self.subTest(fragment=fragment):
+                self.assertIn(fragment, self.index_html)
+        self.assertIn("openAdminCatalogs", app_js)
+        self.assertIn('apiFetch("/compras/provedores")', app_js)
+        self.assertIn('method: providerId ? "PUT" : "POST"', app_js)
+        self.assertIn('elements.purchasesProviderPanel?.classList.toggle("hidden", !hasAdminAccess())', app_js)
 
     def test_availability_and_hourmeter_mobile_operations_are_connected(self):
         app_js = (PROJECT_ROOT / "web_app" / "static" / "js" / "app.js").read_text(encoding="utf-8")

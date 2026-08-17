@@ -52,9 +52,9 @@ class PurchaseRouteTests(unittest.TestCase):
 
     def test_purchase_request_approval_partial_receipt_and_idempotency(self):
         supplier = self.client.post(
-            "/compras/fornecedores",
-            headers=self.gestor_headers,
-            json={"code": "FOR-001", "name": "Fornecedor Hidráulico", "email": "compras@example.test"},
+            "/compras/provedores",
+            headers=self.admin_headers,
+            json={"code": "PROV-001", "name": "Provedor Hidráulico", "email": "compras@example.test"},
         )
         self.assertEqual(supplier.status_code, 201, supplier.get_json())
         supplier_id = supplier.get_json()["data"]["id"]
@@ -119,6 +119,48 @@ class PurchaseRouteTests(unittest.TestCase):
 
         allowed = self.client.get("/compras/importacoes", headers=self.admin_headers)
         self.assertEqual(allowed.status_code, 200, allowed.get_json())
+
+    def test_provider_registration_is_admin_only_and_can_be_updated(self):
+        denied_list = self.client.get("/compras/provedores", headers=self.gestor_headers)
+        self.assertEqual(denied_list.status_code, 403, denied_list.get_json())
+        denied_create = self.client.post(
+            "/compras/provedores",
+            headers=self.gestor_headers,
+            json={"code": "PROV-NEGADO", "name": "Não deve cadastrar"},
+        )
+        self.assertEqual(denied_create.status_code, 403, denied_create.get_json())
+
+        created = self.client.post(
+            "/compras/provedores",
+            headers=self.admin_headers,
+            json={
+                "code": "PROV-ADM",
+                "name": "Provedor Administrativo",
+                "legal_name": "Provedor Administrativo Ltda",
+                "tax_id": "00.000.000/0001-00",
+                "homologated": True,
+                "preferred": True,
+            },
+        )
+        self.assertEqual(created.status_code, 201, created.get_json())
+        provider_id = created.get_json()["data"]["id"]
+        updated = self.client.put(
+            f"/compras/provedores/{provider_id}",
+            headers=self.admin_headers,
+            json={
+                "code": "PROV-ADM",
+                "name": "Provedor Administrativo Atualizado",
+                "active": False,
+                "homologated": True,
+                "preferred": False,
+            },
+        )
+        self.assertEqual(updated.status_code, 200, updated.get_json())
+        self.assertEqual(updated.get_json()["data"]["name"], "Provedor Administrativo Atualizado")
+        self.assertFalse(updated.get_json()["data"]["active"])
+
+        legacy_list = self.client.get("/compras/fornecedores", headers=self.admin_headers)
+        self.assertEqual(legacy_list.status_code, 200, legacy_list.get_json())
 
 
 if __name__ == "__main__":

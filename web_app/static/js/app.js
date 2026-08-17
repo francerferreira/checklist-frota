@@ -301,6 +301,8 @@ const state = {
     purchases: {
         requests: [],
         materialHistory: null,
+        providers: [],
+        editingProviderId: null,
     },
     moduleReports: "",
 };
@@ -318,6 +320,7 @@ const screens = {
     checklistCatalog: document.getElementById("checklist-catalog-screen"),
     rhAdmin: document.getElementById("rh-admin-screen"),
     adminSettings: document.getElementById("admin-settings-screen"),
+    adminCatalogs: document.getElementById("admin-catalogs-screen"),
     purchases: document.getElementById("purchases-screen"),
     mmpStock: document.getElementById("mmp-stock-screen"),
     moduleReports: document.getElementById("module-reports-screen"),
@@ -426,6 +429,7 @@ const elements = {
     openChecklistCatalogMenu: document.getElementById("open-checklist-catalog-menu"),
     openRhAdminMenu: document.getElementById("open-rh-admin-menu"),
     openAdminSettingsMenu: document.getElementById("open-admin-settings-menu"),
+    openAdminCatalogsMenu: document.getElementById("open-admin-catalogs-menu"),
     openMmpStockMenu: document.getElementById("open-mmp-stock-menu"),
     openPurchasesMenu: document.getElementById("open-purchases-menu"),
     openEquipmentReportsMenu: document.getElementById("open-equipment-reports-menu"),
@@ -524,6 +528,8 @@ const elements = {
     adminSettingsGrid: document.getElementById("admin-settings-grid"),
     adminSettingsFeedback: document.getElementById("admin-settings-feedback"),
     adminSettingsFeedbackContent: document.getElementById("admin-settings-feedback-content"),
+    adminCatalogsBackButton: document.getElementById("admin-catalogs-back-button"),
+    adminCatalogsGrid: document.getElementById("admin-catalogs-grid"),
     mmpStockBackButton: document.getElementById("mmp-stock-back-button"),
     mmpStockRoleBadge: document.getElementById("mmp-stock-role-badge"),
     mmpAdminPanel: document.getElementById("mmp-admin-panel"),
@@ -552,6 +558,23 @@ const elements = {
     purchasesOpenCount: document.getElementById("purchases-open-count"),
     purchasesAwaitingPcCount: document.getElementById("purchases-awaiting-pc-count"),
     purchasesAwaitingNfCount: document.getElementById("purchases-awaiting-nf-count"),
+    purchasesProviderPanel: document.getElementById("purchases-provider-panel"),
+    purchasesProviderForm: document.getElementById("purchases-provider-form"),
+    purchasesProviderCode: document.getElementById("purchases-provider-code"),
+    purchasesProviderName: document.getElementById("purchases-provider-name"),
+    purchasesProviderLegalName: document.getElementById("purchases-provider-legal-name"),
+    purchasesProviderTradeName: document.getElementById("purchases-provider-trade-name"),
+    purchasesProviderTaxId: document.getElementById("purchases-provider-tax-id"),
+    purchasesProviderContact: document.getElementById("purchases-provider-contact"),
+    purchasesProviderEmail: document.getElementById("purchases-provider-email"),
+    purchasesProviderPhone: document.getElementById("purchases-provider-phone"),
+    purchasesProviderNotes: document.getElementById("purchases-provider-notes"),
+    purchasesProviderActive: document.getElementById("purchases-provider-active"),
+    purchasesProviderHomologated: document.getElementById("purchases-provider-homologated"),
+    purchasesProviderPreferred: document.getElementById("purchases-provider-preferred"),
+    purchasesProviderSubmit: document.getElementById("purchases-provider-submit"),
+    purchasesProviderCancel: document.getElementById("purchases-provider-cancel"),
+    purchasesProviderList: document.getElementById("purchases-provider-list"),
     purchasesMaterialId: document.getElementById("purchases-material-id"),
     purchasesMaterialHistoryButton: document.getElementById("purchases-material-history-button"),
     purchasesMaterialHistory: document.getElementById("purchases-material-history"),
@@ -1106,6 +1129,7 @@ function renderHome() {
     elements.openChecklistCatalogMenu?.classList.toggle("hidden", !hasWashReportAccess());
     elements.openRhAdminMenu?.classList.toggle("hidden", !hasWashReportAccess());
     elements.openAdminSettingsMenu?.classList.toggle("hidden", !hasAdminAccess());
+    elements.openAdminCatalogsMenu?.classList.toggle("hidden", !hasAdminAccess());
     elements.openMmpStockMenu?.classList.toggle("hidden", !hasMmpAccess());
     elements.openPurchasesMenu?.classList.toggle("hidden", !hasWashReportAccess());
     elements.openEquipmentReportsMenu?.classList.toggle("hidden", !hasWashReportAccess());
@@ -2055,6 +2079,30 @@ function openAdminSettingsAction(action) {
     else if (action === "purchase-import") openAdminPurchaseImport();
 }
 
+function openAdminCatalogs() {
+    if (!hasAdminAccess()) {
+        showToast("SOMENTE ADMIN PODE ACESSAR OS CADASTROS.", true);
+        return;
+    }
+    setActiveScreen("adminCatalogs");
+}
+
+async function openAdminCatalogAction(action) {
+    if (!hasAdminAccess()) {
+        showToast("SOMENTE ADMIN PODE OPERAR OS CADASTROS.", true);
+        return;
+    }
+    if (action === "providers") await openPurchasesMenu({ focusProviders: true });
+    else if (action === "checklist") await openChecklistCatalogMenu();
+    else if (action === "employees") {
+        await openRhAdminMenu();
+        setRhAdminTab("employees");
+    } else if (action === "users") {
+        openAdminSettings();
+        openAdminSettingsAction("users");
+    } else if (action === "stock") await openMmpStockMenu();
+}
+
 function openAdminPurchaseImport() {
     if (!hasAdminAccess()) return;
     setAdminSettingsFeedback("MIGRAÇÃO HISTÓRICA DE COMPRAS", `
@@ -2089,6 +2137,109 @@ async function loadPurchasesData() {
     }
 }
 
+function resetPurchaseProviderForm() {
+    state.purchases.editingProviderId = null;
+    elements.purchasesProviderForm?.reset();
+    if (elements.purchasesProviderActive) elements.purchasesProviderActive.checked = true;
+    if (elements.purchasesProviderSubmit) elements.purchasesProviderSubmit.textContent = "CADASTRAR PROVEDOR";
+    elements.purchasesProviderCancel?.classList.add("hidden");
+}
+
+function renderPurchaseProviders() {
+    if (!elements.purchasesProviderList || !hasAdminAccess()) return;
+    const providers = state.purchases.providers || [];
+    if (!providers.length) {
+        elements.purchasesProviderList.innerHTML = `<article class="empty-state"><strong>NENHUM PROVEDOR CADASTRADO.</strong><span>Preencha o formulário acima para iniciar o cadastro.</span></article>`;
+        return;
+    }
+    elements.purchasesProviderList.innerHTML = providers.map((provider) => {
+        const flags = [
+            provider.active === false ? "INATIVO" : "ATIVO",
+            provider.homologated ? "HOMOLOGADO" : "NÃO HOMOLOGADO",
+            provider.preferred ? "PREFERENCIAL" : "PADRÃO",
+        ];
+        const contact = [provider.contact_name, provider.phone, provider.email].filter(Boolean).join(" | ") || "Contato não informado";
+        return `<article class="purchases-provider-card ${provider.active === false ? "is-inactive" : ""}">
+            <div><span>${escapeHtml(provider.code || "SEM CÓDIGO")}</span><strong>${escapeHtml(provider.name || "PROVEDOR")}</strong><em>${escapeHtml(provider.trade_name || provider.legal_name || contact)}</em></div>
+            <small>${escapeHtml(flags.join(" • "))}</small>
+            <button class="secondary-button" type="button" data-purchase-provider-edit="${provider.id}">EDITAR</button>
+        </article>`;
+    }).join("");
+}
+
+async function loadPurchaseProviders() {
+    if (!hasAdminAccess()) return;
+    try {
+        const providers = await apiFetch("/compras/provedores");
+        state.purchases.providers = Array.isArray(providers) ? providers : [];
+        renderPurchaseProviders();
+    } catch (error) {
+        renderStateCard(elements.purchasesProviderList, {
+            title: "NÃO FOI POSSÍVEL CARREGAR OS PROVEDORES",
+            message: error.message || "Tente novamente.",
+            tone: "error",
+        });
+    }
+}
+
+function editPurchaseProvider(provider) {
+    if (!hasAdminAccess() || !provider) return;
+    state.purchases.editingProviderId = Number(provider.id);
+    elements.purchasesProviderCode.value = provider.code || "";
+    elements.purchasesProviderName.value = provider.name || "";
+    elements.purchasesProviderLegalName.value = provider.legal_name || "";
+    elements.purchasesProviderTradeName.value = provider.trade_name || "";
+    elements.purchasesProviderTaxId.value = provider.tax_id || "";
+    elements.purchasesProviderContact.value = provider.contact_name || "";
+    elements.purchasesProviderEmail.value = provider.email || "";
+    elements.purchasesProviderPhone.value = provider.phone || "";
+    elements.purchasesProviderNotes.value = provider.notes || "";
+    elements.purchasesProviderActive.checked = provider.active !== false;
+    elements.purchasesProviderHomologated.checked = Boolean(provider.homologated);
+    elements.purchasesProviderPreferred.checked = Boolean(provider.preferred);
+    elements.purchasesProviderSubmit.textContent = "SALVAR PROVEDOR";
+    elements.purchasesProviderCancel.classList.remove("hidden");
+    elements.purchasesProviderPanel.scrollIntoView({ behavior: "smooth", block: "start" });
+}
+
+async function submitPurchaseProvider(event) {
+    event.preventDefault();
+    if (!hasAdminAccess()) {
+        showToast("SOMENTE ADMIN PODE CADASTRAR PROVEDORES.", true);
+        return;
+    }
+    const providerId = state.purchases.editingProviderId;
+    const payload = {
+        code: elements.purchasesProviderCode.value.trim(),
+        name: elements.purchasesProviderName.value.trim(),
+        legal_name: elements.purchasesProviderLegalName.value.trim(),
+        trade_name: elements.purchasesProviderTradeName.value.trim(),
+        tax_id: elements.purchasesProviderTaxId.value.trim(),
+        contact_name: elements.purchasesProviderContact.value.trim(),
+        email: elements.purchasesProviderEmail.value.trim(),
+        phone: elements.purchasesProviderPhone.value.trim(),
+        notes: elements.purchasesProviderNotes.value.trim(),
+        active: elements.purchasesProviderActive.checked,
+        homologated: elements.purchasesProviderHomologated.checked,
+        preferred: elements.purchasesProviderPreferred.checked,
+    };
+    elements.purchasesProviderSubmit.disabled = true;
+    try {
+        await apiFetch(providerId ? `/compras/provedores/${providerId}` : "/compras/provedores", {
+            method: providerId ? "PUT" : "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(payload),
+        });
+        resetPurchaseProviderForm();
+        await loadPurchaseProviders();
+        showToast(providerId ? "PROVEDOR ATUALIZADO." : "PROVEDOR CADASTRADO.");
+    } catch (error) {
+        showToast(error.message || "FALHA AO SALVAR PROVEDOR.", true);
+    } finally {
+        elements.purchasesProviderSubmit.disabled = false;
+    }
+}
+
 async function submitPurchaseImport() {
     if (!hasAdminAccess()) { showToast("SOMENTE ADMIN PODE IMPORTAR A BASE HISTÓRICA.", true); return; }
     const fileInput = document.getElementById("admin-purchases-import-file");
@@ -2120,11 +2271,18 @@ async function loadMaterialPurchaseHistory() {
     } catch (error) { showToast(error.message || "MATERIAL SEM HISTÓRICO DE COMPRAS.", true); }
 }
 
-async function openPurchasesMenu() {
+async function openPurchasesMenu({ focusProviders = false } = {}) {
     if (!hasWashReportAccess()) return;
     if (elements.purchasesRoleBadge) elements.purchasesRoleBadge.textContent = hasAdminAccess() ? "ADMINISTRAÇÃO" : "GESTÃO";
+    elements.purchasesProviderPanel?.classList.toggle("hidden", !hasAdminAccess());
     setActiveScreen("purchases");
-    await loadPurchasesData();
+    const loaders = [loadPurchasesData()];
+    if (hasAdminAccess()) loaders.push(loadPurchaseProviders());
+    await Promise.all(loaders);
+    if (focusProviders && hasAdminAccess()) {
+        elements.purchasesProviderPanel?.scrollIntoView({ behavior: "smooth", block: "start" });
+        elements.purchasesProviderCode?.focus({ preventScroll: true });
+    }
 }
 
 function mmpWarehouseByType(type) {
@@ -8310,6 +8468,7 @@ on(elements.openMaintenanceDashboardMenu, "click", () => {
 on(elements.openHrJourneyMenu, "click", openHrJourneyMenu);
 on(elements.openRhAdminMenu, "click", openRhAdminMenu);
 on(elements.openAdminSettingsMenu, "click", openAdminSettings);
+on(elements.openAdminCatalogsMenu, "click", openAdminCatalogs);
 on(elements.openMmpStockMenu, "click", openMmpStockMenu);
 on(elements.openPurchasesMenu, "click", openPurchasesMenu);
 on(elements.openEquipmentReportsMenu, "click", () => openModuleReports("equipment"));
@@ -8332,6 +8491,10 @@ on(elements.rhAdminEmployeeModal, "click", (event) => {
 on(elements.adminSettingsGrid, "click", (event) => {
     const button = event.target instanceof HTMLElement ? event.target.closest("[data-admin-settings-action]") : null;
     if (button) openAdminSettingsAction(button.dataset.adminSettingsAction);
+});
+on(elements.adminCatalogsGrid, "click", (event) => {
+    const button = event.target instanceof HTMLElement ? event.target.closest("[data-admin-catalog-action]") : null;
+    if (button) openAdminCatalogAction(button.dataset.adminCatalogAction);
 });
 on(elements.rhAdminEmployeesList, "click", (event) => {
     const button = event.target instanceof HTMLElement ? event.target.closest("[data-rh-admin-edit-employee]") : null;
@@ -8467,6 +8630,18 @@ on(elements.mmpStockBackButton, "click", () => {
 on(elements.purchasesBackButton, "click", () => {
     renderHome();
     setActiveScreen("home");
+});
+on(elements.adminCatalogsBackButton, "click", () => {
+    renderHome();
+    setActiveScreen("home");
+});
+on(elements.purchasesProviderForm, "submit", submitPurchaseProvider);
+on(elements.purchasesProviderCancel, "click", resetPurchaseProviderForm);
+on(elements.purchasesProviderList, "click", (event) => {
+    const button = event.target instanceof HTMLElement ? event.target.closest("[data-purchase-provider-edit]") : null;
+    if (!button) return;
+    const provider = state.purchases.providers.find((row) => Number(row.id) === Number(button.dataset.purchaseProviderEdit));
+    if (provider) editPurchaseProvider(provider);
 });
 on(elements.purchasesMaterialHistoryButton, "click", loadMaterialPurchaseHistory);
 on(elements.mmpCreatePrincipalButton, "click", () => createMmpWarehouse("PRINCIPAL"));

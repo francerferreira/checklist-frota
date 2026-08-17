@@ -24,6 +24,14 @@ def _clean(value) -> str | None:
     return text or None
 
 
+def _as_bool(value, default: bool = False) -> bool:
+    if value is None:
+        return default
+    if isinstance(value, bool):
+        return value
+    return str(value).strip().lower() in {"1", "true", "sim", "yes", "on"}
+
+
 def _positive_int(value, field: str) -> int:
     try:
         number = int(value)
@@ -51,7 +59,7 @@ def _guard_management():
 
 def _guard_admin():
     if g.current_user.tipo != "admin":
-        return api_response(False, error="Somente o administrador pode aprovar solicitações.", status_code=403)
+        return api_response(False, error="Somente o administrador pode executar esta acao.", status_code=403)
     return None
 
 
@@ -66,19 +74,21 @@ def _run(action, *, status_code: int = 200):
         return api_response(False, error=str(exc), status_code=400)
 
 
+@bp.get("/compras/provedores")
 @bp.get("/compras/fornecedores")
 @auth_required
 def list_suppliers():
-    denied = _guard_management()
+    denied = _guard_admin()
     if denied:
         return denied
     return api_response(True, data=[row.to_dict() for row in Supplier.query.order_by(Supplier.active.desc(), Supplier.name.asc()).all()])
 
 
+@bp.post("/compras/provedores")
 @bp.post("/compras/fornecedores")
 @auth_required
 def create_supplier():
-    denied = _guard_management()
+    denied = _guard_admin()
     if denied:
         return denied
 
@@ -86,19 +96,60 @@ def create_supplier():
         payload = request.get_json(silent=True) or {}
         code, name = _clean(payload.get("code")), _clean(payload.get("name"))
         if not code or not name:
-            raise ValueError("Informe codigo e nome do fornecedor.")
+            raise ValueError("Informe codigo e nome do provedor.")
         if Supplier.query.filter_by(code=code.upper()).first():
-            raise ValueError("Ja existe fornecedor com este codigo.")
+            raise ValueError("Ja existe provedor com este codigo.")
         supplier = Supplier(
-            code=code.upper(), name=name, contact_name=_clean(payload.get("contact_name")),
+            code=code.upper(), name=name, legal_name=_clean(payload.get("legal_name")),
+            trade_name=_clean(payload.get("trade_name")), tax_id=_clean(payload.get("tax_id")),
+            contact_name=_clean(payload.get("contact_name")),
             email=_clean(payload.get("email")), phone=_clean(payload.get("phone")),
-            notes=_clean(payload.get("notes")), active=bool(payload.get("active", True)),
+            notes=_clean(payload.get("notes")), active=_as_bool(payload.get("active"), True),
+            homologated=_as_bool(payload.get("homologated")), preferred=_as_bool(payload.get("preferred")),
         )
         db.session.add(supplier)
         db.session.commit()
         return supplier.to_dict()
 
     return _run(action, status_code=201)
+
+
+@bp.put("/compras/provedores/<int:provider_id>")
+@bp.put("/compras/fornecedores/<int:provider_id>")
+@auth_required
+def update_supplier(provider_id: int):
+    denied = _guard_admin()
+    if denied:
+        return denied
+
+    def action():
+        supplier = db.session.get(Supplier, provider_id)
+        if not supplier:
+            raise LookupError("Provedor nao encontrado.")
+        payload = request.get_json(silent=True) or {}
+        code = _clean(payload.get("code", supplier.code))
+        name = _clean(payload.get("name", supplier.name))
+        if not code or not name:
+            raise ValueError("Informe codigo e nome do provedor.")
+        duplicate = Supplier.query.filter(Supplier.code == code.upper(), Supplier.id != supplier.id).first()
+        if duplicate:
+            raise ValueError("Ja existe provedor com este codigo.")
+        supplier.code = code.upper()
+        supplier.name = name
+        supplier.legal_name = _clean(payload.get("legal_name"))
+        supplier.trade_name = _clean(payload.get("trade_name"))
+        supplier.tax_id = _clean(payload.get("tax_id"))
+        supplier.contact_name = _clean(payload.get("contact_name"))
+        supplier.email = _clean(payload.get("email"))
+        supplier.phone = _clean(payload.get("phone"))
+        supplier.notes = _clean(payload.get("notes"))
+        supplier.active = _as_bool(payload.get("active"), supplier.active)
+        supplier.homologated = _as_bool(payload.get("homologated"), supplier.homologated)
+        supplier.preferred = _as_bool(payload.get("preferred"), supplier.preferred)
+        db.session.commit()
+        return supplier.to_dict()
+
+    return _run(action)
 
 
 @bp.get("/compras/solicitacoes")
@@ -148,9 +199,9 @@ def create_purchase_request():
         supplier_id = payload.get("supplier_id")
         supplier = None
         if supplier_id not in (None, ""):
-            supplier = db.session.get(Supplier, _positive_int(supplier_id, "Fornecedor"))
+            supplier = db.session.get(Supplier, _positive_int(supplier_id, "Provedor"))
             if not supplier or not supplier.active:
-                raise ValueError("Fornecedor ativo nao encontrado.")
+                raise ValueError("Provedor ativo nao encontrado.")
         link_id = payload.get("maintenance_material_id")
         link = None
         if link_id not in (None, ""):
