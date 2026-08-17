@@ -1,5 +1,6 @@
 import base64
 import binascii
+import json
 import re
 import uuid
 from pathlib import Path
@@ -8,7 +9,7 @@ from flask import Blueprint, current_app, g, request
 from sqlalchemy.exc import IntegrityError
 
 from app.extensions import db
-from app.models import Employee, User, UserPagePermission
+from app.models import AuditLog, Employee, User, UserPagePermission
 from app.services.auth_service import auth_required, user_has_management_access
 from app.services.identity_service import normalize_login
 from app.utils.responses import api_response
@@ -18,36 +19,96 @@ bp = Blueprint("users", __name__)
 VALID_USER_TYPES = {"admin", "gestor", "motorista", "mecanico", "operacional"}
 
 
-def _guard_management_access():
+def _guard_admin_access():
     if g.current_user.tipo != "admin":
         return api_response(False, error="Somente admin pode gerenciar logins.", status_code=403)
     return None
 
 
+def _session_activity_by_user(user_ids: list[int]) -> dict[int, dict]:
+    """Resume a última entrada e a sessão atual sem armazenar senha ou token."""
+    if not user_ids:
+        return {}
+    logs = AuditLog.query.filter(
+        AuditLog.user_id.in_(user_ids),
+        AuditLog.entity_type == "SESSION",
+        AuditLog.action.in_({"LOGIN_SUCCESS", "LOGOUT"}),
+    ).order_by(AuditLog.created_at.asc()).all()
+    activity = {
+        user_id: {
+            "last_login_at": None,
+            "last_logout_at": None,
+            "last_login_ip": None,
+            "session_open": False,
+            "session_duration_seconds": 0,
+        }
+        for user_id in user_ids
+    }
+    for log in logs:
+        row = activity.setdefault(log.user_id, {
+            "last_login_at": None,
+            "last_logout_at": None,
+            "last_login_ip": None,
+            "session_open": False,
+            "session_duration_seconds": 0,
+        })
+        if log.action == "LOGIN_SUCCESS":
+            row["last_login_at"] = log.created_at
+            try:
+                payload = json.loads(log.new_value or "{}")
+            except (TypeError, ValueError):
+                payload = {}
+            row["last_login_ip"] = payload.get("ip")
+        elif log.action == "LOGOUT":
+            row["last_logout_at"] = log.created_at
+
+    now = now_manaus_naive()
+    for row in activity.values():
+        login_at = row["last_login_at"]
+        logout_at = row["last_logout_at"]
+        is_open = bool(login_at and (not logout_at or login_at > logout_at))
+        end_at = now if is_open else logout_at
+        row["session_open"] = is_open
+        row["session_duration_seconds"] = max(0, int((end_at - login_at).total_seconds())) if login_at and end_at else 0
+        for key in ("last_login_at", "last_logout_at"):
+            if row[key]:
+                row[key] = row[key].isoformat()
+    return activity
+
+
+def _user_with_activity(user: User, activity: dict) -> dict:
+    payload = user.to_dict()
+    payload.update(activity)
+    return payload
+
+
 @bp.get("/usuarios")
 @auth_required
 def list_users():
-    denied = _guard_management_access()
+    denied = _guard_admin_access()
     if denied:
         return denied
 
-    return api_response(True, data=[user.to_dict() for user in User.query.order_by(User.nome.asc()).all()])
+    users = User.query.order_by(User.nome.asc()).all()
+    activity = _session_activity_by_user([user.id for user in users])
+    return api_response(True, data=[_user_with_activity(user, activity.get(user.id, {})) for user in users])
 
 
 @bp.get("/usuarios/<int:user_id>/perfil")
 @auth_required
 def get_user_profile(user_id: int):
-    denied = _guard_management_access()
+    denied = _guard_admin_access()
     if denied:
         return denied
     user = User.query.get_or_404(user_id)
-    return api_response(True, data=user.to_dict())
+    activity = _session_activity_by_user([user.id]).get(user.id, {})
+    return api_response(True, data=_user_with_activity(user, activity))
 
 
 @bp.post("/usuarios/<int:user_id>/reset-primeiro-acesso")
 @auth_required
 def reset_user_first_access(user_id: int):
-    denied = _guard_management_access()
+    denied = _guard_admin_access()
     if denied:
         return denied
     user = User.query.get_or_404(user_id)
@@ -65,7 +126,7 @@ def reset_user_first_access(user_id: int):
 @bp.put("/usuarios/<int:user_id>/telas")
 @auth_required
 def update_user_pages(user_id: int):
-    denied = _guard_management_access()
+    denied = _guard_admin_access()
     if denied:
         return denied
     user = User.query.get_or_404(user_id)
@@ -164,7 +225,7 @@ def complete_first_access():
 @bp.post("/usuarios")
 @auth_required
 def create_user():
-    denied = _guard_management_access()
+    denied = _guard_admin_access()
     if denied:
         return denied
 
@@ -195,7 +256,7 @@ def create_user():
 @bp.put("/usuarios/<int:user_id>")
 @auth_required
 def update_user(user_id: int):
-    denied = _guard_management_access()
+    denied = _guard_admin_access()
     if denied:
         return denied
 
@@ -224,13 +285,14 @@ def update_user(user_id: int):
         db.session.rollback()
         return api_response(False, error="Login ja cadastrado.", status_code=409)
 
-    return api_response(True, data=user.to_dict())
+    activity = _session_activity_by_user([user.id]).get(user.id, {})
+    return api_response(True, data=_user_with_activity(user, activity))
 
 
 @bp.delete("/usuarios/<int:user_id>")
 @auth_required
 def delete_user(user_id: int):
-    denied = _guard_management_access()
+    denied = _guard_admin_access()
     if denied:
         return denied
 

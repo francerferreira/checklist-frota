@@ -27,6 +27,7 @@ const ACTIVE_CHECKLIST_DRAFT_KEY = "activeChecklistDraftVehicleId";
 const SESSION_STARTED_AT_KEY = "sessionStartedAt";
 const SESSION_LAST_ACTIVITY_AT_KEY = "sessionLastActivityAt";
 const SESSION_INACTIVITY_LIMIT_MS = 30 * 60 * 1000;
+const THEME_STORAGE_KEY = "sisMmpTheme";
 const appTopbar = document.querySelector(".app-topbar");
 const PULL_REFRESH_TRIGGER_PX = 84;
 const PULL_REFRESH_MAX_PX = 112;
@@ -291,6 +292,8 @@ const state = {
     adminSettings: {
         feedbackTitle: "AGUARDANDO AÇÃO",
         feedbackHtml: "Escolha um controle acima para consultar seu estado.",
+        users: [],
+        editingUserId: null,
     },
     mmpStock: {
         warehouses: [],
@@ -349,6 +352,7 @@ const elements = {
     topbarContext: document.getElementById("topbar-context"),
     topbarUserName: document.getElementById("topbar-user-name"),
     topbarUserAvatar: document.getElementById("topbar-user-avatar"),
+    themeToggleButton: document.getElementById("theme-toggle-button"),
     topbarLogoutButton: document.getElementById("topbar-logout-button"),
     topbarModuleTriggers: Array.from(document.querySelectorAll("[data-topbar-module-trigger]")),
     topbarActionButtons: Array.from(document.querySelectorAll("[data-topbar-action]")),
@@ -539,6 +543,16 @@ const elements = {
     adminSettingsGrid: document.getElementById("admin-settings-grid"),
     adminSettingsFeedback: document.getElementById("admin-settings-feedback"),
     adminSettingsFeedbackContent: document.getElementById("admin-settings-feedback-content"),
+    adminUserModal: document.getElementById("admin-user-modal"),
+    adminUserForm: document.getElementById("admin-user-form"),
+    adminUserModalTitle: document.getElementById("admin-user-modal-title"),
+    adminUserId: document.getElementById("admin-user-id"),
+    adminUserName: document.getElementById("admin-user-name"),
+    adminUserLogin: document.getElementById("admin-user-login"),
+    adminUserType: document.getElementById("admin-user-type"),
+    adminUserPassword: document.getElementById("admin-user-password"),
+    adminUserActive: document.getElementById("admin-user-active"),
+    adminUserCancel: document.getElementById("admin-user-cancel"),
     adminCatalogsBackButton: document.getElementById("admin-catalogs-back-button"),
     adminCatalogsGrid: document.getElementById("admin-catalogs-grid"),
     mmpStockBackButton: document.getElementById("mmp-stock-back-button"),
@@ -754,6 +768,26 @@ const pullRefresh = {
     distance: 0,
 };
 
+function applyTheme(theme) {
+    const dark = String(theme || "light").toLowerCase() === "dark";
+    const value = dark ? "dark" : "light";
+    document.documentElement.dataset.theme = value;
+    document.body.dataset.theme = value;
+    localStorage.setItem(THEME_STORAGE_KEY, value);
+    if (elements.themeToggleButton) {
+        elements.themeToggleButton.setAttribute("aria-pressed", String(dark));
+        elements.themeToggleButton.setAttribute("title", dark ? "Usar tema claro" : "Usar tema escuro");
+        elements.themeToggleButton.setAttribute("aria-label", dark ? "Usar tema claro" : "Usar tema escuro");
+        const icon = elements.themeToggleButton.querySelector(".theme-toggle-icon");
+        if (icon) icon.textContent = dark ? "☾" : "☼";
+    }
+}
+
+function toggleTheme() {
+    applyTheme(document.documentElement.dataset.theme === "dark" ? "light" : "dark");
+}
+
+applyTheme(localStorage.getItem(THEME_STORAGE_KEY) || "light");
 elements.apiBaseUrl.value = state.apiBaseUrl;
 updateConnectionStatus();
 
@@ -2155,21 +2189,87 @@ function openAdminSettingsHomePanel(panelId) {
     panel?.scrollIntoView({ behavior: "smooth", block: "start" });
 }
 
+function formatAdminDuration(seconds) {
+    const total = Math.max(0, Number(seconds || 0));
+    const days = Math.floor(total / 86400);
+    const hours = Math.floor((total % 86400) / 3600);
+    const minutes = Math.floor((total % 3600) / 60);
+    if (days) return `${days}d ${hours}h ${minutes}min`;
+    if (hours) return `${hours}h ${minutes}min`;
+    return `${minutes}min`;
+}
+
+function formatAdminDate(value) {
+    return value ? formatManausDateTime(value) : "NUNCA REGISTRADA";
+}
+
 async function loadAdminSettingsUsers() {
     setAdminSettingsFeedback("CONSULTANDO LOGINS", "Carregando usuários e permissões personalizadas...");
     try {
         const users = await apiFetch("/usuarios");
         const rows = Array.isArray(users) ? users : [];
+        state.adminSettings.users = rows;
         const active = rows.filter((user) => user.ativo !== false).length;
         const content = rows.length ? `
             <strong>${active} LOGIN(S) ATIVO(S) DE ${rows.length}</strong>
-            <div class="admin-settings-user-list">${rows.map((user) => `
-                <span><b>${escapeHtml(String(user.nome || user.login || "USUÁRIO").toUpperCase())}</b><em>${escapeHtml(String(user.tipo || "-").toUpperCase())} | ${user.ativo === false ? "INATIVO" : "ATIVO"}</em></span>
+            <div class="admin-settings-user-list admin-settings-user-table">${rows.map((user) => `
+                <article class="admin-settings-user-row">
+                    <div class="admin-settings-user-identity"><strong>${escapeHtml(String(user.nome || user.login || "USUÁRIO").toUpperCase())}</strong><span>${escapeHtml(`@${user.login || "-"}`)} · ${escapeHtml(String(user.tipo || "-").toUpperCase())} · ${user.ativo === false ? "INATIVO" : "ATIVO"}</span></div>
+                    <div class="admin-settings-user-meta"><span><b>CRIADO EM</b>${escapeHtml(formatAdminDate(user.created_at))}</span><span><b>ÚLTIMA ENTRADA</b>${escapeHtml(formatAdminDate(user.last_login_at))}</span><span><b>${user.session_open ? "SESSÃO ABERTA" : "ÚLTIMA SESSÃO"}</b>${escapeHtml(formatAdminDuration(user.session_duration_seconds))}</span></div>
+                    <button class="secondary-button admin-user-edit-button" type="button" data-admin-user-edit="${Number(user.id)}">EDITAR USUÁRIO</button>
+                </article>
             `).join("")}</div>
         ` : "Nenhum login retornado pela API.";
         setAdminSettingsFeedback("LOGINS E PERMISSÕES", content);
     } catch (error) {
         setAdminSettingsFeedback("FALHA NA CONSULTA", `<span>${escapeHtml(error.message || "Não foi possível consultar os logins.")}</span>`);
+    }
+}
+
+function openAdminUserModal(userId) {
+    if (!hasAdminAccess()) return;
+    const user = state.adminSettings.users.find((row) => Number(row.id) === Number(userId));
+    if (!user) return;
+    state.adminSettings.editingUserId = Number(user.id);
+    elements.adminUserModalTitle.textContent = `Editar usuário: ${String(user.login || user.nome || "").toUpperCase()}`;
+    elements.adminUserId.value = String(user.id);
+    elements.adminUserName.value = user.nome || "";
+    elements.adminUserLogin.value = user.login || "";
+    elements.adminUserType.value = user.tipo || "operacional";
+    elements.adminUserPassword.value = "";
+    elements.adminUserActive.checked = user.ativo !== false;
+    elements.adminUserModal.classList.remove("hidden");
+    elements.adminUserName.focus();
+}
+
+function closeAdminUserModal() {
+    elements.adminUserModal?.classList.add("hidden");
+    state.adminSettings.editingUserId = null;
+}
+
+async function saveAdminUser(event) {
+    event.preventDefault();
+    const userId = Number(elements.adminUserId.value || state.adminSettings.editingUserId || 0);
+    if (!userId) return;
+    const payload = {
+        nome: elements.adminUserName.value.trim(),
+        login: elements.adminUserLogin.value.trim(),
+        tipo: elements.adminUserType.value,
+        ativo: elements.adminUserActive.checked,
+    };
+    const password = elements.adminUserPassword.value.trim();
+    if (password) payload.senha = password;
+    try {
+        await apiFetch(`/usuarios/${userId}`, {
+            method: "PUT",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(payload),
+        });
+        closeAdminUserModal();
+        showToast("USUÁRIO ATUALIZADO.");
+        await loadAdminSettingsUsers();
+    } catch (error) {
+        showToast(error.message || "NÃO FOI POSSÍVEL ATUALIZAR O USUÁRIO.", true);
     }
 }
 
@@ -3644,7 +3744,7 @@ function makeAvailabilityCard(row) {
             <strong>${operationalState.latest_hourmeter == null ? "SEM LEITURA" : `${Number(operationalState.latest_hourmeter).toFixed(2)} h`}</strong>
             <small>${operationalState.latest_hourmeter_at ? formatManausDateTime(operationalState.latest_hourmeter_at) : ""}</small>
         </div>
-        <details class="availability-action-panel availability-action-status" open>
+        <details class="availability-action-panel availability-action-status">
             <summary><span>01</span><div><strong>ATUALIZAR SITUAÇÃO</strong><small>Informe a condição observada agora.</small></div></summary>
             <div class="availability-form-grid">
                 <label><span>NOVA SITUAÇÃO</span>
@@ -8606,6 +8706,7 @@ on(elements.topbarHomeButton, "click", () => {
     renderHome();
     setActiveScreen("home");
 });
+on(elements.themeToggleButton, "click", toggleTheme);
 on(elements.topbarMobileToggle, "click", () => {
     const open = !elements.topbarNavigation?.classList.contains("is-open");
     elements.topbarNavigation?.classList.toggle("is-open", open);
@@ -8613,6 +8714,15 @@ on(elements.topbarMobileToggle, "click", () => {
     if (!open) setTopbarModuleOpen("", false);
 });
 on(elements.topbarLogoutButton, "click", logout);
+on(elements.adminUserForm, "submit", saveAdminUser);
+on(elements.adminUserCancel, "click", closeAdminUserModal);
+on(elements.adminUserModal, "click", (event) => {
+    if (event.target?.dataset?.closeAdminUser === "true") closeAdminUserModal();
+});
+on(elements.adminSettingsFeedbackContent, "click", (event) => {
+    const button = event.target.closest("[data-admin-user-edit]");
+    if (button) openAdminUserModal(Number(button.dataset.adminUserEdit));
+});
 elements.topbarModuleTriggers.forEach((trigger) => on(trigger, "click", () => {
     const moduleKey = trigger.dataset.topbarModuleTrigger || "";
     const module = trigger.closest(".topbar-module");

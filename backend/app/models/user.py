@@ -58,6 +58,7 @@ class User(db.Model):
             "login": self.login,
             "tipo": self.tipo,
             "ativo": self.ativo,
+            "created_at": self.created_at.isoformat() if self.created_at else None,
             "identity": identity,
             "first_access_required": first_access_required,
             "custom_page_keys": [row.page_key for row in self.page_permissions if row.enabled],

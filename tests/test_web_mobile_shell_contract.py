@@ -16,8 +16,8 @@ class WebMobileShellContractTests(unittest.TestCase):
         cls.legacy_readme = LEGACY_README_PATH.read_text(encoding="utf-8")
 
     def test_index_uses_canonical_frontend_bundle(self):
-        self.assertIn('./static/js/app.js?v=20260817-06', self.index_html)
-        self.assertIn('./static/css/styles.css?v=20260817-06', self.index_html)
+        self.assertIn('./static/js/app.js?v=20260817-07', self.index_html)
+        self.assertIn('./static/css/styles.css?v=20260817-07', self.index_html)
         self.assertNotIn("app-20260419-", self.index_html)
 
     def test_login_uses_institutional_glass_layout_with_sis_mmp_identity(self):
@@ -380,6 +380,23 @@ class WebMobileShellContractTests(unittest.TestCase):
         self.assertIn("if (isLocalAccess) {", app_js)
         self.assertIn("const localUrl = isSavedLocal ? savedUrl : currentUrl;", app_js)
         self.assertIn("?api=", app_js)
+
+    def test_web_exposes_theme_toggle_and_collapsed_availability_actions(self):
+        app_js = (PROJECT_ROOT / "web_app" / "static" / "js" / "app.js").read_text(encoding="utf-8")
+        styles = (PROJECT_ROOT / "web_app" / "static" / "css" / "styles.css").read_text(encoding="utf-8")
+        self.assertIn('id="theme-toggle-button"', self.index_html)
+        self.assertIn("THEME_STORAGE_KEY", app_js)
+        self.assertIn('applyTheme(localStorage.getItem(THEME_STORAGE_KEY) || "light")', app_js)
+        self.assertIn('<details class="availability-action-panel availability-action-status">', app_js)
+        self.assertIn('body[data-theme="dark"]', styles)
+
+    def test_admin_user_settings_show_activity_and_edit_controls(self):
+        app_js = (PROJECT_ROOT / "web_app" / "static" / "js" / "app.js").read_text(encoding="utf-8")
+        self.assertIn('apiFetch("/usuarios")', app_js)
+        self.assertIn("last_login_at", app_js)
+        self.assertIn("session_duration_seconds", app_js)
+        self.assertIn("data-admin-user-edit", app_js)
+        self.assertIn('apiFetch(`/usuarios/${userId}`', app_js)
 
     def test_technical_library_is_available_for_field_consultation(self):
         app_js = (PROJECT_ROOT / "web_app" / "static" / "js" / "app.js").read_text(encoding="utf-8")
