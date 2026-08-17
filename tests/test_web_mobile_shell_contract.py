@@ -16,8 +16,8 @@ class WebMobileShellContractTests(unittest.TestCase):
         cls.legacy_readme = LEGACY_README_PATH.read_text(encoding="utf-8")
 
     def test_index_uses_canonical_frontend_bundle(self):
-        self.assertIn('./static/js/app.js?v=20260817-08', self.index_html)
-        self.assertIn('./static/css/styles.css?v=20260817-08', self.index_html)
+        self.assertIn('./static/js/app.js?v=20260817-09', self.index_html)
+        self.assertIn('./static/css/styles.css?v=20260817-09', self.index_html)
         self.assertNotIn("app-20260419-", self.index_html)
 
     def test_login_uses_institutional_glass_layout_with_sis_mmp_identity(self):
@@ -90,6 +90,14 @@ class WebMobileShellContractTests(unittest.TestCase):
         ]:
             with self.subTest(fragment=fragment):
                 self.assertIn(fragment, app_js if fragment.startswith("notification") or fragment.startswith("read") or fragment.startswith("update") else styles)
+
+    def test_admin_user_modal_stays_above_sticky_topbar(self):
+        app_js = (PROJECT_ROOT / "web_app" / "static" / "js" / "app.js").read_text(encoding="utf-8")
+        styles = (PROJECT_ROOT / "web_app" / "static" / "css" / "styles.css").read_text(encoding="utf-8")
+        self.assertIn('document.body.classList.add("modal-open");', app_js)
+        self.assertIn('document.body.classList.remove("modal-open");', app_js)
+        self.assertIn("body.modal-open .mobile-shell > :not(.pull-refresh-indicator)", styles)
+        self.assertIn("z-index: 120", styles)
 
     def test_frontend_expires_session_after_inactivity(self):
         app_js = (PROJECT_ROOT / "web_app" / "static" / "js" / "app.js").read_text(encoding="utf-8")

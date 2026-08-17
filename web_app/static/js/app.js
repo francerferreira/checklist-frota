@@ -2854,11 +2854,13 @@ function openAdminUserModal(userId) {
     elements.adminUserPassword.value = "";
     elements.adminUserActive.checked = user.ativo !== false;
     elements.adminUserModal.classList.remove("hidden");
+    document.body.classList.add("modal-open");
     elements.adminUserName.focus();
 }
 
 function closeAdminUserModal() {
     elements.adminUserModal?.classList.add("hidden");
+    document.body.classList.remove("modal-open");
     state.adminSettings.editingUserId = null;
 }
 

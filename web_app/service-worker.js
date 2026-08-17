@@ -1,5 +1,5 @@
 const CACHE_PREFIX = "cf-checklist-frota-pwa";
-const CACHE_NAME = `${CACHE_PREFIX}-20260817-notification-filters`;
+const CACHE_NAME = `${CACHE_PREFIX}-20260817-modal-layer`;
 const STATIC_CACHE_PATHS = [
     "./manifest.json",
     "./static/icons/icon-192.png",
