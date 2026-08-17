@@ -7391,6 +7391,29 @@ body:not(.entry-screen) .maintenance-view-button {
     font-weight: 900;
 }
 
+.topbar-user-settings-button {
+    display: inline-grid;
+    flex: 0 0 auto;
+    width: 36px;
+    height: 36px;
+    place-items: center;
+    padding: 0;
+    border: 1px solid var(--theme-border-strong);
+    border-radius: 999px;
+    background: var(--theme-surface-soft);
+    color: var(--theme-text-muted);
+    font-size: 1.15rem;
+    line-height: 1;
+    cursor: pointer;
+}
+
+.topbar-user-settings-button:hover,
+.topbar-user-settings-button:focus-visible {
+    border-color: var(--theme-accent);
+    background: var(--theme-hover);
+    color: var(--theme-accent);
+}
+
 .topbar-logout-button {
     display: inline-grid;
     flex: 0 0 auto;

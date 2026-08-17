@@ -352,6 +352,7 @@ const elements = {
     topbarContext: document.getElementById("topbar-context"),
     topbarUserName: document.getElementById("topbar-user-name"),
     topbarUserAvatar: document.getElementById("topbar-user-avatar"),
+    topbarUserSettingsButton: document.getElementById("topbar-user-settings-button"),
     themeToggleButton: document.getElementById("theme-toggle-button"),
     topbarLogoutButton: document.getElementById("topbar-logout-button"),
     topbarModuleTriggers: Array.from(document.querySelectorAll("[data-topbar-module-trigger]")),
@@ -428,7 +429,6 @@ const elements = {
     cloudStorageSummary: document.getElementById("cloud-storage-summary"),
     cloudStorageDetail: document.getElementById("cloud-storage-detail"),
     cloudBackupButton: document.getElementById("cloud-backup-button"),
-    homeChangePasswordButton: document.getElementById("home-change-password-button"),
     homeLogoutButton: document.getElementById("home-logout-button"),
     passwordModal: document.getElementById("password-modal"),
     passwordChangeForm: document.getElementById("password-change-form"),
@@ -911,6 +911,7 @@ function syncTopbarUserIdentity() {
     const name = String(state.user?.nome || "USUÁRIO").trim();
     if (elements.topbarUserName) elements.topbarUserName.textContent = name.toUpperCase();
     if (elements.topbarUserAvatar) elements.topbarUserAvatar.textContent = topbarUserInitials(name);
+    elements.topbarUserSettingsButton?.classList.toggle("hidden", !hasAdminAccess());
 }
 
 function syncTopbarActiveScreen(screenKey) {
@@ -8646,10 +8647,6 @@ async function submitPasswordReset(event) {
         return;
     }
 
-    if (elements.homeChangePasswordButton) {
-        elements.homeChangePasswordButton.disabled = true;
-        elements.homeChangePasswordButton.textContent = "SALVANDO...";
-    }
     if (elements.passwordChangeSubmit) {
         elements.passwordChangeSubmit.disabled = true;
         elements.passwordChangeSubmit.textContent = "SALVANDO...";
@@ -8672,10 +8669,6 @@ async function submitPasswordReset(event) {
     } catch (error) {
         showToast(error.message || "NÃO FOI POSSÍVEL ATUALIZAR A SENHA.", true);
     } finally {
-        if (elements.homeChangePasswordButton) {
-            elements.homeChangePasswordButton.disabled = false;
-            elements.homeChangePasswordButton.textContent = "ALTERAR SENHA";
-        }
         if (elements.passwordChangeSubmit) {
             elements.passwordChangeSubmit.disabled = false;
             elements.passwordChangeSubmit.textContent = "Salvar senha";
@@ -8979,8 +8972,8 @@ on(elements.assetAccessCode, "keydown", (event) => {
 on(elements.scanAssetQrButton, "click", scanMobileAssetQr);
 on(elements.scanAssetNfcButton, "click", scanMobileAssetNfc);
 on(elements.cloudBackupButton, "click", createCloudBackup);
-on(elements.homeChangePasswordButton, "click", requestPasswordReset);
 on(elements.homeLogoutButton, "click", logout);
+on(elements.topbarUserSettingsButton, "click", openAdminSettings);
 on(elements.passwordChangeForm, "submit", submitPasswordReset);
 on(elements.passwordChangeCancel, "click", closePasswordResetModal);
 on(elements.passwordModal, "click", (event) => {
