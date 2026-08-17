@@ -21,7 +21,21 @@ from app.models.navigation import UserNavigationPreference, UserPagePermission
 from app.models.operational_availability import EquipmentOperationalState, EquipmentStatusEvent, HourmeterReading
 from app.models.pcm import PreventivePlan
 from app.models.preventive import PreventiveExecution, PreventiveMaterial, PreventiveStage
-from app.models.purchase import PurchaseReceipt, PurchaseRequest, Supplier
+from app.models.purchase import (
+    InvoicePurchaseOrderLink,
+    PurchaseImportBatch,
+    PurchaseImportSourceRow,
+    PurchaseInvoice,
+    PurchaseInvoiceItem,
+    PurchaseOrder,
+    PurchaseOrderItem,
+    PurchaseProcessEvent,
+    PurchaseReceipt,
+    PurchaseRequest,
+    PurchaseRequestItem,
+    PurchaseServiceCatalog,
+    Supplier,
+)
 from app.models.resource import MaintenanceResource, MaintenanceResourceReservation
 from app.models.technical_inspection import InspectionExecution, InspectionExecutionItem, InspectionTemplate, InspectionTemplateItem
 from app.models.resolution_package import ResolutionPackage, ResolutionPackageLink
@@ -82,6 +96,16 @@ __all__ = [
     "PreventiveMaterial",
     "PurchaseReceipt",
     "PurchaseRequest",
+    "PurchaseRequestItem",
+    "PurchaseServiceCatalog",
+    "PurchaseOrder",
+    "PurchaseOrderItem",
+    "PurchaseInvoice",
+    "PurchaseInvoiceItem",
+    "InvoicePurchaseOrderLink",
+    "PurchaseImportBatch",
+    "PurchaseImportSourceRow",
+    "PurchaseProcessEvent",
     "Supplier",
     "MaintenanceResource",
     "MaintenanceResourceReservation",

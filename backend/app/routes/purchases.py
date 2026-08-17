@@ -1,13 +1,16 @@
 from __future__ import annotations
 
 from datetime import date
+import os
+import tempfile
 
 from flask import Blueprint, g, request
 
 from app.extensions import db
-from app.models import MaintenanceMaterial, Material, PurchaseReceipt, PurchaseRequest, Supplier
+from app.models import MaintenanceMaterial, Material, PurchaseImportBatch, PurchaseReceipt, PurchaseRequest, PurchaseRequestItem, Supplier
 from app.services.auth_service import auth_required, user_has_management_access
 from app.services.material_service import register_material_movement
+from app.services.purchase_import_service import import_purchase_workbook
 from app.utils.responses import api_response
 from app.utils.timezone import now_manaus_naive
 
@@ -237,3 +240,90 @@ def receive_purchase_request(purchase_id: int):
         return purchase.to_dict()
 
     return _run(action)
+
+
+@bp.get("/compras/importacoes")
+@auth_required
+def list_purchase_imports():
+    denied = _guard_admin()
+    if denied:
+        return denied
+    rows = PurchaseImportBatch.query.order_by(PurchaseImportBatch.started_at.desc()).limit(50).all()
+    return api_response(True, data=[row.to_dict() for row in rows])
+
+
+@bp.post("/compras/importacoes")
+@auth_required
+def import_purchase_source():
+    denied = _guard_admin()
+    if denied:
+        return denied
+
+    temporary_path = None
+    try:
+        upload = request.files.get("file")
+        if upload and upload.filename:
+            suffix = os.path.splitext(upload.filename)[1] or ".xlsx"
+            handle = tempfile.NamedTemporaryFile(delete=False, suffix=suffix)
+            temporary_path = handle.name
+            upload.save(temporary_path)
+            handle.close()
+            source_path = temporary_path
+        else:
+            payload = request.get_json(silent=True) or {}
+            source_path = payload.get("source_path")
+            if not source_path:
+                return api_response(False, error="Envie o arquivo Excel no campo file ou informe source_path.", status_code=400)
+        result = import_purchase_workbook(source_path, user_id=g.current_user.id)
+        return api_response(True, data=result, status_code=201 if result.get("status") == "CONCLUIDO" else 200)
+    except FileNotFoundError as exc:
+        db.session.rollback()
+        return api_response(False, error=str(exc), status_code=404)
+    except (ValueError, OSError) as exc:
+        db.session.rollback()
+        return api_response(False, error=str(exc), status_code=400)
+    finally:
+        if temporary_path:
+            try:
+                os.unlink(temporary_path)
+            except OSError:
+                pass
+
+
+@bp.get("/compras/materiais/<int:material_id>/historico")
+@auth_required
+def material_purchase_history(material_id: int):
+    denied = _guard_management()
+    if denied:
+        return denied
+    material = db.session.get(Material, material_id)
+    if not material:
+        return api_response(False, error="Material nao encontrado.", status_code=404)
+    items = PurchaseRequestItem.query.filter_by(material_id=material_id).order_by(PurchaseRequestItem.created_at.desc()).all()
+    request_dates = [item.purchase_request.sc_date for item in items if item.purchase_request and item.purchase_request.sc_date]
+    requested = sum((item.quantity_requested or 0 for item in items), 0)
+    received = sum((item.quantity_received or 0 for item in items), 0)
+    return api_response(True, data={
+        "material": material.to_dict(),
+        "summary": {
+            "first_request": min(request_dates).isoformat() if request_dates else None,
+            "last_request": max(request_dates).isoformat() if request_dates else None,
+            "requested_quantity": float(requested),
+            "received_quantity": float(received),
+            "open_quantity": float(requested - received),
+            "purchase_requests": len({item.purchase_request_id for item in items}),
+        },
+        "items": [
+            {
+                **item.to_dict(),
+                "purchase_request": {
+                    "id": item.purchase_request.id,
+                    "sc_number": item.purchase_request.sc_number or item.purchase_request.code,
+                    "sc_date": item.purchase_request.sc_date.isoformat() if item.purchase_request.sc_date else None,
+                    "status": item.purchase_request.status,
+                    "module": item.purchase_request.module,
+                } if item.purchase_request else None,
+            }
+            for item in items
+        ],
+    })

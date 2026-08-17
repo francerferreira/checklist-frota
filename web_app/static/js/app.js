@@ -297,6 +297,11 @@ const state = {
         transfers: [],
         selectedStock: null,
     },
+    purchases: {
+        requests: [],
+        imports: [],
+        materialHistory: null,
+    },
     moduleReports: "",
 };
 
@@ -313,6 +318,7 @@ const screens = {
     checklistCatalog: document.getElementById("checklist-catalog-screen"),
     rhAdmin: document.getElementById("rh-admin-screen"),
     adminSettings: document.getElementById("admin-settings-screen"),
+    purchases: document.getElementById("purchases-screen"),
     mmpStock: document.getElementById("mmp-stock-screen"),
     moduleReports: document.getElementById("module-reports-screen"),
     nonConformities: document.getElementById("non-conformities-screen"),
@@ -420,6 +426,7 @@ const elements = {
     openRhAdminMenu: document.getElementById("open-rh-admin-menu"),
     openAdminSettingsMenu: document.getElementById("open-admin-settings-menu"),
     openMmpStockMenu: document.getElementById("open-mmp-stock-menu"),
+    openPurchasesMenu: document.getElementById("open-purchases-menu"),
     openEquipmentReportsMenu: document.getElementById("open-equipment-reports-menu"),
     openMaintenanceReportsMenu: document.getElementById("open-maintenance-reports-menu"),
     openActivitiesMenu: document.getElementById("open-activities-menu"),
@@ -538,6 +545,19 @@ const elements = {
     mmpIssueForm: document.getElementById("mmp-issue-form"),
     mmpIssueQuantity: document.getElementById("mmp-issue-quantity"),
     mmpIssueVehicle: document.getElementById("mmp-issue-vehicle"),
+    purchasesBackButton: document.getElementById("purchases-back-button"),
+    purchasesRoleBadge: document.getElementById("purchases-role-badge"),
+    purchasesOpenCount: document.getElementById("purchases-open-count"),
+    purchasesAwaitingPcCount: document.getElementById("purchases-awaiting-pc-count"),
+    purchasesAwaitingNfCount: document.getElementById("purchases-awaiting-nf-count"),
+    purchasesImportCount: document.getElementById("purchases-import-count"),
+    purchasesImportFile: document.getElementById("purchases-import-file"),
+    purchasesImportPanel: document.getElementById("purchases-import-panel"),
+    purchasesImportButton: document.getElementById("purchases-import-button"),
+    purchasesImportFeedback: document.getElementById("purchases-import-feedback"),
+    purchasesMaterialId: document.getElementById("purchases-material-id"),
+    purchasesMaterialHistoryButton: document.getElementById("purchases-material-history-button"),
+    purchasesMaterialHistory: document.getElementById("purchases-material-history"),
     mmpIssueApplication: document.getElementById("mmp-issue-application"),
     mmpRefreshButton: document.getElementById("mmp-refresh-button"),
     mmpStockSummary: document.getElementById("mmp-stock-summary"),
@@ -1058,7 +1078,7 @@ function syncMenuGroupHeadings() {
         ],
         rh: ["open-hr-journey-menu", "open-rh-admin-menu"],
         administracao: ["open-admin-settings-menu"],
-        "materiais-compras": ["open-mmp-stock-menu"],
+        "materiais-compras": ["open-mmp-stock-menu", "open-purchases-menu"],
         absenteismo: ["open-absenteeism-menu"],
         "escala-dsr": ["open-special-schedule-menu"],
     };
@@ -1079,6 +1099,7 @@ function renderHome() {
     elements.openRhAdminMenu?.classList.toggle("hidden", !hasWashReportAccess());
     elements.openAdminSettingsMenu?.classList.toggle("hidden", !hasAdminAccess());
     elements.openMmpStockMenu?.classList.toggle("hidden", !hasMmpAccess());
+    elements.openPurchasesMenu?.classList.toggle("hidden", !hasWashReportAccess());
     elements.openEquipmentReportsMenu?.classList.toggle("hidden", !hasWashReportAccess());
     elements.openMaintenanceReportsMenu?.classList.toggle("hidden", !hasWashReportAccess());
     elements.openMaintenanceDashboardMenu?.classList.toggle("hidden", !canViewMaintenanceDashboard);
@@ -1985,6 +2006,72 @@ function openAdminSettingsAction(action) {
     else if (action === "audit") loadAdminSettingsAudit();
     else if (action === "backup") openAdminSettingsHomePanel("cloud-admin-panel");
     else if (action === "resets") openAdminSettingsHomePanel("admin-reset-panel");
+}
+
+function renderPurchaseOverview() {
+    const rows = state.purchases.requests || [];
+    const open = rows.filter((row) => !["RECEBIDA", "CANCELADA"].includes(String(row.status || "").toUpperCase()));
+    const awaitingPc = rows.filter((row) => ["SOLICITADA", "AGUARDANDO_PC"].includes(String(row.status || "").toUpperCase()));
+    const awaitingNf = rows.filter((row) => ["EM_TRANSITO", "AGUARDANDO_NF"].includes(String(row.status || "").toUpperCase()));
+    if (elements.purchasesOpenCount) elements.purchasesOpenCount.textContent = String(open.length);
+    if (elements.purchasesAwaitingPcCount) elements.purchasesAwaitingPcCount.textContent = String(awaitingPc.length);
+    if (elements.purchasesAwaitingNfCount) elements.purchasesAwaitingNfCount.textContent = String(awaitingNf.length);
+    if (elements.purchasesImportCount) elements.purchasesImportCount.textContent = String(state.purchases.imports.length);
+}
+
+async function loadPurchasesData() {
+    try {
+        const [requests, imports] = await Promise.all([
+            apiFetch("/compras/solicitacoes"),
+            apiFetch("/compras/importacoes"),
+        ]);
+        state.purchases.requests = requests || [];
+        state.purchases.imports = imports || [];
+        renderPurchaseOverview();
+        if (elements.purchasesImportFeedback && state.purchases.imports.length) {
+            const latest = state.purchases.imports[0];
+            elements.purchasesImportFeedback.innerHTML = `<strong>ÚLTIMO LOTE: ${escapeHtml(latest.source_filename || "-")}</strong><span>${latest.rows_read || 0} linhas | ${latest.status || "-"} | ${formatDateTime(latest.finished_at)}</span>`;
+        }
+    } catch (error) {
+        if (elements.purchasesImportFeedback) elements.purchasesImportFeedback.textContent = error.message || "Não foi possível carregar Compras.";
+        showToast(error.message || "FALHA AO CARREGAR COMPRAS.", true);
+    }
+}
+
+async function submitPurchaseImport() {
+    const file = elements.purchasesImportFile?.files?.[0];
+    if (!file) { showToast("SELECIONE A PLANILHA XLSX DE COMPRAS.", true); return; }
+    const body = new FormData(); body.append("file", file);
+    if (elements.purchasesImportButton) elements.purchasesImportButton.disabled = true;
+    try {
+        const result = await apiFetch("/compras/importacoes", { method: "POST", body });
+        const reconciliation = result.reconciliation || {};
+        if (elements.purchasesImportFeedback) elements.purchasesImportFeedback.innerHTML = `<strong>IMPORTAÇÃO ${escapeHtml(result.status || "CONCLUÍDA")}.</strong><span>${reconciliation.source_rows || 0} linhas | ${reconciliation.purchase_requests || 0} SCs | ${reconciliation.materials || 0} materiais | ${reconciliation.purchase_orders || 0} PCs.</span>`;
+        showToast("HISTÓRICO DE COMPRAS IMPORTADO.");
+        await loadPurchasesData();
+    } catch (error) { showToast(error.message || "FALHA NA IMPORTAÇÃO.", true); }
+    finally { if (elements.purchasesImportButton) elements.purchasesImportButton.disabled = false; }
+}
+
+async function loadMaterialPurchaseHistory() {
+    const materialId = Number(elements.purchasesMaterialId?.value || 0);
+    if (!materialId) { showToast("INFORME O ID DO MATERIAL.", true); return; }
+    try {
+        const result = await apiFetch(`/compras/materiais/${materialId}/historico`);
+        state.purchases.materialHistory = result;
+        const summary = result.summary || {};
+        if (elements.purchasesMaterialHistory) {
+            elements.purchasesMaterialHistory.innerHTML = `<strong>${escapeHtml(result.material?.referencia || "MATERIAL")} — ${escapeHtml(result.material?.descricao || "")}</strong><span>SCs: ${summary.purchase_requests || 0} | Solicitado: ${summary.requested_quantity || 0} | Recebido: ${summary.received_quantity || 0} | Em aberto: ${summary.open_quantity || 0}</span><div class="purchases-history-list">${(result.items || []).slice(0, 20).map((item) => `<article><b>${escapeHtml(item.purchase_request?.sc_number || "SC")}</b><span>${escapeHtml(item.purchase_request?.status || "-")} | ${item.quantity_requested || 0} un.</span><em>${escapeHtml(item.purchase_request?.module || "OUTROS")}</em></article>`).join("") || "Nenhuma solicitação encontrada."}</div>`;
+        }
+    } catch (error) { showToast(error.message || "MATERIAL SEM HISTÓRICO DE COMPRAS.", true); }
+}
+
+async function openPurchasesMenu() {
+    if (!hasWashReportAccess()) return;
+    if (elements.purchasesRoleBadge) elements.purchasesRoleBadge.textContent = hasAdminAccess() ? "ADMINISTRAÇÃO" : "GESTÃO";
+    if (elements.purchasesImportPanel) elements.purchasesImportPanel.classList.toggle("hidden", !hasAdminAccess());
+    setActiveScreen("purchases");
+    await loadPurchasesData();
 }
 
 function mmpWarehouseByType(type) {
@@ -8043,6 +8130,7 @@ on(elements.openHrJourneyMenu, "click", openHrJourneyMenu);
 on(elements.openRhAdminMenu, "click", openRhAdminMenu);
 on(elements.openAdminSettingsMenu, "click", openAdminSettings);
 on(elements.openMmpStockMenu, "click", openMmpStockMenu);
+on(elements.openPurchasesMenu, "click", openPurchasesMenu);
 on(elements.openEquipmentReportsMenu, "click", () => openModuleReports("equipment"));
 on(elements.openMaintenanceReportsMenu, "click", () => openModuleReports("maintenance"));
 on(elements.moduleReportsList, "click", (event) => {
@@ -8184,6 +8272,12 @@ on(elements.mmpStockBackButton, "click", () => {
     renderHome();
     setActiveScreen("home");
 });
+on(elements.purchasesBackButton, "click", () => {
+    renderHome();
+    setActiveScreen("home");
+});
+on(elements.purchasesImportButton, "click", submitPurchaseImport);
+on(elements.purchasesMaterialHistoryButton, "click", loadMaterialPurchaseHistory);
 on(elements.mmpCreatePrincipalButton, "click", () => createMmpWarehouse("PRINCIPAL"));
 on(elements.mmpCreateWarehouseButton, "click", () => createMmpWarehouse("MMP"));
 on(elements.mmpLocationForm, "submit", submitMmpLocation);

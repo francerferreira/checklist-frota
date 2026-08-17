@@ -16,8 +16,8 @@ class WebMobileShellContractTests(unittest.TestCase):
         cls.legacy_readme = LEGACY_README_PATH.read_text(encoding="utf-8")
 
     def test_index_uses_canonical_frontend_bundle(self):
-        self.assertIn('./static/js/app.js?v=20260816-05', self.index_html)
-        self.assertIn('./static/css/styles.css?v=20260816-05', self.index_html)
+        self.assertIn('./static/js/app.js?v=20260816-06', self.index_html)
+        self.assertIn('./static/css/styles.css?v=20260816-06', self.index_html)
         self.assertNotIn("app-20260419-", self.index_html)
 
     def test_frontend_uses_manaus_timezone_for_dates(self):
@@ -145,6 +145,17 @@ class WebMobileShellContractTests(unittest.TestCase):
         self.assertIn('apiFetch("/suprimentos/transferencias"', app_js)
         self.assertIn('apiFetch("/suprimentos/mmp/saidas"', app_js)
         self.assertIn("scanMmpQr", app_js)
+
+    def test_purchases_foundation_web_flow_is_connected(self):
+        app_js = (PROJECT_ROOT / "web_app" / "static" / "js" / "app.js").read_text(encoding="utf-8")
+        self.assertIn("openPurchasesMenu", app_js)
+        self.assertIn('apiFetch("/compras/solicitacoes")', app_js)
+        self.assertIn('apiFetch("/compras/importacoes")', app_js)
+        self.assertIn("submitPurchaseImport", app_js)
+        self.assertIn("loadMaterialPurchaseHistory", app_js)
+        self.assertIn('id="purchases-screen"', self.index_html)
+        self.assertIn('id="purchases-import-file"', self.index_html)
+        self.assertIn('id="purchases-material-history"', self.index_html)
 
     def test_availability_and_hourmeter_mobile_operations_are_connected(self):
         app_js = (PROJECT_ROOT / "web_app" / "static" / "js" / "app.js").read_text(encoding="utf-8")

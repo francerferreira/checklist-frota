@@ -14,7 +14,7 @@
     <title>SIS MMP | Sistema de Manutenção de Máquinas Pesadas</title>
     <link rel="icon" type="image/png" sizes="192x192" href="./static/icons/icon-192.png?v=sis-mmp-20260810">
     <link rel="apple-touch-icon" href="./static/icons/icon-192.png?v=sis-mmp-20260810">
-    <link rel="stylesheet" href="./static/css/styles.css?v=20260816-05">
+    <link rel="stylesheet" href="./static/css/styles.css?v=20260816-06">
 </head>
 <body>
     <div class="mobile-shell">
@@ -155,6 +155,9 @@
                     <button id="open-mmp-stock-menu" class="menu-card hidden" type="button">
                         <span>MMP</span><strong>ARMAZÉM E ESTOQUE MMP</strong><em>Transferir materiais, organizar prateleiras e registrar aplicações por QR Code.</em>
                     </button>
+                    <button id="open-purchases-menu" class="menu-card hidden" type="button">
+                        <span>SC</span><strong>ÁREA DE COMPRAS</strong><em>Solicitações, pedidos, notas fiscais, histórico de materiais e importações.</em>
+                    </button>
 
                     <div class="menu-group-heading" data-menu-heading="absenteismo">
                         <span>04</span><strong>ABSENTEÍSMO</strong><em>Registro diário por área, colaborador e status.</em>
@@ -209,6 +212,39 @@
                 <section id="admin-settings-feedback" class="module-section admin-settings-feedback" aria-live="polite">
                     <div class="module-header"><div><span>RETORNO DA CONSULTA</span><strong>AGUARDANDO AÇÃO</strong></div></div>
                     <div id="admin-settings-feedback-content" class="sync-list">Escolha um controle acima para consultar seu estado.</div>
+                </section>
+            </section>
+
+            <section id="purchases-screen" class="screen hidden">
+                <div class="screen-heading compact module-reports-heading purchases-heading">
+                    <button id="purchases-back-button" class="icon-button" type="button">MENU</button>
+                    <div>
+                        <h2>ÁREA DE COMPRAS</h2>
+                        <p class="screen-heading-note">SC → PC → NF → recebimento, integrado ao catálogo de Materiais.</p>
+                    </div>
+                    <span id="purchases-role-badge" class="rh-admin-role-badge">ADMINISTRAÇÃO</span>
+                </div>
+                <section class="module-reports-intro purchases-intro">
+                    <span>FONTE ÚNICA DA VERDADE</span>
+                    <strong>COMPRAS CONVERSA COM MATERIAIS E ESTOQUE</strong>
+                    <p>O material cadastrado é o mesmo usado na solicitação, no recebimento do Armazém Principal e na aplicação do Estoque MMP.</p>
+                </section>
+                <section class="purchases-summary-grid" aria-label="Resumo de compras">
+                    <article><span>SC ABERTAS</span><strong id="purchases-open-count">0</strong><em>Processos ainda não concluídos.</em></article>
+                    <article><span>AGUARDANDO PC</span><strong id="purchases-awaiting-pc-count">0</strong><em>Itens sem pedido de compra.</em></article>
+                    <article><span>AGUARDANDO NF</span><strong id="purchases-awaiting-nf-count">0</strong><em>PC emitido sem nota fiscal.</em></article>
+                    <article><span>IMPORTAÇÕES</span><strong id="purchases-import-count">0</strong><em>Lotes históricos reconciliados.</em></article>
+                </section>
+                <section id="purchases-import-panel" class="module-section purchases-admin-panel">
+                    <div class="module-header"><div><span>ADMINISTRAÇÃO</span><strong>IMPORTAR HISTÓRICO</strong></div><em>Somente admin</em></div>
+                    <p class="purchases-help">Envie a planilha histórica. A importação é idempotente: o mesmo arquivo não será duplicado.</p>
+                    <div class="purchases-import-row"><input id="purchases-import-file" type="file" accept=".xlsx"><button id="purchases-import-button" class="secondary-button" type="button">IMPORTAR EXCEL</button></div>
+                    <div id="purchases-import-feedback" class="sync-list" aria-live="polite">Nenhuma importação executada nesta sessão.</div>
+                </section>
+                <section class="module-section purchases-material-panel">
+                    <div class="module-header"><div><span>INTEGRAÇÃO COM MATERIAIS</span><strong>HISTÓRICO DE UM MATERIAL</strong></div><em>SC, PC, NF e recebimento</em></div>
+                    <div class="purchases-material-search"><input id="purchases-material-id" type="number" min="1" placeholder="ID do material cadastrado"><button id="purchases-material-history-button" class="secondary-button" type="button">CONSULTAR HISTÓRICO</button></div>
+                    <div id="purchases-material-history" class="sync-list">Informe o ID de um material para ver solicitações, quantidades, status e aplicações.</div>
                 </section>
             </section>
 
@@ -1116,7 +1152,7 @@
 
     <div id="toast" class="toast hidden"></div>
     <script src="./static/js/config.js?v=20260719-01"></script>
-    <script src="./static/js/app.js?v=20260816-05"></script>
+    <script src="./static/js/app.js?v=20260816-06"></script>
 </body>
 </html>
 
