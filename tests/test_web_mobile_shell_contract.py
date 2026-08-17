@@ -16,8 +16,8 @@ class WebMobileShellContractTests(unittest.TestCase):
         cls.legacy_readme = LEGACY_README_PATH.read_text(encoding="utf-8")
 
     def test_index_uses_canonical_frontend_bundle(self):
-        self.assertIn('./static/js/app.js?v=20260817-01', self.index_html)
-        self.assertIn('./static/css/styles.css?v=20260817-01', self.index_html)
+        self.assertIn('./static/js/app.js?v=20260817-02', self.index_html)
+        self.assertIn('./static/css/styles.css?v=20260817-02', self.index_html)
         self.assertNotIn("app-20260419-", self.index_html)
 
     def test_login_uses_institutional_glass_layout_with_sis_mmp_identity(self):
@@ -208,6 +208,34 @@ class WebMobileShellContractTests(unittest.TestCase):
         self.assertIn("renderPlanning", app_js)
         self.assertIn("/manutencao/visao?ano=", app_js)
         self.assertIn("excluir_checklist=true", app_js)
+
+    def test_maintenance_operational_dashboard_has_table_cards_and_semantic_statuses(self):
+        app_js = (PROJECT_ROOT / "web_app" / "static" / "js" / "app.js").read_text(encoding="utf-8")
+        styles = (PROJECT_ROOT / "web_app" / "static" / "css" / "styles.css").read_text(encoding="utf-8")
+        for fragment in [
+            'id="maintenance-view-controls"',
+            'data-maintenance-view="KANBAN"',
+            'data-maintenance-view="TABLE"',
+            'data-maintenance-view="CARDS"',
+            'id="maintenance-table-wrap"',
+            'id="maintenance-table-body"',
+            'id="maintenance-cards"',
+            'data-maintenance-dashboard-filter="ATRASADO"',
+        ]:
+            with self.subTest(fragment=fragment):
+                self.assertIn(fragment, self.index_html)
+        self.assertIn("renderMaintenanceDashboard", app_js)
+        self.assertIn("renderMaintenanceTable", app_js)
+        self.assertIn("renderMaintenanceCards", app_js)
+        self.assertIn("maintenanceDashboardStatusMeta", app_js)
+        for fragment in [
+            ".maintenance-table-wrap",
+            ".maintenance-dashboard-cards",
+            ".maintenance-status-overdue",
+            ".maintenance-status-completed",
+        ]:
+            with self.subTest(style=fragment):
+                self.assertIn(fragment, styles)
 
     def test_admin_catalogs_and_purchase_providers_are_connected(self):
         app_js = (PROJECT_ROOT / "web_app" / "static" / "js" / "app.js").read_text(encoding="utf-8")

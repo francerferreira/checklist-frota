@@ -4157,6 +4157,235 @@ textarea {
     color: #536a82;
 }
 
+/* Painel operacional: a mesma manutenção pode ser lida como quadro, tabela ou cartões. */
+.maintenance-dashboard-section {
+    overflow: hidden;
+}
+
+.maintenance-view-controls {
+    display: inline-grid;
+    grid-template-columns: repeat(3, minmax(104px, 1fr));
+    gap: 0;
+    margin: 4px 0 12px;
+    padding: 4px;
+    border: 1px solid #d5e0ec;
+    border-radius: 12px;
+    background: #f7faff;
+}
+
+.maintenance-view-button,
+.maintenance-dashboard-filter {
+    min-height: 36px;
+    border: 0;
+    border-radius: 9px;
+    background: transparent;
+    color: #58708b;
+    font: inherit;
+    font-size: .68rem;
+    font-weight: 900;
+    letter-spacing: .025em;
+    cursor: pointer;
+}
+
+.maintenance-view-button.is-active {
+    background: #0b65c2;
+    color: #ffffff;
+    box-shadow: 0 5px 12px rgba(11, 101, 194, .22);
+}
+
+.maintenance-dashboard-filters {
+    display: flex;
+    gap: 8px;
+    overflow-x: auto;
+    margin: 0 0 14px;
+    padding: 2px 1px 7px;
+    scrollbar-width: thin;
+}
+
+.maintenance-dashboard-filter {
+    display: inline-flex;
+    flex: 0 0 auto;
+    align-items: center;
+    gap: 7px;
+    padding: 7px 10px;
+    border: 1px solid #d7e1ed;
+    background: #ffffff;
+    color: #45617f;
+    white-space: nowrap;
+}
+
+.maintenance-dashboard-filter b {
+    display: inline-grid;
+    min-width: 20px;
+    min-height: 20px;
+    place-items: center;
+    border-radius: 999px;
+    background: #edf2f7;
+    color: #37526f;
+    font-size: .65rem;
+}
+
+.maintenance-dashboard-filter.is-active {
+    border-color: #0b65c2;
+    background: #eaf3ff;
+    color: #0756b5;
+}
+
+.maintenance-dashboard-filter[data-maintenance-dashboard-filter="BLOQUEADO"] { border-color: #f4c75e; }
+.maintenance-dashboard-filter[data-maintenance-dashboard-filter="BLOQUEADO"] b { background: #fff0cf; color: #8a5c00; }
+.maintenance-dashboard-filter[data-maintenance-dashboard-filter="ATRASADO"] { border-color: #f2a6a6; }
+.maintenance-dashboard-filter[data-maintenance-dashboard-filter="ATRASADO"] b { background: #fee2e2; color: #b42318; }
+.maintenance-dashboard-filter[data-maintenance-dashboard-filter="CONCLUIDO"] { border-color: #9dd9b1; }
+.maintenance-dashboard-filter[data-maintenance-dashboard-filter="CONCLUIDO"] b { background: #dff5e8; color: #137a40; }
+
+.maintenance-table-wrap {
+    overflow: auto;
+    border: 1px solid #d8e2ed;
+    border-radius: 14px;
+    background: #ffffff;
+    box-shadow: 0 10px 24px rgba(15, 46, 78, .08);
+}
+
+.maintenance-dashboard-table {
+    width: 100%;
+    min-width: 1000px;
+    border-collapse: separate;
+    border-spacing: 0;
+    color: #274766;
+    font-size: .72rem;
+}
+
+.maintenance-dashboard-table th,
+.maintenance-dashboard-table td {
+    padding: 11px 10px;
+    border-bottom: 1px solid #e2eaf2;
+    text-align: left;
+    vertical-align: middle;
+}
+
+.maintenance-dashboard-table th {
+    position: sticky;
+    top: 0;
+    z-index: 1;
+    background: #0756b5;
+    color: #ffffff;
+    font-size: .62rem;
+    letter-spacing: .045em;
+    white-space: nowrap;
+}
+
+.maintenance-dashboard-table td strong {
+    color: #163f68;
+    font-weight: 900;
+}
+
+.maintenance-dashboard-table tbody tr:not(:last-child) td { border-bottom-color: #e2eaf2; }
+.maintenance-dashboard-table tbody tr:hover td { background: #f4f9ff; }
+.maintenance-dashboard-table tbody tr.maintenance-status-overdue td:first-child { box-shadow: inset 4px 0 0 #dc2626; }
+.maintenance-dashboard-table tbody tr.maintenance-status-blocked td:first-child { box-shadow: inset 4px 0 0 #d99100; }
+.maintenance-dashboard-table tbody tr.maintenance-status-progress td:first-child { box-shadow: inset 4px 0 0 #0b65c2; }
+.maintenance-dashboard-table tbody tr.maintenance-status-completed td:first-child { box-shadow: inset 4px 0 0 #168a4b; }
+
+.maintenance-status-pill {
+    display: inline-flex;
+    align-items: center;
+    min-height: 25px;
+    padding: 3px 8px;
+    border: 1px solid transparent;
+    border-radius: 999px;
+    font-size: .62rem;
+    font-weight: 950;
+    letter-spacing: .025em;
+    white-space: nowrap;
+}
+
+.maintenance-status-pill.maintenance-status-planned { border-color: #d4dde8; background: #eef2f6; color: #52677f; }
+.maintenance-status-pill.maintenance-status-scheduled { border-color: #b6d5ff; background: #e8f2ff; color: #0756b5; }
+.maintenance-status-pill.maintenance-status-progress { border-color: #9dd8f2; background: #def4ff; color: #0b638f; }
+.maintenance-status-pill.maintenance-status-blocked { border-color: #f4c75e; background: #fff0cf; color: #8a5c00; }
+.maintenance-status-pill.maintenance-status-overdue { border-color: #f2aaaa; background: #fee2e2; color: #b42318; }
+.maintenance-status-pill.maintenance-status-completed { border-color: #9edbb3; background: #dff5e8; color: #137a40; }
+
+.maintenance-dashboard-cards {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(248px, 1fr));
+    gap: 12px;
+}
+
+.maintenance-dashboard-card {
+    display: grid;
+    gap: 10px;
+    min-height: 218px;
+    padding: 14px;
+    border: 1px solid #dbe5ef;
+    border-top-width: 4px;
+    border-radius: 14px;
+    background: #ffffff;
+    box-shadow: 0 9px 20px rgba(15, 46, 78, .08);
+}
+
+.maintenance-dashboard-card > div {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+}
+
+.maintenance-dashboard-card > div > strong,
+.maintenance-dashboard-card h3 {
+    margin: 0;
+    color: #153a63;
+    font-size: .82rem;
+    font-weight: 950;
+    line-height: 1.24;
+}
+
+.maintenance-dashboard-card p {
+    display: grid;
+    gap: 2px;
+    margin: 0;
+    color: #526f8d;
+    font-size: .68rem;
+    line-height: 1.35;
+}
+
+.maintenance-dashboard-card p b {
+    color: #7890a7;
+    font-size: .58rem;
+    letter-spacing: .045em;
+}
+
+.maintenance-dashboard-card .secondary-button {
+    width: 100%;
+    margin-top: auto;
+}
+
+.maintenance-dashboard-card.maintenance-status-planned { border-top-color: #94a3b8; }
+.maintenance-dashboard-card.maintenance-status-scheduled { border-top-color: #0b65c2; }
+.maintenance-dashboard-card.maintenance-status-progress { border-top-color: #0b8ac2; }
+.maintenance-dashboard-card.maintenance-status-blocked { border-top-color: #d99100; }
+.maintenance-dashboard-card.maintenance-status-overdue { border-top-color: #dc2626; }
+.maintenance-dashboard-card.maintenance-status-completed { border-top-color: #168a4b; }
+
+.maintenance-dashboard-empty {
+    padding: 24px 14px;
+    color: #5b7189;
+    font-size: .72rem;
+    font-weight: 800;
+    text-align: center;
+}
+
+.maintenance-kanban-column.maintenance-kanban-planejado > header { border-top: 4px solid #94a3b8; }
+.maintenance-kanban-column.maintenance-kanban-programado > header { border-top: 4px solid #0b65c2; }
+.maintenance-kanban-column.maintenance-kanban-em-execucao > header { border-top: 4px solid #0b8ac2; }
+.maintenance-kanban-column.maintenance-kanban-bloqueado > header { border-top: 4px solid #d99100; }
+.maintenance-kanban-column.maintenance-kanban-concluido > header { border-top: 4px solid #168a4b; }
+.maintenance-kanban-card.maintenance-status-overdue { border-left: 4px solid #dc2626; }
+.maintenance-kanban-card.maintenance-status-blocked { border-left: 4px solid #d99100; }
+.maintenance-kanban-card.maintenance-status-progress { border-left: 4px solid #0b65c2; }
+.maintenance-kanban-card.maintenance-status-completed { border-left: 4px solid #168a4b; }
+.maintenance-kanban-card .secondary-button { min-height: 34px; margin-top: 4px; padding: 6px 8px; font-size: .64rem; }
+
 .planning-toolbar {
     display: grid;
     gap: 12px;
@@ -4255,6 +4484,55 @@ textarea {
 }
 
 @media (max-width: 520px) {
+    .maintenance-view-controls {
+        display: grid;
+        width: 100%;
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+    }
+
+    .maintenance-view-button {
+        min-height: 39px;
+        padding: 4px;
+        font-size: .6rem;
+    }
+
+    .maintenance-dashboard-filters {
+        margin-bottom: 11px;
+    }
+
+    .maintenance-dashboard-filter {
+        min-height: 34px;
+        padding: 6px 8px;
+        font-size: .6rem;
+    }
+
+    .maintenance-dashboard-cards {
+        grid-template-columns: 1fr;
+        gap: 9px;
+    }
+
+    .maintenance-dashboard-card {
+        min-height: 0;
+        padding: 12px;
+    }
+
+    .maintenance-dashboard-table {
+        min-width: 690px;
+        font-size: .65rem;
+    }
+
+    .maintenance-dashboard-table th,
+    .maintenance-dashboard-table td {
+        padding: 9px 7px;
+    }
+
+    .maintenance-dashboard-table th:nth-child(4),
+    .maintenance-dashboard-table td:nth-child(4),
+    .maintenance-dashboard-table th:nth-child(5),
+    .maintenance-dashboard-table td:nth-child(5) {
+        display: none;
+    }
+
     .maintenance-kanban {
         grid-template-columns: 1fr;
         overflow-x: visible;

@@ -254,6 +254,8 @@ const state = {
     selectedMaintenanceDate: "",
     maintenanceStatusFilter: "ABERTAS",
     maintenanceFamilyFilter: "TODOS",
+    maintenanceDashboardView: "KANBAN",
+    maintenanceDashboardFilter: "TODOS",
     planningStatusFilter: "ABERTAS",
     selectedActivity: null,
     selectedVehicle: null,
@@ -625,9 +627,14 @@ const elements = {
     maintenancePrevMonth: document.getElementById("maintenance-prev-month"),
     maintenanceNextMonth: document.getElementById("maintenance-next-month"),
     maintenanceFamilyTabs: Array.from(document.querySelectorAll("[data-maintenance-family]")),
+    maintenanceViewButtons: Array.from(document.querySelectorAll("[data-maintenance-view]")),
+    maintenanceDashboardFilterButtons: Array.from(document.querySelectorAll("[data-maintenance-dashboard-filter]")),
     maintenanceCalendar: document.getElementById("maintenance-calendar"),
     maintenanceDayPanel: document.getElementById("maintenance-day-panel"),
     maintenanceKanban: document.getElementById("maintenance-kanban"),
+    maintenanceTableWrap: document.getElementById("maintenance-table-wrap"),
+    maintenanceTableBody: document.getElementById("maintenance-table-body"),
+    maintenanceCards: document.getElementById("maintenance-cards"),
     maintenanceList: document.getElementById("maintenance-list"),
     planningBackButton: document.getElementById("planning-back-button"),
     planningCounter: document.getElementById("planning-counter"),
@@ -4617,7 +4624,7 @@ function renderMaintenance() {
     elements.maintenanceMonthTitle.textContent = String(overview.periodo?.rotulo || `${state.maintenanceMonth}/${state.maintenanceYear}`).toUpperCase();
     screens.maintenance.querySelector(".list-toolbar span").textContent = `${familyLabel} | ${selectedDayLabel} | ${selectedItems.length} SERVIÇO${selectedItems.length === 1 ? "" : "S"} NO DIA SELECIONADO.`;
     renderMaintenanceSummary(visibleSummary);
-    renderMaintenanceKanban(days);
+    renderMaintenanceDashboard(days);
     renderMaintenanceCalendar(days);
     renderMaintenanceDayPanel(selectedDay);
     elements.maintenanceList.innerHTML = "";
@@ -4713,7 +4720,98 @@ function maintenanceKanbanStage(item) {
     return "PLANEJADO";
 }
 
-function renderMaintenanceKanban(days) {
+function maintenanceDashboardStatus(item) {
+    const stage = maintenanceKanbanStage(item);
+    const scheduledDate = String(item?.kanban_date || item?.scheduled_date || "");
+    if (stage !== "CONCLUIDO" && stage !== "BLOQUEADO" && scheduledDate && scheduledDate < getManausDateKey()) {
+        return "ATRASADO";
+    }
+    return stage;
+}
+
+function maintenanceDashboardStatusMeta(status) {
+    const items = {
+        PLANEJADO: { label: "PLANEJADO", tone: "planned" },
+        PROGRAMADO: { label: "PROGRAMADO", tone: "scheduled" },
+        EM_EXECUCAO: { label: "EM EXECUÇÃO", tone: "progress" },
+        BLOQUEADO: { label: "BLOQUEADO", tone: "blocked" },
+        ATRASADO: { label: "ATRASADO", tone: "overdue" },
+        CONCLUIDO: { label: "CONCLUÍDO", tone: "completed" },
+    };
+    return items[status] || items.PLANEJADO;
+}
+
+function maintenanceDashboardItems(days) {
+    const filter = state.maintenanceDashboardFilter || "TODOS";
+    const stageOrder = { ATRASADO: 0, BLOQUEADO: 1, EM_EXECUCAO: 2, PROGRAMADO: 3, PLANEJADO: 4, CONCLUIDO: 5 };
+    const items = filterMaintenanceItemsByFamily(days.flatMap((day) => (day.items || []).map((item) => ({
+        ...item,
+        kanban_date: item.scheduled_date || day.date,
+    }))));
+    return items
+        .filter((item) => filter === "TODOS" || maintenanceDashboardStatus(item) === filter)
+        .sort((left, right) => {
+            const toneDifference = (stageOrder[maintenanceDashboardStatus(left)] || 9) - (stageOrder[maintenanceDashboardStatus(right)] || 9);
+            if (toneDifference) return toneDifference;
+            return String(left.kanban_date || "9999-12-31").localeCompare(String(right.kanban_date || "9999-12-31"));
+        });
+}
+
+function maintenanceDashboardCounts(days) {
+    const allItems = filterMaintenanceItemsByFamily(days.flatMap((day) => (day.items || []).map((item) => ({
+        ...item,
+        kanban_date: item.scheduled_date || day.date,
+    }))));
+    return allItems.reduce((counts, item) => {
+        counts.TODOS += 1;
+        const status = maintenanceDashboardStatus(item);
+        counts[status] = (counts[status] || 0) + 1;
+        return counts;
+    }, { TODOS: 0, PLANEJADO: 0, PROGRAMADO: 0, EM_EXECUCAO: 0, BLOQUEADO: 0, ATRASADO: 0, CONCLUIDO: 0 });
+}
+
+function renderMaintenanceDashboard(days) {
+    const view = state.maintenanceDashboardView || "KANBAN";
+    const items = maintenanceDashboardItems(days);
+    const counts = maintenanceDashboardCounts(days);
+    elements.maintenanceViewButtons.forEach((button) => {
+        const active = button.dataset.maintenanceView === view;
+        button.classList.toggle("is-active", active);
+        button.setAttribute("aria-pressed", String(active));
+    });
+    elements.maintenanceDashboardFilterButtons.forEach((button) => {
+        const filter = button.dataset.maintenanceDashboardFilter || "TODOS";
+        const active = filter === state.maintenanceDashboardFilter;
+        button.classList.toggle("is-active", active);
+        button.setAttribute("aria-pressed", String(active));
+        const count = button.querySelector("b");
+        if (count) count.textContent = String(counts[filter] || 0);
+    });
+    elements.maintenanceKanban?.classList.toggle("hidden", view !== "KANBAN");
+    elements.maintenanceTableWrap?.classList.toggle("hidden", view !== "TABLE");
+    elements.maintenanceCards?.classList.toggle("hidden", view !== "CARDS");
+    renderMaintenanceKanban(items);
+    renderMaintenanceTable(items);
+    renderMaintenanceCards(items);
+}
+
+function maintenanceDashboardAction(item) {
+    if (maintenanceKanbanStage(item) === "CONCLUIDO") return "";
+    return `<button type="button" class="secondary-button maintenance-dashboard-open" data-maintenance-date="${escapeHtml(item.kanban_date || "")}" data-maintenance-filter="${maintenanceKanbanStage(item) === "BLOQUEADO" ? "AGUARDANDO_MATERIAL" : "ABERTAS"}">ABRIR</button>`;
+}
+
+function bindMaintenanceDashboardActions(container) {
+    container?.querySelectorAll(".maintenance-dashboard-open").forEach((button) => {
+        button.addEventListener("click", () => {
+            state.selectedMaintenanceDate = button.dataset.maintenanceDate || "";
+            state.maintenanceStatusFilter = button.dataset.maintenanceFilter || "ABERTAS";
+            renderMaintenance();
+            elements.maintenanceList?.scrollIntoView({ behavior: "smooth", block: "start" });
+        });
+    });
+}
+
+function renderMaintenanceKanban(items) {
     if (!elements.maintenanceKanban) return;
     const columns = [
         { key: "PLANEJADO", label: "PLANEJADO", hint: "Ainda precisa ser organizado." },
@@ -4722,7 +4820,6 @@ function renderMaintenanceKanban(days) {
         { key: "BLOQUEADO", label: "BLOQUEADO", hint: "Material ou condição impede a execução." },
         { key: "CONCLUIDO", label: "CONCLUÍDO", hint: "Execução registrada." },
     ];
-    const items = days.flatMap((day) => (day.items || []).map((item) => ({ ...item, kanban_date: item.scheduled_date || day.date })));
     const grouped = new Map(columns.map((column) => [column.key, []]));
     items.forEach((item) => grouped.get(maintenanceKanbanStage(item))?.push(item));
     elements.maintenanceKanban.innerHTML = columns.map((column) => {
@@ -4736,29 +4833,72 @@ function renderMaintenanceKanban(days) {
                         const schedule = item.schedule || {};
                         const workOrder = item.work_order || {};
                         const title = schedule.title || item.item_name || "MANUTENÇÃO";
-                        const status = String(item.status || "PENDENTE").replaceAll("_", " ");
+                        const status = maintenanceDashboardStatusMeta(maintenanceDashboardStatus(item));
                         const date = item.kanban_date ? formatDateTime(`${item.kanban_date}T00:00:00`) : "SEM DATA";
                         const open = column.key !== "CONCLUIDO";
-                        return `<article class="maintenance-kanban-card">
+                        return `<article class="maintenance-kanban-card maintenance-status-${status.tone}">
                             <strong>${escapeHtml(String(title).toUpperCase())}</strong>
                             <span>${escapeHtml(String(vehicle.frota || vehicle.placa || "EQUIPAMENTO").toUpperCase())} · ${escapeHtml(maintenanceFamilyKey(item) || "MÓDULO")}</span>
-                            <span>OS ${escapeHtml(String(workOrder.order_number || "-").toUpperCase())} · ${escapeHtml(status)}</span>
+                            <span>OS ${escapeHtml(String(workOrder.order_number || "-").toUpperCase())} · ${escapeHtml(status.label)}</span>
                             <small>${escapeHtml(date)}</small>
-                            ${open ? `<button type="button" class="share-button maintenance-kanban-open" data-maintenance-date="${escapeHtml(item.kanban_date || "")}" data-maintenance-filter="${column.key === "BLOQUEADO" ? "AGUARDANDO_MATERIAL" : "ABERTAS"}">ABRIR EXECUÇÃO</button>` : ""}
+                            ${open ? maintenanceDashboardAction(item) : ""}
                         </article>`;
                     }).join("") : `<p class="maintenance-kanban-empty">NENHUM SERVIÇO NESTA ETAPA.</p>`}
                 </div>
             </section>
         `;
     }).join("");
-    elements.maintenanceKanban.querySelectorAll(".maintenance-kanban-open").forEach((button) => {
-        button.addEventListener("click", () => {
-            state.selectedMaintenanceDate = button.dataset.maintenanceDate || "";
-            state.maintenanceStatusFilter = button.dataset.maintenanceFilter || "ABERTAS";
-            renderMaintenance();
-            elements.maintenanceList?.scrollIntoView({ behavior: "smooth", block: "start" });
-        });
-    });
+    bindMaintenanceDashboardActions(elements.maintenanceKanban);
+}
+
+function renderMaintenanceTable(items) {
+    if (!elements.maintenanceTableBody) return;
+    if (!items.length) {
+        elements.maintenanceTableBody.innerHTML = `<tr><td colspan="8" class="maintenance-dashboard-empty">NENHUMA MANUTENÇÃO NESTE FILTRO.</td></tr>`;
+        return;
+    }
+    elements.maintenanceTableBody.innerHTML = items.map((item) => {
+        const vehicle = item.vehicle || {};
+        const schedule = item.schedule || {};
+        const workOrder = item.work_order || {};
+        const mechanic = item.assigned_mechanic || schedule.assigned_mechanic || {};
+        const status = maintenanceDashboardStatusMeta(maintenanceDashboardStatus(item));
+        return `<tr class="maintenance-status-${status.tone}">
+            <td><strong>${escapeHtml(String(workOrder.order_number || "-").toUpperCase())}</strong></td>
+            <td><strong>${escapeHtml(String(schedule.title || item.item_name || "MANUTENÇÃO").toUpperCase())}</strong></td>
+            <td>${escapeHtml(String(vehicle.frota || vehicle.placa || "EQUIPAMENTO").toUpperCase())}</td>
+            <td>${escapeHtml(maintenanceFamilyKey(item) || "-")}</td>
+            <td>${escapeHtml(String(mechanic.nome || "SEM RESPONSÁVEL").toUpperCase())}</td>
+            <td>${item.kanban_date ? formatDate(item.kanban_date) : "SEM DATA"}</td>
+            <td><span class="maintenance-status-pill maintenance-status-${status.tone}">${status.label}</span></td>
+            <td>${maintenanceDashboardAction(item) || "-"}</td>
+        </tr>`;
+    }).join("");
+    bindMaintenanceDashboardActions(elements.maintenanceTableBody);
+}
+
+function renderMaintenanceCards(items) {
+    if (!elements.maintenanceCards) return;
+    if (!items.length) {
+        elements.maintenanceCards.innerHTML = `<article class="maintenance-dashboard-empty">NENHUMA MANUTENÇÃO NESTE FILTRO.</article>`;
+        return;
+    }
+    elements.maintenanceCards.innerHTML = items.map((item) => {
+        const vehicle = item.vehicle || {};
+        const schedule = item.schedule || {};
+        const workOrder = item.work_order || {};
+        const mechanic = item.assigned_mechanic || schedule.assigned_mechanic || {};
+        const status = maintenanceDashboardStatusMeta(maintenanceDashboardStatus(item));
+        return `<article class="maintenance-dashboard-card maintenance-status-${status.tone}">
+            <div><strong>OS ${escapeHtml(String(workOrder.order_number || "-").toUpperCase())}</strong><span class="maintenance-status-pill maintenance-status-${status.tone}">${status.label}</span></div>
+            <h3>${escapeHtml(String(schedule.title || item.item_name || "MANUTENÇÃO").toUpperCase())}</h3>
+            <p><b>EQUIPAMENTO</b>${escapeHtml(String(vehicle.frota || vehicle.placa || "EQUIPAMENTO").toUpperCase())} · ${escapeHtml(maintenanceFamilyKey(item) || "MÓDULO")}</p>
+            <p><b>RESPONSÁVEL</b>${escapeHtml(String(mechanic.nome || "SEM RESPONSÁVEL").toUpperCase())}</p>
+            <p><b>DATA</b>${item.kanban_date ? formatDate(item.kanban_date) : "SEM DATA"}</p>
+            ${maintenanceDashboardAction(item)}
+        </article>`;
+    }).join("");
+    bindMaintenanceDashboardActions(elements.maintenanceCards);
 }
 
 function updateMaintenanceFamilyTabs() {
@@ -8661,6 +8801,18 @@ on(elements.washNextMonth, "click", () => changeWashMonth(1));
 on(elements.washExportPdfButton, "click", exportWashMonthPdf);
 on(elements.maintenancePrevMonth, "click", () => changeMaintenanceMonth(-1));
 on(elements.maintenanceNextMonth, "click", () => changeMaintenanceMonth(1));
+elements.maintenanceViewButtons.forEach((button) => {
+    on(button, "click", () => {
+        state.maintenanceDashboardView = button.dataset.maintenanceView || "KANBAN";
+        renderMaintenance();
+    });
+});
+elements.maintenanceDashboardFilterButtons.forEach((button) => {
+    on(button, "click", () => {
+        state.maintenanceDashboardFilter = button.dataset.maintenanceDashboardFilter || "TODOS";
+        renderMaintenance();
+    });
+});
 elements.maintenanceFamilyTabs.forEach((button) => {
     on(button, "click", async () => {
         state.maintenanceFamilyFilter = String(button.dataset.maintenanceFamily || "TODOS").toUpperCase();

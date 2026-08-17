@@ -383,6 +383,25 @@ class WebMobilePlaywrightTests(unittest.TestCase):
         self.page.locator("#technical-inspection-submit").tap()
         self._wait_for_screen("home-screen")
 
+    def test_maintenance_dashboard_switches_between_board_table_and_cards(self):
+        self._login()
+        self.page.locator("#open-maintenance-menu").tap()
+        self._wait_for_screen("maintenance-screen")
+        expect(self.page.locator("#maintenance-view-controls")).to_be_visible()
+
+        self.page.get_by_role("button", name="TABELA").tap()
+        expect(self.page.locator("#maintenance-table-wrap")).to_be_visible()
+        expect(self.page.locator("#maintenance-kanban")).to_be_hidden()
+
+        self.page.get_by_role("button", name="CARTÕES").tap()
+        expect(self.page.locator("#maintenance-cards")).to_be_visible()
+        expect(self.page.locator("#maintenance-table-wrap")).to_be_hidden()
+
+        self.page.get_by_role("button", name="ATRASADO 0").tap()
+        expect(self.page.get_by_role("button", name="ATRASADO 0")).to_have_attribute("aria-pressed", "true")
+        overflow = self.page.evaluate("() => document.documentElement.scrollWidth > window.innerWidth + 1")
+        self.assertFalse(overflow)
+
     def test_technical_inspection_queues_offline_and_syncs_when_online(self):
         self._login()
         self.page.locator("#open-technical-inspections-menu").tap()
