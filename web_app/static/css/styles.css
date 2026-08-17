@@ -674,7 +674,7 @@ textarea {
 .special-schedule-tools { display:grid; grid-template-columns:minmax(0,1fr) auto auto; gap:12px; margin:18px 0; }
 .special-schedule-tools input { min-height:44px; padding:0 12px; border:1px solid #cbd5e1; border-radius:12px; font:inherit; }
 .special-schedule-card { margin-top: 10px; padding: 18px; box-shadow: 0 12px 26px rgba(15,23,42,.10); }
-.special-schedule-filter > label { color: #ffffff; text-shadow: 0 1px 2px rgba(0,0,0,.28); }
+.special-schedule-filter > label { color: #111827; text-shadow: none; }
 .special-schedule-filter { background: transparent; border-color: rgba(255,255,255,.35); box-shadow:none; }
 @media print { body * { visibility:hidden; } #special-schedule-screen, #special-schedule-screen * { visibility:visible; } #special-schedule-screen { position:absolute; inset:0; background:#fff; color:#000; } .icon-button,.primary-button,.special-schedule-tools,.special-schedule-filter,.list-toolbar { display:none !important; } }
 
@@ -683,9 +683,9 @@ textarea {
 #special-schedule-screen .special-schedule-filter > label.hidden + input,
 #special-schedule-screen .special-schedule-filter > label:not(.hidden),
 #special-schedule-screen .special-schedule-filter > .weekly-dsr-actions + label {
-    color: #ffffff !important;
+    color: #111827 !important;
     opacity: 1 !important;
-    text-shadow: 0 1px 3px rgba(0, 0, 0, 0.42);
+    text-shadow: none;
 }
 
 #special-schedule-screen #special-schedule-list {
