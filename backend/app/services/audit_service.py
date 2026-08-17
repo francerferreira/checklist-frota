@@ -15,6 +15,7 @@ from app.extensions import db
 from app.utils.timezone import now_manaus_naive
 from app.models.audit_log import AuditLog
 from app.models.user import User
+from app.services.notification_service import create_automatic_notifications
 
 _AUDIT_HOOKS_REGISTERED = False
 _SENSITIVE_FIELDS = {"senha_hash", "password", "password_hash", "token", "token_hash"}
@@ -45,6 +46,13 @@ def _safe_current_user_id() -> int | None:
         return None
     current = getattr(g, "current_user", None)
     return getattr(current, "id", None)
+
+
+def _safe_current_user_name() -> str | None:
+    if not has_request_context():
+        return None
+    current = getattr(g, "current_user", None)
+    return getattr(current, "nome", None)
 
 
 def _safe_serialize(value: Any) -> Any:
@@ -80,7 +88,8 @@ def _dump_json(payload: dict[str, Any] | None) -> str | None:
 
 
 def _is_auditable_instance(instance: Any) -> bool:
-    if isinstance(instance, AuditLog):
+    entity_type = _to_entity_type(instance)
+    if entity_type in {"AUDIT_LOG", "REVOKED_TOKEN"}:
         return False
     return hasattr(instance, "__table__")
 
@@ -132,10 +141,27 @@ def _record_buffered_change(
             "entity_type": _to_entity_type(instance),
             "entity_id": getattr(instance, "id", None),
             "user_id": _safe_current_user_id(),
+            "actor_name": _safe_current_user_name(),
             "old_value": _dump_json(old_payload),
             "new_value": _dump_json(new_payload),
         }
     )
+
+
+def _manual_notification_event(
+    *,
+    user_id: int | None,
+    entity_type: str,
+    entity_id: int,
+    action: str,
+) -> dict[str, Any]:
+    return {
+        "user_id": user_id,
+        "entity_type": str(entity_type or "SYSTEM").upper(),
+        "entity_id": int(entity_id or 0),
+        "action": str(action or "EVENT").upper(),
+        "actor_name": _safe_current_user_name() or "Sistema",
+    }
 
 
 def _before_flush(session: Session, flush_context, instances):  # noqa: ANN001
@@ -185,7 +211,8 @@ def _before_flush(session: Session, flush_context, instances):  # noqa: ANN001
 
 def _after_flush_postexec(session: Session, flush_context):  # noqa: ANN001
     buffer = session.info.pop("_audit_buffer", None) or []
-    if not buffer:
+    manual_events = session.info.pop("_manual_notification_events", None) or []
+    if not buffer and not manual_events:
         return
 
     ready_rows: list[dict[str, Any]] = []
@@ -202,11 +229,21 @@ def _after_flush_postexec(session: Session, flush_context):  # noqa: ANN001
                 "entity_type": entry.get("entity_type") or "SYSTEM",
                 "entity_id": int(entity_id),
                 "action": entry.get("action") or "UPDATE",
+                "actor_name": entry.get("actor_name") or "Sistema",
                 "old_value": entry.get("old_value"),
                 "new_value": entry.get("new_value"),
                 "created_at": now_manaus_naive(),
             }
         )
+
+    manual_keys = {(row["entity_type"], int(row["entity_id"])) for row in manual_events}
+    automatic_rows = [
+        row for row in ready_rows
+        if (row["entity_type"], int(row["entity_id"])) not in manual_keys
+    ]
+    notification_events = automatic_rows + manual_events
+    if notification_events:
+        create_automatic_notifications(notification_events)
 
     if not ready_rows:
         return
@@ -221,8 +258,12 @@ def _after_commit(session: Session) -> None:
     if not pending:
         return
     try:
+        audit_rows = [
+            {key: value for key, value in row.items() if key != "actor_name"}
+            for row in pending
+        ]
         with db.engine.begin() as conn:
-            conn.execute(AuditLog.__table__.insert(), pending)
+            conn.execute(AuditLog.__table__.insert(), audit_rows)
     except Exception as exc:
         # Auditoria é melhor esforço, mas a falha precisa ficar visível no log.
         _AUDIT_FAILURE_COUNT += 1
@@ -233,6 +274,7 @@ def _after_commit(session: Session) -> None:
 
 def _after_rollback(session: Session) -> None:
     session.info.pop("_audit_buffer", None)
+    session.info.pop("_manual_notification_events", None)
     session.info.pop("_audit_pending_rows", None)
 
 
@@ -256,15 +298,26 @@ def record_event(
     old_value: Any = None,
     new_value: Any = None,
 ) -> None:
+    event_type = str(entity_type or "SYSTEM").upper()
+    event_id = int(entity_id or 0)
+    event_action = str(action or "EVENT").upper()
     log = AuditLog(
         user_id=user_id,
-        entity_type=str(entity_type or "SYSTEM").upper(),
-        entity_id=int(entity_id or 0),
-        action=str(action or "EVENT").upper(),
+        entity_type=event_type,
+        entity_id=event_id,
+        action=event_action,
         old_value=_truncate_text(str(old_value)) if old_value is not None else None,
         new_value=_truncate_text(str(new_value)) if new_value is not None else None,
     )
     db.session.add(log)
+    db.session.info.setdefault("_manual_notification_events", []).append(
+        _manual_notification_event(
+            user_id=user_id,
+            entity_type=event_type,
+            entity_id=event_id,
+            action=event_action,
+        )
+    )
 
 
 def record_status_change(user_id: int, entity_type: str, entity_id: int, old_status: str, new_status: str):

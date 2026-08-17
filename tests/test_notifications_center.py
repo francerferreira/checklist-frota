@@ -134,6 +134,52 @@ class NotificationsRouteTests(unittest.TestCase):
         with self.app.app_context():
             self.assertTrue(AuditLog.query.filter_by(entity_type="NOTIFICATION", action="DELETE").count() >= 1)
 
+    def test_business_change_creates_automatic_notification_for_other_active_users(self):
+        created = self.client.post(
+            "/recursos",
+            headers=self.admin_headers,
+            json={
+                "code": "AUTO-NOTIFY-001",
+                "name": "Recurso de teste",
+                "resource_type": "FERRAMENTA",
+            },
+        )
+        self.assertEqual(created.status_code, 201, created.get_json())
+
+        listed = self.client.get("/notifications", headers=self.operator_headers)
+        self.assertEqual(listed.status_code, 200, listed.get_json())
+        automatic = [
+            item for item in listed.get_json()["data"]["items"]
+            if item["entity_type"] == "MAINTENANCE_RESOURCE"
+        ]
+        self.assertTrue(automatic)
+        self.assertEqual(automatic[0]["origin"], "MANUTENÇÃO")
+        self.assertIn("Registro aberto", automatic[0]["title"])
+
+    def test_manual_business_event_also_creates_notification(self):
+        from flask import g
+        from app.extensions import db
+        from app.services.audit_service import record_event
+
+        with self.app.test_request_context("/"):
+            g.current_user = self.admin
+            record_event(
+                user_id=self.admin.id,
+                entity_type="WAREHOUSE_TRANSFER",
+                entity_id=77,
+                action="TRANSFER_TO_MMP",
+            )
+            db.session.commit()
+
+        listed = self.client.get("/notifications", headers=self.operator_headers)
+        self.assertEqual(listed.status_code, 200, listed.get_json())
+        automatic = [
+            item for item in listed.get_json()["data"]["items"]
+            if item["entity_type"] == "WAREHOUSE_TRANSFER" and item["entity_id"] == 77
+        ]
+        self.assertTrue(automatic)
+        self.assertEqual(automatic[0]["origin"], "ESTOQUE MMP")
+
 
 if __name__ == "__main__":
     unittest.main()
