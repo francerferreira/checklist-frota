@@ -595,6 +595,7 @@ const elements = {
     maintenanceFamilyTabs: Array.from(document.querySelectorAll("[data-maintenance-family]")),
     maintenanceCalendar: document.getElementById("maintenance-calendar"),
     maintenanceDayPanel: document.getElementById("maintenance-day-panel"),
+    maintenanceKanban: document.getElementById("maintenance-kanban"),
     maintenanceList: document.getElementById("maintenance-list"),
     preventivesBackButton: document.getElementById("preventives-back-button"),
     preventivesCounter: document.getElementById("preventives-counter"),
@@ -1745,6 +1746,7 @@ async function openMaintenanceMenu() {
         }
         elements.maintenanceCounter.textContent = "FALHA";
         elements.maintenanceDayPanel.innerHTML = "";
+        if (elements.maintenanceKanban) elements.maintenanceKanban.innerHTML = "";
         renderStateCard(elements.maintenanceList, {
             title: "NÃO FOI POSSÍVEL CARREGAR A MANUTENÇÃO",
             message: error.message || "Verifique a conexão e tente novamente.",
@@ -4290,6 +4292,7 @@ function renderMaintenance() {
     elements.maintenanceMonthTitle.textContent = String(overview.periodo?.rotulo || `${state.maintenanceMonth}/${state.maintenanceYear}`).toUpperCase();
     screens.maintenance.querySelector(".list-toolbar span").textContent = `${familyLabel} | ${selectedDayLabel} | ${selectedItems.length} SERVIÇO${selectedItems.length === 1 ? "" : "S"} NO DIA SELECIONADO.`;
     renderMaintenanceSummary(visibleSummary);
+    renderMaintenanceKanban(days);
     renderMaintenanceCalendar(days);
     renderMaintenanceDayPanel(selectedDay);
     elements.maintenanceList.innerHTML = "";
@@ -4306,6 +4309,64 @@ function renderMaintenance() {
 
     selectedItems.forEach((item, index) => {
         elements.maintenanceList.appendChild(makeMaintenanceItemCard(item, index + 1));
+    });
+}
+
+function maintenanceKanbanStage(item) {
+    const itemStatus = String(item?.status || "PENDENTE").toUpperCase();
+    const scheduleStatus = String(item?.schedule?.status || "").toUpperCase();
+    if (itemStatus === "INSTALADO") return "CONCLUIDO";
+    if (itemStatus === "AGUARDANDO_MATERIAL" || scheduleStatus === "AGUARDANDO_MATERIAL" || !maintenanceItemCanInstall(item)) return "BLOQUEADO";
+    if (scheduleStatus === "EM_EXECUCAO") return "EM_EXECUCAO";
+    if (["PROGRAMADO", "REPROGRAMADO"].includes(itemStatus) || ["PROGRAMADA", "REPROGRAMADA"].includes(scheduleStatus)) return "PROGRAMADO";
+    return "PLANEJADO";
+}
+
+function renderMaintenanceKanban(days) {
+    if (!elements.maintenanceKanban) return;
+    const columns = [
+        { key: "PLANEJADO", label: "PLANEJADO", hint: "Ainda precisa ser organizado." },
+        { key: "PROGRAMADO", label: "PROGRAMADO", hint: "Já tem data para execução." },
+        { key: "EM_EXECUCAO", label: "EM EXECUÇÃO", hint: "A equipe já iniciou." },
+        { key: "BLOQUEADO", label: "BLOQUEADO", hint: "Material ou condição impede a execução." },
+        { key: "CONCLUIDO", label: "CONCLUÍDO", hint: "Execução registrada." },
+    ];
+    const items = days.flatMap((day) => (day.items || []).map((item) => ({ ...item, kanban_date: item.scheduled_date || day.date })));
+    const grouped = new Map(columns.map((column) => [column.key, []]));
+    items.forEach((item) => grouped.get(maintenanceKanbanStage(item))?.push(item));
+    elements.maintenanceKanban.innerHTML = columns.map((column) => {
+        const rows = grouped.get(column.key) || [];
+        return `
+            <section class="maintenance-kanban-column maintenance-kanban-${column.key.toLowerCase().replaceAll("_", "-")}" data-kanban-column="${column.key}">
+                <header><div><strong>${column.label}</strong><span>${column.hint}</span></div><b>${rows.length}</b></header>
+                <div class="maintenance-kanban-items">
+                    ${rows.length ? rows.map((item) => {
+                        const vehicle = item.vehicle || {};
+                        const schedule = item.schedule || {};
+                        const workOrder = item.work_order || {};
+                        const title = schedule.title || item.item_name || "MANUTENÇÃO";
+                        const status = String(item.status || "PENDENTE").replaceAll("_", " ");
+                        const date = item.kanban_date ? formatDateTime(`${item.kanban_date}T00:00:00`) : "SEM DATA";
+                        const open = column.key !== "CONCLUIDO";
+                        return `<article class="maintenance-kanban-card">
+                            <strong>${escapeHtml(String(title).toUpperCase())}</strong>
+                            <span>${escapeHtml(String(vehicle.frota || vehicle.placa || "EQUIPAMENTO").toUpperCase())} · ${escapeHtml(maintenanceFamilyKey(item) || "MÓDULO")}</span>
+                            <span>OS ${escapeHtml(String(workOrder.order_number || "-").toUpperCase())} · ${escapeHtml(status)}</span>
+                            <small>${escapeHtml(date)}</small>
+                            ${open ? `<button type="button" class="share-button maintenance-kanban-open" data-maintenance-date="${escapeHtml(item.kanban_date || "")}" data-maintenance-filter="${column.key === "BLOQUEADO" ? "AGUARDANDO_MATERIAL" : "ABERTAS"}">ABRIR EXECUÇÃO</button>` : ""}
+                        </article>`;
+                    }).join("") : `<p class="maintenance-kanban-empty">NENHUM SERVIÇO NESTA ETAPA.</p>`}
+                </div>
+            </section>
+        `;
+    }).join("");
+    elements.maintenanceKanban.querySelectorAll(".maintenance-kanban-open").forEach((button) => {
+        button.addEventListener("click", () => {
+            state.selectedMaintenanceDate = button.dataset.maintenanceDate || "";
+            state.maintenanceStatusFilter = button.dataset.maintenanceFilter || "ABERTAS";
+            renderMaintenance();
+            elements.maintenanceList?.scrollIntoView({ behavior: "smooth", block: "start" });
+        });
     });
 }
 

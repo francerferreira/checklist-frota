@@ -16,8 +16,8 @@ class WebMobileShellContractTests(unittest.TestCase):
         cls.legacy_readme = LEGACY_README_PATH.read_text(encoding="utf-8")
 
     def test_index_uses_canonical_frontend_bundle(self):
-        self.assertIn('./static/js/app.js?v=20260816-07', self.index_html)
-        self.assertIn('./static/css/styles.css?v=20260816-07', self.index_html)
+        self.assertIn('./static/js/app.js?v=20260816-08', self.index_html)
+        self.assertIn('./static/css/styles.css?v=20260816-08', self.index_html)
         self.assertNotIn("app-20260419-", self.index_html)
 
     def test_frontend_uses_manaus_timezone_for_dates(self):
@@ -161,6 +161,9 @@ class WebMobileShellContractTests(unittest.TestCase):
         self.assertNotIn('id="purchases-import-panel"', self.index_html)
         self.assertNotIn('id="purchases-import-count"', self.index_html)
         self.assertIn("Solicitações, pedidos, notas fiscais, recebimentos e histórico de materiais.", self.index_html)
+        self.assertIn('id="maintenance-kanban"', self.index_html)
+        self.assertIn("renderMaintenanceKanban", app_js)
+        self.assertIn("data-maintenance-filter", app_js)
 
     def test_availability_and_hourmeter_mobile_operations_are_connected(self):
         app_js = (PROJECT_ROOT / "web_app" / "static" / "js" / "app.js").read_text(encoding="utf-8")

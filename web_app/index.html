@@ -14,7 +14,7 @@
     <title>SIS MMP | Sistema de Manutenção de Máquinas Pesadas</title>
     <link rel="icon" type="image/png" sizes="192x192" href="./static/icons/icon-192.png?v=sis-mmp-20260810">
     <link rel="apple-touch-icon" href="./static/icons/icon-192.png?v=sis-mmp-20260810">
-    <link rel="stylesheet" href="./static/css/styles.css?v=20260816-07">
+    <link rel="stylesheet" href="./static/css/styles.css?v=20260816-08">
 </head>
 <body>
     <div class="mobile-shell">
@@ -644,6 +644,11 @@
 
                 <div id="maintenance-summary" class="progress-card"></div>
 
+                <section class="module-section maintenance-kanban-section">
+                    <div class="module-header"><div><span>OPERAÇÃO DE MANUTENÇÃO</span><strong>BACKLOG PARA EXECUTAR</strong></div><em>O que está aberto para a equipe operar.</em></div>
+                    <div id="maintenance-kanban" class="maintenance-kanban" aria-label="Quadro de manutenção por etapa"></div>
+                </section>
+
                 <section class="wash-calendar-card">
                     <div class="wash-calendar-header">
                         <button id="maintenance-prev-month" class="icon-button" type="button" aria-label="Mês anterior">ANT.</button>
@@ -1148,7 +1153,7 @@
 
     <div id="toast" class="toast hidden"></div>
     <script src="./static/js/config.js?v=20260719-01"></script>
-    <script src="./static/js/app.js?v=20260816-07"></script>
+    <script src="./static/js/app.js?v=20260816-08"></script>
 </body>
 </html>
 
