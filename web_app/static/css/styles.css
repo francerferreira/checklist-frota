@@ -50,6 +50,17 @@
     --theme-accent-warm: #b45309;
     --theme-shadow: 0 5px 15px rgba(25, 50, 78, .06);
 
+    /* Escada única de camadas: quanto maior, mais à frente fica o elemento. */
+    --layer-pull-refresh: 6;
+    --layer-sticky-content: 20;
+    --layer-topbar: 80;
+    --layer-dropdown: 90;
+    --layer-floating-panel: 100;
+    --layer-notifications: 105;
+    --layer-toast: 110;
+    --layer-modal: 120;
+    --layer-modal-content: 121;
+
     /* Estados operacionais: mesmos significados em todos os módulos. */
     --state-available-bg: #d9f5e8;
     --state-available-text: #08734f;
@@ -414,7 +425,7 @@ button:disabled {
 .pull-refresh-indicator {
     position: sticky;
     top: 8px;
-    z-index: 6;
+    z-index: var(--layer-pull-refresh);
     width: fit-content;
     margin: 0 auto -18px;
     padding: 8px 14px;
@@ -434,7 +445,7 @@ button:disabled {
 .app-topbar {
     position: sticky;
     top: max(6px, env(safe-area-inset-top));
-    z-index: 80;
+    z-index: var(--layer-topbar);
     width: 100%;
     margin: 0 auto 12px;
     overflow: visible;
@@ -547,7 +558,7 @@ button:disabled {
     position: absolute;
     top: calc(100% + 7px);
     left: 0;
-    z-index: 90;
+    z-index: var(--layer-dropdown);
     display: grid;
     width: min(360px, calc(100vw - 32px));
     max-height: min(620px, calc(100dvh - 110px));
@@ -2211,7 +2222,7 @@ body[data-theme="dark"] .app-modal-backdrop { background: rgba(3,8,14,.82) !impo
     position: absolute;
     top: calc(100% + 8px);
     right: 48px;
-    z-index: 81;
+    z-index: var(--layer-notifications);
     display: grid;
     gap: 8px;
     width: min(480px, calc(100vw - 24px));
@@ -4046,7 +4057,7 @@ body[data-theme="dark"]:not(.entry-screen) .menu-group-heading > em { color: #9f
 .submit-bar {
     position: sticky;
     bottom: max(10px, env(safe-area-inset-bottom));
-    z-index: 5;
+    z-index: var(--layer-sticky-content);
     padding: 12px 0 4px;
     background: linear-gradient(180deg, rgba(237, 244, 251, 0), rgba(237, 244, 251, 0.96) 42%);
     display: grid;
@@ -4110,7 +4121,7 @@ body[data-theme="dark"]:not(.entry-screen) .menu-group-heading > em { color: #9f
 .app-modal {
     position: fixed;
     inset: 0;
-    z-index: 120;
+    z-index: var(--layer-modal);
     display: grid;
     place-items: center;
     padding: 18px;
@@ -4126,7 +4137,7 @@ body[data-theme="dark"]:not(.entry-screen) .menu-group-heading > em { color: #9f
 
 .app-modal-card {
     position: relative;
-    z-index: 1;
+    z-index: var(--layer-modal-content);
     width: min(100%, 520px);
     border-radius: 20px;
     background: linear-gradient(180deg, #ffffff, #f9fcff);
@@ -4191,7 +4202,7 @@ body[data-theme="dark"]:not(.entry-screen) .menu-group-heading > em { color: #9f
     position: fixed;
     left: 50%;
     bottom: 18px;
-    z-index: 20;
+    z-index: var(--layer-toast);
     width: min(92%, 480px);
     transform: translateX(-50%);
     padding: 14px 16px;
@@ -7650,7 +7661,7 @@ body:not(.entry-screen) .maintenance-view-button {
     position: absolute;
     top: calc(100% + 8px);
     right: 0;
-    z-index: 80;
+    z-index: var(--layer-dropdown);
     display: grid;
     gap: 4px;
     width: min(282px, calc(100vw - 24px));
