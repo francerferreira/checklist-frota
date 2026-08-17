@@ -28,6 +28,9 @@ const SESSION_STARTED_AT_KEY = "sessionStartedAt";
 const SESSION_LAST_ACTIVITY_AT_KEY = "sessionLastActivityAt";
 const SESSION_INACTIVITY_LIMIT_MS = 30 * 60 * 1000;
 const THEME_STORAGE_KEY = "sisMmpTheme";
+const NOTIFICATIONS_STORAGE_KEY = "sisMmpNotifications";
+const LANGUAGE_STORAGE_KEY = "sisMmpLanguage";
+const DENSITY_STORAGE_KEY = "sisMmpDensity";
 const appTopbar = document.querySelector(".app-topbar");
 const PULL_REFRESH_TRIGGER_PX = 84;
 const PULL_REFRESH_MAX_PX = 112;
@@ -355,6 +358,10 @@ const elements = {
     topbarUserSettingsButton: document.getElementById("topbar-user-settings-button"),
     topbarSettingsMenu: document.getElementById("topbar-settings-menu"),
     topbarSettingsItems: Array.from(document.querySelectorAll("[data-settings-action]")),
+    topbarNotificationsLabel: document.getElementById("topbar-notifications-label"),
+    topbarLanguageSelect: document.getElementById("topbar-language-select"),
+    topbarDensityLabel: document.getElementById("topbar-density-label"),
+    topbarThemeLabel: document.getElementById("topbar-theme-label"),
     themeToggleButton: document.getElementById("theme-toggle-button"),
     topbarLogoutButton: document.getElementById("topbar-logout-button"),
     topbarModuleTriggers: Array.from(document.querySelectorAll("[data-topbar-module-trigger]")),
@@ -787,9 +794,74 @@ function applyTheme(theme) {
 
 function toggleTheme() {
     applyTheme(document.documentElement.dataset.theme === "dark" ? "light" : "dark");
+    syncSettingsPreferenceLabels();
+}
+
+function applyLanguage(language) {
+    const value = String(language || "pt-BR") === "en-US" ? "en-US" : "pt-BR";
+    document.documentElement.lang = value;
+    localStorage.setItem(LANGUAGE_STORAGE_KEY, value);
+    if (elements.topbarLanguageSelect) elements.topbarLanguageSelect.value = value;
+}
+
+function applyDensity(density) {
+    const value = String(density || "comfortable") === "compact" ? "compact" : "comfortable";
+    document.body.dataset.density = value;
+    localStorage.setItem(DENSITY_STORAGE_KEY, value);
+    syncSettingsPreferenceLabels();
+}
+
+function notificationsEnabled() {
+    return localStorage.getItem(NOTIFICATIONS_STORAGE_KEY) === "true";
+}
+
+function syncSettingsPreferenceLabels() {
+    const notifications = notificationsEnabled();
+    const density = document.body.dataset.density === "compact" ? "compact" : "comfortable";
+    const dark = document.documentElement.dataset.theme === "dark";
+    if (elements.topbarNotificationsLabel) {
+        elements.topbarNotificationsLabel.textContent = notifications ? "Alertas ativados." : "Alertas desativados.";
+    }
+    if (elements.topbarDensityLabel) {
+        elements.topbarDensityLabel.textContent = density === "compact" ? "Exibição compacta." : "Exibição confortável.";
+    }
+    if (elements.topbarThemeLabel) {
+        elements.topbarThemeLabel.textContent = dark ? "Usar tema claro." : "Usar tema escuro.";
+    }
+}
+
+async function toggleNotifications() {
+    if (notificationsEnabled()) {
+        localStorage.setItem(NOTIFICATIONS_STORAGE_KEY, "false");
+        syncSettingsPreferenceLabels();
+        showToast("NOTIFICAÇÕES DESATIVADAS.");
+        return;
+    }
+    if (!("Notification" in window)) {
+        showToast("ESTE NAVEGADOR NÃO OFERECE NOTIFICAÇÕES.", true);
+        return;
+    }
+    let permission = Notification.permission;
+    if (permission === "default") permission = await Notification.requestPermission();
+    const enabled = permission === "granted";
+    localStorage.setItem(NOTIFICATIONS_STORAGE_KEY, String(enabled));
+    syncSettingsPreferenceLabels();
+    showToast(enabled ? "NOTIFICAÇÕES ATIVADAS." : "PERMISSÃO DE NOTIFICAÇÃO NÃO CONCEDIDA.", !enabled);
+}
+
+function cycleDensity() {
+    applyDensity(document.body.dataset.density === "compact" ? "comfortable" : "compact");
+    showToast(document.body.dataset.density === "compact" ? "DENSIDADE COMPACTA APLICADA." : "DENSIDADE CONFORTÁVEL APLICADA.");
+}
+
+function applyUserPreferences() {
+    applyLanguage(localStorage.getItem(LANGUAGE_STORAGE_KEY) || "pt-BR");
+    applyDensity(localStorage.getItem(DENSITY_STORAGE_KEY) || "comfortable");
+    syncSettingsPreferenceLabels();
 }
 
 applyTheme(localStorage.getItem(THEME_STORAGE_KEY) || "light");
+applyUserPreferences();
 elements.apiBaseUrl.value = state.apiBaseUrl;
 updateConnectionStatus();
 
@@ -991,7 +1063,11 @@ async function openTopbarSettingsAction(action) {
     closeTopbarSettingsMenu();
     if (action === "password") {
         openPasswordResetModal();
-    } else if (action === "preferences") {
+    } else if (action === "notifications") {
+        await toggleNotifications();
+    } else if (action === "density") {
+        cycleDensity();
+    } else if (action === "theme") {
         toggleTheme();
     } else if (action === "users" || action === "audit") {
         openAdminSettings();
@@ -9019,6 +9095,10 @@ on(elements.topbarUserSettingsButton, "click", (event) => {
 on(elements.topbarSettingsMenu, "click", (event) => {
     const button = event.target instanceof HTMLElement ? event.target.closest("[data-settings-action]") : null;
     if (button) openTopbarSettingsAction(button.dataset.settingsAction || "");
+});
+on(elements.topbarLanguageSelect, "change", () => {
+    applyLanguage(elements.topbarLanguageSelect.value);
+    showToast(elements.topbarLanguageSelect.value === "en-US" ? "IDIOMA ENGLISH SELECIONADO. TRADUÇÃO EM PREPARAÇÃO." : "IDIOMA PORTUGUÊS (BRASIL) SELECIONADO.");
 });
 on(elements.passwordChangeForm, "submit", submitPasswordReset);
 on(elements.passwordChangeCancel, "click", closePasswordResetModal);

@@ -37,7 +37,10 @@
                         <button type="button" role="menuitem" data-settings-action="users" data-settings-admin-only="true"><b>ADM</b><span><strong>Usuários</strong><em>Logins, perfis e permissões.</em></span></button>
                         <button type="button" role="menuitem" data-settings-action="password"><b>🔑</b><span><strong>Minha senha</strong><em>Alterar sua senha de acesso.</em></span></button>
                         <button type="button" role="menuitem" data-settings-action="audit" data-settings-admin-only="true"><b>LOG</b><span><strong>Auditoria</strong><em>Consultar ações e acessos do sistema.</em></span></button>
-                        <button type="button" role="menuitem" data-settings-action="preferences"><b>☼</b><span><strong>Preferências</strong><em>Alternar tema claro ou escuro.</em></span></button>
+                        <button type="button" role="menuitem" data-settings-action="notifications"><b>🔔</b><span><strong>Notificações</strong><em id="topbar-notifications-label">Alertas desativados.</em></span></button>
+                        <label class="topbar-settings-control" for="topbar-language-select"><b>A/文</b><span><strong>Idioma</strong><em>Preferência da interface.</em></span><select id="topbar-language-select" aria-label="Idioma da interface"><option value="pt-BR">Português (Brasil)</option><option value="en-US">English (preparação)</option></select></label>
+                        <button type="button" role="menuitem" data-settings-action="density"><b>↕</b><span><strong>Densidade</strong><em id="topbar-density-label">Exibição confortável.</em></span></button>
+                        <button type="button" role="menuitem" data-settings-action="theme"><b>☼</b><span><strong>Preferências</strong><em id="topbar-theme-label">Alternar tema claro ou escuro.</em></span></button>
                     </div>
                     <button id="theme-toggle-button" class="theme-toggle-button" type="button" title="Alternar tema claro e escuro" aria-label="Alternar tema claro e escuro" aria-pressed="false"><span class="theme-toggle-icon" aria-hidden="true">☼</span></button>
                     <button id="topbar-logout-button" class="topbar-logout-button" type="button" title="Sair do sistema" aria-label="Sair do sistema"><span aria-hidden="true">↪</span></button>
