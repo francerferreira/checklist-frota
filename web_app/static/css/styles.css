@@ -49,6 +49,38 @@
     --theme-table-header: #eef2f6;
     --theme-accent-warm: #b45309;
     --theme-shadow: 0 5px 15px rgba(25, 50, 78, .06);
+
+    /* Estados operacionais: mesmos significados em todos os módulos. */
+    --state-available-bg: #d9f5e8;
+    --state-available-text: #08734f;
+    --state-available-border: #15966b;
+    --state-blocked-bg: #fff0cf;
+    --state-blocked-text: #8a5c00;
+    --state-blocked-border: #d99100;
+    --state-completed-bg: #dff5e8;
+    --state-completed-text: #137a40;
+    --state-completed-border: #168a4b;
+    --state-critical-bg: #fee2e2;
+    --state-critical-text: #b42318;
+    --state-critical-border: #dc2626;
+    --state-progress-bg: #def4ff;
+    --state-progress-text: #0b638f;
+    --state-progress-border: #0b65c2;
+    --state-planned-bg: #eef2f6;
+    --state-planned-text: #52677f;
+    --state-planned-border: #94a3b8;
+    --state-scheduled-bg: #e8f2ff;
+    --state-scheduled-text: #0756b5;
+    --state-scheduled-border: #0b65c2;
+    --state-attention-bg: #fff4d6;
+    --state-attention-text: #936200;
+    --state-attention-border: #ca8a04;
+    --state-unavailable-bg: #fde2e2;
+    --state-unavailable-text: #9f2020;
+    --state-unavailable-border: #d33737;
+    --state-maintenance-bg: #e5e7eb;
+    --state-maintenance-text: #40566f;
+    --state-maintenance-border: #40566f;
 }
 
 /* Tema escuro: contraste alto para operação noturna, sem alterar os estados de negócio. */
@@ -95,6 +127,37 @@ body[data-theme="dark"] {
     --theme-table-header: #223247;
     --theme-accent-warm: #ffd36a;
     --theme-shadow: 0 5px 15px rgba(0, 0, 0, .26);
+
+    --state-available-bg: #143d31;
+    --state-available-text: #8ee8c2;
+    --state-available-border: #2fbf8a;
+    --state-blocked-bg: #49351a;
+    --state-blocked-text: #ffd98a;
+    --state-blocked-border: #d8a23a;
+    --state-completed-bg: #153d2d;
+    --state-completed-text: #9be6ba;
+    --state-completed-border: #43c57f;
+    --state-critical-bg: #4b252c;
+    --state-critical-text: #ffb7bd;
+    --state-critical-border: #e66a76;
+    --state-progress-bg: #163b59;
+    --state-progress-text: #9fd7ff;
+    --state-progress-border: #4aa9e8;
+    --state-planned-bg: #263342;
+    --state-planned-text: #c7d5e5;
+    --state-planned-border: #6b7f93;
+    --state-scheduled-bg: #173d67;
+    --state-scheduled-text: #b9dcff;
+    --state-scheduled-border: #4f9be3;
+    --state-attention-bg: #49351a;
+    --state-attention-text: #ffd98a;
+    --state-attention-border: #d8a23a;
+    --state-unavailable-bg: #4b252c;
+    --state-unavailable-text: #ffb7bd;
+    --state-unavailable-border: #e66a76;
+    --state-maintenance-bg: #273646;
+    --state-maintenance-text: #c7d5e5;
+    --state-maintenance-border: #6b7f93;
 }
 
 body[data-theme="dark"] .app-topbar {
@@ -1053,9 +1116,9 @@ textarea {
     font-weight: 900;
     white-space: nowrap;
 }
-.schedule-status.is-open { background: #dbeafe; color: #1d4ed8; }
-.schedule-status.is-registered { background: #dcfce7; color: #166534; }
-.schedule-status.is-vacation { background: #fef3c7; color: #a16207; }
+.schedule-status.is-open { background: var(--state-scheduled-bg); color: var(--state-scheduled-text); }
+.schedule-status.is-registered { background: var(--state-completed-bg); color: var(--state-completed-text); }
+.schedule-status.is-vacation { background: var(--state-attention-bg); color: var(--state-attention-text); }
 .schedule-dsr-inline { display: grid; gap: 4px; min-width: 150px; color: #36577f; font-size: .68rem; font-weight: 900; }
 .schedule-dsr-inline input { min-height: 34px; padding: 0 7px; border: 1px solid #b9cbe2; border-radius: 8px; font: inherit; }
 .schedule-dsr-inline small { font-size: .64rem; }
@@ -1150,25 +1213,25 @@ textarea {
 .absenteeism-row:nth-child(even) td { background: #fbfdff; }
 .absenteeism-row select, .absenteeism-row input { width: 100%; min-width: 0; min-height: 38px; padding: 0 8px; border: 1px solid #b9cbe2; border-radius: 9px; background: #fff; color: #0f172a; font: inherit; font-size: .76rem; }
 .absenteeism-row select:disabled, .absenteeism-row input:disabled { background: #eef8f5; color: #166534; cursor: not-allowed; }
-.absenteeism-status.status-presente { border-color: #86efac; background: #dcfce7; color: #166534; }
-.absenteeism-status.status-falta { border-color: #fca5a5; background: #fee2e2; color: #b91c1c; }
-.absenteeism-status.status-atestado { border-color: #fdba74; background: #ffedd5; color: #c2410c; }
-.absenteeism-status.status-dsr { border-color: #a5b4fc; background: #e0e7ff; color: #3730a3; }
-.absenteeism-status.status-ferias { border-color: #fde68a; background: #fef3c7; color: #a16207; }
-.absenteeism-status.status-folga { border-color: #c4b5fd; background: #ede9fe; color: #6d28d9; }
-.absenteeism-status.status-afastado { border-color: #fca5a5; background: #fee2e2; color: #b91c1c; }
-.absenteeism-status.status-curso { border-color: #93c5fd; background: #dbeafe; color: #1d4ed8; }
-.absenteeism-status.status-servico_externo { border-color: #cbd5e1; background: #f1f5f9; color: #334155; }
-.absenteeism-status option { background: #ffffff; color: #0f172a; }
-.absenteeism-status option[value="PRESENTE"] { background: #dcfce7; color: #166534; }
-.absenteeism-status option[value="FALTA"], .absenteeism-status option[value="AFASTADO"] { background: #fee2e2; color: #b91c1c; }
-.absenteeism-status option[value="ATESTADO"] { background: #ffedd5; color: #c2410c; }
-.absenteeism-status option[value="FERIAS"] { background: #fef3c7; color: #a16207; }
-.absenteeism-status option[value="DSR"] { background: #e0e7ff; color: #3730a3; }
-.absenteeism-status option[value="FOLGA"] { background: #ede9fe; color: #6d28d9; }
-.absenteeism-status option[value="CURSO"] { background: #dbeafe; color: #1d4ed8; }
-.absenteeism-status option[value="SERVICO_EXTERNO"] { background: #f1f5f9; color: #334155; }
-.status-falta { border-color: #ef4444; }.status-atestado { border-color: #f59e0b; }.status-ferias { border-color: #14b8a6; background: #f0fdfa; }.status-dsr, .status-folga { border-color: #6366f1; }
+.absenteeism-status.status-presente { border-color: var(--state-available-border); background: var(--state-available-bg); color: var(--state-available-text); }
+.absenteeism-status.status-falta { border-color: var(--state-critical-border); background: var(--state-critical-bg); color: var(--state-critical-text); }
+.absenteeism-status.status-atestado { border-color: var(--state-attention-border); background: var(--state-attention-bg); color: var(--state-attention-text); }
+.absenteeism-status.status-dsr { border-color: var(--state-scheduled-border); background: var(--state-scheduled-bg); color: var(--state-scheduled-text); }
+.absenteeism-status.status-ferias { border-color: var(--state-attention-border); background: var(--state-attention-bg); color: var(--state-attention-text); }
+.absenteeism-status.status-folga { border-color: var(--state-planned-border); background: var(--state-planned-bg); color: var(--state-planned-text); }
+.absenteeism-status.status-afastado { border-color: var(--state-critical-border); background: var(--state-critical-bg); color: var(--state-critical-text); }
+.absenteeism-status.status-curso { border-color: var(--state-scheduled-border); background: var(--state-scheduled-bg); color: var(--state-scheduled-text); }
+.absenteeism-status.status-servico_externo { border-color: var(--state-maintenance-border); background: var(--state-maintenance-bg); color: var(--state-maintenance-text); }
+.absenteeism-status option { background: var(--theme-surface); color: var(--theme-text); }
+.absenteeism-status option[value="PRESENTE"] { background: var(--state-available-bg); color: var(--state-available-text); }
+.absenteeism-status option[value="FALTA"], .absenteeism-status option[value="AFASTADO"] { background: var(--state-critical-bg); color: var(--state-critical-text); }
+.absenteeism-status option[value="ATESTADO"] { background: var(--state-attention-bg); color: var(--state-attention-text); }
+.absenteeism-status option[value="FERIAS"] { background: var(--state-attention-bg); color: var(--state-attention-text); }
+.absenteeism-status option[value="DSR"] { background: var(--state-scheduled-bg); color: var(--state-scheduled-text); }
+.absenteeism-status option[value="FOLGA"] { background: var(--state-planned-bg); color: var(--state-planned-text); }
+.absenteeism-status option[value="CURSO"] { background: var(--state-scheduled-bg); color: var(--state-scheduled-text); }
+.absenteeism-status option[value="SERVICO_EXTERNO"] { background: var(--state-maintenance-bg); color: var(--state-maintenance-text); }
+.status-falta { border-color: var(--state-critical-border); }.status-atestado { border-color: var(--state-attention-border); }.status-ferias { border-color: var(--state-attention-border); background: var(--state-attention-bg); }.status-dsr, .status-folga { border-color: var(--state-scheduled-border); }
 @media (max-width: 900px) { #absenteeism-screen #absenteeism-summary { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
 @media (max-width: 640px) { .absenteeism-filters { grid-template-columns: 1fr; } #absenteeism-screen #absenteeism-summary { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; margin: 10px 0; padding: 8px; } #absenteeism-screen #absenteeism-summary > div { min-height: 34px; padding: 5px 7px; } .absenteeism-table { min-width: 820px; }.absenteeism-table th, .absenteeism-table td { padding: 10px 8px; } }
 @media (max-width: 760px) {
@@ -1706,15 +1769,15 @@ textarea {
 }
 
 .preventive-summary-card.tone-vencida,
-.preventive-mobile-row.status-vencida { border-color: rgba(185, 28, 28, .42); }
+.preventive-mobile-row.status-vencida { border-color: var(--state-critical-border); }
 .preventive-summary-card.tone-critica,
-.preventive-mobile-row.status-critica { border-color: rgba(234, 88, 12, .42); }
+.preventive-mobile-row.status-critica { border-color: var(--state-critical-border); }
 .preventive-summary-card.tone-atencao,
-.preventive-mobile-row.status-atencao { border-color: rgba(202, 138, 4, .42); }
+.preventive-mobile-row.status-atencao { border-color: var(--state-attention-border); }
 .preventive-summary-card.tone-proxima,
-.preventive-mobile-row.status-proxima { border-color: rgba(7, 86, 181, .35); }
+.preventive-mobile-row.status-proxima { border-color: var(--state-scheduled-border); }
 .preventive-summary-card.tone-no-prazo,
-.preventive-mobile-row.status-no-prazo { border-color: rgba(5, 150, 105, .35); }
+.preventive-mobile-row.status-no-prazo { border-color: var(--state-available-border); }
 
 .preventives-list-section { margin-top: 10px; }
 .preventives-list { display: grid; gap: 10px; }
@@ -1730,11 +1793,11 @@ textarea {
     box-shadow: var(--shadow-soft);
 }
 
-.preventive-mobile-row.status-vencida { border-left-color: #b91c1c; }
-.preventive-mobile-row.status-critica { border-left-color: #ea580c; }
-.preventive-mobile-row.status-atencao { border-left-color: #ca8a04; }
-.preventive-mobile-row.status-proxima { border-left-color: #0756b5; }
-.preventive-mobile-row.status-no-prazo { border-left-color: #059669; }
+.preventive-mobile-row.status-vencida { border-left-color: var(--state-critical-border); }
+.preventive-mobile-row.status-critica { border-left-color: var(--state-critical-border); }
+.preventive-mobile-row.status-atencao { border-left-color: var(--state-attention-border); }
+.preventive-mobile-row.status-proxima { border-left-color: var(--state-scheduled-border); }
+.preventive-mobile-row.status-no-prazo { border-left-color: var(--state-available-border); }
 
 .preventive-mobile-row-head {
     display: flex;
@@ -4310,8 +4373,8 @@ body[data-theme="dark"]:not(.entry-screen) .menu-group-heading > em { color: #9f
     font-weight: 900;
 }
 
-.checklist-catalog-status.active { background: #dcfce7; color: #16713a; }
-.checklist-catalog-status.inactive { background: #e5e7eb; color: #596473; }
+.checklist-catalog-status.active { background: var(--state-completed-bg); color: var(--state-completed-text); }
+.checklist-catalog-status.inactive { background: var(--state-maintenance-bg); color: var(--state-maintenance-text); }
 
 .checklist-catalog-card-actions {
     display: flex;
@@ -4647,12 +4710,12 @@ body[data-theme="dark"]:not(.entry-screen) .menu-group-heading > em { color: #9f
     color: #0756b5;
 }
 
-.maintenance-dashboard-filter[data-maintenance-dashboard-filter="BLOQUEADO"] { border-color: #f4c75e; }
-.maintenance-dashboard-filter[data-maintenance-dashboard-filter="BLOQUEADO"] b { background: #fff0cf; color: #8a5c00; }
-.maintenance-dashboard-filter[data-maintenance-dashboard-filter="ATRASADO"] { border-color: #f2a6a6; }
-.maintenance-dashboard-filter[data-maintenance-dashboard-filter="ATRASADO"] b { background: #fee2e2; color: #b42318; }
-.maintenance-dashboard-filter[data-maintenance-dashboard-filter="CONCLUIDO"] { border-color: #9dd9b1; }
-.maintenance-dashboard-filter[data-maintenance-dashboard-filter="CONCLUIDO"] b { background: #dff5e8; color: #137a40; }
+.maintenance-dashboard-filter[data-maintenance-dashboard-filter="BLOQUEADO"] { border-color: var(--state-blocked-border); }
+.maintenance-dashboard-filter[data-maintenance-dashboard-filter="BLOQUEADO"] b { background: var(--state-blocked-bg); color: var(--state-blocked-text); }
+.maintenance-dashboard-filter[data-maintenance-dashboard-filter="ATRASADO"] { border-color: var(--state-critical-border); }
+.maintenance-dashboard-filter[data-maintenance-dashboard-filter="ATRASADO"] b { background: var(--state-critical-bg); color: var(--state-critical-text); }
+.maintenance-dashboard-filter[data-maintenance-dashboard-filter="CONCLUIDO"] { border-color: var(--state-completed-border); }
+.maintenance-dashboard-filter[data-maintenance-dashboard-filter="CONCLUIDO"] b { background: var(--state-completed-bg); color: var(--state-completed-text); }
 
 .maintenance-table-wrap {
     overflow: auto;
@@ -4697,10 +4760,10 @@ body[data-theme="dark"]:not(.entry-screen) .menu-group-heading > em { color: #9f
 
 .maintenance-dashboard-table tbody tr:not(:last-child) td { border-bottom-color: #e2eaf2; }
 .maintenance-dashboard-table tbody tr:hover td { background: #f4f9ff; }
-.maintenance-dashboard-table tbody tr.maintenance-status-overdue td:first-child { box-shadow: inset 4px 0 0 #dc2626; }
-.maintenance-dashboard-table tbody tr.maintenance-status-blocked td:first-child { box-shadow: inset 4px 0 0 #d99100; }
-.maintenance-dashboard-table tbody tr.maintenance-status-progress td:first-child { box-shadow: inset 4px 0 0 #0b65c2; }
-.maintenance-dashboard-table tbody tr.maintenance-status-completed td:first-child { box-shadow: inset 4px 0 0 #168a4b; }
+.maintenance-dashboard-table tbody tr.maintenance-status-overdue td:first-child { box-shadow: inset 4px 0 0 var(--state-critical-border); }
+.maintenance-dashboard-table tbody tr.maintenance-status-blocked td:first-child { box-shadow: inset 4px 0 0 var(--state-blocked-border); }
+.maintenance-dashboard-table tbody tr.maintenance-status-progress td:first-child { box-shadow: inset 4px 0 0 var(--state-progress-border); }
+.maintenance-dashboard-table tbody tr.maintenance-status-completed td:first-child { box-shadow: inset 4px 0 0 var(--state-completed-border); }
 
 .maintenance-status-pill {
     display: inline-flex;
@@ -4715,12 +4778,12 @@ body[data-theme="dark"]:not(.entry-screen) .menu-group-heading > em { color: #9f
     white-space: nowrap;
 }
 
-.maintenance-status-pill.maintenance-status-planned { border-color: #d4dde8; background: #eef2f6; color: #52677f; }
-.maintenance-status-pill.maintenance-status-scheduled { border-color: #b6d5ff; background: #e8f2ff; color: #0756b5; }
-.maintenance-status-pill.maintenance-status-progress { border-color: #9dd8f2; background: #def4ff; color: #0b638f; }
-.maintenance-status-pill.maintenance-status-blocked { border-color: #f4c75e; background: #fff0cf; color: #8a5c00; }
-.maintenance-status-pill.maintenance-status-overdue { border-color: #f2aaaa; background: #fee2e2; color: #b42318; }
-.maintenance-status-pill.maintenance-status-completed { border-color: #9edbb3; background: #dff5e8; color: #137a40; }
+.maintenance-status-pill.maintenance-status-planned { border-color: var(--state-planned-border); background: var(--state-planned-bg); color: var(--state-planned-text); }
+.maintenance-status-pill.maintenance-status-scheduled { border-color: var(--state-scheduled-border); background: var(--state-scheduled-bg); color: var(--state-scheduled-text); }
+.maintenance-status-pill.maintenance-status-progress { border-color: var(--state-progress-border); background: var(--state-progress-bg); color: var(--state-progress-text); }
+.maintenance-status-pill.maintenance-status-blocked { border-color: var(--state-blocked-border); background: var(--state-blocked-bg); color: var(--state-blocked-text); }
+.maintenance-status-pill.maintenance-status-overdue { border-color: var(--state-critical-border); background: var(--state-critical-bg); color: var(--state-critical-text); }
+.maintenance-status-pill.maintenance-status-completed { border-color: var(--state-completed-border); background: var(--state-completed-bg); color: var(--state-completed-text); }
 
 .maintenance-dashboard-cards {
     display: grid;
@@ -4776,12 +4839,12 @@ body[data-theme="dark"]:not(.entry-screen) .menu-group-heading > em { color: #9f
     margin-top: auto;
 }
 
-.maintenance-dashboard-card.maintenance-status-planned { border-top-color: #94a3b8; }
-.maintenance-dashboard-card.maintenance-status-scheduled { border-top-color: #0b65c2; }
-.maintenance-dashboard-card.maintenance-status-progress { border-top-color: #0b8ac2; }
-.maintenance-dashboard-card.maintenance-status-blocked { border-top-color: #d99100; }
-.maintenance-dashboard-card.maintenance-status-overdue { border-top-color: #dc2626; }
-.maintenance-dashboard-card.maintenance-status-completed { border-top-color: #168a4b; }
+.maintenance-dashboard-card.maintenance-status-planned { border-top-color: var(--state-planned-border); }
+.maintenance-dashboard-card.maintenance-status-scheduled { border-top-color: var(--state-scheduled-border); }
+.maintenance-dashboard-card.maintenance-status-progress { border-top-color: var(--state-progress-border); }
+.maintenance-dashboard-card.maintenance-status-blocked { border-top-color: var(--state-blocked-border); }
+.maintenance-dashboard-card.maintenance-status-overdue { border-top-color: var(--state-critical-border); }
+.maintenance-dashboard-card.maintenance-status-completed { border-top-color: var(--state-completed-border); }
 
 .maintenance-dashboard-empty {
     padding: 24px 14px;
@@ -4796,10 +4859,10 @@ body[data-theme="dark"]:not(.entry-screen) .menu-group-heading > em { color: #9f
 .maintenance-kanban-column.maintenance-kanban-em-execucao > header { border-top: 4px solid #0b8ac2; }
 .maintenance-kanban-column.maintenance-kanban-bloqueado > header { border-top: 4px solid #d99100; }
 .maintenance-kanban-column.maintenance-kanban-concluido > header { border-top: 4px solid #168a4b; }
-.maintenance-kanban-card.maintenance-status-overdue { border-left: 4px solid #dc2626; }
-.maintenance-kanban-card.maintenance-status-blocked { border-left: 4px solid #d99100; }
-.maintenance-kanban-card.maintenance-status-progress { border-left: 4px solid #0b65c2; }
-.maintenance-kanban-card.maintenance-status-completed { border-left: 4px solid #168a4b; }
+.maintenance-kanban-card.maintenance-status-overdue { border-left: 4px solid var(--state-critical-border); }
+.maintenance-kanban-card.maintenance-status-blocked { border-left: 4px solid var(--state-blocked-border); }
+.maintenance-kanban-card.maintenance-status-progress { border-left: 4px solid var(--state-progress-border); }
+.maintenance-kanban-card.maintenance-status-completed { border-left: 4px solid var(--state-completed-border); }
 .maintenance-kanban-card .secondary-button { min-height: 34px; margin-top: 4px; padding: 6px 8px; font-size: .64rem; }
 
 .planning-toolbar {
@@ -5476,10 +5539,10 @@ button:focus-visible {
     box-shadow: 0 12px 28px rgba(11, 46, 84, 0.09);
 }
 
-.availability-card.status-disponivel { border-left-color: #15966b; }
-.availability-card.status-indisponivel { border-left-color: #d33737; }
-.availability-card.status-restricao { border-left-color: #d98a12; }
-.availability-card.status-manutencao { border-left-color: #40566f; }
+.availability-card.status-disponivel { border-left-color: var(--state-available-border); }
+.availability-card.status-indisponivel { border-left-color: var(--state-unavailable-border); }
+.availability-card.status-restricao { border-left-color: var(--state-attention-border); }
+.availability-card.status-manutencao { border-left-color: var(--state-maintenance-border); }
 
 .availability-card > header {
     display: flex;
@@ -5515,9 +5578,9 @@ button:focus-visible {
     white-space: nowrap;
 }
 
-.status-disponivel header b { background: #d9f5e8; color: #08734f; }
-.status-indisponivel header b { background: #fde2e2; color: #9f2020; }
-.status-restricao header b { background: #fff0cf; color: #905a00; }
+.status-disponivel header b { background: var(--state-available-bg); color: var(--state-available-text); }
+.status-indisponivel header b { background: var(--state-unavailable-bg); color: var(--state-unavailable-text); }
+.status-restricao header b { background: var(--state-attention-bg); color: var(--state-attention-text); }
 
 .availability-reading {
     padding: 12px 16px;
@@ -6408,9 +6471,9 @@ body.entry-screen .pull-refresh-indicator { display: none; }
     white-space: nowrap;
 }
 
-.rh-admin-employee-status.status-ativo { background: #dcfce7; color: #16713a; }
-.rh-admin-employee-status.status-inativo { background: #e5e7eb; color: #596473; }
-.rh-admin-employee-status.status-pre_cadastro { background: #fff4d6; color: #936200; }
+.rh-admin-employee-status.status-ativo { background: var(--state-completed-bg); color: var(--state-completed-text); }
+.rh-admin-employee-status.status-inativo { background: var(--state-maintenance-bg); color: var(--state-maintenance-text); }
+.rh-admin-employee-status.status-pre_cadastro { background: var(--state-attention-bg); color: var(--state-attention-text); }
 
 .rh-admin-operation-grid {
     display: grid;
