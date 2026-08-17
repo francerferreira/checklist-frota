@@ -347,6 +347,9 @@ const elements = {
     topbarMobileToggle: document.getElementById("topbar-mobile-toggle"),
     topbarNavigation: document.getElementById("topbar-navigation"),
     topbarContext: document.getElementById("topbar-context"),
+    topbarUserName: document.getElementById("topbar-user-name"),
+    topbarUserAvatar: document.getElementById("topbar-user-avatar"),
+    topbarLogoutButton: document.getElementById("topbar-logout-button"),
     topbarModuleTriggers: Array.from(document.querySelectorAll("[data-topbar-module-trigger]")),
     topbarActionButtons: Array.from(document.querySelectorAll("[data-topbar-action]")),
     pullRefreshIndicator: document.getElementById("pull-refresh-indicator"),
@@ -854,6 +857,18 @@ function topbarActionLabel(action) {
     return button?.querySelector("strong")?.textContent?.trim().toUpperCase() || "CENTRAL OPERACIONAL";
 }
 
+function topbarUserInitials(name) {
+    const parts = String(name || "USUÁRIO").trim().split(/\s+/).filter(Boolean);
+    if (!parts.length) return "US";
+    return `${parts[0][0] || "U"}${parts.length > 1 ? parts[parts.length - 1][0] : ""}`.toUpperCase();
+}
+
+function syncTopbarUserIdentity() {
+    const name = String(state.user?.nome || "USUÁRIO").trim();
+    if (elements.topbarUserName) elements.topbarUserName.textContent = name.toUpperCase();
+    if (elements.topbarUserAvatar) elements.topbarUserAvatar.textContent = topbarUserInitials(name);
+}
+
 function syncTopbarActiveScreen(screenKey) {
     const screenActions = {
         home: "",
@@ -1248,6 +1263,7 @@ function syncMenuGroupHeadings() {
 }
 
 function renderHome() {
+    syncTopbarUserIdentity();
     const canViewMaintenanceDashboard = ["admin", "gestor"].includes(String(state.user?.tipo || "").toLowerCase());
     elements.openChecklistCatalogMenu?.classList.toggle("hidden", !hasWashReportAccess());
     elements.openRhAdminMenu?.classList.toggle("hidden", !hasWashReportAccess());
@@ -8586,6 +8602,7 @@ on(elements.topbarMobileToggle, "click", () => {
     elements.topbarMobileToggle?.setAttribute("aria-expanded", String(open));
     if (!open) setTopbarModuleOpen("", false);
 });
+on(elements.topbarLogoutButton, "click", logout);
 elements.topbarModuleTriggers.forEach((trigger) => on(trigger, "click", () => {
     const moduleKey = trigger.dataset.topbarModuleTrigger || "";
     const module = trigger.closest(".topbar-module");

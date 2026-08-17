@@ -16,8 +16,8 @@ class WebMobileShellContractTests(unittest.TestCase):
         cls.legacy_readme = LEGACY_README_PATH.read_text(encoding="utf-8")
 
     def test_index_uses_canonical_frontend_bundle(self):
-        self.assertIn('./static/js/app.js?v=20260817-03', self.index_html)
-        self.assertIn('./static/css/styles.css?v=20260817-03', self.index_html)
+        self.assertIn('./static/js/app.js?v=20260817-04', self.index_html)
+        self.assertIn('./static/css/styles.css?v=20260817-04', self.index_html)
         self.assertNotIn("app-20260419-", self.index_html)
 
     def test_login_uses_institutional_glass_layout_with_sis_mmp_identity(self):
@@ -41,6 +41,9 @@ class WebMobileShellContractTests(unittest.TestCase):
         for fragment in [
             'class="app-topbar hidden"',
             'id="topbar-navigation"',
+            'id="topbar-user-name"',
+            'id="topbar-user-avatar"',
+            'id="topbar-logout-button"',
             'data-topbar-module="equipment"',
             'data-topbar-module="maintenance"',
             'data-topbar-module="people"',
@@ -53,6 +56,8 @@ class WebMobileShellContractTests(unittest.TestCase):
             with self.subTest(fragment=fragment):
                 self.assertIn(fragment, self.index_html)
         self.assertIn("syncTopbarNavigation", app_js)
+        self.assertIn("syncTopbarUserIdentity", app_js)
+        self.assertIn('on(elements.topbarLogoutButton, "click", logout)', app_js)
         self.assertIn("openTopbarAction", app_js)
         self.assertIn("topbarActionAllowed", app_js)
         self.assertIn("@media (max-width: 860px)", styles)

@@ -14,7 +14,7 @@
     <title>SIS MMP | Sistema de Manutenção de Máquinas Pesadas</title>
     <link rel="icon" type="image/png" sizes="192x192" href="./static/icons/icon-192.png?v=sis-mmp-20260810">
     <link rel="apple-touch-icon" href="./static/icons/icon-192.png?v=sis-mmp-20260810">
-    <link rel="stylesheet" href="./static/css/styles.css?v=20260817-03">
+    <link rel="stylesheet" href="./static/css/styles.css?v=20260817-04">
 </head>
 <body>
     <div class="mobile-shell">
@@ -28,6 +28,11 @@
                 <button id="topbar-mobile-toggle" class="topbar-mobile-toggle" type="button" aria-expanded="false" aria-controls="topbar-navigation">
                     <span>MÓDULOS</span><i aria-hidden="true"></i>
                 </button>
+                <div class="topbar-user-area" aria-label="Usuário autenticado">
+                    <span class="topbar-user-copy"><em>Olá,</em><strong id="topbar-user-name">USUÁRIO</strong></span>
+                    <span id="topbar-user-avatar" class="topbar-user-avatar" aria-hidden="true">US</span>
+                    <button id="topbar-logout-button" class="topbar-logout-button" type="button" title="Sair do sistema" aria-label="Sair do sistema"><span aria-hidden="true">↪</span></button>
+                </div>
             </div>
             <nav id="topbar-navigation" class="topbar-navigation" aria-label="Módulos do sistema">
                 <div class="topbar-module" data-topbar-module="equipment">
@@ -1348,7 +1353,7 @@
 
     <div id="toast" class="toast hidden"></div>
     <script src="./static/js/config.js?v=20260719-01"></script>
-    <script src="./static/js/app.js?v=20260817-03"></script>
+    <script src="./static/js/app.js?v=20260817-04"></script>
 </body>
 </html>
 

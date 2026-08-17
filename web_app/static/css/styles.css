@@ -6830,3 +6830,241 @@ body:not(.entry-screen) .maintenance-view-button {
         gap: 5px 11px;
     }
 }
+
+/* Linguagem visual inspirada no painel operacional de referencia. */
+.topbar-user-area {
+    display: inline-flex;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 10px;
+    min-width: 0;
+}
+
+.topbar-user-copy {
+    display: grid;
+    min-width: 0;
+    text-align: right;
+}
+
+.topbar-user-copy em {
+    color: #7a8795;
+    font-size: .6rem;
+    font-style: normal;
+    line-height: 1;
+}
+
+.topbar-user-copy strong {
+    overflow: hidden;
+    max-width: 300px;
+    color: #17283b;
+    font-size: .68rem;
+    line-height: 1.25;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.topbar-user-avatar {
+    display: inline-grid;
+    flex: 0 0 auto;
+    width: 36px;
+    height: 36px;
+    place-items: center;
+    border: 1px solid #a9cdfb;
+    border-radius: 999px;
+    background: #e7f1ff;
+    color: #0d6efd;
+    font-size: .72rem;
+    font-weight: 900;
+}
+
+.topbar-logout-button {
+    display: inline-grid;
+    flex: 0 0 auto;
+    width: 36px;
+    height: 36px;
+    place-items: center;
+    padding: 0;
+    border: 0;
+    border-radius: 6px;
+    background: transparent;
+    color: #1f3042;
+    font-size: 1.15rem;
+    font-weight: 900;
+    cursor: pointer;
+}
+
+.topbar-logout-button:hover {
+    background: #eef3f8;
+    color: #0756b5;
+}
+
+body:not(.entry-screen),
+body:not(.entry-screen) .mobile-shell {
+    background: #f4f6f8;
+}
+
+body:not(.entry-screen) .app-topbar {
+    border-color: #d7dee6;
+    background: #ffffff;
+    box-shadow: 0 3px 12px rgba(29, 49, 70, .08);
+}
+
+body:not(.entry-screen) .topbar-main-row {
+    min-height: 60px;
+    padding: 8px 14px;
+}
+
+body:not(.entry-screen) .topbar-navigation {
+    min-height: 44px;
+    border-top-color: #e1e6eb;
+}
+
+body:not(.entry-screen) .topbar-module-trigger {
+    min-height: 43px;
+    border-right-color: #e5eaf0;
+    font-size: .65rem;
+}
+
+body:not(.entry-screen) .topbar-dropdown {
+    border-color: #d8e0e8;
+    border-radius: 8px;
+    box-shadow: 0 12px 30px rgba(21, 39, 59, .14);
+}
+
+body:not(.entry-screen) .screen-heading {
+    min-height: 66px;
+    padding-top: 10px;
+    padding-bottom: 9px;
+}
+
+body:not(.entry-screen) .screen-heading h2 {
+    color: #17283b;
+    font-size: clamp(1.22rem, 1.8vw, 1.55rem);
+}
+
+body:not(.entry-screen) .screen-heading-note {
+    color: #6b7d90;
+    font-size: .72rem;
+}
+
+body:not(.entry-screen) .primary-button,
+body:not(.entry-screen) .secondary-button,
+body:not(.entry-screen) .icon-button,
+body:not(.entry-screen) .share-button {
+    border-radius: 6px;
+}
+
+body:not(.entry-screen) .primary-button {
+    background: #0d6efd;
+    border-color: #0d6efd;
+}
+
+body:not(.entry-screen) input,
+body:not(.entry-screen) textarea,
+body:not(.entry-screen) select {
+    border-color: #d5dce4;
+    border-radius: 7px;
+    background: #f7f8fa;
+    color: #24384d;
+    box-shadow: none;
+}
+
+body:not(.entry-screen) input::placeholder,
+body:not(.entry-screen) textarea::placeholder {
+    color: #7a8795;
+}
+
+body:not(.entry-screen) label > span {
+    color: #647589;
+    font-size: .72rem;
+    font-weight: 750;
+}
+
+body:not(.entry-screen) .menu-card,
+body:not(.entry-screen) .vehicle-card,
+body:not(.entry-screen) .activity-card,
+body:not(.entry-screen) .checklist-card,
+body:not(.entry-screen) .checklist-group-card,
+body:not(.entry-screen) .module-report-card,
+body:not(.entry-screen) .module-header,
+body:not(.entry-screen) .list-toolbar,
+body:not(.entry-screen) .progress-card,
+body:not(.entry-screen) .summary-card div,
+body:not(.entry-screen) .sync-panel,
+body:not(.entry-screen) .wash-calendar-card,
+body:not(.entry-screen) .history-filter-card,
+body:not(.entry-screen) .module-reports-intro {
+    border-color: #d8dfe7;
+    border-radius: 9px;
+    box-shadow: 0 4px 12px rgba(31, 48, 67, .06);
+}
+
+body:not(.entry-screen) .history-table thead th,
+body:not(.entry-screen) .absenteeism-table thead th,
+body:not(.entry-screen) .schedule-table thead th,
+body:not(.entry-screen) .maintenance-dashboard-table th {
+    border-bottom: 1px solid #d5dde6;
+    background: #eef2f6;
+    color: #52677d;
+    text-shadow: none;
+}
+
+body:not(.entry-screen) .history-table tbody tr:hover td,
+body:not(.entry-screen) .absenteeism-table tbody tr:hover td,
+body:not(.entry-screen) .schedule-table tbody tr:hover td,
+body:not(.entry-screen) .maintenance-dashboard-table tbody tr:hover td {
+    background: #f3f7fb;
+}
+
+body:not(.entry-screen) .menu-group-heading {
+    border-bottom-color: #d4dce5;
+}
+
+body:not(.entry-screen) #home-logout-button {
+    display: none;
+}
+
+@media (min-width: 861px) {
+    body:not(.entry-screen) .app-topbar {
+        top: 0;
+        border-radius: 8px;
+    }
+}
+
+@media (max-width: 860px), (hover: none) {
+    .topbar-user-copy { display: none; }
+    .topbar-user-area { gap: 5px; }
+    .topbar-user-avatar { width: 34px; height: 34px; }
+    .topbar-logout-button { width: 34px; height: 34px; }
+
+    body:not(.entry-screen) .topbar-main-row {
+        gap: 7px;
+        padding: 7px 9px;
+    }
+
+    body:not(.entry-screen) .topbar-brand {
+        margin-right: auto;
+    }
+
+    body:not(.entry-screen) .topbar-mobile-toggle {
+        min-height: 36px;
+        padding: 0 9px;
+    }
+}
+
+@media (max-width: 520px) {
+    .topbar-brand img { width: 32px; height: 32px; }
+    .topbar-brand strong { font-size: .74rem; }
+    .topbar-brand em { max-width: 90px; font-size: .52rem; }
+    .topbar-mobile-toggle span { font-size: 0; }
+    .topbar-mobile-toggle span::after { content: "MENU"; font-size: .62rem; }
+
+    body:not(.entry-screen) .screen-heading.compact {
+        grid-template-columns: 70px minmax(0, 1fr);
+    }
+
+    body:not(.entry-screen) .screen-heading.compact .icon-button {
+        min-height: 38px;
+        padding: 0 8px;
+    }
+}

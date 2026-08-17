@@ -413,10 +413,13 @@ class WebMobilePlaywrightTests(unittest.TestCase):
             title: getComputedStyle(document.querySelector('#home-screen .screen-heading h2')).color,
             topbar: getComputedStyle(document.querySelector('.app-topbar')).backgroundColor,
         })""")
-        self.assertEqual(corporate_style["body"], "rgb(243, 245, 247)")
-        self.assertEqual(corporate_style["shell"], "rgb(243, 245, 247)")
-        self.assertEqual(corporate_style["title"], "rgb(16, 45, 74)")
-        self.assertEqual(corporate_style["topbar"], "rgba(255, 255, 255, 0.98)")
+        self.assertEqual(corporate_style["body"], "rgb(244, 246, 248)")
+        self.assertEqual(corporate_style["shell"], "rgb(244, 246, 248)")
+        self.assertEqual(corporate_style["title"], "rgb(23, 40, 59)")
+        self.assertEqual(corporate_style["topbar"], "rgb(255, 255, 255)")
+        expect(self.page.locator("#topbar-user-name")).to_have_text("ADMINISTRADOR")
+        expect(self.page.locator("#topbar-user-avatar")).to_have_text("A")
+        expect(self.page.locator("#topbar-logout-button")).to_be_visible()
         overflow = self.page.evaluate("() => document.documentElement.scrollWidth > window.innerWidth + 1")
         self.assertFalse(overflow)
 
