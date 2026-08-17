@@ -16,8 +16,8 @@ class WebMobileShellContractTests(unittest.TestCase):
         cls.legacy_readme = LEGACY_README_PATH.read_text(encoding="utf-8")
 
     def test_index_uses_canonical_frontend_bundle(self):
-        self.assertIn('./static/js/app.js?v=20260817-02', self.index_html)
-        self.assertIn('./static/css/styles.css?v=20260817-02', self.index_html)
+        self.assertIn('./static/js/app.js?v=20260817-03', self.index_html)
+        self.assertIn('./static/css/styles.css?v=20260817-03', self.index_html)
         self.assertNotIn("app-20260419-", self.index_html)
 
     def test_login_uses_institutional_glass_layout_with_sis_mmp_identity(self):
@@ -235,6 +235,20 @@ class WebMobileShellContractTests(unittest.TestCase):
             ".maintenance-status-completed",
         ]:
             with self.subTest(style=fragment):
+                self.assertIn(fragment, styles)
+
+    def test_corporate_foundation_standardizes_shared_web_surfaces(self):
+        styles = (PROJECT_ROOT / "web_app" / "static" / "css" / "styles.css").read_text(encoding="utf-8")
+        for fragment in [
+            "Fundacao corporativa compartilhada",
+            "body:not(.entry-screen) .mobile-shell",
+            "body:not(.entry-screen) .screen-heading h2",
+            "body:not(.entry-screen) .menu-group-heading",
+            "body:not(.entry-screen) .menu-card",
+            "body:not(.entry-screen) .history-table-wrap",
+            "body:not(.entry-screen) .maintenance-dashboard-table th",
+        ]:
+            with self.subTest(fragment=fragment):
                 self.assertIn(fragment, styles)
 
     def test_admin_catalogs_and_purchase_providers_are_connected(self):

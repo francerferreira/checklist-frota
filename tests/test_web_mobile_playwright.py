@@ -392,13 +392,31 @@ class WebMobilePlaywrightTests(unittest.TestCase):
         self.page.get_by_role("button", name="TABELA").tap()
         expect(self.page.locator("#maintenance-table-wrap")).to_be_visible()
         expect(self.page.locator("#maintenance-kanban")).to_be_hidden()
+        expect(self.page.locator('[data-maintenance-view="TABLE"]')).to_have_attribute("aria-pressed", "true")
 
         self.page.get_by_role("button", name="CARTÕES").tap()
         expect(self.page.locator("#maintenance-cards")).to_be_visible()
         expect(self.page.locator("#maintenance-table-wrap")).to_be_hidden()
+        expect(self.page.locator('[data-maintenance-view="CARDS"]')).to_have_attribute("aria-pressed", "true")
 
         self.page.get_by_role("button", name="ATRASADO 0").tap()
         expect(self.page.get_by_role("button", name="ATRASADO 0")).to_have_attribute("aria-pressed", "true")
+        overflow = self.page.evaluate("() => document.documentElement.scrollWidth > window.innerWidth + 1")
+        self.assertFalse(overflow)
+
+    def test_authenticated_web_uses_shared_corporate_surfaces(self):
+        self._login()
+        self.page.set_viewport_size({"width": 1366, "height": 768})
+        corporate_style = self.page.evaluate("""() => ({
+            body: getComputedStyle(document.body).backgroundColor,
+            shell: getComputedStyle(document.querySelector('.mobile-shell')).backgroundColor,
+            title: getComputedStyle(document.querySelector('#home-screen .screen-heading h2')).color,
+            topbar: getComputedStyle(document.querySelector('.app-topbar')).backgroundColor,
+        })""")
+        self.assertEqual(corporate_style["body"], "rgb(243, 245, 247)")
+        self.assertEqual(corporate_style["shell"], "rgb(243, 245, 247)")
+        self.assertEqual(corporate_style["title"], "rgb(16, 45, 74)")
+        self.assertEqual(corporate_style["topbar"], "rgba(255, 255, 255, 0.98)")
         overflow = self.page.evaluate("() => document.documentElement.scrollWidth > window.innerWidth + 1")
         self.assertFalse(overflow)
 
