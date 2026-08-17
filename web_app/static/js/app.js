@@ -29,6 +29,8 @@ const SESSION_LAST_ACTIVITY_AT_KEY = "sessionLastActivityAt";
 const SESSION_INACTIVITY_LIMIT_MS = 30 * 60 * 1000;
 const THEME_STORAGE_KEY = "sisMmpTheme";
 const NOTIFICATIONS_STORAGE_KEY = "sisMmpNotifications";
+const NOTIFICATION_CENTER_STORAGE_KEY = "sisMmpNotificationCenter";
+const NOTIFICATION_CENTER_LIMIT = 40;
 const LANGUAGE_STORAGE_KEY = "sisMmpLanguage";
 const DENSITY_STORAGE_KEY = "sisMmpDensity";
 const appTopbar = document.querySelector(".app-topbar");
@@ -355,6 +357,13 @@ const elements = {
     topbarContext: document.getElementById("topbar-context"),
     topbarUserName: document.getElementById("topbar-user-name"),
     topbarUserAvatar: document.getElementById("topbar-user-avatar"),
+    topbarNotificationsButton: document.getElementById("topbar-notifications-button"),
+    topbarNotificationsMenu: document.getElementById("topbar-notifications-menu"),
+    topbarNotificationsBadge: document.getElementById("topbar-notifications-badge"),
+    topbarNotificationsCount: document.getElementById("topbar-notifications-count"),
+    topbarNotificationsList: document.getElementById("topbar-notifications-list"),
+    topbarNotificationsMarkRead: document.getElementById("topbar-notifications-mark-read"),
+    topbarNotificationsClear: document.getElementById("topbar-notifications-clear"),
     topbarUserSettingsButton: document.getElementById("topbar-user-settings-button"),
     topbarSettingsMenu: document.getElementById("topbar-settings-menu"),
     topbarSettingsItems: Array.from(document.querySelectorAll("[data-settings-action]")),
@@ -777,6 +786,127 @@ const pullRefresh = {
     distance: 0,
 };
 
+const I18N_MESSAGES = {
+    "pt-BR": {},
+    "en-US": {
+        "SISTEMA OPERACIONAL": "OPERATIONAL SYSTEM",
+        "Sistema de Manutenção de Máquinas Pesadas": "Heavy Equipment Maintenance System",
+        "Acesso ao Sistema": "System Access",
+        "Usuário": "User",
+        "Senha": "Password",
+        "Entrar": "Sign in",
+        "Esqueci minha senha": "I forgot my password",
+        "Ambiente seguro": "Secure environment",
+        "Olá,": "Hello,",
+        "MÓDULOS": "MODULES",
+        "CENTRAL OPERACIONAL": "OPERATIONAL CENTER",
+        "EQUIPAMENTOS": "EQUIPMENT",
+        "MANUTENÇÃO": "MAINTENANCE",
+        "PESSOAS": "PEOPLE",
+        "MATERIAIS E COMPRAS": "MATERIALS & PURCHASING",
+        "ADMINISTRAÇÃO": "ADMINISTRATION",
+        "OPERAÇÃO E CONTROLE": "OPERATION & CONTROL",
+        "PLANEJAMENTO E EXECUÇÃO": "PLANNING & EXECUTION",
+        "RH, JORNADA E ESCALA": "HR, WORK SCHEDULE & ROSTER",
+        "ESTOQUE E AQUISIÇÃO": "INVENTORY & PROCUREMENT",
+        "CONTROLE ADMINISTRATIVO": "ADMINISTRATIVE CONTROL",
+        "CONFIGURAÇÕES": "SETTINGS",
+        "Realizar checklist": "Run checklist",
+        "Histórico de checklist": "Checklist history",
+        "Catálogo de checklist": "Checklist catalog",
+        "Inspeções": "Inspections",
+        "Disponibilidade e horímetro": "Availability & hour meter",
+        "Inspeção técnica": "Technical inspection",
+        "Biblioteca técnica": "Technical library",
+        "Relatórios de equipamentos": "Equipment reports",
+        "Planejamento e backlog": "Planning & backlog",
+        "Central de resolução": "Resolution center",
+        "Emergencial": "Emergency",
+        "Lavagens": "Washing",
+        "Preventivas": "Preventive maintenance",
+        "Dashboard de manutenção": "Maintenance dashboard",
+        "Relatórios de manutenção": "Maintenance reports",
+        "Minha jornada": "My work schedule",
+        "Gestão de RH": "HR management",
+        "Absenteísmo diário": "Daily absenteeism",
+        "DSR semanal": "Weekly roster",
+        "Escala de domingo e feriado": "Sunday & holiday roster",
+        "Armazém e Estoque MMP": "MMP warehouse & stock",
+        "Área de compras": "Purchasing area",
+        "Cadastros": "Registrations",
+        "Sala de controle": "Control room",
+        "Usuários": "Users",
+        "Minha senha": "My password",
+        "Auditoria": "Audit",
+        "Notificações": "Notifications",
+        "Idioma": "Language",
+        "Densidade": "Density",
+        "Preferências": "Preferences",
+        "NOTIFICAÇÕES": "NOTIFICATIONS",
+        "MARCAR TODAS COMO LIDAS": "MARK ALL AS READ",
+        "LIMPAR HISTÓRICO": "CLEAR HISTORY",
+        "Alertas desativados.": "Alerts are disabled.",
+        "Alertas ativados.": "Alerts are enabled.",
+        "Exibição confortável.": "Comfortable display.",
+        "Exibição compacta.": "Compact display.",
+        "Alternar tema claro ou escuro.": "Switch light or dark theme.",
+        "Usar tema claro.": "Use light theme.",
+        "Usar tema escuro.": "Use dark theme.",
+        "MENU": "MENU",
+        "SAIR": "LOG OUT",
+        "ATUALIZAR": "REFRESH",
+        "CARREGAR": "LOAD",
+        "SALVAR": "SAVE",
+        "CANCELAR": "CANCEL",
+        "FECHAR": "CLOSE",
+        "DISPONÍVEL": "AVAILABLE",
+        "INDISPONÍVEL": "UNAVAILABLE",
+        "BLOQUEADO": "BLOCKED",
+        "EM EXECUÇÃO": "IN PROGRESS",
+        "CONCLUÍDO": "COMPLETED",
+        "CRÍTICA": "CRITICAL",
+        "NENHUMA NÃO LIDA": "NO UNREAD NOTIFICATIONS",
+        "Nenhuma notificação interna.": "No internal notifications.",
+    },
+};
+
+const i18nOriginalTextNodes = new WeakMap();
+const i18nOriginalAttributes = new WeakMap();
+
+function translateStaticText(language) {
+    const messages = I18N_MESSAGES[language] || I18N_MESSAGES["pt-BR"];
+    const walker = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT);
+    const textNodes = [];
+    while (walker.nextNode()) textNodes.push(walker.currentNode);
+    textNodes.forEach((node) => {
+        const parent = node.parentElement;
+        if (!parent || ["SCRIPT", "STYLE", "OPTION"].includes(parent.tagName)) return;
+        const raw = node.nodeValue || "";
+        const current = raw.trim();
+        if (!current) return;
+        const original = i18nOriginalTextNodes.get(node) || current;
+        i18nOriginalTextNodes.set(node, original);
+        const translated = messages[original] || original;
+        node.nodeValue = raw.replace(current, translated);
+    });
+    document.querySelectorAll("[placeholder], [title], [aria-label]").forEach((element) => {
+        const attrs = i18nOriginalAttributes.get(element) || {};
+        ["placeholder", "title", "aria-label"].forEach((attribute) => {
+            if (!element.hasAttribute(attribute)) return;
+            const current = element.getAttribute(attribute) || "";
+            const original = attrs[attribute] || current;
+            attrs[attribute] = original;
+            element.setAttribute(attribute, messages[original] || original);
+        });
+        i18nOriginalAttributes.set(element, attrs);
+    });
+}
+
+function localizedMessage(value) {
+    const language = document.documentElement.lang === "en-US" ? "en-US" : "pt-BR";
+    return I18N_MESSAGES[language]?.[value] || value;
+}
+
 function applyTheme(theme) {
     const dark = String(theme || "light").toLowerCase() === "dark";
     const value = dark ? "dark" : "light";
@@ -802,6 +932,8 @@ function applyLanguage(language) {
     document.documentElement.lang = value;
     localStorage.setItem(LANGUAGE_STORAGE_KEY, value);
     if (elements.topbarLanguageSelect) elements.topbarLanguageSelect.value = value;
+    translateStaticText(value);
+    syncSettingsPreferenceLabels();
 }
 
 function applyDensity(density) {
@@ -819,18 +951,25 @@ function syncSettingsPreferenceLabels() {
     const notifications = notificationsEnabled();
     const density = document.body.dataset.density === "compact" ? "compact" : "comfortable";
     const dark = document.documentElement.dataset.theme === "dark";
+    const english = document.documentElement.lang === "en-US";
     if (elements.topbarNotificationsLabel) {
-        elements.topbarNotificationsLabel.textContent = notifications ? "Alertas ativados." : "Alertas desativados.";
+        elements.topbarNotificationsLabel.textContent = notifications
+            ? (english ? "Alerts are enabled." : "Alertas ativados.")
+            : (english ? "Alerts are disabled." : "Alertas desativados.");
     }
     if (elements.topbarDensityLabel) {
-        elements.topbarDensityLabel.textContent = density === "compact" ? "Exibição compacta." : "Exibição confortável.";
+        elements.topbarDensityLabel.textContent = density === "compact"
+            ? (english ? "Compact display." : "Exibição compacta.")
+            : (english ? "Comfortable display." : "Exibição confortável.");
     }
     if (elements.topbarThemeLabel) {
-        elements.topbarThemeLabel.textContent = dark ? "Usar tema claro." : "Usar tema escuro.";
+        elements.topbarThemeLabel.textContent = dark
+            ? (english ? "Use light theme." : "Usar tema claro.")
+            : (english ? "Use dark theme." : "Usar tema escuro.");
     }
 }
 
-async function toggleNotifications() {
+async function toggleBrowserNotifications() {
     if (notificationsEnabled()) {
         localStorage.setItem(NOTIFICATIONS_STORAGE_KEY, "false");
         syncSettingsPreferenceLabels();
@@ -849,6 +988,83 @@ async function toggleNotifications() {
     showToast(enabled ? "NOTIFICAÇÕES ATIVADAS." : "PERMISSÃO DE NOTIFICAÇÃO NÃO CONCEDIDA.", !enabled);
 }
 
+function readInternalNotifications() {
+    const value = readJsonStorage(NOTIFICATION_CENTER_STORAGE_KEY, []);
+    return Array.isArray(value) ? value : [];
+}
+
+function saveInternalNotifications(notifications) {
+    localStorage.setItem(
+        NOTIFICATION_CENTER_STORAGE_KEY,
+        JSON.stringify((Array.isArray(notifications) ? notifications : []).slice(0, NOTIFICATION_CENTER_LIMIT)),
+    );
+}
+
+function renderInternalNotifications() {
+    const notifications = readInternalNotifications();
+    const unread = notifications.filter((item) => !item.read).length;
+    const english = document.documentElement.lang === "en-US";
+    if (elements.topbarNotificationsBadge) {
+        elements.topbarNotificationsBadge.textContent = String(unread);
+        elements.topbarNotificationsBadge.classList.toggle("hidden", unread === 0);
+    }
+    if (elements.topbarNotificationsCount) {
+        elements.topbarNotificationsCount.textContent = unread
+            ? (english ? `${unread} unread` : `${unread} não lida(s)`)
+            : (english ? "No unread notifications" : "Nenhuma não lida");
+    }
+    if (!elements.topbarNotificationsList) return;
+    if (!notifications.length) {
+        elements.topbarNotificationsList.innerHTML = `<p class="topbar-notifications-empty">${english ? "No internal notifications." : "Nenhuma notificação interna."}</p>`;
+        return;
+    }
+    elements.topbarNotificationsList.innerHTML = notifications.map((item) => `
+        <article class="topbar-notification-item ${item.read ? "" : "is-unread"}">
+            <span class="topbar-notification-dot" aria-hidden="true"></span>
+            <div><strong>${escapeHtml(item.title || (english ? "Notification" : "Notificação"))}</strong>
+            <span>${escapeHtml(item.message || "")}</span>
+            <small>${escapeHtml(formatManausDateTime(item.createdAt, { short: true }))}</small></div>
+        </article>
+    `).join("");
+}
+
+function addInternalNotification(title, message, type = "info") {
+    const notifications = readInternalNotifications();
+    notifications.unshift({
+        id: `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+        title,
+        message,
+        type,
+        createdAt: new Date().toISOString(),
+        read: false,
+    });
+    saveInternalNotifications(notifications);
+    renderInternalNotifications();
+}
+
+function markInternalNotificationsRead() {
+    saveInternalNotifications(readInternalNotifications().map((item) => ({ ...item, read: true })));
+    renderInternalNotifications();
+}
+
+function clearInternalNotifications() {
+    saveInternalNotifications([]);
+    renderInternalNotifications();
+}
+
+function closeTopbarNotificationsMenu() {
+    elements.topbarNotificationsMenu?.classList.add("hidden");
+    elements.topbarNotificationsButton?.setAttribute("aria-expanded", "false");
+}
+
+function toggleTopbarNotificationsMenu() {
+    if (!elements.topbarNotificationsMenu || !state.user) return;
+    closeTopbarSettingsMenu();
+    renderInternalNotifications();
+    const open = elements.topbarNotificationsMenu.classList.toggle("hidden");
+    elements.topbarNotificationsButton?.setAttribute("aria-expanded", String(!open));
+}
+
 function cycleDensity() {
     applyDensity(document.body.dataset.density === "compact" ? "comfortable" : "compact");
     showToast(document.body.dataset.density === "compact" ? "DENSIDADE COMPACTA APLICADA." : "DENSIDADE CONFORTÁVEL APLICADA.");
@@ -862,6 +1078,7 @@ function applyUserPreferences() {
 
 applyTheme(localStorage.getItem(THEME_STORAGE_KEY) || "light");
 applyUserPreferences();
+renderInternalNotifications();
 elements.apiBaseUrl.value = state.apiBaseUrl;
 updateConnectionStatus();
 
@@ -967,12 +1184,13 @@ function setActiveScreen(key) {
     document.body.classList.toggle("equipment-screen", isEquipmentScreen);
     appTopbar?.classList.toggle("hidden", isEntryScreen);
     syncTopbarActiveScreen(key);
+    translateStaticText(document.documentElement.lang || "pt-BR");
     elements.mobileShell?.scrollTo({ top: 0, behavior: "auto" });
 }
 
 function topbarActionLabel(action) {
     const button = elements.topbarActionButtons.find((item) => item.dataset.topbarAction === action);
-    return button?.querySelector("strong")?.textContent?.trim().toUpperCase() || "CENTRAL OPERACIONAL";
+    return button?.querySelector("strong")?.textContent?.trim().toUpperCase() || localizedMessage("CENTRAL OPERACIONAL");
 }
 
 function topbarUserInitials(name) {
@@ -988,6 +1206,8 @@ function syncTopbarUserIdentity() {
     const authenticated = Boolean(state.user && state.token);
     const admin = hasAdminAccess();
     elements.topbarUserSettingsButton?.classList.toggle("hidden", !authenticated);
+    elements.topbarNotificationsButton?.classList.toggle("hidden", !authenticated);
+    if (!authenticated) closeTopbarNotificationsMenu();
     elements.topbarSettingsItems.forEach((item) => {
         item.classList.toggle("hidden", item.dataset.settingsAdminOnly === "true" && !admin);
     });
@@ -1030,7 +1250,7 @@ function syncTopbarActiveScreen(screenKey) {
     document.querySelectorAll(".topbar-module[data-topbar-module]").forEach((module) => {
         module.classList.toggle("has-active-item", Boolean(module.querySelector("[data-topbar-action].is-active")));
     });
-    if (elements.topbarContext) elements.topbarContext.textContent = selectedAction ? topbarActionLabel(selectedAction) : "CENTRAL OPERACIONAL";
+    if (elements.topbarContext) elements.topbarContext.textContent = selectedAction ? topbarActionLabel(selectedAction) : localizedMessage("CENTRAL OPERACIONAL");
 }
 
 function setTopbarModuleOpen(moduleKey, open) {
@@ -1046,6 +1266,7 @@ function closeTopbarNavigation() {
     elements.topbarNavigation?.classList.remove("is-open");
     elements.topbarMobileToggle?.setAttribute("aria-expanded", "false");
     closeTopbarSettingsMenu();
+    closeTopbarNotificationsMenu();
 }
 
 function closeTopbarSettingsMenu() {
@@ -1064,7 +1285,7 @@ async function openTopbarSettingsAction(action) {
     if (action === "password") {
         openPasswordResetModal();
     } else if (action === "notifications") {
-        await toggleNotifications();
+        await toggleBrowserNotifications();
     } else if (action === "density") {
         cycleDensity();
     } else if (action === "theme") {
@@ -1230,6 +1451,7 @@ async function login(credentials) {
     state.firstAccessRequired = Boolean(payload.first_access_required);
     state.user.first_access_required = state.firstAccessRequired;
     saveSession(payload.token, payload.user);
+    addInternalNotification("Acesso realizado", "Sua sessão no SIS MMP foi iniciada.", "success");
 }
 
 async function bootstrap() {
@@ -8839,6 +9061,9 @@ document.addEventListener("click", (event) => {
     if (!elements.topbarSettingsMenu?.contains(event.target) && event.target !== elements.topbarUserSettingsButton) {
         closeTopbarSettingsMenu();
     }
+    if (!elements.topbarNotificationsMenu?.contains(event.target) && event.target !== elements.topbarNotificationsButton) {
+        closeTopbarNotificationsMenu();
+    }
 });
 
 on(elements.loginForm, "submit", async (event) => {
@@ -9092,6 +9317,12 @@ on(elements.topbarUserSettingsButton, "click", (event) => {
     event.stopPropagation();
     toggleTopbarSettingsMenu();
 });
+on(elements.topbarNotificationsButton, "click", (event) => {
+    event.stopPropagation();
+    toggleTopbarNotificationsMenu();
+});
+on(elements.topbarNotificationsMarkRead, "click", markInternalNotificationsRead);
+on(elements.topbarNotificationsClear, "click", clearInternalNotifications);
 on(elements.topbarSettingsMenu, "click", (event) => {
     const button = event.target instanceof HTMLElement ? event.target.closest("[data-settings-action]") : null;
     if (button) openTopbarSettingsAction(button.dataset.settingsAction || "");
@@ -9448,6 +9679,11 @@ window.addEventListener("visibilitychange", () => {
 });
 window.addEventListener("focus", trackSessionActivity);
 window.addEventListener("keydown", (event) => {
+    if (event.key === "Escape" && elements.topbarNotificationsMenu && !elements.topbarNotificationsMenu.classList.contains("hidden")) {
+        event.preventDefault();
+        closeTopbarNotificationsMenu();
+        return;
+    }
     if (event.key === "Escape" && elements.topbarSettingsMenu && !elements.topbarSettingsMenu.classList.contains("hidden")) {
         event.preventDefault();
         closeTopbarSettingsMenu();

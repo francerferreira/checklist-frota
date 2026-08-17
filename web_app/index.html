@@ -31,6 +31,17 @@
                 <div class="topbar-user-area" aria-label="Usuário autenticado">
                     <span class="topbar-user-copy"><em>Olá,</em><strong id="topbar-user-name">USUÁRIO</strong></span>
                     <span id="topbar-user-avatar" class="topbar-user-avatar" aria-hidden="true">US</span>
+                    <button id="topbar-notifications-button" class="topbar-notifications-button" type="button" title="Abrir notificações" aria-label="Abrir notificações" aria-haspopup="region" aria-expanded="false">
+                        <span aria-hidden="true">🔔</span><b id="topbar-notifications-badge" class="topbar-notifications-badge hidden">0</b>
+                    </button>
+                    <section id="topbar-notifications-menu" class="topbar-notifications-menu hidden" role="region" aria-label="Centro de notificações">
+                        <header class="topbar-notifications-header">
+                            <div><span>NOTIFICAÇÕES</span><strong id="topbar-notifications-count">Nenhuma não lida</strong></div>
+                            <button id="topbar-notifications-mark-read" type="button">MARCAR TODAS COMO LIDAS</button>
+                        </header>
+                        <div id="topbar-notifications-list" class="topbar-notifications-list" aria-live="polite"></div>
+                        <button id="topbar-notifications-clear" class="topbar-notifications-clear" type="button">LIMPAR HISTÓRICO</button>
+                    </section>
                     <button id="topbar-user-settings-button" class="topbar-user-settings-button" type="button" title="Configurações de usuários" aria-label="Abrir configurações de usuários" aria-haspopup="menu" aria-expanded="false"><span aria-hidden="true">⚙</span></button>
                     <div id="topbar-settings-menu" class="topbar-settings-menu hidden" role="menu" aria-label="Configurações do usuário">
                         <span class="topbar-settings-title">CONFIGURAÇÕES</span>
@@ -38,7 +49,7 @@
                         <button type="button" role="menuitem" data-settings-action="password"><b>🔑</b><span><strong>Minha senha</strong><em>Alterar sua senha de acesso.</em></span></button>
                         <button type="button" role="menuitem" data-settings-action="audit" data-settings-admin-only="true"><b>LOG</b><span><strong>Auditoria</strong><em>Consultar ações e acessos do sistema.</em></span></button>
                         <button type="button" role="menuitem" data-settings-action="notifications"><b>🔔</b><span><strong>Notificações</strong><em id="topbar-notifications-label">Alertas desativados.</em></span></button>
-                        <label class="topbar-settings-control" for="topbar-language-select"><b>A/文</b><span><strong>Idioma</strong><em>Preferência da interface.</em></span><select id="topbar-language-select" aria-label="Idioma da interface"><option value="pt-BR">Português (Brasil)</option><option value="en-US">English (preparação)</option></select></label>
+                        <label class="topbar-settings-control" for="topbar-language-select"><b>A/文</b><span><strong>Idioma</strong><em>Preferência da interface.</em></span><select id="topbar-language-select" aria-label="Idioma da interface"><option value="pt-BR">Português (Brasil)</option><option value="en-US">English</option></select></label>
                         <button type="button" role="menuitem" data-settings-action="density"><b>↕</b><span><strong>Densidade</strong><em id="topbar-density-label">Exibição confortável.</em></span></button>
                         <button type="button" role="menuitem" data-settings-action="theme"><b>☼</b><span><strong>Preferências</strong><em id="topbar-theme-label">Alternar tema claro ou escuro.</em></span></button>
                     </div>
