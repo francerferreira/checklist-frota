@@ -1,10 +1,10 @@
 from flask import Blueprint, g, request
 
 from app.extensions import db
-from app.services.auth_service import auth_required, user_has_management_access
+from app.services.auth_service import auth_required, user_has_management_access, user_has_mechanic_workspace_access
 from app.services.supply_library_service import (
-    adjust_warehouse_stock, create_technical_document, create_warehouse, initialize_warehouse_stock,
-    list_technical_documents, list_warehouse_stocks, list_warehouses, reserve_warehouse_material,
+    adjust_warehouse_stock, create_technical_document, create_warehouse, create_warehouse_location, create_warehouse_transfer, initialize_warehouse_stock,
+    issue_mmp_stock, list_mmp_stocks, list_technical_documents, list_warehouse_locations, list_warehouse_stocks, list_warehouse_transfers, list_warehouses, lookup_mmp_qr, reserve_warehouse_material,
     set_material_family_applications, update_technical_document, update_warehouse,
 )
 from app.utils.responses import api_response
@@ -55,6 +55,26 @@ def warehouse_stock_list():
     return api_response(True, data=list_warehouse_stocks(request.args.get("warehouse_id", type=int)))
 
 
+@bp.get("/suprimentos/mmp/saldos")
+@auth_required
+def mmp_stock_list():
+    return api_response(True, data=list_mmp_stocks())
+
+
+@bp.get("/suprimentos/locais")
+@auth_required
+def warehouse_location_list():
+    return api_response(True, data=list_warehouse_locations(request.args.get("warehouse_id", type=int)))
+
+
+@bp.post("/suprimentos/locais")
+@auth_required
+def warehouse_location_create():
+    denied = _guard_management()
+    if denied: return denied
+    return _run(lambda: create_warehouse_location(request.get_json(silent=True) or {}).to_dict(), status_code=201)
+
+
 @bp.post("/suprimentos/estoques")
 @auth_required
 def warehouse_stock_initialize():
@@ -69,6 +89,34 @@ def warehouse_stock_adjust(stock_id: int):
     denied = _guard_management()
     if denied: return denied
     return _run(lambda: adjust_warehouse_stock(stock_id, request.get_json(silent=True) or {}, user_id=g.current_user.id).to_dict())
+
+
+@bp.get("/suprimentos/transferencias")
+@auth_required
+def warehouse_transfer_list():
+    return api_response(True, data=list_warehouse_transfers(request.args.get("limite", type=int) or 100))
+
+
+@bp.post("/suprimentos/transferencias")
+@auth_required
+def warehouse_transfer_create():
+    denied = _guard_management()
+    if denied: return denied
+    return _run(lambda: create_warehouse_transfer(request.get_json(silent=True) or {}, user_id=g.current_user.id).to_dict(), status_code=201)
+
+
+@bp.get("/suprimentos/mmp/qr/<path:qr_code>")
+@auth_required
+def mmp_qr_lookup(qr_code: str):
+    return _run(lambda: lookup_mmp_qr(qr_code))
+
+
+@bp.post("/suprimentos/mmp/saidas")
+@auth_required
+def mmp_stock_issue():
+    if not user_has_mechanic_workspace_access(g.current_user):
+        return api_response(False, error="Perfil sem permissão para registrar aplicação no Estoque MMP.", status_code=403)
+    return _run(lambda: issue_mmp_stock(request.get_json(silent=True) or {}, user_id=g.current_user.id))
 
 
 @bp.put("/materiais/<int:material_id>/familias")

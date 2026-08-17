@@ -11,14 +11,18 @@ class Warehouse(db.Model):
     code = db.Column(db.String(40), nullable=False, unique=True, index=True)
     name = db.Column(db.String(120), nullable=False, index=True)
     location = db.Column(db.String(160), nullable=True)
+    warehouse_type = db.Column(db.String(20), nullable=False, default="PRINCIPAL", index=True)
     active = db.Column(db.Boolean, nullable=False, default=True, index=True)
     created_at = db.Column(db.DateTime, nullable=False, default=now_manaus_naive)
     updated_at = db.Column(db.DateTime, nullable=False, default=now_manaus_naive, onupdate=now_manaus_naive)
 
     stocks = db.relationship("WarehouseStock", back_populates="warehouse", cascade="all, delete-orphan", lazy="selectin")
+    locations = db.relationship("WarehouseLocation", back_populates="warehouse", cascade="all, delete-orphan", lazy="selectin")
+    transfers_out = db.relationship("WarehouseTransfer", foreign_keys="WarehouseTransfer.source_warehouse_id", back_populates="source_warehouse", lazy="dynamic")
+    transfers_in = db.relationship("WarehouseTransfer", foreign_keys="WarehouseTransfer.destination_warehouse_id", back_populates="destination_warehouse", lazy="dynamic")
 
     def to_dict(self, include_stocks: bool = False) -> dict:
-        data = {"id": self.id, "code": self.code, "name": self.name, "location": self.location, "active": self.active}
+        data = {"id": self.id, "code": self.code, "name": self.name, "location": self.location, "warehouse_type": self.warehouse_type, "active": self.active}
         if include_stocks:
             data["stocks"] = [row.to_dict() for row in self.stocks]
         return data
@@ -30,12 +34,14 @@ class WarehouseStock(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     warehouse_id = db.Column(db.Integer, db.ForeignKey("warehouses.id"), nullable=False, index=True)
     material_id = db.Column(db.Integer, db.ForeignKey("materials.id"), nullable=False, index=True)
+    location_id = db.Column(db.Integer, db.ForeignKey("warehouse_locations.id"), nullable=True, index=True)
     quantity = db.Column(db.Integer, nullable=False, default=0)
     reserved_quantity = db.Column(db.Integer, nullable=False, default=0)
     updated_at = db.Column(db.DateTime, nullable=False, default=now_manaus_naive, onupdate=now_manaus_naive)
 
     warehouse = db.relationship("Warehouse", back_populates="stocks", lazy="joined")
     material = db.relationship("Material", lazy="joined")
+    location = db.relationship("WarehouseLocation", back_populates="stocks", lazy="joined")
 
     __table_args__ = (
         db.UniqueConstraint("warehouse_id", "material_id", name="uq_warehouse_stock_material"),
@@ -49,7 +55,112 @@ class WarehouseStock(db.Model):
             "quantity": self.quantity, "reserved_quantity": self.reserved_quantity,
             "available_quantity": self.quantity - self.reserved_quantity,
             "warehouse": self.warehouse.to_dict() if self.warehouse else None,
+            "location": self.location.to_dict() if self.location else None,
+            "qr_code": f"MMP-STOCK-{self.id}" if self.warehouse and self.warehouse.warehouse_type == "MMP" else None,
             "material": self.material.to_dict() if self.material else None,
+        }
+
+
+class WarehouseLocation(db.Model):
+    __tablename__ = "warehouse_locations"
+
+    id = db.Column(db.Integer, primary_key=True)
+    warehouse_id = db.Column(db.Integer, db.ForeignKey("warehouses.id"), nullable=False, index=True)
+    shelf_code = db.Column(db.String(40), nullable=False)
+    location_code = db.Column(db.String(40), nullable=False)
+    position_code = db.Column(db.String(40), nullable=False)
+    active = db.Column(db.Boolean, nullable=False, default=True, index=True)
+    created_at = db.Column(db.DateTime, nullable=False, default=now_manaus_naive)
+
+    warehouse = db.relationship("Warehouse", back_populates="locations", lazy="joined")
+    stocks = db.relationship("WarehouseStock", back_populates="location", lazy="dynamic")
+
+    __table_args__ = (
+        db.UniqueConstraint("warehouse_id", "shelf_code", "location_code", "position_code", name="uq_warehouse_location_slot"),
+    )
+
+    @property
+    def label(self) -> str:
+        return f"{self.shelf_code} / {self.location_code} / {self.position_code}"
+
+    def to_dict(self) -> dict:
+        return {
+            "id": self.id,
+            "warehouse_id": self.warehouse_id,
+            "shelf_code": self.shelf_code,
+            "location_code": self.location_code,
+            "position_code": self.position_code,
+            "label": self.label,
+            "active": self.active,
+        }
+
+
+class WarehouseTransfer(db.Model):
+    __tablename__ = "warehouse_transfers"
+
+    id = db.Column(db.Integer, primary_key=True)
+    code = db.Column(db.String(60), nullable=False, unique=True, index=True)
+    source_warehouse_id = db.Column(db.Integer, db.ForeignKey("warehouses.id"), nullable=False, index=True)
+    destination_warehouse_id = db.Column(db.Integer, db.ForeignKey("warehouses.id"), nullable=False, index=True)
+    status = db.Column(db.String(20), nullable=False, default="CONCLUIDA", index=True)
+    notes = db.Column(db.String(255), nullable=True)
+    created_by_user_id = db.Column(db.Integer, db.ForeignKey("users.id"), nullable=False, index=True)
+    created_at = db.Column(db.DateTime, nullable=False, default=now_manaus_naive)
+
+    source_warehouse = db.relationship("Warehouse", foreign_keys=[source_warehouse_id], back_populates="transfers_out", lazy="joined")
+    destination_warehouse = db.relationship("Warehouse", foreign_keys=[destination_warehouse_id], back_populates="transfers_in", lazy="joined")
+    created_by = db.relationship("User", lazy="joined")
+    items = db.relationship("WarehouseTransferItem", back_populates="transfer", cascade="all, delete-orphan", lazy="selectin")
+
+    __table_args__ = (
+        db.CheckConstraint("status IN ('RASCUNHO', 'CONCLUIDA', 'CANCELADA')", name="ck_warehouse_transfer_status"),
+        db.CheckConstraint("source_warehouse_id <> destination_warehouse_id", name="ck_warehouse_transfer_distinct_warehouses"),
+    )
+
+    def to_dict(self) -> dict:
+        return {
+            "id": self.id,
+            "code": self.code,
+            "source_warehouse": self.source_warehouse.to_dict() if self.source_warehouse else None,
+            "destination_warehouse": self.destination_warehouse.to_dict() if self.destination_warehouse else None,
+            "status": self.status,
+            "notes": self.notes,
+            "created_by": self.created_by.to_dict() if self.created_by else None,
+            "created_at": self.created_at.isoformat() if self.created_at else None,
+            "items": [item.to_dict() for item in self.items],
+        }
+
+
+class WarehouseTransferItem(db.Model):
+    __tablename__ = "warehouse_transfer_items"
+
+    id = db.Column(db.Integer, primary_key=True)
+    transfer_id = db.Column(db.Integer, db.ForeignKey("warehouse_transfers.id"), nullable=False, index=True)
+    material_id = db.Column(db.Integer, db.ForeignKey("materials.id"), nullable=False, index=True)
+    source_stock_id = db.Column(db.Integer, db.ForeignKey("warehouse_stocks.id"), nullable=False, index=True)
+    destination_stock_id = db.Column(db.Integer, db.ForeignKey("warehouse_stocks.id"), nullable=False, index=True)
+    quantity = db.Column(db.Integer, nullable=False)
+    location_id = db.Column(db.Integer, db.ForeignKey("warehouse_locations.id"), nullable=True, index=True)
+
+    transfer = db.relationship("WarehouseTransfer", back_populates="items")
+    material = db.relationship("Material", lazy="joined")
+    source_stock = db.relationship("WarehouseStock", foreign_keys=[source_stock_id], lazy="joined")
+    destination_stock = db.relationship("WarehouseStock", foreign_keys=[destination_stock_id], lazy="joined")
+    location = db.relationship("WarehouseLocation", lazy="joined")
+
+    __table_args__ = (db.CheckConstraint("quantity > 0", name="ck_warehouse_transfer_item_quantity"),)
+
+    def to_dict(self) -> dict:
+        return {
+            "id": self.id,
+            "transfer_id": self.transfer_id,
+            "material_id": self.material_id,
+            "quantity": self.quantity,
+            "location": self.location.to_dict() if self.location else None,
+            "material": self.material.to_dict() if self.material else None,
+            "source_stock_id": self.source_stock_id,
+            "destination_stock_id": self.destination_stock_id,
+            "qr_code": f"MMP-STOCK-{self.destination_stock_id}",
         }
 
 

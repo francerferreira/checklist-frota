@@ -27,7 +27,7 @@ from app.models.technical_inspection import InspectionExecution, InspectionExecu
 from app.models.resolution_package import ResolutionPackage, ResolutionPackageLink
 from app.models.revoked_token import RevokedToken
 from app.models.password_reset_request import PasswordResetRequest
-from app.models.supply_library import MaterialFamilyApplication, TechnicalDocument, Warehouse, WarehouseReservation, WarehouseStock
+from app.models.supply_library import MaterialFamilyApplication, TechnicalDocument, Warehouse, WarehouseLocation, WarehouseReservation, WarehouseStock, WarehouseTransfer, WarehouseTransferItem
 from app.models.system_setting import SystemSetting
 from app.models.user import User
 from app.models.vehicle import Vehicle
@@ -99,6 +99,9 @@ __all__ = [
     "WashRecord",
     "WashScheduleDecision",
     "Warehouse",
+    "WarehouseLocation",
     "WarehouseReservation",
     "WarehouseStock",
+    "WarehouseTransfer",
+    "WarehouseTransferItem",
 ]

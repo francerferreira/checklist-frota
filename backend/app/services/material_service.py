@@ -15,6 +15,9 @@ def register_material_movement(
     observation: str | None = None,
     activity_id: int | None = None,
     checklist_item_id: int | None = None,
+    warehouse_stock_id: int | None = None,
+    vehicle_id: int | None = None,
+    application: str | None = None,
 ) -> MaterialMovement:
     if quantity <= 0:
         raise ValueError("A quantidade deve ser maior que zero.")
@@ -32,6 +35,9 @@ def register_material_movement(
         user_id=getattr(getattr(g, "current_user", None), "id", None),
         activity_id=activity_id,
         checklist_item_id=checklist_item_id,
+        warehouse_stock_id=warehouse_stock_id,
+        vehicle_id=vehicle_id,
+        application=application,
         tipo_movimento=movement_type,
         quantidade=quantity,
         saldo_anterior=previous_stock,

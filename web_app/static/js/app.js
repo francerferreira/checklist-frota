@@ -289,6 +289,14 @@ const state = {
         feedbackTitle: "AGUARDANDO AÇÃO",
         feedbackHtml: "Escolha um controle acima para consultar seu estado.",
     },
+    mmpStock: {
+        warehouses: [],
+        locations: [],
+        mainStocks: [],
+        mmpStocks: [],
+        transfers: [],
+        selectedStock: null,
+    },
     moduleReports: "",
 };
 
@@ -305,6 +313,7 @@ const screens = {
     checklistCatalog: document.getElementById("checklist-catalog-screen"),
     rhAdmin: document.getElementById("rh-admin-screen"),
     adminSettings: document.getElementById("admin-settings-screen"),
+    mmpStock: document.getElementById("mmp-stock-screen"),
     moduleReports: document.getElementById("module-reports-screen"),
     nonConformities: document.getElementById("non-conformities-screen"),
     maintenance: document.getElementById("maintenance-screen"),
@@ -410,6 +419,7 @@ const elements = {
     openChecklistCatalogMenu: document.getElementById("open-checklist-catalog-menu"),
     openRhAdminMenu: document.getElementById("open-rh-admin-menu"),
     openAdminSettingsMenu: document.getElementById("open-admin-settings-menu"),
+    openMmpStockMenu: document.getElementById("open-mmp-stock-menu"),
     openEquipmentReportsMenu: document.getElementById("open-equipment-reports-menu"),
     openMaintenanceReportsMenu: document.getElementById("open-maintenance-reports-menu"),
     openActivitiesMenu: document.getElementById("open-activities-menu"),
@@ -505,6 +515,34 @@ const elements = {
     adminSettingsGrid: document.getElementById("admin-settings-grid"),
     adminSettingsFeedback: document.getElementById("admin-settings-feedback"),
     adminSettingsFeedbackContent: document.getElementById("admin-settings-feedback-content"),
+    mmpStockBackButton: document.getElementById("mmp-stock-back-button"),
+    mmpStockRoleBadge: document.getElementById("mmp-stock-role-badge"),
+    mmpAdminPanel: document.getElementById("mmp-admin-panel"),
+    mmpOperationPanel: document.getElementById("mmp-operation-panel"),
+    mmpCreatePrincipalButton: document.getElementById("mmp-create-principal-button"),
+    mmpCreateWarehouseButton: document.getElementById("mmp-create-warehouse-button"),
+    mmpLocationForm: document.getElementById("mmp-location-form"),
+    mmpLocationWarehouse: document.getElementById("mmp-location-warehouse"),
+    mmpLocationShelf: document.getElementById("mmp-location-shelf"),
+    mmpLocationCode: document.getElementById("mmp-location-code"),
+    mmpLocationPosition: document.getElementById("mmp-location-position"),
+    mmpTransferForm: document.getElementById("mmp-transfer-form"),
+    mmpTransferLocation: document.getElementById("mmp-transfer-location"),
+    mmpMainStockList: document.getElementById("mmp-main-stock-list"),
+    mmpAdminFeedback: document.getElementById("mmp-admin-feedback"),
+    mmpQrCode: document.getElementById("mmp-qr-code"),
+    mmpLookupButton: document.getElementById("mmp-lookup-button"),
+    mmpScanQrButton: document.getElementById("mmp-scan-qr-button"),
+    mmpQrPreview: document.getElementById("mmp-qr-preview"),
+    mmpSelectedStock: document.getElementById("mmp-selected-stock"),
+    mmpIssueForm: document.getElementById("mmp-issue-form"),
+    mmpIssueQuantity: document.getElementById("mmp-issue-quantity"),
+    mmpIssueVehicle: document.getElementById("mmp-issue-vehicle"),
+    mmpIssueApplication: document.getElementById("mmp-issue-application"),
+    mmpRefreshButton: document.getElementById("mmp-refresh-button"),
+    mmpStockSummary: document.getElementById("mmp-stock-summary"),
+    mmpStockList: document.getElementById("mmp-stock-list"),
+    mmpTransferHistory: document.getElementById("mmp-transfer-history"),
     moduleReportsBackButton: document.getElementById("module-reports-back-button"),
     moduleReportsTitle: document.getElementById("module-reports-title"),
     moduleReportsSubtitle: document.getElementById("module-reports-subtitle"),
@@ -1020,6 +1058,7 @@ function syncMenuGroupHeadings() {
         ],
         rh: ["open-hr-journey-menu", "open-rh-admin-menu"],
         administracao: ["open-admin-settings-menu"],
+        "materiais-compras": ["open-mmp-stock-menu"],
         absenteismo: ["open-absenteeism-menu"],
         "escala-dsr": ["open-special-schedule-menu"],
     };
@@ -1039,6 +1078,7 @@ function renderHome() {
     elements.openChecklistCatalogMenu?.classList.toggle("hidden", !hasWashReportAccess());
     elements.openRhAdminMenu?.classList.toggle("hidden", !hasWashReportAccess());
     elements.openAdminSettingsMenu?.classList.toggle("hidden", !hasAdminAccess());
+    elements.openMmpStockMenu?.classList.toggle("hidden", !hasMmpAccess());
     elements.openEquipmentReportsMenu?.classList.toggle("hidden", !hasWashReportAccess());
     elements.openMaintenanceReportsMenu?.classList.toggle("hidden", !hasWashReportAccess());
     elements.openMaintenanceDashboardMenu?.classList.toggle("hidden", !canViewMaintenanceDashboard);
@@ -1111,6 +1151,10 @@ function hasWashReportAccess() {
 function hasMechanicWorkspaceAccess() {
     const userType = String(state.user?.tipo || "").toLowerCase();
     return userType === "admin" || userType === "gestor" || userType === "mecanico" || userType === "operacional";
+}
+
+function hasMmpAccess() {
+    return hasMechanicWorkspaceAccess();
 }
 
 function hasMaintenanceAccess() {
@@ -1941,6 +1985,184 @@ function openAdminSettingsAction(action) {
     else if (action === "audit") loadAdminSettingsAudit();
     else if (action === "backup") openAdminSettingsHomePanel("cloud-admin-panel");
     else if (action === "resets") openAdminSettingsHomePanel("admin-reset-panel");
+}
+
+function mmpWarehouseByType(type) {
+    return state.mmpStock.warehouses.find((warehouse) => String(warehouse.warehouse_type || "").toUpperCase() === type && warehouse.active !== false) || null;
+}
+
+function mmpQrImageUrl(qrCode) {
+    return `https://quickchart.io/qr?size=140&text=${encodeURIComponent(qrCode)}`;
+}
+
+function renderMmpLocationOptions() {
+    const locations = state.mmpStock.locations.filter((location) => location.active !== false);
+    const options = locations.length ? locations.map((location) => `<option value="${location.id}">${escapeHtml(location.label)}</option>`).join("") : `<option value="">Crie uma prateleira primeiro</option>`;
+    if (elements.mmpLocationWarehouse) {
+        const mmp = mmpWarehouseByType("MMP");
+        elements.mmpLocationWarehouse.innerHTML = mmp ? `<option value="${mmp.id}">${escapeHtml(mmp.name)}</option>` : `<option value="">Estoque MMP não configurado</option>`;
+    }
+    if (elements.mmpTransferLocation) elements.mmpTransferLocation.innerHTML = options;
+}
+
+function renderMmpMainStocks() {
+    if (!elements.mmpMainStockList) return;
+    if (!state.mmpStock.mainStocks.length) {
+        elements.mmpMainStockList.innerHTML = `<article class="empty-state"><strong>SEM SALDO NO ARMAZÉM PRINCIPAL.</strong><span>Cadastre o armazém e distribua os materiais antes de transferir.</span></article>`;
+        return;
+    }
+    elements.mmpMainStockList.innerHTML = state.mmpStock.mainStocks.map((stock) => {
+        const material = stock.material || {};
+        const available = Math.max(Number(stock.available_quantity || stock.quantity || 0), 0);
+        return `<label class="mmp-main-stock-row"><input type="checkbox" data-mmp-transfer-material="${stock.material_id}" ${available ? "" : "disabled"}><span><strong>${escapeHtml(String(material.referencia || "-").toUpperCase())}</strong><em>${escapeHtml(String(material.descricao || "-"))}</em></span><b>${available} DISP.</b><input class="mmp-transfer-quantity" data-mmp-transfer-quantity="${stock.material_id}" type="number" min="1" max="${available}" value="1" disabled></label>`;
+    }).join("");
+    elements.mmpMainStockList.querySelectorAll("[data-mmp-transfer-material]").forEach((checkbox) => {
+        checkbox.addEventListener("change", () => {
+            const materialId = checkbox.dataset.mmpTransferMaterial;
+            const quantity = elements.mmpMainStockList.querySelector(`[data-mmp-transfer-quantity="${materialId}"]`);
+            if (quantity) quantity.disabled = !checkbox.checked;
+        });
+    });
+}
+
+function renderMmpStockList() {
+    const rows = state.mmpStock.mmpStocks || [];
+    const total = rows.reduce((sum, row) => sum + Number(row.quantity || 0), 0);
+    const low = rows.filter((row) => Number(row.quantity || 0) <= Number(row.material?.estoque_minimo || 0)).length;
+    if (elements.mmpStockSummary) elements.mmpStockSummary.innerHTML = `<div><span>MATERIAIS</span><strong>${rows.length}</strong></div><div><span>UNIDADES</span><strong>${total}</strong></div><div><span>BAIXO ESTOQUE</span><strong>${low}</strong></div>`;
+    if (!elements.mmpStockList) return;
+    elements.mmpStockList.innerHTML = rows.length ? rows.map((stock) => {
+        const material = stock.material || {};
+        return `<article class="mmp-stock-card"><header><div><span>${escapeHtml(String(material.referencia || "MATERIAL").toUpperCase())}</span><strong>${escapeHtml(String(material.descricao || "-").toUpperCase())}</strong></div><b>${Number(stock.quantity || 0)} UN.</b></header><p>${escapeHtml(stock.location?.label || "SEM LOCAL")}</p><div class="mmp-stock-card-foot"><span>${escapeHtml(stock.qr_code || "SEM QR")}</span><button type="button" class="secondary-button" data-mmp-stock-lookup="${escapeHtml(stock.qr_code || "")}">ABRIR MATERIAL</button></div></article>`;
+    }).join("") : `<article class="empty-state"><strong>ESTOQUE MMP VAZIO.</strong><span>O saldo transferido do Armazém Principal aparecerá aqui.</span></article>`;
+    elements.mmpStockList.querySelectorAll("[data-mmp-stock-lookup]").forEach((button) => button.addEventListener("click", () => {
+        if (elements.mmpQrCode) elements.mmpQrCode.value = button.dataset.mmpStockLookup || "";
+        lookupMmpStock();
+    }));
+}
+
+function renderMmpVehicles() {
+    if (!elements.mmpIssueVehicle) return;
+    const vehicles = (state.vehicles || []).filter((vehicle) => vehicle.ativo !== false);
+    elements.mmpIssueVehicle.innerHTML = `<option value="">Selecione o equipamento</option>${vehicles.map((vehicle) => `<option value="${vehicle.id}">${escapeHtml(String(vehicle.frota || vehicle.placa || "EQUIPAMENTO"))} | ${escapeHtml(String(vehicle.modelo || "-"))}</option>`).join("")}`;
+}
+
+function renderMmpTransfers() {
+    const rows = state.mmpStock.transfers || [];
+    if (!elements.mmpTransferHistory) return;
+    elements.mmpTransferHistory.innerHTML = rows.length ? rows.map((transfer) => `<article class="mmp-transfer-row"><strong>${escapeHtml(transfer.code || "TRANSFERÊNCIA")}</strong><span>${escapeHtml(transfer.source_warehouse?.name || "ARMAZÉM PRINCIPAL")} → ${escapeHtml(transfer.destination_warehouse?.name || "ESTOQUE MMP")}</span><em>${(transfer.items || []).length} material(is) | ${formatDateTime(transfer.created_at)}</em></article>`).join("") : "Nenhuma transferência registrada.";
+}
+
+async function loadMmpStockData() {
+    try {
+        state.mmpStock.warehouses = await apiFetch("/suprimentos/depositos");
+        const principal = mmpWarehouseByType("PRINCIPAL");
+        const mmp = mmpWarehouseByType("MMP");
+        const [mainStocks, mmpStocks, locations, transfers] = await Promise.all([
+            principal ? apiFetch(`/suprimentos/estoques?warehouse_id=${principal.id}`) : Promise.resolve([]),
+            apiFetch("/suprimentos/mmp/saldos"),
+            mmp ? apiFetch(`/suprimentos/locais?warehouse_id=${mmp.id}`) : Promise.resolve([]),
+            apiFetch("/suprimentos/transferencias?limite=25"),
+        ]);
+        state.mmpStock.mainStocks = mainStocks || [];
+        state.mmpStock.mmpStocks = mmpStocks || [];
+        state.mmpStock.locations = locations || [];
+        state.mmpStock.transfers = transfers || [];
+        renderMmpLocationOptions();
+        renderMmpMainStocks();
+        renderMmpStockList();
+        renderMmpTransfers();
+        if (elements.mmpAdminFeedback) elements.mmpAdminFeedback.textContent = principal && mmp ? `${principal.name} e ${mmp.name} carregados.` : "Cadastre o Armazém Principal e o Estoque MMP para começar.";
+    } catch (error) {
+        if (elements.mmpAdminFeedback) elements.mmpAdminFeedback.textContent = error.message || "Não foi possível carregar os estoques.";
+        showToast(error.message || "FALHA AO CARREGAR ESTOQUE MMP.", true);
+    }
+}
+
+async function createMmpWarehouse(type) {
+    const exists = mmpWarehouseByType(type);
+    if (exists) {
+        showToast(`${exists.name.toUpperCase()} JÁ ESTÁ CONFIGURADO.`);
+        return;
+    }
+    const payload = type === "MMP" ? { code: "EST-MMP", name: "Estoque MMP", warehouse_type: "MMP" } : { code: "ARM-PRINCIPAL", name: "Armazém Principal", warehouse_type: "PRINCIPAL" };
+    try {
+        await apiFetch("/suprimentos/depositos", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload) });
+        showToast(`${payload.name.toUpperCase()} CRIADO.`);
+        await loadMmpStockData();
+    } catch (error) { showToast(error.message || "NÃO FOI POSSÍVEL CRIAR O ESTOQUE.", true); }
+}
+
+async function submitMmpLocation(event) {
+    event.preventDefault();
+    const warehouse = mmpWarehouseByType("MMP");
+    if (!warehouse) { showToast("CRIE O ESTOQUE MMP PRIMEIRO.", true); return; }
+    try {
+        await apiFetch("/suprimentos/locais", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ warehouse_id: warehouse.id, shelf_code: elements.mmpLocationShelf.value.trim(), location_code: elements.mmpLocationCode.value.trim(), position_code: elements.mmpLocationPosition.value.trim() }) });
+        elements.mmpLocationForm.reset(); showToast("LOCAL CRIADO."); await loadMmpStockData();
+    } catch (error) { showToast(error.message || "NÃO FOI POSSÍVEL CRIAR O LOCAL.", true); }
+}
+
+async function submitMmpTransfer(event) {
+    event.preventDefault();
+    const locationId = Number(elements.mmpTransferLocation.value || 0);
+    const items = Array.from(elements.mmpMainStockList.querySelectorAll("[data-mmp-transfer-material]:checked")).map((checkbox) => ({ material_id: Number(checkbox.dataset.mmpTransferMaterial), quantity: Number(elements.mmpMainStockList.querySelector(`[data-mmp-transfer-quantity="${checkbox.dataset.mmpTransferMaterial}"]`)?.value || 0), location_id: locationId })).filter((item) => item.quantity > 0);
+    if (!locationId || !items.length) { showToast("SELECIONE OS MATERIAIS, AS QUANTIDADES E O LOCAL.", true); return; }
+    try {
+        const transfer = await apiFetch("/suprimentos/transferencias", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ items }) });
+        const labels = (transfer.items || []).map((item) => `<div class="mmp-label-preview"><strong>${escapeHtml(String(item.material?.referencia || "MATERIAL"))} | ${escapeHtml(String(item.material?.descricao || ""))}</strong><img src="${mmpQrImageUrl(item.qr_code)}" alt="QR Code ${escapeHtml(item.qr_code)}"><span>${escapeHtml(item.qr_code)} | ${escapeHtml(item.location?.label || "")}</span></div>`).join("");
+        if (elements.mmpAdminFeedback) elements.mmpAdminFeedback.innerHTML = `<strong>TRANSFERÊNCIA ${escapeHtml(transfer.code)} CONCLUÍDA.</strong><div class="mmp-label-list">${labels}</div>`;
+        showToast("TRANSFERÊNCIA PARA O ESTOQUE MMP CONCLUÍDA."); await loadMmpStockData();
+    } catch (error) { showToast(error.message || "NÃO FOI POSSÍVEL TRANSFERIR OS MATERIAIS.", true); }
+}
+
+async function lookupMmpStock() {
+    const code = elements.mmpQrCode?.value?.trim() || "";
+    if (!code) { showToast("INFORME OU BIPE O QR CODE DO MATERIAL.", true); return; }
+    try {
+        const stock = await apiFetch(`/suprimentos/mmp/qr/${encodeURIComponent(code)}`);
+        state.mmpStock.selectedStock = stock;
+        elements.mmpSelectedStock.innerHTML = `<strong>${escapeHtml(String(stock.material?.referencia || "MATERIAL"))} | ${escapeHtml(String(stock.material?.descricao || "").toUpperCase())}</strong><span>SALDO: ${Number(stock.quantity || 0)} | LOCAL: ${escapeHtml(stock.location?.label || "SEM LOCAL")}</span><em>${escapeHtml(stock.qr_code || code)}</em>`;
+        elements.mmpIssueForm.classList.remove("hidden");
+    } catch (error) { state.mmpStock.selectedStock = null; elements.mmpIssueForm.classList.add("hidden"); showToast(error.message || "MATERIAL MMP NÃO ENCONTRADO.", true); }
+}
+
+async function scanMmpQr() {
+    if (!("BarcodeDetector" in window) || !navigator.mediaDevices?.getUserMedia) { showToast("LEITURA POR CÂMERA INDISPONÍVEL. DIGITE O CÓDIGO DO QR.", true); return; }
+    let stream;
+    try {
+        const detector = new BarcodeDetector({ formats: ["qr_code"] });
+        stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: "environment" }, audio: false });
+        elements.mmpQrPreview.srcObject = stream; elements.mmpQrPreview.classList.remove("hidden"); await elements.mmpQrPreview.play();
+        const deadline = Date.now() + 25000;
+        while (Date.now() < deadline) {
+            const codes = await detector.detect(elements.mmpQrPreview);
+            if (codes.length) { elements.mmpQrCode.value = String(codes[0].rawValue || "").trim(); await lookupMmpStock(); return; }
+            await new Promise((resolve) => window.setTimeout(resolve, 250));
+        }
+        showToast("NENHUM QR DE MATERIAL IDENTIFICADO.", true);
+    } catch (error) { showToast(error.message || "NÃO FOI POSSÍVEL ACESSAR A CÂMERA.", true); }
+    finally { stream?.getTracks().forEach((track) => track.stop()); elements.mmpQrPreview.pause(); elements.mmpQrPreview.srcObject = null; elements.mmpQrPreview.classList.add("hidden"); }
+}
+
+async function submitMmpIssue(event) {
+    event.preventDefault();
+    if (!state.mmpStock.selectedStock) { showToast("CONSULTE O MATERIAL PELO QR CODE PRIMEIRO.", true); return; }
+    try {
+        await apiFetch("/suprimentos/mmp/saidas", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ qr_code: state.mmpStock.selectedStock.qr_code, quantity: Number(elements.mmpIssueQuantity.value || 0), vehicle_id: Number(elements.mmpIssueVehicle.value || 0), application: elements.mmpIssueApplication.value.trim() }) });
+        showToast("SAÍDA DO ESTOQUE MMP REGISTRADA."); elements.mmpIssueForm.reset(); elements.mmpIssueForm.classList.add("hidden"); elements.mmpSelectedStock.textContent = "Saída registrada. Bipe o próximo material."; state.mmpStock.selectedStock = null; await loadMmpStockData();
+    } catch (error) { showToast(error.message || "NÃO FOI POSSÍVEL REGISTRAR A SAÍDA.", true); }
+}
+
+async function openMmpStockMenu() {
+    if (!hasMmpAccess()) { showToast("SEU PERFIL NÃO POSSUI ACESSO AO ESTOQUE MMP.", true); return; }
+    const management = hasWashReportAccess();
+    elements.mmpStockRoleBadge.textContent = management ? "ADMINISTRAÇÃO" : "OPERAÇÃO";
+    elements.mmpAdminPanel.classList.toggle("hidden", !management);
+    elements.mmpOperationPanel.classList.remove("hidden");
+    renderMmpVehicles();
+    setActiveScreen("mmpStock");
+    await loadMmpStockData();
 }
 
 function rhAdminStatusLabel(status) {
@@ -7820,6 +8042,7 @@ on(elements.openMaintenanceDashboardMenu, "click", () => {
 on(elements.openHrJourneyMenu, "click", openHrJourneyMenu);
 on(elements.openRhAdminMenu, "click", openRhAdminMenu);
 on(elements.openAdminSettingsMenu, "click", openAdminSettings);
+on(elements.openMmpStockMenu, "click", openMmpStockMenu);
 on(elements.openEquipmentReportsMenu, "click", () => openModuleReports("equipment"));
 on(elements.openMaintenanceReportsMenu, "click", () => openModuleReports("maintenance"));
 on(elements.moduleReportsList, "click", (event) => {
@@ -7957,6 +8180,19 @@ on(elements.adminSettingsBackButton, "click", () => {
     renderHome();
     setActiveScreen("home");
 });
+on(elements.mmpStockBackButton, "click", () => {
+    renderHome();
+    setActiveScreen("home");
+});
+on(elements.mmpCreatePrincipalButton, "click", () => createMmpWarehouse("PRINCIPAL"));
+on(elements.mmpCreateWarehouseButton, "click", () => createMmpWarehouse("MMP"));
+on(elements.mmpLocationForm, "submit", submitMmpLocation);
+on(elements.mmpTransferForm, "submit", submitMmpTransfer);
+on(elements.mmpLookupButton, "click", lookupMmpStock);
+on(elements.mmpQrCode, "keydown", (event) => { if (event.key === "Enter") { event.preventDefault(); lookupMmpStock(); } });
+on(elements.mmpScanQrButton, "click", scanMmpQr);
+on(elements.mmpIssueForm, "submit", submitMmpIssue);
+on(elements.mmpRefreshButton, "click", loadMmpStockData);
 on(elements.moduleReportsBackButton, "click", () => {
     state.moduleReports = "";
     renderHome();

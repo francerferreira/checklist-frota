@@ -79,6 +79,9 @@ class MaterialMovement(db.Model):
     user_id = db.Column(db.Integer, db.ForeignKey("users.id"), nullable=True, index=True)
     activity_id = db.Column(db.Integer, db.ForeignKey("activities.id"), nullable=True, index=True)
     checklist_item_id = db.Column(db.Integer, db.ForeignKey("checklist_items.id"), nullable=True, index=True)
+    warehouse_stock_id = db.Column(db.Integer, db.ForeignKey("warehouse_stocks.id"), nullable=True, index=True)
+    vehicle_id = db.Column(db.Integer, db.ForeignKey("vehicles.id"), nullable=True, index=True)
+    application = db.Column(db.String(160), nullable=True)
     tipo_movimento = db.Column(db.String(30), nullable=False, index=True)
     quantidade = db.Column(db.Integer, nullable=False)
     saldo_anterior = db.Column(db.Integer, nullable=False)
@@ -90,6 +93,8 @@ class MaterialMovement(db.Model):
     user = db.relationship("User", lazy="joined")
     activity = db.relationship("Activity", lazy="joined")
     checklist_item = db.relationship("ChecklistItem", lazy="joined")
+    warehouse_stock = db.relationship("WarehouseStock", lazy="joined")
+    vehicle = db.relationship("Vehicle", lazy="joined")
 
     __table_args__ = (
         db.CheckConstraint(
@@ -109,6 +114,9 @@ class MaterialMovement(db.Model):
             "user_id": self.user_id,
             "activity_id": self.activity_id,
             "checklist_item_id": self.checklist_item_id,
+            "warehouse_stock_id": self.warehouse_stock_id,
+            "vehicle_id": self.vehicle_id,
+            "application": self.application,
             "tipo_movimento": self.tipo_movimento,
             "quantidade": self.quantidade,
             "saldo_anterior": self.saldo_anterior,

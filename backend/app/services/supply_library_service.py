@@ -1,17 +1,20 @@
 from __future__ import annotations
 
 from datetime import date
+import secrets
 
 from app.extensions import db
 from app.models import (
     EquipmentFamily, MaintenanceMaterial, Material, MaterialFamilyApplication, TechnicalDocument,
-    Vehicle, Warehouse, WarehouseReservation, WarehouseStock,
+    Vehicle, Warehouse, WarehouseLocation, WarehouseReservation, WarehouseStock, WarehouseTransfer, WarehouseTransferItem,
 )
+from app.services.audit_service import record_event
 from app.utils.timezone import now_manaus_naive
 
 
 DOCUMENT_TYPES = {"MANUAL", "PROCEDIMENTO", "DIAGRAMA", "CERTIFICADO", "OUTRO"}
 DOCUMENT_STATUSES = {"ATIVO", "ARQUIVADO", "VENCIDO"}
+WAREHOUSE_TYPES = {"PRINCIPAL", "MMP"}
 
 
 def _clean(value) -> str | None:
@@ -30,7 +33,7 @@ def _positive_int(value, field: str, *, allow_zero: bool = False) -> int:
 
 
 def list_warehouses() -> list[dict]:
-    return [row.to_dict() for row in Warehouse.query.order_by(Warehouse.name.asc()).all()]
+    return [row.to_dict() for row in Warehouse.query.order_by(Warehouse.warehouse_type.asc(), Warehouse.name.asc()).all()]
 
 
 def create_warehouse(payload: dict) -> Warehouse:
@@ -39,7 +42,10 @@ def create_warehouse(payload: dict) -> Warehouse:
         raise ValueError("Informe código e nome do depósito.")
     if Warehouse.query.filter_by(code=code.upper()).first():
         raise ValueError("Já existe depósito com este código.")
-    row = Warehouse(code=code.upper(), name=name, location=_clean(payload.get("location")), active=bool(payload.get("active", True)))
+    warehouse_type = str(payload.get("warehouse_type") or "PRINCIPAL").strip().upper()
+    if warehouse_type not in WAREHOUSE_TYPES:
+        raise ValueError("Tipo de estoque invalido. Use PRINCIPAL ou MMP.")
+    row = Warehouse(code=code.upper(), name=name, location=_clean(payload.get("location")), warehouse_type=warehouse_type, active=bool(payload.get("active", True)))
     db.session.add(row); db.session.commit()
     return row
 
@@ -54,7 +60,10 @@ def update_warehouse(warehouse_id: int, payload: dict) -> Warehouse:
     duplicate = Warehouse.query.filter(Warehouse.code == code.upper(), Warehouse.id != row.id).first()
     if duplicate:
         raise ValueError("Já existe depósito com este código.")
-    row.code, row.name, row.location = code.upper(), name, _clean(payload.get("location"))
+    warehouse_type = str(payload.get("warehouse_type") or row.warehouse_type or "PRINCIPAL").strip().upper()
+    if warehouse_type not in WAREHOUSE_TYPES:
+        raise ValueError("Tipo de estoque invalido. Use PRINCIPAL ou MMP.")
+    row.code, row.name, row.location, row.warehouse_type = code.upper(), name, _clean(payload.get("location")), warehouse_type
     row.active = bool(payload.get("active", row.active)); db.session.commit()
     return row
 
@@ -64,6 +73,152 @@ def list_warehouse_stocks(warehouse_id: int | None = None) -> list[dict]:
     if warehouse_id:
         query = query.filter_by(warehouse_id=warehouse_id)
     return [row.to_dict() for row in query.order_by(WarehouseStock.updated_at.desc()).all()]
+
+
+def list_mmp_stocks() -> list[dict]:
+    return [
+        row.to_dict()
+        for row in WarehouseStock.query.join(Warehouse).filter(Warehouse.warehouse_type == "MMP", Warehouse.active.is_(True)).order_by(WarehouseStock.updated_at.desc()).all()
+    ]
+
+
+def list_warehouse_locations(warehouse_id: int | None = None) -> list[dict]:
+    query = WarehouseLocation.query
+    if warehouse_id:
+        query = query.filter_by(warehouse_id=warehouse_id)
+    return [row.to_dict() for row in query.order_by(WarehouseLocation.shelf_code.asc(), WarehouseLocation.location_code.asc(), WarehouseLocation.position_code.asc()).all()]
+
+
+def create_warehouse_location(payload: dict) -> WarehouseLocation:
+    warehouse_id = _positive_int(payload.get("warehouse_id"), "Depósito")
+    warehouse = db.session.get(Warehouse, warehouse_id)
+    if not warehouse or not warehouse.active:
+        raise ValueError("Depósito ativo não encontrado.")
+    shelf_code = _clean(payload.get("shelf_code"))
+    location_code = _clean(payload.get("location_code"))
+    position_code = _clean(payload.get("position_code"))
+    if not shelf_code or not location_code or not position_code:
+        raise ValueError("Informe prateleira, local e posição.")
+    duplicate = WarehouseLocation.query.filter_by(warehouse_id=warehouse_id, shelf_code=shelf_code.upper(), location_code=location_code.upper(), position_code=position_code.upper()).first()
+    if duplicate:
+        raise ValueError("Este local já existe no depósito.")
+    row = WarehouseLocation(warehouse_id=warehouse_id, shelf_code=shelf_code.upper(), location_code=location_code.upper(), position_code=position_code.upper(), active=bool(payload.get("active", True)))
+    db.session.add(row); db.session.commit()
+    return row
+
+
+def _warehouse_by_type(warehouse_type: str) -> Warehouse:
+    row = Warehouse.query.filter_by(warehouse_type=warehouse_type, active=True).order_by(Warehouse.id.asc()).first()
+    if not row:
+        raise ValueError(f"Nenhum depósito ativo do tipo {warehouse_type} foi configurado.")
+    return row
+
+
+def create_warehouse_transfer(payload: dict, *, user_id: int) -> WarehouseTransfer:
+    source_id = payload.get("source_warehouse_id")
+    destination_id = payload.get("destination_warehouse_id")
+    source = db.session.get(Warehouse, int(source_id)) if source_id else _warehouse_by_type("PRINCIPAL")
+    destination = db.session.get(Warehouse, int(destination_id)) if destination_id else _warehouse_by_type("MMP")
+    if not source or not destination or not source.active or not destination.active:
+        raise ValueError("Depósito de origem ou destino não encontrado.")
+    if source.warehouse_type != "PRINCIPAL" or destination.warehouse_type != "MMP":
+        raise ValueError("A transferência deve sair do Armazém Principal e chegar ao Estoque MMP.")
+    items = payload.get("items") or []
+    if not isinstance(items, list) or not items:
+        raise ValueError("Selecione pelo menos um material para transferir.")
+
+    transfer = WarehouseTransfer(
+        code=f"MMP-TRF-{now_manaus_naive().strftime('%Y%m%d%H%M%S')}-{secrets.token_hex(2).upper()}",
+        source_warehouse_id=source.id,
+        destination_warehouse_id=destination.id,
+        status="CONCLUIDA",
+        notes=_clean(payload.get("notes")),
+        created_by_user_id=user_id,
+    )
+    db.session.add(transfer)
+    db.session.flush()
+
+    for item_payload in items:
+        material_id = _positive_int(item_payload.get("material_id"), "Material")
+        quantity = _positive_int(item_payload.get("quantity"), "Quantidade")
+        material = db.session.get(Material, material_id)
+        source_stock = WarehouseStock.query.filter_by(warehouse_id=source.id, material_id=material_id).with_for_update().first()
+        if not material or not material.ativo or not source_stock:
+            raise ValueError("Material sem saldo cadastrado no Armazém Principal.")
+        if source_stock.quantity - source_stock.reserved_quantity < quantity:
+            raise ValueError(f"Saldo insuficiente no Armazém Principal para {material.referencia}.")
+        location_id = _positive_int(item_payload.get("location_id"), "Local")
+        location = db.session.get(WarehouseLocation, location_id)
+        if not location or location.warehouse_id != destination.id or not location.active:
+            raise ValueError("Local de destino inválido para o Estoque MMP.")
+        destination_stock = WarehouseStock.query.filter_by(warehouse_id=destination.id, material_id=material_id).with_for_update().first()
+        if destination_stock and destination_stock.location_id and destination_stock.location_id != location.id:
+            raise ValueError(f"{material.referencia} já está em outro local do Estoque MMP.")
+        if not destination_stock:
+            destination_stock = WarehouseStock(warehouse_id=destination.id, material_id=material_id, quantity=0, location_id=location.id)
+            db.session.add(destination_stock)
+            db.session.flush()
+        destination_stock.location_id = location.id
+        source_stock.quantity -= quantity
+        destination_stock.quantity += quantity
+        transfer.items.append(WarehouseTransferItem(material_id=material_id, source_stock_id=source_stock.id, destination_stock_id=destination_stock.id, quantity=quantity, location_id=location.id))
+
+    record_event(user_id=user_id, entity_type="WAREHOUSE_TRANSFER", entity_id=transfer.id, action="TRANSFER_TO_MMP", new_value=str({"module": "MATERIAIS_E_COMPRAS", "origin": "WEB", "transfer": transfer.to_dict()}))
+    db.session.commit()
+    return transfer
+
+
+def list_warehouse_transfers(limit: int = 100) -> list[dict]:
+    rows = WarehouseTransfer.query.order_by(WarehouseTransfer.created_at.desc()).limit(max(1, min(int(limit or 100), 500))).all()
+    return [row.to_dict() for row in rows]
+
+
+def lookup_mmp_qr(qr_code: str) -> dict:
+    code = str(qr_code or "").strip().upper()
+    prefix = "MMP-STOCK-"
+    if not code.startswith(prefix):
+        raise ValueError("QR Code de material MMP inválido.")
+    try:
+        stock_id = int(code.removeprefix(prefix))
+    except ValueError as exc:
+        raise ValueError("QR Code de material MMP inválido.") from exc
+    stock = db.session.get(WarehouseStock, stock_id)
+    if not stock or not stock.warehouse or stock.warehouse.warehouse_type != "MMP":
+        raise LookupError("Material não encontrado no Estoque MMP.")
+    return stock.to_dict()
+
+
+def issue_mmp_stock(payload: dict, *, user_id: int) -> dict:
+    from app.services.material_service import register_material_movement
+
+    stock_data = lookup_mmp_qr(payload.get("qr_code"))
+    stock = db.session.get(WarehouseStock, stock_data["id"])
+    quantity = _positive_int(payload.get("quantity"), "Quantidade")
+    vehicle_id = _positive_int(payload.get("vehicle_id"), "Equipamento")
+    vehicle = db.session.get(Vehicle, vehicle_id)
+    if not vehicle or not vehicle.ativo:
+        raise ValueError("Equipamento ativo não encontrado.")
+    application = _clean(payload.get("application"))
+    if not application:
+        raise ValueError("Informe a aplicação do material.")
+    if stock.quantity - stock.reserved_quantity < quantity:
+        raise ValueError("Saldo disponível insuficiente no Estoque MMP.")
+    if not material_is_applicable_to_vehicle(stock.material, vehicle_id):
+        raise ValueError("O material não está liberado para a família deste equipamento.")
+    movement = register_material_movement(
+        stock.material,
+        quantity=quantity,
+        movement_type="ATIVIDADE",
+        delta=-quantity,
+        observation=f"Saída do Estoque MMP para {vehicle.frota or vehicle.placa}: {application}",
+        warehouse_stock_id=stock.id,
+        vehicle_id=vehicle_id,
+        application=application,
+    )
+    stock.quantity -= quantity
+    record_event(user_id=user_id, entity_type="MMP_STOCK", entity_id=stock.id, action="APPLICATION_OUT", new_value=str({"module": "MATERIAIS_E_COMPRAS", "origin": "WEB", "material_id": stock.material_id, "quantity": quantity, "vehicle_id": vehicle_id, "application": application}))
+    db.session.commit()
+    return {"stock": stock.to_dict(), "movement": movement.to_dict(), "vehicle": vehicle.to_dict()}
 
 
 def initialize_warehouse_stock(payload: dict) -> WarehouseStock:

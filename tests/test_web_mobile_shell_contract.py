@@ -16,8 +16,8 @@ class WebMobileShellContractTests(unittest.TestCase):
         cls.legacy_readme = LEGACY_README_PATH.read_text(encoding="utf-8")
 
     def test_index_uses_canonical_frontend_bundle(self):
-        self.assertIn('./static/js/app.js?v=20260816-04', self.index_html)
-        self.assertIn('./static/css/styles.css?v=20260816-04', self.index_html)
+        self.assertIn('./static/js/app.js?v=20260816-05', self.index_html)
+        self.assertIn('./static/css/styles.css?v=20260816-05', self.index_html)
         self.assertNotIn("app-20260419-", self.index_html)
 
     def test_frontend_uses_manaus_timezone_for_dates(self):
@@ -127,6 +127,24 @@ class WebMobileShellContractTests(unittest.TestCase):
         self.assertIn('apiFetch("/admin/intelligent-rules")', app_js)
         self.assertIn('apiFetch("/admin/audit-health")', app_js)
         self.assertNotIn('id="open-public-admin-settings-menu"', self.index_html)
+
+    def test_mmp_stock_web_flow_is_connected(self):
+        app_js = (PROJECT_ROOT / "web_app" / "static" / "js" / "app.js").read_text(encoding="utf-8")
+        for fragment in [
+            'id="open-mmp-stock-menu"',
+            'id="mmp-stock-screen"',
+            'id="mmp-transfer-form"',
+            'id="mmp-issue-form"',
+            'id="mmp-stock-list"',
+        ]:
+            with self.subTest(fragment=fragment):
+                self.assertIn(fragment, self.index_html)
+        self.assertIn("openMmpStockMenu", app_js)
+        self.assertIn('apiFetch("/suprimentos/depositos")', app_js)
+        self.assertIn('apiFetch("/suprimentos/mmp/saldos")', app_js)
+        self.assertIn('apiFetch("/suprimentos/transferencias"', app_js)
+        self.assertIn('apiFetch("/suprimentos/mmp/saidas"', app_js)
+        self.assertIn("scanMmpQr", app_js)
 
     def test_availability_and_hourmeter_mobile_operations_are_connected(self):
         app_js = (PROJECT_ROOT / "web_app" / "static" / "js" / "app.js").read_text(encoding="utf-8")

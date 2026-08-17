@@ -14,7 +14,7 @@
     <title>SIS MMP | Sistema de Manutenção de Máquinas Pesadas</title>
     <link rel="icon" type="image/png" sizes="192x192" href="./static/icons/icon-192.png?v=sis-mmp-20260810">
     <link rel="apple-touch-icon" href="./static/icons/icon-192.png?v=sis-mmp-20260810">
-    <link rel="stylesheet" href="./static/css/styles.css?v=20260816-04">
+    <link rel="stylesheet" href="./static/css/styles.css?v=20260816-05">
 </head>
 <body>
     <div class="mobile-shell">
@@ -149,6 +149,13 @@
                         <span>ADM</span><strong>SALA DE CONTROLE</strong><em>Administrar logins, permissões, backup e controles administrativos.</em>
                     </button>
 
+                    <div class="menu-group-heading" data-menu-heading="materiais-compras">
+                        <span>06</span><strong>MATERIAIS E COMPRAS</strong><em>Armazém Principal, Estoque MMP e aplicação nos equipamentos.</em>
+                    </div>
+                    <button id="open-mmp-stock-menu" class="menu-card hidden" type="button">
+                        <span>MMP</span><strong>ARMAZÉM E ESTOQUE MMP</strong><em>Transferir materiais, organizar prateleiras e registrar aplicações por QR Code.</em>
+                    </button>
+
                     <div class="menu-group-heading" data-menu-heading="absenteismo">
                         <span>04</span><strong>ABSENTEÍSMO</strong><em>Registro diário por área, colaborador e status.</em>
                     </div>
@@ -202,6 +209,70 @@
                 <section id="admin-settings-feedback" class="module-section admin-settings-feedback" aria-live="polite">
                     <div class="module-header"><div><span>RETORNO DA CONSULTA</span><strong>AGUARDANDO AÇÃO</strong></div></div>
                     <div id="admin-settings-feedback-content" class="sync-list">Escolha um controle acima para consultar seu estado.</div>
+                </section>
+            </section>
+
+            <section id="mmp-stock-screen" class="screen hidden">
+                <div class="screen-heading compact module-reports-heading mmp-stock-heading">
+                    <button id="mmp-stock-back-button" class="icon-button" type="button">MENU</button>
+                    <div>
+                        <h2>ARMAZÉM E ESTOQUE MMP</h2>
+                        <p class="screen-heading-note">Origem, transferência, localização e aplicação dos materiais.</p>
+                    </div>
+                    <span id="mmp-stock-role-badge" class="rh-admin-role-badge">OPERAÇÃO</span>
+                </div>
+
+                <section class="module-reports-intro mmp-stock-intro">
+                    <span>CONTROLE DE MATERIAIS</span>
+                    <strong>ARMAZÉM PRINCIPAL → ESTOQUE MMP</strong>
+                    <p>O administrativo transfere materiais para uma posição. O operacional consulta o saldo e registra a aplicação no equipamento.</p>
+                </section>
+
+                <section id="mmp-admin-panel" class="module-section mmp-admin-panel hidden">
+                    <div class="module-header"><div><span>ADMINISTRAÇÃO</span><strong>ESTRUTURA E TRANSFERÊNCIAS</strong></div><em>Admin e gestor</em></div>
+                    <div class="mmp-warehouse-actions">
+                        <button id="mmp-create-principal-button" class="secondary-button" type="button">CRIAR ARMAZÉM PRINCIPAL</button>
+                        <button id="mmp-create-warehouse-button" class="secondary-button" type="button">CRIAR ESTOQUE MMP</button>
+                    </div>
+                    <form id="mmp-location-form" class="mmp-location-form">
+                        <label><span>ESTOQUE MMP</span><select id="mmp-location-warehouse" required></select></label>
+                        <label><span>PRATELEIRA</span><input id="mmp-location-shelf" placeholder="PRATELEIRA 01" required></label>
+                        <label><span>LOCAL</span><input id="mmp-location-code" placeholder="P1A" required></label>
+                        <label><span>POSIÇÃO</span><input id="mmp-location-position" placeholder="A" required></label>
+                        <button class="primary-button" type="submit">CRIAR LOCAL</button>
+                    </form>
+                    <form id="mmp-transfer-form" class="mmp-transfer-form">
+                        <div class="mmp-transfer-toolbar"><label><span>LOCAL DE DESTINO</span><select id="mmp-transfer-location" required></select></label><button class="primary-button" type="submit">TRANSFERIR SELECIONADOS</button></div>
+                        <div id="mmp-main-stock-list" class="mmp-main-stock-list"></div>
+                    </form>
+                    <div id="mmp-admin-feedback" class="sync-list">Carregando armazéns e saldos...</div>
+                </section>
+
+                <section id="mmp-operation-panel" class="module-section mmp-operation-panel hidden">
+                    <div class="module-header"><div><span>APLICAÇÃO DIRETA</span><strong>SAÍDA POR QR CODE</strong></div><em>Operação</em></div>
+                    <div class="mmp-qr-entry">
+                        <label><span>CÓDIGO DA ETIQUETA</span><input id="mmp-qr-code" autocomplete="off" autocapitalize="characters" placeholder="MMP-STOCK-000001"></label>
+                        <button id="mmp-lookup-button" class="primary-button" type="button">CONSULTAR MATERIAL</button>
+                        <button id="mmp-scan-qr-button" class="icon-button" type="button">LER QR</button>
+                    </div>
+                    <video id="mmp-qr-preview" class="asset-qr-preview hidden" muted playsinline></video>
+                    <div id="mmp-selected-stock" class="mmp-selected-stock">Bipe ou informe o QR Code do material.</div>
+                    <form id="mmp-issue-form" class="mmp-issue-form hidden">
+                        <label><span>QUANTIDADE</span><input id="mmp-issue-quantity" type="number" min="1" step="1" value="1" required></label>
+                        <label><span>EQUIPAMENTO</span><select id="mmp-issue-vehicle" required></select></label>
+                        <label class="mmp-issue-application"><span>APLICAÇÃO</span><input id="mmp-issue-application" placeholder="Ex.: Troca preventiva" required></label>
+                        <button class="primary-button" type="submit">REGISTRAR SAÍDA E APLICAÇÃO</button>
+                    </form>
+                </section>
+
+                <section class="module-section mmp-balance-panel">
+                    <div class="module-header"><div><span>CONSULTA OPERACIONAL</span><strong>SALDOS DO ESTOQUE MMP</strong></div><button id="mmp-refresh-button" class="secondary-button" type="button">ATUALIZAR</button></div>
+                    <div id="mmp-stock-summary" class="progress-card"></div>
+                    <div id="mmp-stock-list" class="mmp-stock-list"></div>
+                </section>
+                <section class="module-section mmp-transfer-history-panel">
+                    <div class="module-header"><div><span>RASTREABILIDADE</span><strong>TRANSFERÊNCIAS RECENTES</strong></div></div>
+                    <div id="mmp-transfer-history" class="sync-list"></div>
                 </section>
             </section>
 
@@ -1045,7 +1116,7 @@
 
     <div id="toast" class="toast hidden"></div>
     <script src="./static/js/config.js?v=20260719-01"></script>
-    <script src="./static/js/app.js?v=20260816-04"></script>
+    <script src="./static/js/app.js?v=20260816-05"></script>
 </body>
 </html>
 

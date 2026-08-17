@@ -5289,6 +5289,221 @@ button.rh-admin-operation-card:hover { border-color: #78aee6; transform: transla
     color: var(--ink);
 }
 
+.mmp-stock-intro,
+.mmp-admin-panel,
+.mmp-operation-panel,
+.mmp-balance-panel,
+.mmp-transfer-history-panel {
+    margin-top: 14px;
+}
+
+.mmp-warehouse-actions,
+.mmp-transfer-toolbar,
+.mmp-qr-entry {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: end;
+    gap: 10px;
+    margin: 12px 0;
+}
+
+.mmp-location-form,
+.mmp-issue-form {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 10px;
+    margin: 12px 0;
+}
+
+.mmp-location-form label,
+.mmp-issue-form label,
+.mmp-qr-entry label,
+.mmp-transfer-toolbar label {
+    display: grid;
+    gap: 5px;
+    min-width: 150px;
+}
+
+.mmp-location-form label > span,
+.mmp-issue-form label > span,
+.mmp-qr-entry label > span,
+.mmp-transfer-toolbar label > span {
+    color: var(--muted);
+    font-size: .66rem;
+    font-weight: 900;
+    letter-spacing: .07em;
+}
+
+.mmp-location-form button,
+.mmp-issue-form button {
+    align-self: end;
+}
+
+.mmp-issue-application {
+    grid-column: span 2;
+}
+
+.mmp-main-stock-list,
+.mmp-stock-list {
+    display: grid;
+    gap: 8px;
+    margin-top: 12px;
+}
+
+.mmp-main-stock-row {
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr) auto 110px;
+    align-items: center;
+    gap: 10px;
+    padding: 10px 12px;
+    border-radius: 12px;
+    background: rgba(7, 86, 181, .06);
+}
+
+.mmp-main-stock-row > span,
+.mmp-selected-stock,
+.mmp-transfer-row {
+    display: grid;
+    gap: 3px;
+}
+
+.mmp-main-stock-row em,
+.mmp-selected-stock span,
+.mmp-selected-stock em,
+.mmp-transfer-row em {
+    color: var(--muted);
+    font-size: .72rem;
+    font-style: normal;
+}
+
+.mmp-main-stock-row b {
+    color: var(--blue);
+    font-size: .68rem;
+    letter-spacing: .05em;
+}
+
+.mmp-selected-stock {
+    margin: 12px 0;
+    padding: 14px 16px;
+    border-radius: 14px;
+    background: rgba(255, 255, 255, .96);
+    color: var(--ink);
+}
+
+.mmp-stock-card {
+    display: grid;
+    gap: 8px;
+    padding: 14px 16px;
+    border-radius: 14px;
+    background: rgba(255, 255, 255, .96);
+}
+
+.mmp-stock-card header,
+.mmp-stock-card-foot {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 12px;
+}
+
+.mmp-stock-card header > div {
+    display: grid;
+    gap: 3px;
+}
+
+.mmp-stock-card header span {
+    color: var(--blue);
+    font-size: .66rem;
+    font-weight: 900;
+    letter-spacing: .08em;
+}
+
+.mmp-stock-card header b {
+    color: var(--blue);
+    font-size: 1.1rem;
+}
+
+.mmp-stock-card p {
+    margin: 0;
+    color: var(--muted);
+    font-size: .75rem;
+}
+
+.mmp-stock-card-foot > span {
+    color: var(--muted);
+    font-size: .67rem;
+    font-weight: 800;
+}
+
+.mmp-transfer-row {
+    padding: 9px 0;
+    border-bottom: 1px solid rgba(7, 86, 181, .12);
+}
+
+.mmp-label-list {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 12px;
+    margin-top: 12px;
+}
+
+.mmp-label-preview {
+    display: grid;
+    justify-items: center;
+    gap: 5px;
+    min-width: 160px;
+    padding: 10px;
+    border: 1px dashed rgba(7, 86, 181, .3);
+    border-radius: 12px;
+    background: #fff;
+    color: var(--ink);
+    text-align: center;
+}
+
+.mmp-label-preview img {
+    width: 100px;
+    height: 100px;
+    object-fit: contain;
+}
+
+.mmp-label-preview span {
+    color: var(--muted);
+    font-size: .65rem;
+}
+
+@media (min-width: 760px) {
+    #mmp-stock-screen {
+        max-width: 1280px;
+        margin-inline: auto;
+    }
+}
+
+@media (max-width: 759px) {
+    .mmp-location-form,
+    .mmp-issue-form {
+        grid-template-columns: 1fr;
+    }
+
+    .mmp-issue-application {
+        grid-column: auto;
+    }
+
+    .mmp-main-stock-row {
+        grid-template-columns: auto minmax(0, 1fr);
+    }
+
+    .mmp-main-stock-row > b,
+    .mmp-main-stock-row > input[type="number"] {
+        grid-column: 2;
+    }
+
+    .mmp-stock-card header,
+    .mmp-stock-card-foot {
+        align-items: flex-start;
+        flex-direction: column;
+    }
+}
+
 .admin-settings-user-list {
     display: grid;
     gap: 8px;
