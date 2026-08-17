@@ -31,7 +31,14 @@
                 <div class="topbar-user-area" aria-label="Usuário autenticado">
                     <span class="topbar-user-copy"><em>Olá,</em><strong id="topbar-user-name">USUÁRIO</strong></span>
                     <span id="topbar-user-avatar" class="topbar-user-avatar" aria-hidden="true">US</span>
-                    <button id="topbar-user-settings-button" class="topbar-user-settings-button" type="button" title="Configurações de usuários" aria-label="Abrir configurações de usuários"><span aria-hidden="true">⚙</span></button>
+                    <button id="topbar-user-settings-button" class="topbar-user-settings-button" type="button" title="Configurações de usuários" aria-label="Abrir configurações de usuários" aria-haspopup="menu" aria-expanded="false"><span aria-hidden="true">⚙</span></button>
+                    <div id="topbar-settings-menu" class="topbar-settings-menu hidden" role="menu" aria-label="Configurações do usuário">
+                        <span class="topbar-settings-title">CONFIGURAÇÕES</span>
+                        <button type="button" role="menuitem" data-settings-action="users" data-settings-admin-only="true"><b>ADM</b><span><strong>Usuários</strong><em>Logins, perfis e permissões.</em></span></button>
+                        <button type="button" role="menuitem" data-settings-action="password"><b>🔑</b><span><strong>Minha senha</strong><em>Alterar sua senha de acesso.</em></span></button>
+                        <button type="button" role="menuitem" data-settings-action="audit" data-settings-admin-only="true"><b>LOG</b><span><strong>Auditoria</strong><em>Consultar ações e acessos do sistema.</em></span></button>
+                        <button type="button" role="menuitem" data-settings-action="preferences"><b>☼</b><span><strong>Preferências</strong><em>Alternar tema claro ou escuro.</em></span></button>
+                    </div>
                     <button id="theme-toggle-button" class="theme-toggle-button" type="button" title="Alternar tema claro e escuro" aria-label="Alternar tema claro e escuro" aria-pressed="false"><span class="theme-toggle-icon" aria-hidden="true">☼</span></button>
                     <button id="topbar-logout-button" class="topbar-logout-button" type="button" title="Sair do sistema" aria-label="Sair do sistema"><span aria-hidden="true">↪</span></button>
                 </div>

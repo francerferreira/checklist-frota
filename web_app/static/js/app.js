@@ -353,6 +353,8 @@ const elements = {
     topbarUserName: document.getElementById("topbar-user-name"),
     topbarUserAvatar: document.getElementById("topbar-user-avatar"),
     topbarUserSettingsButton: document.getElementById("topbar-user-settings-button"),
+    topbarSettingsMenu: document.getElementById("topbar-settings-menu"),
+    topbarSettingsItems: Array.from(document.querySelectorAll("[data-settings-action]")),
     themeToggleButton: document.getElementById("theme-toggle-button"),
     topbarLogoutButton: document.getElementById("topbar-logout-button"),
     topbarModuleTriggers: Array.from(document.querySelectorAll("[data-topbar-module-trigger]")),
@@ -911,7 +913,12 @@ function syncTopbarUserIdentity() {
     const name = String(state.user?.nome || "USUÁRIO").trim();
     if (elements.topbarUserName) elements.topbarUserName.textContent = name.toUpperCase();
     if (elements.topbarUserAvatar) elements.topbarUserAvatar.textContent = topbarUserInitials(name);
-    elements.topbarUserSettingsButton?.classList.toggle("hidden", !hasAdminAccess());
+    const authenticated = Boolean(state.user && state.token);
+    const admin = hasAdminAccess();
+    elements.topbarUserSettingsButton?.classList.toggle("hidden", !authenticated);
+    elements.topbarSettingsItems.forEach((item) => {
+        item.classList.toggle("hidden", item.dataset.settingsAdminOnly === "true" && !admin);
+    });
 }
 
 function syncTopbarActiveScreen(screenKey) {
@@ -966,6 +973,30 @@ function closeTopbarNavigation() {
     setTopbarModuleOpen("", false);
     elements.topbarNavigation?.classList.remove("is-open");
     elements.topbarMobileToggle?.setAttribute("aria-expanded", "false");
+    closeTopbarSettingsMenu();
+}
+
+function closeTopbarSettingsMenu() {
+    elements.topbarSettingsMenu?.classList.add("hidden");
+    elements.topbarUserSettingsButton?.setAttribute("aria-expanded", "false");
+}
+
+function toggleTopbarSettingsMenu() {
+    if (!elements.topbarSettingsMenu || !state.user) return;
+    const open = elements.topbarSettingsMenu.classList.toggle("hidden");
+    elements.topbarUserSettingsButton?.setAttribute("aria-expanded", String(!open));
+}
+
+async function openTopbarSettingsAction(action) {
+    closeTopbarSettingsMenu();
+    if (action === "password") {
+        openPasswordResetModal();
+    } else if (action === "preferences") {
+        toggleTheme();
+    } else if (action === "users" || action === "audit") {
+        openAdminSettings();
+        await openAdminSettingsAction(action);
+    }
 }
 
 function topbarActionAllowed(button) {
@@ -8701,6 +8732,7 @@ on(elements.topbarHomeButton, "click", () => {
 });
 on(elements.themeToggleButton, "click", toggleTheme);
 on(elements.topbarMobileToggle, "click", () => {
+    closeTopbarSettingsMenu();
     const open = !elements.topbarNavigation?.classList.contains("is-open");
     elements.topbarNavigation?.classList.toggle("is-open", open);
     elements.topbarMobileToggle?.setAttribute("aria-expanded", String(open));
@@ -8717,13 +8749,20 @@ on(elements.adminSettingsFeedbackContent, "click", (event) => {
     if (button) openAdminUserModal(Number(button.dataset.adminUserEdit));
 });
 elements.topbarModuleTriggers.forEach((trigger) => on(trigger, "click", () => {
+    closeTopbarSettingsMenu();
     const moduleKey = trigger.dataset.topbarModuleTrigger || "";
     const module = trigger.closest(".topbar-module");
     setTopbarModuleOpen(moduleKey, !module?.classList.contains("is-open"));
 }));
 elements.topbarActionButtons.forEach((button) => on(button, "click", () => openTopbarAction(button.dataset.topbarAction)));
 document.addEventListener("click", (event) => {
-    if (appTopbar && !appTopbar.contains(event.target)) closeTopbarNavigation();
+    if (appTopbar && !appTopbar.contains(event.target)) {
+        closeTopbarNavigation();
+        return;
+    }
+    if (!elements.topbarSettingsMenu?.contains(event.target) && event.target !== elements.topbarUserSettingsButton) {
+        closeTopbarSettingsMenu();
+    }
 });
 
 on(elements.loginForm, "submit", async (event) => {
@@ -8973,7 +9012,14 @@ on(elements.scanAssetQrButton, "click", scanMobileAssetQr);
 on(elements.scanAssetNfcButton, "click", scanMobileAssetNfc);
 on(elements.cloudBackupButton, "click", createCloudBackup);
 on(elements.homeLogoutButton, "click", logout);
-on(elements.topbarUserSettingsButton, "click", openAdminSettings);
+on(elements.topbarUserSettingsButton, "click", (event) => {
+    event.stopPropagation();
+    toggleTopbarSettingsMenu();
+});
+on(elements.topbarSettingsMenu, "click", (event) => {
+    const button = event.target instanceof HTMLElement ? event.target.closest("[data-settings-action]") : null;
+    if (button) openTopbarSettingsAction(button.dataset.settingsAction || "");
+});
 on(elements.passwordChangeForm, "submit", submitPasswordReset);
 on(elements.passwordChangeCancel, "click", closePasswordResetModal);
 on(elements.passwordModal, "click", (event) => {
@@ -9322,6 +9368,11 @@ window.addEventListener("visibilitychange", () => {
 });
 window.addEventListener("focus", trackSessionActivity);
 window.addEventListener("keydown", (event) => {
+    if (event.key === "Escape" && elements.topbarSettingsMenu && !elements.topbarSettingsMenu.classList.contains("hidden")) {
+        event.preventDefault();
+        closeTopbarSettingsMenu();
+        return;
+    }
     if (event.key === "Escape" && elements.passwordModal && !elements.passwordModal.classList.contains("hidden")) {
         event.preventDefault();
         closePasswordResetModal();
