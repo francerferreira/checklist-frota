@@ -126,6 +126,7 @@
                         <span class="topbar-dropdown-title">ESTOQUE E AQUISIÇÃO</span>
                         <button type="button" data-topbar-action="mmpStock" data-source-menu="open-mmp-stock-menu"><b>MMP</b><span><strong>Armazém e Estoque MMP</strong><em>Saldo, prateleira e aplicação.</em></span></button>
                         <button type="button" data-topbar-action="purchases" data-source-menu="open-purchases-menu"><b>SC</b><span><strong>Área de compras</strong><em>Solicitações e histórico de materiais.</em></span></button>
+                        <button type="button" data-topbar-action="purchaseReports" data-source-menu="open-purchases-reports-menu"><b>REL</b><span><strong>Relatórios de compras</strong><em>SC, PC, NF, recebimentos e saldos.</em></span></button>
                     </div>
                 </div>
                 <div class="topbar-module" data-topbar-module="admin">
@@ -288,6 +289,9 @@
                     </button>
                     <button id="open-purchases-menu" class="menu-card hidden" type="button">
                         <span>SC</span><strong>ÁREA DE COMPRAS</strong><em>Solicitações, pedidos, notas fiscais, recebimentos e histórico de materiais.</em>
+                    </button>
+                    <button id="open-purchases-reports-menu" class="menu-card hidden" type="button">
+                        <span>REL</span><strong>RELATÓRIOS DE COMPRAS</strong><em>Consolidado por período, status, tipo e provedor.</em>
                     </button>
 
                     <div class="menu-group-heading" data-menu-heading="absenteismo">
@@ -452,6 +456,15 @@
                         <label><span>TIPO</span><select id="purchases-process-type"><option value="TODOS">TODOS</option><option value="MATERIAL">MATERIAL</option><option value="SERVICO">SERVIÇO</option></select></label>
                     </div>
                     <div id="purchases-process-list" class="purchases-process-list" aria-live="polite"></div>
+                </section>
+                <section class="module-section purchases-reports-panel">
+                    <div class="module-header purchases-reports-header">
+                        <div><span>RELATÓRIO DO MÓDULO</span><strong>INDICADORES DE COMPRAS</strong><p class="purchases-help">Consulte o volume solicitado, faturado e recebido sem sair da área de Compras.</p></div>
+                        <button id="purchases-report-refresh" class="secondary-button" type="button">ATUALIZAR RELATÓRIO</button>
+                    </div>
+                    <div class="purchases-report-filters"><label><span>DATA INICIAL</span><input id="purchases-report-date-from" type="date"></label><label><span>DATA FINAL</span><input id="purchases-report-date-to" type="date"></label></div>
+                    <div id="purchases-report-metrics" class="purchases-report-metrics" aria-live="polite"></div>
+                    <div class="purchases-report-breakdowns"><section><header><span>POR STATUS</span><strong>PROCESSOS</strong></header><div id="purchases-report-status-list" class="purchases-report-list"></div></section><section><header><span>POR TIPO</span><strong>MATERIAL X SERVIÇO</strong></header><div id="purchases-report-type-list" class="purchases-report-list"></div></section><section><header><span>POR PROVEDOR</span><strong>PCs EMITIDOS</strong></header><div id="purchases-report-provider-list" class="purchases-report-list"></div></section></div>
                 </section>
                 <section class="module-section purchases-requests-panel">
                     <div class="module-header purchases-requests-header">

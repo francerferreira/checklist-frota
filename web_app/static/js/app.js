@@ -315,6 +315,7 @@ const state = {
         orders: [],
         pendingInvoices: { pending_nf: [], pending_receipts: [] },
         processCenter: { summary: {}, items: [] },
+        reportSummary: { summary: {}, by_status: {}, by_type: {}, by_provider: {} },
         materialHistory: null,
         selectedRequestId: null,
         selectedInvoiceId: null,
@@ -479,6 +480,7 @@ const elements = {
     openAdminCatalogsMenu: document.getElementById("open-admin-catalogs-menu"),
     openMmpStockMenu: document.getElementById("open-mmp-stock-menu"),
     openPurchasesMenu: document.getElementById("open-purchases-menu"),
+    openPurchasesReportsMenu: document.getElementById("open-purchases-reports-menu"),
     openEquipmentReportsMenu: document.getElementById("open-equipment-reports-menu"),
     openMaintenanceReportsMenu: document.getElementById("open-maintenance-reports-menu"),
     openActivitiesMenu: document.getElementById("open-activities-menu"),
@@ -682,6 +684,14 @@ const elements = {
     purchasesProcessStatus: document.getElementById("purchases-process-status"),
     purchasesProcessType: document.getElementById("purchases-process-type"),
     purchasesProcessList: document.getElementById("purchases-process-list"),
+    purchasesReportRefresh: document.getElementById("purchases-report-refresh"),
+    purchasesReportDateFrom: document.getElementById("purchases-report-date-from"),
+    purchasesReportDateTo: document.getElementById("purchases-report-date-to"),
+    purchasesReportMetrics: document.getElementById("purchases-report-metrics"),
+    purchasesReportStatusList: document.getElementById("purchases-report-status-list"),
+    purchasesReportTypeList: document.getElementById("purchases-report-type-list"),
+    purchasesReportProviderList: document.getElementById("purchases-report-provider-list"),
+    purchasesReportsPanel: document.querySelector(".purchases-reports-panel"),
     purchaseInvoiceModal: document.getElementById("purchase-invoice-modal"),
     purchaseInvoiceForm: document.getElementById("purchase-invoice-form"),
     purchaseInvoicePcId: document.getElementById("purchase-invoice-pc-id"),
@@ -1719,6 +1729,7 @@ async function openTopbarAction(action) {
         specialSchedule: openSpecialScheduleMenu,
         mmpStock: openMmpStockMenu,
         purchases: openPurchasesMenu,
+        purchaseReports: () => openModuleReports("purchases"),
         adminCatalogs: openAdminCatalogs,
         adminSettings: openAdminSettings,
     };
@@ -2027,6 +2038,7 @@ function renderHome() {
     elements.openAdminCatalogsMenu?.classList.toggle("hidden", !hasAdminAccess());
     elements.openMmpStockMenu?.classList.toggle("hidden", !hasMmpAccess());
     elements.openPurchasesMenu?.classList.toggle("hidden", !hasWashReportAccess());
+    elements.openPurchasesReportsMenu?.classList.toggle("hidden", !hasWashReportAccess());
     elements.openEquipmentReportsMenu?.classList.toggle("hidden", !hasWashReportAccess());
     elements.openMaintenanceReportsMenu?.classList.toggle("hidden", !hasWashReportAccess());
     elements.openPlanningMenu?.classList.toggle("hidden", !hasWashReportAccess());
@@ -2850,6 +2862,16 @@ const MODULE_REPORT_DEFINITIONS = {
             { label: "INDICADORES", title: "DASHBOARD DE MANUTENÇÃO", description: "Disponibilidade, ordens e equipamentos críticos.", action: "maintenanceDashboard" },
         ],
     },
+    purchases: {
+        title: "RELATÓRIOS DE COMPRAS",
+        subtitle: "Visão consolidada do ciclo SC, PC, NF e recebimento.",
+        badge: "COMPRAS",
+        context: "COMPRAS",
+        reports: [
+            { label: "CENTRAL", title: "CENTRAL DE PROCESSOS", description: "Pendências por item e próximo passo operacional.", action: "purchaseProcessCenter" },
+            { label: "INDICADORES", title: "RESUMO DE COMPRAS", description: "Quantidades solicitadas, faturadas, recebidas e saldo.", action: "purchaseSummary" },
+        ],
+    },
 };
 
 function openModuleReports(moduleKey) {
@@ -2884,6 +2906,8 @@ function openModuleReportAction(action) {
     else if (action === "nonConformities") openNonConformitiesMenu();
     else if (action === "washes") openWashesMenu();
     else if (action === "maintenanceDashboard") window.location.href = "./dashboard-manutencao/";
+    else if (action === "purchaseProcessCenter") openPurchasesMenu({ focusReports: true });
+    else if (action === "purchaseSummary") openPurchasesMenu({ focusReports: true });
 }
 
 function setAdminSettingsFeedback(title, html) {
@@ -3709,6 +3733,47 @@ async function loadPurchaseProcessCenter() {
     }
 }
 
+function purchaseReportStatusLabel(status) {
+    return purchaseProcessStatusLabel(status);
+}
+
+function renderPurchaseReportSummary() {
+    const data = state.purchases.reportSummary || { summary: {}, by_status: {}, by_type: {}, by_provider: {} };
+    const summary = data.summary || {};
+    if (elements.purchasesReportMetrics) {
+        const metrics = [
+            ["PROCESSOS", summary.processes || 0],
+            ["ITENS", summary.items || 0],
+            ["SOLICITADO", summary.requested_quantity || 0],
+            ["RECEBIDO", summary.received_quantity || 0],
+            ["SALDO", summary.remaining_quantity || 0],
+        ];
+        elements.purchasesReportMetrics.innerHTML = metrics.map(([label, value]) => `<article><span>${label}</span><strong>${escapeHtml(String(value))}</strong></article>`).join("");
+    }
+    const renderList = (container, rows, formatter) => {
+        if (!container) return;
+        const entries = Object.entries(rows || {}).sort((left, right) => Number(right[1]?.items || right[1] || 0) - Number(left[1]?.items || left[1] || 0));
+        container.innerHTML = entries.length ? entries.slice(0, 8).map(([label, value]) => formatter(label, value)).join("") : `<span class="purchases-report-empty">Sem dados no período.</span>`;
+    };
+    renderList(elements.purchasesReportStatusList, data.by_status, (label, value) => `<div><span>${escapeHtml(purchaseReportStatusLabel(label))}</span><b>${escapeHtml(String(value))}</b></div>`);
+    renderList(elements.purchasesReportTypeList, data.by_type, (label, value) => `<div><span>${escapeHtml(label)}</span><b>${escapeHtml(String(value.items || 0))} item(ns)</b></div>`);
+    renderList(elements.purchasesReportProviderList, data.by_provider, (label, value) => `<div><span>${escapeHtml(label)}</span><b>${escapeHtml(String(value))} PC(s)</b></div>`);
+}
+
+async function loadPurchaseReportSummary() {
+    const params = new URLSearchParams();
+    if (elements.purchasesReportDateFrom?.value) params.set("date_from", elements.purchasesReportDateFrom.value);
+    if (elements.purchasesReportDateTo?.value) params.set("date_to", elements.purchasesReportDateTo.value);
+    try {
+        state.purchases.reportSummary = await apiFetch(`/compras/relatorios/resumo${params.toString() ? `?${params.toString()}` : ""}`) || { summary: {}, by_status: {}, by_type: {}, by_provider: {} };
+        renderPurchaseReportSummary();
+    } catch (error) {
+        state.purchases.reportSummary = { summary: {}, by_status: {}, by_type: {}, by_provider: {} };
+        renderPurchaseReportSummary();
+        showToast(error.message || "FALHA AO CARREGAR O RELATÓRIO DE COMPRAS.", true);
+    }
+}
+
 function renderPurchaseOverview() {
     const rows = state.purchases.requests || [];
     const open = rows.filter((row) => !["RECEBIDA", "CANCELADA"].includes(String(row.status || "").toUpperCase()));
@@ -3732,6 +3797,7 @@ async function loadPurchasesData() {
         await loadPurchaseOrdersData();
         await loadPurchaseInvoiceData();
         await loadPurchaseProcessCenter();
+        await loadPurchaseReportSummary();
     } catch (error) {
         showToast(error.message || "FALHA AO CARREGAR COMPRAS.", true);
     }
@@ -3881,7 +3947,7 @@ async function loadMaterialPurchaseHistory() {
     } catch (error) { showToast(error.message || "MATERIAL SEM HISTÓRICO DE COMPRAS.", true); }
 }
 
-async function openPurchasesMenu({ focusProviders = false } = {}) {
+async function openPurchasesMenu({ focusProviders = false, focusReports = false } = {}) {
     if (!hasWashReportAccess()) return;
     if (elements.purchasesRoleBadge) elements.purchasesRoleBadge.textContent = hasAdminAccess() ? "ADMINISTRAÇÃO" : "GESTÃO";
     if (elements.purchaseOrderDate && !elements.purchaseOrderDate.value) elements.purchaseOrderDate.value = formatDateInputValue(new Date());
@@ -3894,6 +3960,7 @@ async function openPurchasesMenu({ focusProviders = false } = {}) {
         elements.purchasesProviderPanel?.scrollIntoView({ behavior: "smooth", block: "start" });
         openPurchaseProviderEditor();
     }
+    if (focusReports) elements.purchasesReportsPanel?.scrollIntoView({ behavior: "smooth", block: "start" });
 }
 
 function mmpWarehouseByType(type) {
@@ -10250,6 +10317,7 @@ on(elements.openAdminSettingsMenu, "click", openAdminSettings);
 on(elements.openAdminCatalogsMenu, "click", openAdminCatalogs);
 on(elements.openMmpStockMenu, "click", openMmpStockMenu);
 on(elements.openPurchasesMenu, "click", openPurchasesMenu);
+on(elements.openPurchasesReportsMenu, "click", () => openModuleReports("purchases"));
 on(elements.openEquipmentReportsMenu, "click", () => openModuleReports("equipment"));
 on(elements.openMaintenanceReportsMenu, "click", () => openModuleReports("maintenance"));
 on(elements.moduleReportsList, "click", (event) => {
@@ -10509,6 +10577,7 @@ on(elements.purchasesProcessList, "click", (event) => {
     const button = event.target instanceof HTMLElement ? event.target.closest("[data-purchase-process-open]") : null;
     if (button) openPurchaseRequestDetails(Number(button.dataset.purchaseProcessOpen));
 });
+on(elements.purchasesReportRefresh, "click", loadPurchaseReportSummary);
 on(elements.purchaseRequestCancel, "click", closePurchaseRequestModal);
 on(elements.purchaseRequestModal, "click", (event) => { if (event.target instanceof HTMLElement && event.target.dataset.closePurchaseRequest === "true") closePurchaseRequestModal(); });
 on(elements.purchaseDetailClose, "click", closePurchaseDetailModal);

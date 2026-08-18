@@ -704,6 +704,7 @@ def _central_process_item_summary(item: PurchaseRequestItem) -> dict:
         purchase_orders.append({
             "id": order_item.purchase_order_id,
             "pc_number": order_item.purchase_order.pc_number if order_item.purchase_order else None,
+            "supplier_raw": order_item.purchase_order.supplier_raw if order_item.purchase_order else None,
             "quantity_ordered": float(order_item.quantity_ordered or 0),
             "quantity_invoiced": float(order_invoiced),
             "quantity_received": float(sum((Decimal(invoice_item.quantity_received or 0) for invoice_item in invoices), Decimal("0"))),
@@ -806,6 +807,60 @@ def purchase_process_center():
             "pending_nf": sum(1 for row in rows if row["item_status"] == "AGUARDANDO_NF"),
             "pending_receipt": sum(1 for row in rows if row["item_status"] == "AGUARDANDO_RECEBIMENTO"),
         },
+        "items": rows,
+    })
+
+
+@bp.get("/compras/relatorios/resumo")
+@auth_required
+def purchase_report_summary():
+    denied = _guard_management()
+    if denied:
+        return denied
+    try:
+        date_from = _parse_date(request.args.get("date_from"))
+        date_to = _parse_date(request.args.get("date_to"))
+    except ValueError as exc:
+        return api_response(False, error=str(exc), status_code=400)
+    if date_from and date_to and date_from > date_to:
+        return api_response(False, error="O período inicial não pode ser maior que o final.", status_code=400)
+    rows = []
+    for purchase in PurchaseRequest.query.order_by(PurchaseRequest.created_at.desc()).limit(500).all():
+        reference_date = purchase.sc_date or (purchase.created_at.date() if purchase.created_at else None)
+        if date_from and (not reference_date or reference_date < date_from):
+            continue
+        if date_to and (not reference_date or reference_date > date_to):
+            continue
+        rows.extend(_central_process_item_summary(item) for item in purchase.items)
+    by_status = {}
+    by_type = {}
+    by_module = {}
+    by_provider = {}
+    for row in rows:
+        by_status[row["item_status"]] = by_status.get(row["item_status"], 0) + 1
+        type_bucket = by_type.setdefault(row["item_type"] or "NAO_INFORMADO", {"items": 0, "requested": 0, "received": 0})
+        type_bucket["items"] += 1
+        type_bucket["requested"] += row["requested_quantity"]
+        type_bucket["received"] += row["received_quantity"]
+        module = row["module"] or "NAO_INFORMADO"
+        by_module[module] = by_module.get(module, 0) + 1
+        for order in row["purchase_orders"]:
+            provider = order["supplier_raw"] or "NAO INFORMADO"
+            by_provider[provider] = by_provider.get(provider, 0) + 1
+    return api_response(True, data={
+        "summary": {
+            "processes": len({row["purchase_request_id"] for row in rows}),
+            "items": len(rows),
+            "requested_quantity": sum(row["requested_quantity"] for row in rows),
+            "ordered_quantity": sum(row["ordered_quantity"] for row in rows),
+            "invoiced_quantity": sum(row["invoiced_quantity"] for row in rows),
+            "received_quantity": sum(row["received_quantity"] for row in rows),
+            "remaining_quantity": sum(row["remaining_quantity"] for row in rows),
+        },
+        "by_status": by_status,
+        "by_type": by_type,
+        "by_module": by_module,
+        "by_provider": by_provider,
         "items": rows,
     })
 

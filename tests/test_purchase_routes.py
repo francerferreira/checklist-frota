@@ -232,6 +232,12 @@ class PurchaseRouteTests(unittest.TestCase):
         self.assertEqual(data["items"][0]["item_status"], "AGUARDANDO_PC")
         self.assertEqual(data["items"][0]["next_action"], "EMITIR_PC")
 
+        report = self.client.get("/compras/relatorios/resumo", headers=self.gestor_headers)
+        self.assertEqual(report.status_code, 200, report.get_json())
+        report_data = report.get_json()["data"]
+        self.assertGreaterEqual(report_data["summary"]["items"], 1)
+        self.assertIn("SERVICO", report_data["by_type"])
+
         invalid_period = self.client.get(
             "/compras/central-processos?date_from=2026-08-20&date_to=2026-08-01",
             headers=self.gestor_headers,

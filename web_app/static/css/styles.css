@@ -6984,6 +6984,24 @@ button.rh-admin-operation-card:hover { border-color: #78aee6; transform: transla
 .purchases-process-card-metrics small { color: var(--theme-text-muted); font-size: .67rem; }
 .purchases-process-empty { display: grid; gap: 5px; padding: 22px 14px; border: 1px dashed var(--theme-border-strong); border-radius: 13px; color: var(--theme-text-muted); text-align: center; }
 .purchases-process-empty strong { color: var(--theme-text); font-size: .78rem; }
+.purchases-reports-panel { display: grid; gap: 16px; }
+.purchases-reports-header { align-items: flex-start; }
+.purchases-report-filters { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; max-width: 620px; }
+.purchases-report-filters label { display: grid; gap: 5px; color: var(--theme-text-muted); font-size: .68rem; font-weight: 900; letter-spacing: .07em; }
+.purchases-report-filters input { min-height: 42px; padding: 9px 11px; border: 1px solid var(--theme-border-strong); border-radius: 10px; background: var(--theme-input); color: var(--theme-text); font: inherit; letter-spacing: normal; }
+.purchases-report-metrics { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 10px; }
+.purchases-report-metrics article { display: grid; gap: 4px; padding: 13px 14px; border: 1px solid var(--theme-border); border-radius: 12px; background: var(--theme-surface-soft); }
+.purchases-report-metrics span { color: var(--theme-text-muted); font-size: .66rem; font-weight: 900; letter-spacing: .07em; }
+.purchases-report-metrics strong { color: var(--theme-text-strong); font-size: 1.12rem; }
+.purchases-report-breakdowns { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; }
+.purchases-report-breakdowns > section { display: grid; align-content: start; gap: 9px; padding: 13px; border: 1px solid var(--theme-border); border-radius: 13px; background: var(--theme-surface); }
+.purchases-report-breakdowns header { display: grid; gap: 3px; padding-bottom: 7px; border-bottom: 1px solid var(--theme-border); }
+.purchases-report-breakdowns header span { color: var(--theme-text-muted); font-size: .65rem; font-weight: 900; letter-spacing: .08em; }
+.purchases-report-breakdowns header strong { color: var(--theme-text); font-size: .82rem; }
+.purchases-report-list { display: grid; gap: 6px; }
+.purchases-report-list > div { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 7px 8px; border-radius: 8px; background: var(--theme-surface-soft); color: var(--theme-text-muted); font-size: .71rem; }
+.purchases-report-list > div b { color: var(--theme-text); white-space: nowrap; }
+.purchases-report-empty { color: var(--theme-text-muted); font-size: .72rem; }
 .purchases-invoices-panel { display: grid; gap: 16px; }
 .purchases-invoices-header { align-items: flex-start; }
 .purchases-invoices-header-actions { display: flex; align-items: center; justify-content: flex-end; gap: 8px; flex-wrap: wrap; }
@@ -7199,6 +7217,11 @@ button.rh-admin-operation-card:hover { border-color: #78aee6; transform: transla
     .purchases-process-card { grid-template-columns: 1fr; align-items: stretch; }
     .purchases-process-card-metrics { padding-top: 10px; padding-left: 0; border-top: 1px solid var(--theme-border); border-left: 0; }
     .purchases-process-card > button { width: 100%; }
+    .purchases-reports-header { align-items: stretch; flex-direction: column; }
+    .purchases-reports-header .secondary-button { width: 100%; }
+    .purchases-report-filters,
+    .purchases-report-metrics,
+    .purchases-report-breakdowns { grid-template-columns: 1fr; max-width: none; }
     .purchase-invoice-form,
     .purchase-invoice-receive-form { grid-template-columns: 1fr; }
     .purchase-invoice-form .purchase-request-field-wide,
