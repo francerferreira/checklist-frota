@@ -443,10 +443,30 @@
                     </div>
                     <div class="purchases-request-toolbar" role="search" aria-label="Filtros de solicitações de compra">
                         <label class="purchases-request-search"><span>BUSCAR</span><input id="purchases-request-search" type="search" autocomplete="off" placeholder="SC, material, módulo ou solicitante"></label>
-                        <label><span>STATUS</span><select id="purchases-request-status"><option value="TODOS">TODOS</option><option value="SOLICITADA">SOLICITADA</option><option value="APROVADA">APROVADA</option><option value="AGUARDANDO_PC">AGUARDANDO PC</option><option value="EM_TRANSITO">EM TRÂNSITO</option><option value="PARCIALMENTE_RECEBIDA">RECEBIMENTO PARCIAL</option><option value="RECEBIDA">RECEBIDA</option><option value="CANCELADA">CANCELADA</option></select></label>
+                        <label><span>STATUS</span><select id="purchases-request-status"><option value="TODOS">TODOS</option><option value="SOLICITADA">SOLICITADA</option><option value="APROVADA">APROVADA</option><option value="AGUARDANDO_PC">AGUARDANDO PC</option><option value="PC_PARCIAL">PC PARCIAL</option><option value="AGUARDANDO_NF">AGUARDANDO NF</option><option value="EM_TRANSITO">EM TRÂNSITO</option><option value="PARCIALMENTE_RECEBIDA">RECEBIMENTO PARCIAL</option><option value="RECEBIDA">RECEBIDA</option><option value="CANCELADA">CANCELADA</option></select></label>
                         <label><span>ORDENAR POR</span><select id="purchases-request-sort"><option value="RECENTES">MAIS RECENTES</option><option value="PRIORIDADE">PRIORIDADE</option><option value="PROVEDOR_PREFERENCIAL">PROVEDOR PREFERENCIAL</option></select></label>
                     </div>
                     <div id="purchases-request-list" class="purchases-request-list" aria-live="polite"></div>
+                </section>
+                <section class="module-section purchases-orders-panel">
+                    <div class="module-header purchases-orders-header">
+                        <div><span>ETAPA 02 DO FLUXO</span><strong>PEDIDOS DE COMPRA (PC)</strong><p class="purchases-help">Selecione somente os itens aprovados que serão incluídos neste PC. A mesma SC pode gerar mais de um pedido.</p></div>
+                        <div class="purchases-orders-header-actions"><span id="purchases-orders-pending-count" class="purchases-request-count">0 itens pendentes</span><button id="purchases-orders-refresh" class="secondary-button" type="button">ATUALIZAR</button></div>
+                    </div>
+                    <form id="purchase-order-form" class="purchase-order-form">
+                        <div class="purchase-order-form-grid">
+                            <label><span>NÚMERO DO PC *</span><input id="purchase-order-number" maxlength="60" placeholder="Ex.: PC-50001" required></label>
+                            <label><span>DATA DO PC</span><input id="purchase-order-date" type="date"></label>
+                            <label><span>PROVEDOR *</span><input id="purchase-order-provider" maxlength="220" placeholder="Nome do provedor" required></label>
+                            <label><span>ENTREGA PREVISTA</span><input id="purchase-order-delivery-date" type="date"></label>
+                            <label><span>VALOR TOTAL</span><input id="purchase-order-total" type="number" min="0" step="0.01" placeholder="0,00"></label>
+                            <label><span>CONDIÇÃO DE PAGAMENTO</span><input id="purchase-order-payment-terms" maxlength="180" placeholder="Ex.: 30 dias"></label>
+                            <label class="purchase-order-wide"><span>OBSERVAÇÃO</span><textarea id="purchase-order-notes" rows="2" maxlength="1000" placeholder="Informações do pedido"></textarea></label>
+                        </div>
+                        <div class="purchase-order-pending-heading"><div><span>ITENS DISPONÍVEIS</span><strong>Selecione os itens e a quantidade do PC</strong></div></div>
+                        <div id="purchase-order-pending-list" class="purchase-order-pending-list" aria-live="polite"></div>
+                        <div class="purchase-order-actions"><button id="purchase-order-submit" class="primary-button" type="submit">EMITIR PC SELECIONADO</button></div>
+                    </form>
                 </section>
                 <section id="purchases-provider-panel" class="module-section purchases-provider-panel hidden">
                     <div class="purchases-provider-heading">

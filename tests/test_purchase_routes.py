@@ -172,6 +172,66 @@ class PurchaseRouteTests(unittest.TestCase):
         )
         self.assertEqual(denied_receive.status_code, 400, denied_receive.get_json())
 
+    def test_purchase_order_supports_partial_and_multiple_orders_for_same_sc(self):
+        request = self.client.post(
+            "/compras/solicitacoes",
+            headers=self.gestor_headers,
+            json={"items": [{"item_type": "MATERIAL", "material_id": self.material_id, "quantity": 5}]},
+        )
+        self.assertEqual(request.status_code, 201, request.get_json())
+        purchase = request.get_json()["data"]
+        approved = self.client.post(f"/compras/solicitacoes/{purchase['id']}/aprovar", headers=self.admin_headers)
+        self.assertEqual(approved.status_code, 200, approved.get_json())
+        item_id = purchase["items"][0]["id"]
+
+        provider = self.client.post(
+            "/compras/provedores",
+            headers=self.admin_headers,
+            json={"code": "PROV-PC-001", "name": "Provedor do PC"},
+        )
+        self.assertEqual(provider.status_code, 201, provider.get_json())
+        provider_id = provider.get_json()["data"]["id"]
+
+        first_pc = self.client.post(
+            "/compras/pedidos",
+            headers=self.gestor_headers,
+            json={
+                "pc_number": "PC-50001",
+                "supplier_id": provider_id,
+                "total_value": "200.00",
+                "items": [{"purchase_request_item_id": item_id, "quantity_ordered": 2, "unit_price": "100.00"}],
+            },
+        )
+        self.assertEqual(first_pc.status_code, 201, first_pc.get_json())
+        first_data = first_pc.get_json()["data"]
+        self.assertEqual(first_data["purchase_order"]["pc_number"], "PC-50001")
+
+        pending = self.client.get("/compras/pedidos/pendentes", headers=self.gestor_headers)
+        self.assertEqual(pending.status_code, 200, pending.get_json())
+        pending_item = next(item for row in pending.get_json()["data"] for item in row["items"] if item["id"] == item_id)
+        self.assertEqual(pending_item["quantity_ordered"], 2.0)
+        self.assertEqual(pending_item["remaining_order_quantity"], 3.0)
+        self.assertEqual(pending_item["status"], "PC_PARCIAL")
+
+        second_pc = self.client.post(
+            "/compras/pedidos",
+            headers=self.gestor_headers,
+            json={
+                "pc_number": "PC-50002",
+                "supplier_raw": "Outro Provedor",
+                "items": [{"purchase_request_item_id": item_id, "quantity_ordered": 3}],
+            },
+        )
+        self.assertEqual(second_pc.status_code, 201, second_pc.get_json())
+        final_request = self.client.get(f"/compras/solicitacoes/{purchase['id']}", headers=self.gestor_headers)
+        self.assertEqual(final_request.status_code, 200, final_request.get_json())
+        self.assertEqual(final_request.get_json()["data"]["status"], "EM_TRANSITO")
+        self.assertEqual(final_request.get_json()["data"]["pc_count"], 2)
+
+        pending_after = self.client.get("/compras/pedidos/pendentes", headers=self.gestor_headers)
+        self.assertEqual(pending_after.status_code, 200, pending_after.get_json())
+        self.assertFalse(any(row["purchase_request_id"] == purchase["id"] for row in pending_after.get_json()["data"]))
+
     def test_provider_registration_is_admin_only_and_can_be_updated(self):
         denied_list = self.client.get("/compras/provedores", headers=self.gestor_headers)
         self.assertEqual(denied_list.status_code, 403, denied_list.get_json())

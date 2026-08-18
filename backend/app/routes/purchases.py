@@ -8,7 +8,7 @@ import tempfile
 from flask import Blueprint, g, request
 
 from app.extensions import db
-from app.models import MaintenanceMaterial, Material, PurchaseImportBatch, PurchaseReceipt, PurchaseRequest, PurchaseRequestItem, PurchaseServiceCatalog, Supplier, User, Vehicle
+from app.models import MaintenanceMaterial, Material, PurchaseImportBatch, PurchaseOrder, PurchaseOrderItem, PurchaseProcessEvent, PurchaseReceipt, PurchaseRequest, PurchaseRequestItem, PurchaseServiceCatalog, Supplier, User, Vehicle
 from app.services.auth_service import auth_required, user_has_management_access
 from app.services.material_service import register_material_movement
 from app.services.purchase_import_service import import_purchase_workbook
@@ -40,6 +40,28 @@ def _positive_int(value, field: str) -> int:
         raise ValueError(f"{field} invalida.") from exc
     if number <= 0:
         raise ValueError(f"{field} deve ser maior que zero.")
+    return number
+
+
+def _positive_decimal(value, field: str) -> Decimal:
+    try:
+        number = Decimal(str(value).replace(",", "."))
+    except (InvalidOperation, TypeError, ValueError) as exc:
+        raise ValueError(f"{field} invalida.") from exc
+    if number <= 0:
+        raise ValueError(f"{field} deve ser maior que zero.")
+    return number
+
+
+def _non_negative_decimal(value, field: str) -> Decimal | None:
+    if value in (None, ""):
+        return None
+    try:
+        number = Decimal(str(value).replace(",", ".")).quantize(Decimal("0.01"))
+    except (InvalidOperation, TypeError, ValueError) as exc:
+        raise ValueError(f"{field} invalido.") from exc
+    if number < 0:
+        raise ValueError(f"{field} nao pode ser negativo.")
     return number
 
 
@@ -235,6 +257,173 @@ def list_purchase_requests():
         return denied
     rows = PurchaseRequest.query.order_by(PurchaseRequest.created_at.desc()).all()
     return api_response(True, data=[row.to_dict() for row in rows])
+
+
+def _update_purchase_item_pc_status(request_item: PurchaseRequestItem) -> None:
+    ordered = request_item.ordered_quantity
+    requested = Decimal(request_item.quantity_requested or 0)
+    if ordered <= 0:
+        request_item.status = "AGUARDANDO_PC"
+    elif ordered < requested:
+        request_item.status = "PC_PARCIAL"
+    else:
+        request_item.status = "AGUARDANDO_NF"
+
+
+def _refresh_request_pc_status(purchase: PurchaseRequest) -> None:
+    if not purchase.items:
+        return
+    for request_item in purchase.items:
+        _update_purchase_item_pc_status(request_item)
+    if all(item.remaining_order_quantity <= 0 for item in purchase.items):
+        purchase.status = "EM_TRANSITO"
+    elif purchase.status not in {"CANCELADA", "RECEBIDA", "PARCIALMENTE_RECEBIDA"}:
+        purchase.status = "APROVADA"
+
+
+@bp.get("/compras/pedidos/pendentes")
+@auth_required
+def list_pending_purchase_order_items():
+    denied = _guard_management()
+    if denied:
+        return denied
+    pending = []
+    requests = PurchaseRequest.query.order_by(PurchaseRequest.created_at.asc()).all()
+    for purchase in requests:
+        if purchase.status not in {"APROVADA", "EM_TRANSITO"}:
+            continue
+        items = [item.to_dict() for item in purchase.items if item.remaining_order_quantity > 0]
+        if not items:
+            continue
+        pending.append({
+            "purchase_request_id": purchase.id,
+            "sc_number": purchase.sc_number or purchase.code,
+            "sc_date": purchase.sc_date.isoformat() if purchase.sc_date else None,
+            "status": purchase.status,
+            "request_type": purchase.request_type,
+            "module": purchase.module,
+            "equipment_raw": purchase.equipment_raw,
+            "requester_raw": purchase.requester_raw,
+            "priority": purchase.priority,
+            "items": items,
+        })
+    return api_response(True, data=pending)
+
+
+@bp.get("/compras/pedidos")
+@auth_required
+def list_purchase_orders():
+    denied = _guard_management()
+    if denied:
+        return denied
+    rows = PurchaseOrder.query.order_by(PurchaseOrder.created_at.desc()).limit(100).all()
+    return api_response(True, data=[row.to_dict() for row in rows])
+
+
+@bp.post("/compras/pedidos")
+@auth_required
+def create_purchase_order():
+    denied = _guard_management()
+    if denied:
+        return denied
+
+    def action():
+        payload = request.get_json(silent=True) or {}
+        pc_number = _clean(payload.get("pc_number"))
+        if not pc_number:
+            raise ValueError("Informe o numero do PC.")
+        company_code = _clean(payload.get("company_code"))
+        branch_code = _clean(payload.get("branch_code"))
+        duplicate = PurchaseOrder.query.filter_by(pc_number=pc_number, company_code=company_code, branch_code=branch_code).first()
+        if duplicate:
+            raise ValueError("Ja existe um PC com este numero para esta empresa e filial.")
+        raw_items = payload.get("items")
+        if not isinstance(raw_items, list) or not raw_items:
+            raise ValueError("Selecione pelo menos um item pendente da SC.")
+        if len(raw_items) > 200:
+            raise ValueError("O PC pode ter no maximo 200 itens.")
+
+        supplier_id = payload.get("supplier_id")
+        supplier = None
+        if supplier_id not in (None, ""):
+            supplier = db.session.get(Supplier, _positive_int(supplier_id, "Provedor"))
+            if not supplier or not supplier.active:
+                raise ValueError("Provedor ativo nao encontrado.")
+        supplier_raw = _clean(payload.get("supplier_raw"))
+        if not supplier and not supplier_raw:
+            raise ValueError("Informe o provedor do PC.")
+
+        buyer = g.current_user
+        buyer_id = payload.get("buyer_id")
+        if buyer_id not in (None, ""):
+            buyer = db.session.get(User, _positive_int(buyer_id, "Comprador"))
+            if not buyer or not buyer.ativo:
+                raise ValueError("Comprador ativo nao encontrado.")
+        default_delivery_date = _parse_date(payload.get("delivery_due_date"))
+        order_items = []
+        affected_requests = {}
+        for position, raw in enumerate(raw_items, start=1):
+            if not isinstance(raw, dict):
+                raise ValueError(f"Item {position} invalido.")
+            request_item_id = _positive_int(raw.get("purchase_request_item_id"), f"Item da SC {position}")
+            request_item = db.session.get(PurchaseRequestItem, request_item_id)
+            if not request_item:
+                raise LookupError(f"Item da SC {position} nao encontrado.")
+            purchase = request_item.purchase_request
+            if purchase.status not in {"APROVADA", "EM_TRANSITO"}:
+                raise ValueError(f"A SC {purchase.sc_number or purchase.code} precisa estar aprovada antes do PC.")
+            remaining = request_item.remaining_order_quantity
+            quantity = _positive_decimal(raw.get("quantity_ordered", raw.get("quantity")), f"Quantidade do item {position}")
+            if quantity > remaining:
+                raise ValueError(f"Quantidade do item {position} excede o saldo pendente da SC.")
+            unit_price = _non_negative_decimal(raw.get("unit_price"), f"Preco unitario do item {position}")
+            total_price = _non_negative_decimal(raw.get("total_price"), f"Total do item {position}")
+            if total_price is None and unit_price is not None:
+                total_price = (quantity * unit_price).quantize(Decimal("0.01"))
+            expected_delivery_date = _parse_date(raw.get("expected_delivery_date")) or default_delivery_date
+            order_items.append({
+                "request_item": request_item,
+                "quantity": quantity,
+                "unit_price": unit_price,
+                "total_price": total_price,
+                "expected_delivery_date": expected_delivery_date,
+            })
+            affected_requests[purchase.id] = purchase
+
+        order = PurchaseOrder(
+            pc_number=pc_number, pc_date=_parse_date(payload.get("pc_date")) or date.today(),
+            buyer_id=buyer.id, buyer_raw=buyer.nome, supplier_id=supplier.id if supplier else None,
+            supplier_raw=supplier_raw or (supplier.name if supplier else None),
+            delivery_due_date=default_delivery_date, total_value=_non_negative_decimal(payload.get("total_value"), "Valor total do PC"),
+            payment_terms=_clean(payload.get("payment_terms")), notes=_clean(payload.get("notes")),
+            status="EMITIDO", company_code=company_code, branch_code=branch_code,
+            created_by_user_id=g.current_user.id,
+        )
+        db.session.add(order)
+        db.session.flush()
+        for item_data in order_items:
+            db.session.add(PurchaseOrderItem(
+                purchase_order_id=order.id,
+                purchase_request_item_id=item_data["request_item"].id,
+                request_item=item_data["request_item"],
+                quantity_ordered=item_data["quantity"],
+                unit_price=item_data["unit_price"],
+                total_price=item_data["total_price"],
+                expected_delivery_date=item_data["expected_delivery_date"],
+                status="EMITIDO",
+            ))
+        db.session.flush()
+        for purchase in affected_requests.values():
+            _refresh_request_pc_status(purchase)
+        db.session.add(PurchaseProcessEvent(
+            entity_type="PURCHASE_ORDER", entity_id=order.id, event_type="PC_EMITIDO",
+            new_status="EMITIDO", actor_id=g.current_user.id,
+            event_metadata={"purchase_request_ids": list(affected_requests), "item_count": len(order_items)},
+        ))
+        db.session.commit()
+        return {"purchase_order": order.to_dict(), "purchase_request_ids": list(affected_requests)}
+
+    return _run(action, status_code=201)
 
 
 @bp.get("/compras/solicitacoes/<int:purchase_id>")

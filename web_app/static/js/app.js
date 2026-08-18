@@ -311,6 +311,8 @@ const state = {
     },
     purchases: {
         requests: [],
+        pendingPcItems: [],
+        orders: [],
         materialHistory: null,
         selectedRequestId: null,
         providers: [],
@@ -650,6 +652,18 @@ const elements = {
     purchaseReceiveCancel: document.getElementById("purchase-receive-cancel"),
     purchaseReceiveHelp: document.getElementById("purchase-receive-help"),
     purchasesProviderPanel: document.getElementById("purchases-provider-panel"),
+    purchasesOrdersPendingCount: document.getElementById("purchases-orders-pending-count"),
+    purchasesOrdersRefresh: document.getElementById("purchases-orders-refresh"),
+    purchaseOrderForm: document.getElementById("purchase-order-form"),
+    purchaseOrderNumber: document.getElementById("purchase-order-number"),
+    purchaseOrderDate: document.getElementById("purchase-order-date"),
+    purchaseOrderProvider: document.getElementById("purchase-order-provider"),
+    purchaseOrderDeliveryDate: document.getElementById("purchase-order-delivery-date"),
+    purchaseOrderTotal: document.getElementById("purchase-order-total"),
+    purchaseOrderPaymentTerms: document.getElementById("purchase-order-payment-terms"),
+    purchaseOrderNotes: document.getElementById("purchase-order-notes"),
+    purchaseOrderPendingList: document.getElementById("purchase-order-pending-list"),
+    purchaseOrderSubmit: document.getElementById("purchase-order-submit"),
     purchasesProviderEditor: document.getElementById("purchases-provider-editor"),
     purchasesProviderEditorTitle: document.getElementById("purchases-provider-editor-title"),
     purchasesProviderNew: document.getElementById("purchases-provider-new"),
@@ -3033,6 +3047,8 @@ const PURCHASE_STATUS_LABELS = {
     SOLICITADA: "SOLICITADA",
     APROVADA: "APROVADA",
     AGUARDANDO_PC: "AGUARDANDO PC",
+    PC_PARCIAL: "PC PARCIAL",
+    AGUARDANDO_NF: "AGUARDANDO NF",
     EM_TRANSITO: "EM TRÂNSITO",
     PARCIALMENTE_RECEBIDA: "RECEBIMENTO PARCIAL",
     RECEBIDA: "RECEBIDA",
@@ -3041,9 +3057,13 @@ const PURCHASE_STATUS_LABELS = {
 
 function purchaseRequestItemStatus(row) {
     const requestStatus = String(row?.status || "SOLICITADA").toUpperCase();
-    if (requestStatus === "SOLICITADA" && (row?.items || []).some((item) => String(item?.status || "").toUpperCase() === "AGUARDANDO_PC")) {
+    const items = Array.isArray(row?.items) ? row.items : [];
+    const itemStatuses = items.map((item) => String(item?.status || "").toUpperCase());
+    if (itemStatuses.some((status) => status === "AGUARDANDO_PC") && ["SOLICITADA", "APROVADA"].includes(requestStatus)) {
         return "AGUARDANDO_PC";
     }
+    if (itemStatuses.some((status) => status === "PC_PARCIAL")) return "PC_PARCIAL";
+    if (itemStatuses.length && itemStatuses.every((status) => status === "AGUARDANDO_NF")) return "AGUARDANDO_NF";
     return requestStatus;
 }
 
@@ -3375,13 +3395,93 @@ async function submitPurchaseReceive(event) {
     } catch (error) { showToast(error.message || "FALHA AO REGISTRAR RECEBIMENTO.", true); }
 }
 
+function purchaseOrderPendingRows() {
+    return (state.purchases.pendingPcItems || []).flatMap((group) => (group.items || []).map((item) => ({ ...item, ...group })));
+}
+
+function renderPurchaseOrderPending() {
+    if (!elements.purchaseOrderPendingList) return;
+    const rows = purchaseOrderPendingRows();
+    if (elements.purchasesOrdersPendingCount) elements.purchasesOrdersPendingCount.textContent = `${rows.length} ${rows.length === 1 ? "item pendente" : "itens pendentes"}`;
+    if (!rows.length) {
+        elements.purchaseOrderPendingList.innerHTML = `<article class="purchases-request-empty"><strong>NENHUM ITEM AGUARDANDO PC</strong><span>Aprove uma SC para disponibilizar seus itens nesta etapa.</span></article>`;
+        if (elements.purchaseOrderSubmit) elements.purchaseOrderSubmit.disabled = true;
+        return;
+    }
+    if (elements.purchaseOrderSubmit) elements.purchaseOrderSubmit.disabled = false;
+    elements.purchaseOrderPendingList.innerHTML = rows.map((item) => {
+        const description = item.item_type === "SERVICO" ? item.description_raw : (item.material?.descricao || item.description_raw || "Material não informado");
+        const reference = item.product_code_raw || item.material?.referencia || "Sem referência";
+        const maxQuantity = Number(item.remaining_order_quantity || 0);
+        return `<label class="purchase-order-pending-row"><input class="purchase-order-item-check" type="checkbox" data-purchase-order-item="${Number(item.id)}"><span class="purchase-order-pending-main"><b>${escapeHtml(item.sc_number || "SC")}</b><strong>${escapeHtml(description)}</strong><em>${escapeHtml(reference)} · ${escapeHtml(item.item_type || "ITEM")} · ${escapeHtml(item.module || "COMPRAS")}</em></span><span class="purchase-order-pending-balance"><small>PENDENTE</small><b>${escapeHtml(String(maxQuantity))}</b></span><input class="purchase-order-item-quantity" type="number" min="0.01" step="1" max="${maxQuantity}" value="${maxQuantity}" data-purchase-order-quantity="${Number(item.id)}" aria-label="Quantidade do item ${Number(item.id)}"></label>`;
+    }).join("");
+}
+
+async function loadPurchaseOrdersData() {
+    try {
+        const [pending, orders] = await Promise.all([apiFetch("/compras/pedidos/pendentes"), apiFetch("/compras/pedidos")]);
+        state.purchases.pendingPcItems = Array.isArray(pending) ? pending : [];
+        state.purchases.orders = Array.isArray(orders) ? orders : [];
+        renderPurchaseOrderPending();
+        renderPurchaseOverview();
+    } catch (error) {
+        state.purchases.pendingPcItems = [];
+        renderPurchaseOrderPending();
+        showToast(error.message || "FALHA AO CARREGAR OS PEDIDOS DE COMPRA.", true);
+    }
+}
+
+async function submitPurchaseOrder(event) {
+    event.preventDefault();
+    if (!hasWashReportAccess()) return;
+    const selected = [...(elements.purchaseOrderPendingList?.querySelectorAll(".purchase-order-item-check:checked") || [])];
+    if (!selected.length) { showToast("SELECIONE PELO MENOS UM ITEM PARA O PC.", true); return; }
+    const items = [];
+    for (const checkbox of selected) {
+        const itemId = Number(checkbox.dataset.purchaseOrderItem || 0);
+        const quantityInput = elements.purchaseOrderPendingList.querySelector(`[data-purchase-order-quantity="${itemId}"]`);
+        const quantity = Number(quantityInput?.value || 0);
+        const max = Number(quantityInput?.max || 0);
+        if (!Number.isFinite(quantity) || quantity <= 0 || quantity > max) { showToast("A quantidade do PC deve respeitar o saldo pendente.", true); return; }
+        items.push({ purchase_request_item_id: itemId, quantity_ordered: quantity });
+    }
+    const submit = elements.purchaseOrderSubmit;
+    if (submit) { submit.disabled = true; submit.textContent = "EMITINDO..."; }
+    try {
+        await apiFetch("/compras/pedidos", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+                pc_number: elements.purchaseOrderNumber?.value.trim() || null,
+                pc_date: elements.purchaseOrderDate?.value || null,
+                supplier_raw: elements.purchaseOrderProvider?.value.trim() || null,
+                delivery_due_date: elements.purchaseOrderDeliveryDate?.value || null,
+                total_value: elements.purchaseOrderTotal?.value || null,
+                payment_terms: elements.purchaseOrderPaymentTerms?.value.trim() || null,
+                notes: elements.purchaseOrderNotes?.value.trim() || null,
+                items,
+            }),
+        });
+        elements.purchaseOrderForm?.reset();
+        if (elements.purchaseOrderDate) elements.purchaseOrderDate.value = formatDateInputValue(new Date());
+        await loadPurchasesData();
+        showToast("PC EMITIDO COM SUCESSO.");
+    } catch (error) {
+        showToast(error.message || "FALHA AO EMITIR PC.", true);
+    } finally {
+        if (submit) { submit.disabled = false; submit.textContent = "EMITIR PC SELECIONADO"; }
+        renderPurchaseOrderPending();
+    }
+}
+
 function renderPurchaseOverview() {
     const rows = state.purchases.requests || [];
     const open = rows.filter((row) => !["RECEBIDA", "CANCELADA"].includes(String(row.status || "").toUpperCase()));
-    const awaitingPc = rows.filter((row) => ["SOLICITADA", "AGUARDANDO_PC"].includes(String(row.status || "").toUpperCase()));
+    const pendingPcCount = purchaseOrderPendingRows().length;
+    const awaitingPc = pendingPcCount || rows.filter((row) => ["SOLICITADA", "AGUARDANDO_PC"].includes(String(row.status || "").toUpperCase())).length;
     const awaitingNf = rows.filter((row) => ["EM_TRANSITO", "AGUARDANDO_NF"].includes(String(row.status || "").toUpperCase()));
     if (elements.purchasesOpenCount) elements.purchasesOpenCount.textContent = String(open.length);
-    if (elements.purchasesAwaitingPcCount) elements.purchasesAwaitingPcCount.textContent = String(awaitingPc.length);
+    if (elements.purchasesAwaitingPcCount) elements.purchasesAwaitingPcCount.textContent = String(awaitingPc);
     if (elements.purchasesAwaitingNfCount) elements.purchasesAwaitingNfCount.textContent = String(awaitingNf.length);
     renderPurchaseRequests();
 }
@@ -3391,6 +3491,7 @@ async function loadPurchasesData() {
         const requests = await apiFetch("/compras/solicitacoes");
         state.purchases.requests = requests || [];
         renderPurchaseOverview();
+        await loadPurchaseOrdersData();
     } catch (error) {
         showToast(error.message || "FALHA AO CARREGAR COMPRAS.", true);
     }
@@ -3543,6 +3644,7 @@ async function loadMaterialPurchaseHistory() {
 async function openPurchasesMenu({ focusProviders = false } = {}) {
     if (!hasWashReportAccess()) return;
     if (elements.purchasesRoleBadge) elements.purchasesRoleBadge.textContent = hasAdminAccess() ? "ADMINISTRAÇÃO" : "GESTÃO";
+    if (elements.purchaseOrderDate && !elements.purchaseOrderDate.value) elements.purchaseOrderDate.value = formatDateInputValue(new Date());
     elements.purchasesProviderPanel?.classList.toggle("hidden", !hasAdminAccess());
     setActiveScreen("purchases");
     const loaders = [loadPurchasesData()];
@@ -10142,6 +10244,8 @@ on(elements.purchasesRequestList, "click", (event) => {
     else if (receiveButton) openPurchaseReceiveModal(Number(receiveButton.dataset.purchaseReceive));
 });
 on(elements.purchaseRequestForm, "submit", submitPurchaseRequest);
+on(elements.purchaseOrderForm, "submit", submitPurchaseOrder);
+on(elements.purchasesOrdersRefresh, "click", loadPurchaseOrdersData);
 on(elements.purchaseRequestCancel, "click", closePurchaseRequestModal);
 on(elements.purchaseRequestModal, "click", (event) => { if (event.target instanceof HTMLElement && event.target.dataset.closePurchaseRequest === "true") closePurchaseRequestModal(); });
 on(elements.purchaseDetailClose, "click", closePurchaseDetailModal);

@@ -104,6 +104,8 @@ class PurchaseRequest(db.Model):
 
     def to_dict(self) -> dict:
         item_quantities = [Decimal(item.quantity_requested or 0) for item in self.items]
+        pending_pc_quantity = sum((item.remaining_order_quantity for item in self.items), Decimal("0"))
+        pc_count = len({link.purchase_order_id for item in self.items for link in item.order_links})
         return {
             "id": self.id,
             "code": self.code,
@@ -135,6 +137,8 @@ class PurchaseRequest(db.Model):
             "observation": self.observation,
             "item_count": len(self.items),
             "total_requested_quantity": float(sum(item_quantities, Decimal("0"))) if item_quantities else self.requested_quantity,
+            "pending_pc_quantity": float(pending_pc_quantity) if self.items else self.requested_quantity,
+            "pc_count": pc_count,
             "material": self.material.to_dict() if self.material else None,
             "supplier": self.supplier.to_dict() if self.supplier else None,
             "items": [item.to_dict() for item in self.items],
@@ -203,9 +207,18 @@ class PurchaseRequestItem(db.Model):
         db.CheckConstraint("item_type IN ('MATERIAL', 'SERVICO')", name="ck_purchase_request_item_type"),
     )
 
+    @property
+    def ordered_quantity(self) -> Decimal:
+        return sum((Decimal(link.quantity_ordered or 0) for link in self.order_links), Decimal("0"))
+
+    @property
+    def remaining_order_quantity(self) -> Decimal:
+        return max(Decimal("0"), Decimal(self.quantity_requested or 0) - self.ordered_quantity)
+
     def to_dict(self) -> dict:
         requested = Decimal(self.quantity_requested or 0)
         received = Decimal(self.quantity_received or 0)
+        ordered = self.ordered_quantity
         return {
             "id": self.id,
             "purchase_request_id": self.purchase_request_id,
@@ -222,6 +235,8 @@ class PurchaseRequestItem(db.Model):
             "unit_of_measure": self.unit_of_measure,
             "quantity_received": float(received),
             "remaining_quantity": float(requested - received),
+            "quantity_ordered": float(ordered),
+            "remaining_order_quantity": float(self.remaining_order_quantity),
             "status": self.status,
             "material": self.material.to_dict() if self.material else None,
             "service": self.service_catalog.to_dict() if self.service_catalog else None,
@@ -270,6 +285,7 @@ class PurchaseOrder(db.Model):
             "payment_terms": self.payment_terms,
             "notes": self.notes,
             "status": self.status,
+            "buyer": self.buyer.to_dict() if self.buyer else None,
             "imported": self.imported,
             "supplier": self.supplier.to_dict() if self.supplier else None,
             "items": [item.to_dict() for item in self.items],
