@@ -1,0 +1,41 @@
+name: Guardião do tema Dark
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "web_app/static/css/styles.css"
+      - "tools/check_dark_theme_surfaces.py"
+      - ".github/workflows/dark-theme-guard.yml"
+  pull_request:
+    branches: [main]
+    paths:
+      - "web_app/static/css/styles.css"
+      - "tools/check_dark_theme_surfaces.py"
+      - ".github/workflows/dark-theme-guard.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: dark-theme-guard-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  dark-theme-guard:
+    name: Bloquear superfícies claras no Dark
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Baixar o código
+        uses: actions/checkout@v4
+
+      - name: Preparar Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+
+      - name: Verificar superfícies do tema Dark
+        run: python tools/check_dark_theme_surfaces.py
