@@ -8,7 +8,7 @@ import tempfile
 from flask import Blueprint, g, request
 
 from app.extensions import db
-from app.models import MaintenanceMaterial, Material, PurchaseImportBatch, PurchaseOrder, PurchaseOrderItem, PurchaseProcessEvent, PurchaseReceipt, PurchaseRequest, PurchaseRequestItem, PurchaseServiceCatalog, Supplier, User, Vehicle
+from app.models import InvoicePurchaseOrderLink, MaintenanceMaterial, Material, PurchaseImportBatch, PurchaseInvoice, PurchaseInvoiceItem, PurchaseOrder, PurchaseOrderItem, PurchaseProcessEvent, PurchaseReceipt, PurchaseRequest, PurchaseRequestItem, PurchaseServiceCatalog, Supplier, User, Vehicle
 from app.services.auth_service import auth_required, user_has_management_access
 from app.services.material_service import register_material_movement
 from app.services.purchase_import_service import import_purchase_workbook
@@ -424,6 +424,270 @@ def create_purchase_order():
         return {"purchase_order": order.to_dict(), "purchase_request_ids": list(affected_requests)}
 
     return _run(action, status_code=201)
+
+
+def _invoice_quantities(order_item: PurchaseOrderItem) -> tuple[Decimal, Decimal]:
+    rows = PurchaseInvoiceItem.query.filter_by(purchase_order_item_id=order_item.id).all()
+    invoiced = sum((Decimal(row.quantity_invoiced or 0) for row in rows), Decimal("0"))
+    received = sum((Decimal(row.quantity_received or 0) for row in rows), Decimal("0"))
+    return invoiced, received
+
+
+def _invoice_item_summary(invoice_item: PurchaseInvoiceItem) -> dict:
+    order_item = invoice_item.purchase_order_item
+    request_item = order_item.request_item if order_item else None
+    quantity_invoiced = Decimal(invoice_item.quantity_invoiced or 0)
+    quantity_received = Decimal(invoice_item.quantity_received or 0)
+    return {
+        "id": invoice_item.id,
+        "invoice_id": invoice_item.invoice_id,
+        "purchase_order_item_id": invoice_item.purchase_order_item_id,
+        "purchase_order_id": order_item.purchase_order_id if order_item else None,
+        "pc_number": order_item.purchase_order.pc_number if order_item and order_item.purchase_order else None,
+        "purchase_request_item_id": request_item.id if request_item else None,
+        "sc_number": request_item.purchase_request.sc_number if request_item and request_item.purchase_request else None,
+        "item_type": request_item.item_type if request_item else None,
+        "description_raw": request_item.description_raw if request_item else None,
+        "material": request_item.material.to_dict() if request_item and request_item.material else None,
+        "quantity_ordered": float(order_item.quantity_ordered) if order_item else 0,
+        "quantity_invoiced": float(quantity_invoiced),
+        "remaining_invoice_quantity": float(max(Decimal("0"), Decimal(order_item.quantity_ordered or 0) - quantity_invoiced)) if order_item else 0,
+        "quantity_received": float(quantity_received),
+        "remaining_receipt_quantity": float(max(Decimal("0"), quantity_invoiced - quantity_received)),
+        "status": invoice_item.invoice.status if invoice_item.invoice else None,
+    }
+
+
+def _refresh_request_invoice_status(purchase: PurchaseRequest) -> None:
+    if not purchase.items:
+        return
+    for request_item in purchase.items:
+        ordered = request_item.ordered_quantity
+        requested = Decimal(request_item.quantity_requested or 0)
+        invoiced = sum((_invoice_quantities(order_link)[0] for order_link in request_item.order_links), Decimal("0"))
+        received = Decimal(request_item.quantity_received or 0)
+        if received >= requested:
+            request_item.status = "RECEBIDA"
+        elif received > 0:
+            request_item.status = "PARCIALMENTE_RECEBIDA"
+        elif ordered < requested:
+            request_item.status = "PC_PARCIAL" if ordered > 0 else "AGUARDANDO_PC"
+        elif invoiced < ordered:
+            request_item.status = "AGUARDANDO_NF"
+        else:
+            request_item.status = "AGUARDANDO_RECEBIMENTO"
+    if all(Decimal(item.quantity_received or 0) >= Decimal(item.quantity_requested or 0) for item in purchase.items):
+        purchase.status = "RECEBIDA"
+    elif any(Decimal(item.quantity_received or 0) > 0 for item in purchase.items):
+        purchase.status = "PARCIALMENTE_RECEBIDA"
+    elif all(item.remaining_order_quantity <= 0 for item in purchase.items):
+        purchase.status = "EM_TRANSITO"
+
+
+@bp.get("/compras/notas/pendentes")
+@auth_required
+def list_pending_purchase_invoices():
+    denied = _guard_management()
+    if denied:
+        return denied
+    pending_nf = []
+    orders = PurchaseOrder.query.order_by(PurchaseOrder.created_at.asc()).all()
+    for order in orders:
+        pending_items = []
+        for order_item in order.items:
+            invoiced, received = _invoice_quantities(order_item)
+            remaining = Decimal(order_item.quantity_ordered or 0) - invoiced
+            if remaining > 0:
+                item = order_item.request_item
+                pending_items.append({
+                    "purchase_order_item_id": order_item.id,
+                    "purchase_request_item_id": item.id if item else None,
+                    "item_type": item.item_type if item else None,
+                    "description_raw": item.description_raw if item else None,
+                    "material": item.material.to_dict() if item and item.material else None,
+                    "quantity_ordered": float(order_item.quantity_ordered or 0),
+                    "quantity_invoiced": float(invoiced),
+                    "remaining_invoice_quantity": float(remaining),
+                    "quantity_received": float(received),
+                    "sc_number": item.purchase_request.sc_number if item and item.purchase_request else None,
+                })
+        if pending_items:
+            pending_nf.append({
+                "purchase_order_id": order.id,
+                "pc_number": order.pc_number,
+                "pc_date": order.pc_date.isoformat() if order.pc_date else None,
+                "supplier_id": order.supplier_id,
+                "supplier_raw": order.supplier_raw or (order.supplier.name if order.supplier else None),
+                "total_value": float(order.total_value) if order.total_value is not None else None,
+                "status": order.status,
+                "items": pending_items,
+            })
+    pending_receipts = []
+    invoice_items = PurchaseInvoiceItem.query.order_by(PurchaseInvoiceItem.id.asc()).all()
+    for invoice_item in invoice_items:
+        summary = _invoice_item_summary(invoice_item)
+        if summary["remaining_receipt_quantity"] > 0:
+            invoice = invoice_item.invoice
+            summary.update({
+                "invoice_number": invoice.invoice_number if invoice else None,
+                "invoice_series": invoice.series if invoice else None,
+                "invoice_date": invoice.invoice_date.isoformat() if invoice and invoice.invoice_date else None,
+                "invoice_value": float(invoice.invoice_value) if invoice and invoice.invoice_value is not None else None,
+            })
+            pending_receipts.append(summary)
+    return api_response(True, data={"pending_nf": pending_nf, "pending_receipts": pending_receipts})
+
+
+@bp.post("/compras/notas")
+@auth_required
+def create_purchase_invoice():
+    denied = _guard_management()
+    if denied:
+        return denied
+
+    def action():
+        payload = request.get_json(silent=True) or {}
+        purchase_order_id = _positive_int(payload.get("purchase_order_id"), "PC")
+        order = db.session.get(PurchaseOrder, purchase_order_id)
+        if not order:
+            raise LookupError("Pedido de compra nao encontrado.")
+        invoice_number = _clean(payload.get("invoice_number"))
+        if not invoice_number:
+            raise ValueError("Informe o numero da NF.")
+        series = _clean(payload.get("series"))
+        supplier_id = order.supplier_id
+        supplier = order.supplier
+        duplicate = PurchaseInvoice.query.filter(
+            PurchaseInvoice.invoice_number == invoice_number,
+            PurchaseInvoice.series == series,
+            PurchaseInvoice.supplier_id == supplier_id,
+        ).first()
+        if duplicate:
+            raise ValueError("Ja existe uma NF com este numero, serie e provedor.")
+        raw_items = payload.get("items")
+        if not isinstance(raw_items, list) or not raw_items:
+            raise ValueError("Selecione pelo menos um item do PC para a NF.")
+        selected = []
+        seen = set()
+        for position, raw in enumerate(raw_items, start=1):
+            if not isinstance(raw, dict):
+                raise ValueError(f"Item da NF {position} invalido.")
+            order_item_id = _positive_int(raw.get("purchase_order_item_id"), f"Item da NF {position}")
+            if order_item_id in seen:
+                raise ValueError("Nao repita itens na mesma NF.")
+            seen.add(order_item_id)
+            order_item = db.session.get(PurchaseOrderItem, order_item_id)
+            if not order_item or order_item.purchase_order_id != order.id:
+                raise ValueError(f"Item da NF {position} nao pertence ao PC selecionado.")
+            invoiced, _ = _invoice_quantities(order_item)
+            remaining = Decimal(order_item.quantity_ordered or 0) - invoiced
+            quantity = _positive_decimal(raw.get("quantity_invoiced", raw.get("quantity")), f"Quantidade faturada do item {position}")
+            if quantity > remaining:
+                raise ValueError(f"Quantidade faturada do item {position} excede o saldo do PC.")
+            selected.append((order_item, quantity))
+        invoice = PurchaseInvoice(
+            invoice_number=invoice_number, series=series, access_key=_clean(payload.get("access_key")),
+            supplier_id=supplier_id, supplier_raw=order.supplier_raw or (supplier.name if supplier else None),
+            invoice_date=_parse_date(payload.get("invoice_date")) or date.today(),
+            invoice_value=_parse_money(payload.get("invoice_value")), status="AGUARDANDO_RECEBIMENTO",
+            notes=_clean(payload.get("notes")), file_path=_clean(payload.get("file_path")),
+        )
+        db.session.add(invoice)
+        db.session.flush()
+        db.session.add(InvoicePurchaseOrderLink(invoice_id=invoice.id, purchase_order_id=order.id, linked_value=invoice.invoice_value))
+        affected_requests = {}
+        for order_item, quantity in selected:
+            db.session.add(PurchaseInvoiceItem(invoice_id=invoice.id, purchase_order_item_id=order_item.id, quantity_invoiced=quantity))
+            affected_requests[order_item.request_item.purchase_request.id] = order_item.request_item.purchase_request
+        db.session.flush()
+        order.status = "AGUARDANDO_RECEBIMENTO" if all(_invoice_quantities(item)[0] >= Decimal(item.quantity_ordered or 0) for item in order.items) else "NF_PARCIAL"
+        for purchase in affected_requests.values():
+            _refresh_request_invoice_status(purchase)
+        db.session.add(PurchaseProcessEvent(
+            entity_type="PURCHASE_INVOICE", entity_id=invoice.id, event_type="NF_REGISTRADA",
+            new_status=invoice.status, actor_id=g.current_user.id,
+            event_metadata={"purchase_order_id": order.id, "item_count": len(selected)},
+        ))
+        db.session.commit()
+        return {"invoice": invoice.to_dict(), "purchase_order_id": order.id}
+
+    return _run(action, status_code=201)
+
+
+@bp.post("/compras/notas/<int:invoice_id>/recebimentos")
+@auth_required
+def receive_purchase_invoice_item(invoice_id: int):
+    denied = _guard_management()
+    if denied:
+        return denied
+
+    def action():
+        payload = request.get_json(silent=True) or {}
+        key = _clean(payload.get("idempotency_key"))
+        if not key:
+            raise ValueError("Informe a chave de idempotencia do recebimento.")
+        existing = PurchaseReceipt.query.filter_by(idempotency_key=key).first()
+        if existing:
+            return {"invoice": existing.purchase_invoice.to_dict() if existing.purchase_invoice else None, "receipt": existing.to_dict()}
+        invoice = db.session.get(PurchaseInvoice, invoice_id)
+        if not invoice:
+            raise LookupError("Nota fiscal nao encontrada.")
+        invoice_item_id = _positive_int(payload.get("invoice_item_id"), "Item da NF")
+        invoice_item = db.session.get(PurchaseInvoiceItem, invoice_item_id)
+        if not invoice_item or invoice_item.invoice_id != invoice.id:
+            raise ValueError("Item nao pertence a esta NF.")
+        quantity = _positive_int(payload.get("quantity_received"), "Quantidade recebida")
+        remaining = Decimal(invoice_item.quantity_invoiced or 0) - Decimal(invoice_item.quantity_received or 0)
+        if Decimal(quantity) > remaining:
+            raise ValueError("Quantidade recebida excede o saldo da NF.")
+        order_item = invoice_item.purchase_order_item
+        request_item = order_item.request_item
+        purchase = request_item.purchase_request
+        receipt = PurchaseReceipt(
+            purchase_request_id=purchase.id, quantity=quantity, idempotency_key=key,
+            received_by_user_id=g.current_user.id, notes=_clean(payload.get("notes")),
+            invoice_number=invoice.invoice_number, invoice_series=invoice.series,
+            invoice_date=invoice.invoice_date, invoice_value=invoice.invoice_value,
+            invoice_file_path=invoice.file_path, purchase_invoice_id=invoice.id,
+            purchase_order_item_id=order_item.id,
+        )
+        if request_item.item_type == "MATERIAL":
+            if not request_item.material:
+                raise ValueError("Material do item nao encontrado para entrada no estoque.")
+            register_material_movement(
+                request_item.material, quantity=quantity, movement_type="ENTRADA", delta=quantity,
+                observation=f"Recebimento da NF {invoice.invoice_number} do PC {order_item.purchase_order.pc_number}",
+            )
+        invoice_item.quantity_received += quantity
+        invoice_item.received_at = now_manaus_naive()
+        invoice_item.receiver_id = g.current_user.id
+        request_item.quantity_received += quantity
+        purchase.received_quantity += quantity
+        db.session.add(receipt)
+        db.session.flush()
+        _refresh_request_invoice_status(purchase)
+        invoice.status = "RECEBIDA" if all(Decimal(item.quantity_received or 0) >= Decimal(item.quantity_invoiced or 0) for item in invoice.items) else "RECEBIMENTO_PARCIAL"
+        if invoice.status == "RECEBIDA":
+            invoice.received_at = now_manaus_naive()
+            invoice.received_by_user_id = g.current_user.id
+            invoice.received_by_raw = g.current_user.nome
+        order = order_item.purchase_order
+        order_invoice_items = [
+            invoice_item
+            for order_item in order.items
+            for invoice_item in PurchaseInvoiceItem.query.filter_by(purchase_order_item_id=order_item.id).all()
+        ]
+        if order_invoice_items and all(Decimal(item.quantity_received or 0) >= Decimal(item.quantity_invoiced or 0) for item in order_invoice_items):
+            order.status = "RECEBIDA"
+        db.session.add(PurchaseProcessEvent(
+            entity_type="PURCHASE_INVOICE", entity_id=invoice.id, event_type="RECEBIMENTO_REGISTRADO",
+            new_status=invoice.status, actor_id=g.current_user.id,
+            event_metadata={"invoice_item_id": invoice_item.id, "quantity_received": quantity},
+        ))
+        db.session.commit()
+        return {"invoice": invoice.to_dict(), "receipt": receipt.to_dict(), "purchase_request": purchase.to_dict()}
+
+    return _run(action)
 
 
 @bp.get("/compras/solicitacoes/<int:purchase_id>")

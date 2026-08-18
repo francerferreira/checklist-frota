@@ -313,8 +313,11 @@ const state = {
         requests: [],
         pendingPcItems: [],
         orders: [],
+        pendingInvoices: { pending_nf: [], pending_receipts: [] },
         materialHistory: null,
         selectedRequestId: null,
+        selectedInvoiceId: null,
+        selectedInvoiceItemId: null,
         providers: [],
         editingProviderId: null,
     },
@@ -664,6 +667,31 @@ const elements = {
     purchaseOrderNotes: document.getElementById("purchase-order-notes"),
     purchaseOrderPendingList: document.getElementById("purchase-order-pending-list"),
     purchaseOrderSubmit: document.getElementById("purchase-order-submit"),
+    purchasesInvoicesPendingCount: document.getElementById("purchases-invoices-pending-count"),
+    purchasesReceiptsPendingCount: document.getElementById("purchases-receipts-pending-count"),
+    purchasesInvoicesRefresh: document.getElementById("purchases-invoices-refresh"),
+    purchasesInvoicePendingList: document.getElementById("purchases-invoice-pending-list"),
+    purchasesReceiptPendingList: document.getElementById("purchases-receipt-pending-list"),
+    purchaseInvoiceModal: document.getElementById("purchase-invoice-modal"),
+    purchaseInvoiceForm: document.getElementById("purchase-invoice-form"),
+    purchaseInvoicePcId: document.getElementById("purchase-invoice-pc-id"),
+    purchaseInvoiceNumber: document.getElementById("purchase-invoice-number"),
+    purchaseInvoiceSeries: document.getElementById("purchase-invoice-series"),
+    purchaseInvoiceDate: document.getElementById("purchase-invoice-date"),
+    purchaseInvoiceValue: document.getElementById("purchase-invoice-value"),
+    purchaseInvoiceFile: document.getElementById("purchase-invoice-file"),
+    purchaseInvoiceItems: document.getElementById("purchase-invoice-items"),
+    purchaseInvoiceNotes: document.getElementById("purchase-invoice-notes"),
+    purchaseInvoiceCancel: document.getElementById("purchase-invoice-cancel"),
+    purchaseInvoiceSubmit: document.getElementById("purchase-invoice-submit"),
+    purchaseInvoiceReceiveModal: document.getElementById("purchase-invoice-receive-modal"),
+    purchaseInvoiceReceiveForm: document.getElementById("purchase-invoice-receive-form"),
+    purchaseInvoiceReceiveId: document.getElementById("purchase-invoice-receive-id"),
+    purchaseInvoiceReceiveItemId: document.getElementById("purchase-invoice-receive-item-id"),
+    purchaseInvoiceReceiveQuantity: document.getElementById("purchase-invoice-receive-quantity"),
+    purchaseInvoiceReceiveNotes: document.getElementById("purchase-invoice-receive-notes"),
+    purchaseInvoiceReceiveCancel: document.getElementById("purchase-invoice-receive-cancel"),
+    purchaseInvoiceReceiveHelp: document.getElementById("purchase-invoice-receive-help"),
     purchasesProviderEditor: document.getElementById("purchases-provider-editor"),
     purchasesProviderEditorTitle: document.getElementById("purchases-provider-editor-title"),
     purchasesProviderNew: document.getElementById("purchases-provider-new"),
@@ -3474,12 +3502,162 @@ async function submitPurchaseOrder(event) {
     }
 }
 
+function purchaseInvoicePendingById(id) {
+    return (state.purchases.pendingInvoices?.pending_nf || []).find((row) => Number(row.purchase_order_id) === Number(id));
+}
+
+function purchaseReceiptPendingById(id) {
+    return (state.purchases.pendingInvoices?.pending_receipts || []).find((row) => Number(row.id) === Number(id));
+}
+
+function renderPurchaseInvoiceData() {
+    const pendingNf = state.purchases.pendingInvoices?.pending_nf || [];
+    const pendingReceipts = state.purchases.pendingInvoices?.pending_receipts || [];
+    if (elements.purchasesInvoicesPendingCount) elements.purchasesInvoicesPendingCount.textContent = `${pendingNf.length} ${pendingNf.length === 1 ? "NF pendente" : "NFs pendentes"}`;
+    if (elements.purchasesReceiptsPendingCount) elements.purchasesReceiptsPendingCount.textContent = `${pendingReceipts.length} ${pendingReceipts.length === 1 ? "item para receber" : "itens para receber"}`;
+    if (elements.purchasesInvoicePendingList) {
+        elements.purchasesInvoicePendingList.innerHTML = pendingNf.length ? pendingNf.map((order) => {
+            const totalPending = (order.items || []).reduce((sum, item) => sum + Number(item.remaining_invoice_quantity || 0), 0);
+            return `<article class="purchases-invoice-card"><header><div><span>${escapeHtml(order.pc_number || "PC")}</span><strong>${escapeHtml(order.supplier_raw || "Provedor não informado")}</strong></div><b class="purchases-invoice-balance">${escapeHtml(String(totalPending))} item(ns)</b></header><p>${(order.items || []).length} item(ns) aguardando faturamento.</p><button class="secondary-button" type="button" data-purchase-invoice-open="${Number(order.purchase_order_id)}">REGISTRAR NF</button></article>`;
+        }).join("") : `<article class="purchases-invoice-empty"><strong>NENHUM PC AGUARDANDO NF</strong><span>Quando um PC for emitido, ele aparecerá aqui.</span></article>`;
+    }
+    if (elements.purchasesReceiptPendingList) {
+        elements.purchasesReceiptPendingList.innerHTML = pendingReceipts.length ? pendingReceipts.map((item) => {
+            const description = item.item_type === "SERVICO" ? item.description_raw : (item.material?.descricao || item.description_raw || "Material não informado");
+            return `<article class="purchases-invoice-card"><header><div><span>${escapeHtml(item.invoice_number || "NF")} · ${escapeHtml(item.pc_number || "PC")}</span><strong>${escapeHtml(description)}</strong></div><b class="purchases-invoice-balance">${escapeHtml(String(item.remaining_receipt_quantity || 0))} pendente</b></header><p>${escapeHtml(item.sc_number || "SC")} · Faturado: ${escapeHtml(String(item.quantity_invoiced || 0))} · Recebido: ${escapeHtml(String(item.quantity_received || 0))}</p><button class="primary-button" type="button" data-purchase-invoice-receive="${Number(item.id)}">REGISTRAR ENTRADA</button></article>`;
+        }).join("") : `<article class="purchases-invoice-empty"><strong>NENHUM ITEM AGUARDANDO RECEBIMENTO</strong><span>As entradas por NF aparecerão aqui para conferência.</span></article>`;
+    }
+}
+
+async function loadPurchaseInvoiceData() {
+    try {
+        state.purchases.pendingInvoices = await apiFetch("/compras/notas/pendentes") || { pending_nf: [], pending_receipts: [] };
+        renderPurchaseInvoiceData();
+        renderPurchaseOverview();
+    } catch (error) {
+        state.purchases.pendingInvoices = { pending_nf: [], pending_receipts: [] };
+        renderPurchaseInvoiceData();
+        showToast(error.message || "FALHA AO CARREGAR AS NOTAS FISCAIS.", true);
+    }
+}
+
+function openPurchaseInvoiceModal(purchaseOrder) {
+    if (!hasWashReportAccess() || !purchaseOrder) return;
+    elements.purchaseInvoiceForm?.reset();
+    elements.purchaseInvoicePcId && (elements.purchaseInvoicePcId.value = String(purchaseOrder.purchase_order_id));
+    if (elements.purchaseInvoiceDate) elements.purchaseInvoiceDate.value = formatDateInputValue(new Date());
+    if (elements.purchaseInvoiceHelp) elements.purchaseInvoiceHelp.textContent = `${purchaseOrder.pc_number || "PC"} · ${purchaseOrder.supplier_raw || "Provedor não informado"}`;
+    if (elements.purchaseInvoiceItems) {
+        elements.purchaseInvoiceItems.innerHTML = (purchaseOrder.items || []).map((item) => {
+            const description = item.item_type === "SERVICO" ? item.description_raw : (item.material?.descricao || item.description_raw || "Material não informado");
+            const maxQuantity = Number(item.remaining_invoice_quantity || 0);
+            return `<label class="purchase-invoice-item-row"><input class="purchase-invoice-item-check" type="checkbox" data-purchase-invoice-item="${Number(item.purchase_order_item_id)}"><span><b>${escapeHtml(item.sc_number || "SC")}</b><strong>${escapeHtml(description)}</strong><em>${escapeHtml(item.item_type || "ITEM")} · saldo do PC: ${escapeHtml(String(maxQuantity))}</em></span><input class="purchase-invoice-item-quantity" type="number" min="0.01" step="1" max="${maxQuantity}" value="${maxQuantity}" data-purchase-invoice-quantity="${Number(item.purchase_order_item_id)}" aria-label="Quantidade faturada"></label>`;
+        }).join("");
+    }
+    elements.purchaseInvoiceModal?.classList.remove("hidden");
+    elements.purchaseInvoiceNumber?.focus();
+}
+
+function closePurchaseInvoiceModal() {
+    elements.purchaseInvoiceModal?.classList.add("hidden");
+}
+
+async function submitPurchaseInvoice(event) {
+    event.preventDefault();
+    if (!hasWashReportAccess()) return;
+    const pc = purchaseInvoicePendingById(Number(elements.purchaseInvoicePcId?.value || 0));
+    const selected = [...(elements.purchaseInvoiceItems?.querySelectorAll(".purchase-invoice-item-check:checked") || [])];
+    if (!pc || !selected.length) { showToast("SELECIONE PELO MENOS UM ITEM DA NF.", true); return; }
+    const items = [];
+    for (const checkbox of selected) {
+        const itemId = Number(checkbox.dataset.purchaseInvoiceItem || 0);
+        const quantityInput = elements.purchaseInvoiceItems.querySelector(`[data-purchase-invoice-quantity="${itemId}"]`);
+        const quantity = Number(quantityInput?.value || 0);
+        const max = Number(quantityInput?.max || 0);
+        if (!Number.isFinite(quantity) || quantity <= 0 || quantity > max) { showToast("A quantidade da NF deve respeitar o saldo do PC.", true); return; }
+        items.push({ purchase_order_item_id: itemId, quantity_invoiced: quantity });
+    }
+    const submit = elements.purchaseInvoiceSubmit;
+    if (submit) { submit.disabled = true; submit.textContent = "SALVANDO..."; }
+    try {
+        let filePath = null;
+        const file = elements.purchaseInvoiceFile?.files?.[0];
+        if (file) filePath = await uploadEvidence(file, pc.pc_number || "PC", "NOTA_FISCAL", "nota_fiscal", "COMPRAS");
+        await apiFetch("/compras/notas", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+                purchase_order_id: Number(pc.purchase_order_id),
+                invoice_number: elements.purchaseInvoiceNumber?.value.trim() || null,
+                series: elements.purchaseInvoiceSeries?.value.trim() || null,
+                invoice_date: elements.purchaseInvoiceDate?.value || null,
+                invoice_value: elements.purchaseInvoiceValue?.value || null,
+                file_path: filePath,
+                notes: elements.purchaseInvoiceNotes?.value.trim() || null,
+                items,
+            }),
+        });
+        closePurchaseInvoiceModal();
+        await loadPurchasesData();
+        showToast("NF VINCULADA AO PC COM SUCESSO.");
+    } catch (error) {
+        showToast(error.message || "FALHA AO REGISTRAR A NF.", true);
+    } finally {
+        if (submit) { submit.disabled = false; submit.textContent = "SALVAR NF"; }
+    }
+}
+
+function openPurchaseInvoiceReceiveModal(invoiceItem) {
+    if (!hasWashReportAccess() || !invoiceItem) return;
+    state.purchases.selectedInvoiceId = Number(invoiceItem.invoice_id);
+    state.purchases.selectedInvoiceItemId = Number(invoiceItem.id);
+    if (elements.purchaseInvoiceReceiveId) elements.purchaseInvoiceReceiveId.value = String(invoiceItem.invoice_id);
+    if (elements.purchaseInvoiceReceiveItemId) elements.purchaseInvoiceReceiveItemId.value = String(invoiceItem.id);
+    if (elements.purchaseInvoiceReceiveQuantity) {
+        elements.purchaseInvoiceReceiveQuantity.value = String(Math.max(1, Number(invoiceItem.remaining_receipt_quantity || 0)));
+        elements.purchaseInvoiceReceiveQuantity.max = String(Number(invoiceItem.remaining_receipt_quantity || 0));
+    }
+    if (elements.purchaseInvoiceReceiveNotes) elements.purchaseInvoiceReceiveNotes.value = "";
+    if (elements.purchaseInvoiceReceiveHelp) elements.purchaseInvoiceReceiveHelp.textContent = `${invoiceItem.invoice_number || "NF"} · ${invoiceItem.pc_number || "PC"} · saldo pendente: ${invoiceItem.remaining_receipt_quantity || 0}`;
+    elements.purchaseInvoiceReceiveModal?.classList.remove("hidden");
+    elements.purchaseInvoiceReceiveQuantity?.focus();
+}
+
+function closePurchaseInvoiceReceiveModal() {
+    elements.purchaseInvoiceReceiveModal?.classList.add("hidden");
+}
+
+async function submitPurchaseInvoiceReceive(event) {
+    event.preventDefault();
+    if (!hasWashReportAccess()) return;
+    const invoiceId = Number(elements.purchaseInvoiceReceiveId?.value || 0);
+    const invoiceItemId = Number(elements.purchaseInvoiceReceiveItemId?.value || 0);
+    const quantity = Number(elements.purchaseInvoiceReceiveQuantity?.value || 0);
+    const max = Number(elements.purchaseInvoiceReceiveQuantity?.max || 0);
+    if (!invoiceId || !invoiceItemId || !Number.isInteger(quantity) || quantity <= 0 || quantity > max) { showToast("Informe uma quantidade inteira dentro do saldo da NF.", true); return; }
+    try {
+        await apiFetch(`/compras/notas/${invoiceId}/recebimentos`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ invoice_item_id: invoiceItemId, quantity_received: quantity, idempotency_key: `web-nf-${invoiceId}-${invoiceItemId}-${Date.now()}`, notes: elements.purchaseInvoiceReceiveNotes?.value.trim() || null }),
+        });
+        closePurchaseInvoiceReceiveModal();
+        await loadPurchasesData();
+        showToast("ENTRADA DA NF REGISTRADA.");
+    } catch (error) {
+        showToast(error.message || "FALHA AO REGISTRAR A ENTRADA.", true);
+    }
+}
+
 function renderPurchaseOverview() {
     const rows = state.purchases.requests || [];
     const open = rows.filter((row) => !["RECEBIDA", "CANCELADA"].includes(String(row.status || "").toUpperCase()));
     const pendingPcCount = purchaseOrderPendingRows().length;
     const awaitingPc = pendingPcCount || rows.filter((row) => ["SOLICITADA", "AGUARDANDO_PC"].includes(String(row.status || "").toUpperCase())).length;
-    const awaitingNf = rows.filter((row) => ["EM_TRANSITO", "AGUARDANDO_NF"].includes(String(row.status || "").toUpperCase()));
+    const pendingInvoiceGroups = state.purchases.pendingInvoices?.pending_nf;
+    const awaitingNf = Array.isArray(pendingInvoiceGroups)
+        ? pendingInvoiceGroups
+        : rows.filter((row) => ["EM_TRANSITO", "AGUARDANDO_NF"].includes(String(row.status || "").toUpperCase()));
     if (elements.purchasesOpenCount) elements.purchasesOpenCount.textContent = String(open.length);
     if (elements.purchasesAwaitingPcCount) elements.purchasesAwaitingPcCount.textContent = String(awaitingPc);
     if (elements.purchasesAwaitingNfCount) elements.purchasesAwaitingNfCount.textContent = String(awaitingNf.length);
@@ -3492,6 +3670,7 @@ async function loadPurchasesData() {
         state.purchases.requests = requests || [];
         renderPurchaseOverview();
         await loadPurchaseOrdersData();
+        await loadPurchaseInvoiceData();
     } catch (error) {
         showToast(error.message || "FALHA AO CARREGAR COMPRAS.", true);
     }
@@ -10246,6 +10425,21 @@ on(elements.purchasesRequestList, "click", (event) => {
 on(elements.purchaseRequestForm, "submit", submitPurchaseRequest);
 on(elements.purchaseOrderForm, "submit", submitPurchaseOrder);
 on(elements.purchasesOrdersRefresh, "click", loadPurchaseOrdersData);
+on(elements.purchasesInvoicesRefresh, "click", loadPurchaseInvoiceData);
+on(elements.purchasesInvoicePendingList, "click", (event) => {
+    const button = event.target instanceof HTMLElement ? event.target.closest("[data-purchase-invoice-open]") : null;
+    if (button) openPurchaseInvoiceModal(purchaseInvoicePendingById(Number(button.dataset.purchaseInvoiceOpen)));
+});
+on(elements.purchasesReceiptPendingList, "click", (event) => {
+    const button = event.target instanceof HTMLElement ? event.target.closest("[data-purchase-invoice-receive]") : null;
+    if (button) openPurchaseInvoiceReceiveModal(purchaseReceiptPendingById(Number(button.dataset.purchaseInvoiceReceive)));
+});
+on(elements.purchaseInvoiceForm, "submit", submitPurchaseInvoice);
+on(elements.purchaseInvoiceCancel, "click", closePurchaseInvoiceModal);
+on(elements.purchaseInvoiceModal, "click", (event) => { if (event.target instanceof HTMLElement && event.target.dataset.closePurchaseInvoice === "true") closePurchaseInvoiceModal(); });
+on(elements.purchaseInvoiceReceiveForm, "submit", submitPurchaseInvoiceReceive);
+on(elements.purchaseInvoiceReceiveCancel, "click", closePurchaseInvoiceReceiveModal);
+on(elements.purchaseInvoiceReceiveModal, "click", (event) => { if (event.target instanceof HTMLElement && event.target.dataset.closePurchaseInvoiceReceive === "true") closePurchaseInvoiceReceiveModal(); });
 on(elements.purchaseRequestCancel, "click", closePurchaseRequestModal);
 on(elements.purchaseRequestModal, "click", (event) => { if (event.target instanceof HTMLElement && event.target.dataset.closePurchaseRequest === "true") closePurchaseRequestModal(); });
 on(elements.purchaseDetailClose, "click", closePurchaseDetailModal);

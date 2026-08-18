@@ -135,6 +135,80 @@ class PurchaseRouteTests(unittest.TestCase):
         allowed = self.client.get("/compras/importacoes", headers=self.admin_headers)
         self.assertEqual(allowed.status_code, 200, allowed.get_json())
 
+    def test_purchase_invoice_is_linked_to_pc_and_received_by_item(self):
+        with self.app.app_context():
+            material = Material(referencia="MAT-NF-30001", descricao="Material NF 30001", aplicacao_tipo="ambos", quantidade_estoque=0, estoque_minimo=1)
+            db.session.add(material)
+            db.session.commit()
+            material_id = material.id
+        request = self.client.post(
+            "/compras/solicitacoes",
+            headers=self.gestor_headers,
+            json={"items": [{"item_type": "MATERIAL", "material_id": material_id, "quantity": 5}]},
+        )
+        self.assertEqual(request.status_code, 201, request.get_json())
+        purchase = request.get_json()["data"]
+        approved = self.client.post(f"/compras/solicitacoes/{purchase['id']}/aprovar", headers=self.admin_headers)
+        self.assertEqual(approved.status_code, 200, approved.get_json())
+
+        order = self.client.post(
+            "/compras/pedidos",
+            headers=self.gestor_headers,
+            json={
+                "pc_number": "PC-NF-30001",
+                "supplier_raw": "Provedor NF 30001",
+                "items": [{"purchase_request_item_id": purchase["items"][0]["id"], "quantity_ordered": 5}],
+            },
+        )
+        self.assertEqual(order.status_code, 201, order.get_json())
+        order_item_id = order.get_json()["data"]["purchase_order"]["items"][0]["id"]
+
+        invoice = self.client.post(
+            "/compras/notas",
+            headers=self.gestor_headers,
+            json={
+                "purchase_order_id": order.get_json()["data"]["purchase_order"]["id"],
+                "invoice_number": "NF-30001",
+                "series": "1",
+                "invoice_date": date.today().isoformat(),
+                "invoice_value": "1250.00",
+                "file_path": "/uploads/compras/nf-30001.pdf",
+                "items": [{"purchase_order_item_id": order_item_id, "quantity_invoiced": 5}],
+            },
+        )
+        self.assertEqual(invoice.status_code, 201, invoice.get_json())
+        invoice_data = invoice.get_json()["data"]["invoice"]
+        self.assertEqual(invoice_data["invoice_number"], "NF-30001")
+        self.assertEqual(invoice_data["file_path"], "/uploads/compras/nf-30001.pdf")
+        invoice_item_id = invoice_data["items"][0]["id"]
+
+        pending = self.client.get("/compras/notas/pendentes", headers=self.gestor_headers)
+        self.assertEqual(pending.status_code, 200, pending.get_json())
+        pending_data = pending.get_json()["data"]
+        self.assertFalse(any(row["purchase_order_id"] == invoice_data["purchase_orders"][0]["id"] for row in pending_data["pending_nf"]))
+        self.assertEqual(pending_data["pending_receipts"][0]["invoice_number"], "NF-30001")
+        self.assertEqual(pending_data["pending_receipts"][0]["remaining_receipt_quantity"], 5.0)
+
+        first_receipt = self.client.post(
+            "/compras/notas/{}/recebimentos".format(invoice_data["id"]),
+            headers=self.gestor_headers,
+            json={"invoice_item_id": invoice_item_id, "quantity_received": 3, "idempotency_key": "nf-30001-recv-001"},
+        )
+        self.assertEqual(first_receipt.status_code, 200, first_receipt.get_json())
+        self.assertEqual(first_receipt.get_json()["data"]["invoice"]["status"], "RECEBIMENTO_PARCIAL")
+
+        final_receipt = self.client.post(
+            "/compras/notas/{}/recebimentos".format(invoice_data["id"]),
+            headers=self.gestor_headers,
+            json={"invoice_item_id": invoice_item_id, "quantity_received": 2, "idempotency_key": "nf-30001-recv-002"},
+        )
+        self.assertEqual(final_receipt.status_code, 200, final_receipt.get_json())
+        self.assertEqual(final_receipt.get_json()["data"]["invoice"]["status"], "RECEBIDA")
+        self.assertEqual(final_receipt.get_json()["data"]["purchase_request"]["status"], "RECEBIDA")
+
+        with self.app.app_context():
+            self.assertEqual(db.session.get(Material, material_id).quantidade_estoque, 5)
+
     def test_purchase_request_supports_multiple_material_and_service_items(self):
         response = self.client.post(
             "/compras/solicitacoes",

@@ -14,7 +14,7 @@
     <title>SIS MMP | Sistema de Manutenção de Máquinas Pesadas</title>
     <link rel="icon" type="image/png" sizes="192x192" href="./static/icons/icon-192.png?v=sis-mmp-20260810">
     <link rel="apple-touch-icon" href="./static/icons/icon-192.png?v=sis-mmp-20260810">
-    <link rel="stylesheet" href="./static/css/styles.css?v=20260818-08">
+    <link rel="stylesheet" href="./static/css/styles.css?v=20260818-09">
 </head>
 <body>
     <div class="mobile-shell">
@@ -467,6 +467,16 @@
                         <div id="purchase-order-pending-list" class="purchase-order-pending-list" aria-live="polite"></div>
                         <div class="purchase-order-actions"><button id="purchase-order-submit" class="primary-button" type="submit">EMITIR PC SELECIONADO</button></div>
                     </form>
+                </section>
+                <section class="module-section purchases-invoices-panel">
+                    <div class="module-header purchases-invoices-header">
+                        <div><span>ETAPA 03 DO FLUXO</span><strong>NOTAS FISCAIS E RECEBIMENTO</strong><p class="purchases-help">Vincule a NF ao PC e registre a entrada por item, inclusive quando a entrega for parcial.</p></div>
+                        <div class="purchases-invoices-header-actions"><span id="purchases-invoices-pending-count" class="purchases-request-count">0 NFs pendentes</span><span id="purchases-receipts-pending-count" class="purchases-request-count">0 itens para receber</span><button id="purchases-invoices-refresh" class="secondary-button" type="button">ATUALIZAR</button></div>
+                    </div>
+                    <div class="purchases-invoice-columns">
+                        <section class="purchases-invoice-column"><header><span>PCs AGUARDANDO NF</span><strong>Registrar a nota fiscal</strong></header><div id="purchases-invoice-pending-list" class="purchases-invoice-list" aria-live="polite"></div></section>
+                        <section class="purchases-invoice-column"><header><span>NFs AGUARDANDO RECEBIMENTO</span><strong>Dar entrada por item</strong></header><div id="purchases-receipt-pending-list" class="purchases-invoice-list" aria-live="polite"></div></section>
+                    </div>
                 </section>
                 <section id="purchases-provider-panel" class="module-section purchases-provider-panel hidden">
                     <div class="purchases-provider-heading">
@@ -1504,9 +1514,40 @@
         </div>
     </div>
 
+    <div id="purchase-invoice-modal" class="app-modal hidden" role="dialog" aria-modal="true" aria-labelledby="purchase-invoice-title">
+        <div class="app-modal-backdrop" data-close-purchase-invoice="true"></div>
+        <div class="app-modal-card purchase-invoice-modal-card" role="document">
+            <div class="app-modal-header"><h3 id="purchase-invoice-title">Registrar nota fiscal</h3><p id="purchase-invoice-help">A NF ficará vinculada ao PC e aos itens selecionados.</p></div>
+            <form id="purchase-invoice-form" class="purchase-invoice-form">
+                <input id="purchase-invoice-pc-id" type="hidden">
+                <label class="modal-field"><span>NÚMERO DA NF *</span><input id="purchase-invoice-number" maxlength="80" required placeholder="Ex.: 123456"></label>
+                <label class="modal-field"><span>SÉRIE</span><input id="purchase-invoice-series" maxlength="30" placeholder="Ex.: 1"></label>
+                <label class="modal-field"><span>DATA DA NF</span><input id="purchase-invoice-date" type="date"></label>
+                <label class="modal-field"><span>VALOR DA NF</span><input id="purchase-invoice-value" type="number" min="0" step="0.01" placeholder="0,00"></label>
+                <label class="modal-field purchase-request-field-wide"><span>NOTA FISCAL (PDF OU IMAGEM)</span><input id="purchase-invoice-file" type="file" accept=".pdf,image/*"><small>O arquivo será guardado como evidência da compra.</small></label>
+                <section class="purchase-invoice-items-section purchase-request-field-wide"><header><div><span>ITENS DO PC</span><strong>Selecione o que foi faturado nesta NF</strong></div></header><div id="purchase-invoice-items" class="purchase-invoice-items"></div></section>
+                <label class="modal-field purchase-request-field-wide"><span>OBSERVAÇÃO</span><textarea id="purchase-invoice-notes" rows="3" maxlength="1000" placeholder="Divergência, prazo ou observação da NF"></textarea></label>
+                <div class="password-change-actions purchase-request-field-wide"><button id="purchase-invoice-cancel" class="icon-button" type="button">CANCELAR</button><button id="purchase-invoice-submit" class="primary-button" type="submit">SALVAR NF</button></div>
+            </form>
+        </div>
+    </div>
+
+    <div id="purchase-invoice-receive-modal" class="app-modal hidden" role="dialog" aria-modal="true" aria-labelledby="purchase-invoice-receive-title">
+        <div class="app-modal-backdrop" data-close-purchase-invoice-receive="true"></div>
+        <div class="app-modal-card purchase-invoice-receive-modal-card" role="document">
+            <div class="app-modal-header"><h3 id="purchase-invoice-receive-title">Receber item da NF</h3><p id="purchase-invoice-receive-help">Informe quanto entrou nesta entrega.</p></div>
+            <form id="purchase-invoice-receive-form" class="purchase-invoice-receive-form">
+                <input id="purchase-invoice-receive-id" type="hidden"><input id="purchase-invoice-receive-item-id" type="hidden">
+                <label class="modal-field"><span>QUANTIDADE RECEBIDA *</span><input id="purchase-invoice-receive-quantity" type="number" min="1" step="1" required></label>
+                <label class="modal-field purchase-request-field-wide"><span>OBSERVAÇÃO</span><textarea id="purchase-invoice-receive-notes" rows="3" maxlength="500" placeholder="Ex.: recebimento parcial, avaria ou conferência"></textarea></label>
+                <div class="password-change-actions purchase-request-field-wide"><button id="purchase-invoice-receive-cancel" class="icon-button" type="button">CANCELAR</button><button class="primary-button" type="submit">CONFIRMAR ENTRADA</button></div>
+            </form>
+        </div>
+    </div>
+
     <div id="toast" class="toast hidden"></div>
     <script src="./static/js/config.js?v=20260719-01"></script>
-    <script src="./static/js/app.js?v=20260818-07"></script>
+    <script src="./static/js/app.js?v=20260818-08"></script>
 </body>
 </html>
 

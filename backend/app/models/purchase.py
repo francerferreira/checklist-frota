@@ -289,7 +289,15 @@ class PurchaseOrder(db.Model):
             "imported": self.imported,
             "supplier": self.supplier.to_dict() if self.supplier else None,
             "items": [item.to_dict() for item in self.items],
-            "invoices": [link.invoice.to_dict() for link in self.invoice_links if link.invoice],
+            "invoices": [
+                {
+                    "id": link.invoice.id,
+                    "invoice_number": link.invoice.invoice_number,
+                    "series": link.invoice.series,
+                    "status": link.invoice.status,
+                }
+                for link in self.invoice_links if link.invoice
+            ],
         }
 
 
@@ -340,6 +348,7 @@ class PurchaseInvoice(db.Model):
     received_by_user_id = db.Column(db.Integer, db.ForeignKey("users.id"), nullable=True, index=True)
     received_by_raw = db.Column(db.String(180), nullable=True)
     notes = db.Column(db.Text, nullable=True)
+    file_path = db.Column(db.String(500), nullable=True)
     imported = db.Column(db.Boolean, nullable=False, default=False, index=True)
     import_batch_id = db.Column(db.Integer, db.ForeignKey("purchase_import_batches.id"), nullable=True, index=True)
     created_at = db.Column(db.DateTime, nullable=False, default=now_manaus_naive)
@@ -363,9 +372,18 @@ class PurchaseInvoice(db.Model):
             "status": self.status,
             "received_at": self.received_at.isoformat() if self.received_at else None,
             "received_by_raw": self.received_by_raw,
+            "file_path": self.file_path,
             "imported": self.imported,
             "supplier": self.supplier.to_dict() if self.supplier else None,
-            "purchase_orders": [link.purchase_order.to_dict() for link in self.purchase_order_links if link.purchase_order],
+            "purchase_orders": [
+                {
+                    "id": link.purchase_order.id,
+                    "pc_number": link.purchase_order.pc_number,
+                    "status": link.purchase_order.status,
+                    "supplier_raw": link.purchase_order.supplier_raw,
+                }
+                for link in self.purchase_order_links if link.purchase_order
+            ],
             "items": [item.to_dict() for item in self.items],
         }
 
@@ -485,9 +503,13 @@ class PurchaseReceipt(db.Model):
     invoice_date = db.Column(db.Date, nullable=True)
     invoice_value = db.Column(db.Numeric(18, 2), nullable=True)
     invoice_file_path = db.Column(db.String(500), nullable=True)
+    purchase_invoice_id = db.Column(db.Integer, db.ForeignKey("purchase_invoices.id"), nullable=True, index=True)
+    purchase_order_item_id = db.Column(db.Integer, db.ForeignKey("purchase_order_items.id"), nullable=True, index=True)
 
     purchase_request = db.relationship("PurchaseRequest", back_populates="receipts", lazy="joined")
     received_by = db.relationship("User", lazy="joined")
+    purchase_invoice = db.relationship("PurchaseInvoice", lazy="joined")
+    purchase_order_item = db.relationship("PurchaseOrderItem", lazy="joined")
 
     __table_args__ = (db.CheckConstraint("quantity > 0", name="ck_purchase_receipt_quantity"),)
 
@@ -504,4 +526,6 @@ class PurchaseReceipt(db.Model):
             "invoice_date": self.invoice_date.isoformat() if self.invoice_date else None,
             "invoice_value": float(self.invoice_value) if self.invoice_value is not None else None,
             "invoice_file_path": self.invoice_file_path,
+            "purchase_invoice_id": self.purchase_invoice_id,
+            "purchase_order_item_id": self.purchase_order_item_id,
         }
