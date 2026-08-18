@@ -3,6 +3,8 @@ from __future__ import annotations
 import unittest
 from pathlib import Path
 
+from tools.check_dark_theme_surfaces import find_light_dark_backgrounds
+
 
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
 INDEX_HTML_PATH = PROJECT_ROOT / "web_app" / "index.html"
@@ -152,6 +154,18 @@ class WebMobileShellContractTests(unittest.TestCase):
                 self.assertIn(selector, styles)
         self.assertIn('background: var(--theme-surface) !important;', styles)
         self.assertIn('background: var(--theme-hover) !important;', styles)
+
+    def test_dark_theme_checker_blocks_new_light_backgrounds(self):
+        styles = (PROJECT_ROOT / "web_app" / "static" / "css" / "styles.css").read_text(encoding="utf-8")
+        self.assertEqual(find_light_dark_backgrounds(styles), [])
+        self.assertEqual(
+            len(find_light_dark_backgrounds('body[data-theme="dark"] .new-card { background: #fff; }')),
+            1,
+        )
+        self.assertEqual(
+            len(find_light_dark_backgrounds('body[data-theme="dark"] .new-card { background: rgb(255, 255, 255); }')),
+            1,
+        )
 
     def test_frontend_expires_session_after_inactivity(self):
         app_js = (PROJECT_ROOT / "web_app" / "static" / "js" / "app.js").read_text(encoding="utf-8")
