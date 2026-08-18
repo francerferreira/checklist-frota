@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from datetime import date
+from decimal import Decimal, InvalidOperation
 import os
 import tempfile
 
@@ -49,6 +50,18 @@ def _parse_date(value) -> date | None:
         return date.fromisoformat(str(value))
     except (TypeError, ValueError) as exc:
         raise ValueError("Data prevista invalida.") from exc
+
+
+def _parse_money(value) -> Decimal | None:
+    if value in (None, ""):
+        return None
+    try:
+        amount = Decimal(str(value).replace(",", ".")).quantize(Decimal("0.01"))
+    except (InvalidOperation, ValueError) as exc:
+        raise ValueError("Valor da nota fiscal invalido.") from exc
+    if amount < 0:
+        raise ValueError("Valor da nota fiscal nao pode ser negativo.")
+    return amount
 
 
 def _guard_management():
@@ -276,9 +289,17 @@ def receive_purchase_request(purchase_id: int):
         quantity = _positive_int(payload.get("quantity"), "Quantidade recebida")
         if quantity > purchase.requested_quantity - purchase.received_quantity:
             raise ValueError("Quantidade recebida excede o saldo da solicitacao.")
+        invoice_number = _clean(payload.get("invoice_number"))
+        invoice_series = _clean(payload.get("invoice_series"))
+        invoice_date = _parse_date(payload.get("invoice_date"))
+        invoice_value = _parse_money(payload.get("invoice_value"))
+        invoice_file_path = _clean(payload.get("invoice_file_path"))
         receipt = PurchaseReceipt(
             purchase_request_id=purchase.id, quantity=quantity, idempotency_key=key,
             received_by_user_id=g.current_user.id, notes=_clean(payload.get("notes")),
+            invoice_number=invoice_number, invoice_series=invoice_series,
+            invoice_date=invoice_date, invoice_value=invoice_value,
+            invoice_file_path=invoice_file_path,
         )
         register_material_movement(
             purchase.material, quantity=quantity, movement_type="ENTRADA", delta=quantity,

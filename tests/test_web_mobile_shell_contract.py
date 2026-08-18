@@ -23,8 +23,8 @@ class WebMobileShellContractTests(unittest.TestCase):
         cls.legacy_readme = LEGACY_README_PATH.read_text(encoding="utf-8")
 
     def test_index_uses_canonical_frontend_bundle(self):
-        self.assertIn('./static/js/app.js?v=20260818-06', self.index_html)
-        self.assertIn('./static/css/styles.css?v=20260818-07', self.index_html)
+        self.assertIn('./static/js/app.js?v=20260818-07', self.index_html)
+        self.assertIn('./static/css/styles.css?v=20260818-08', self.index_html)
         self.assertNotIn("app-20260419-", self.index_html)
 
     def test_login_uses_institutional_glass_layout_with_sis_mmp_identity(self):
@@ -402,6 +402,17 @@ class WebMobileShellContractTests(unittest.TestCase):
         for fragment in [".purchase-receipt-history", ".purchase-receipt-history-item"]:
             with self.subTest(style=fragment):
                 self.assertIn(fragment, styles)
+
+    def test_purchase_receipt_invoice_metadata_is_structured(self):
+        model = (PROJECT_ROOT / "backend" / "app" / "models" / "purchase.py").read_text(encoding="utf-8")
+        route = (PROJECT_ROOT / "backend" / "app" / "routes" / "purchases.py").read_text(encoding="utf-8")
+        migration = (PROJECT_ROOT / "migrations" / "versions" / "20260818_0019_purchase_receipt_invoice_fields.py").read_text(encoding="utf-8")
+        for fragment in ["invoice_number", "invoice_series", "invoice_date", "invoice_value", "invoice_file_path"]:
+            with self.subTest(field=fragment):
+                self.assertIn(fragment, model)
+                self.assertIn(fragment, route)
+                self.assertIn(fragment, migration)
+        self.assertIn("_parse_money", route)
 
     def test_maintenance_operational_dashboard_has_table_cards_and_semantic_statuses(self):
         app_js = (PROJECT_ROOT / "web_app" / "static" / "js" / "app.js").read_text(encoding="utf-8")

@@ -14,7 +14,7 @@
     <title>SIS MMP | Sistema de Manutenção de Máquinas Pesadas</title>
     <link rel="icon" type="image/png" sizes="192x192" href="./static/icons/icon-192.png?v=sis-mmp-20260810">
     <link rel="apple-touch-icon" href="./static/icons/icon-192.png?v=sis-mmp-20260810">
-    <link rel="stylesheet" href="./static/css/styles.css?v=20260818-07">
+    <link rel="stylesheet" href="./static/css/styles.css?v=20260818-08">
 </head>
 <body>
     <div class="mobile-shell">
@@ -1463,6 +1463,10 @@
             <form id="purchase-receive-form" class="purchase-receive-form">
                 <input id="purchase-receive-id" type="hidden">
                 <label class="modal-field"><span>QUANTIDADE RECEBIDA *</span><input id="purchase-receive-quantity" type="number" min="1" step="1" required></label>
+                <label class="modal-field"><span>NÚMERO DA NF</span><input id="purchase-receive-invoice-number" maxlength="80" placeholder="Ex.: 123456"></label>
+                <label class="modal-field"><span>SÉRIE</span><input id="purchase-receive-invoice-series" maxlength="30" placeholder="Ex.: 1"></label>
+                <label class="modal-field"><span>DATA DA NF</span><input id="purchase-receive-invoice-date" type="date"></label>
+                <label class="modal-field"><span>VALOR DA NF</span><input id="purchase-receive-invoice-value" type="number" min="0" step="0.01" placeholder="0,00"></label>
                 <label class="modal-field purchase-request-field-wide"><span>NOTA FISCAL (PDF OU IMAGEM)</span><input id="purchase-receive-invoice" type="file" accept=".pdf,image/*"><small>O arquivo ficará vinculado a este recebimento.</small></label>
                 <label class="modal-field purchase-request-field-wide"><span>OBSERVAÇÃO</span><textarea id="purchase-receive-notes" rows="3" maxlength="500"></textarea></label>
                 <div class="password-change-actions purchase-request-field-wide"><button id="purchase-receive-cancel" class="icon-button" type="button">CANCELAR</button><button class="primary-button" type="submit">CONFIRMAR RECEBIMENTO</button></div>
@@ -1472,7 +1476,7 @@
 
     <div id="toast" class="toast hidden"></div>
     <script src="./static/js/config.js?v=20260719-01"></script>
-    <script src="./static/js/app.js?v=20260818-06"></script>
+    <script src="./static/js/app.js?v=20260818-07"></script>
 </body>
 </html>
 

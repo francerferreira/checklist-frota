@@ -97,7 +97,15 @@ class PurchaseRouteTests(unittest.TestCase):
         final_receipt = self.client.post(
             f"/compras/solicitacoes/{purchase['id']}/recebimentos",
             headers=self.gestor_headers,
-            json={"quantity": 3, "idempotency_key": "rcv-purchase-002"},
+            json={
+                "quantity": 3,
+                "idempotency_key": "rcv-purchase-002",
+                "invoice_number": "NF-2026-002",
+                "invoice_series": "3",
+                "invoice_date": date.today().isoformat(),
+                "invoice_value": "18450.75",
+                "invoice_file_path": "/uploads/compras/nf-2026-002.pdf",
+            },
         )
         self.assertEqual(final_receipt.status_code, 200, final_receipt.get_json())
         self.assertEqual(final_receipt.get_json()["data"]["status"], "RECEBIDA")
@@ -106,6 +114,11 @@ class PurchaseRouteTests(unittest.TestCase):
         detail_data = detail.get_json()["data"]
         self.assertEqual(detail_data["remaining_quantity"], 0)
         self.assertEqual(len(detail_data["receipts"]), 2)
+        invoice = next(receipt for receipt in detail_data["receipts"] if receipt["invoice_number"])
+        self.assertEqual(invoice["invoice_number"], "NF-2026-002")
+        self.assertEqual(invoice["invoice_series"], "3")
+        self.assertEqual(invoice["invoice_value"], 18450.75)
+        self.assertEqual(invoice["invoice_file_path"], "/uploads/compras/nf-2026-002.pdf")
         self.assertEqual(detail_data["created_by"]["login"], "gestor_compras")
         with self.app.app_context():
             self.assertEqual(db.session.get(Material, self.material_id).quantidade_estoque, 5)

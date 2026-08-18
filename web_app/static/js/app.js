@@ -634,6 +634,10 @@ const elements = {
     purchaseReceiveForm: document.getElementById("purchase-receive-form"),
     purchaseReceiveId: document.getElementById("purchase-receive-id"),
     purchaseReceiveQuantity: document.getElementById("purchase-receive-quantity"),
+    purchaseReceiveInvoiceNumber: document.getElementById("purchase-receive-invoice-number"),
+    purchaseReceiveInvoiceSeries: document.getElementById("purchase-receive-invoice-series"),
+    purchaseReceiveInvoiceDate: document.getElementById("purchase-receive-invoice-date"),
+    purchaseReceiveInvoiceValue: document.getElementById("purchase-receive-invoice-value"),
     purchaseReceiveInvoice: document.getElementById("purchase-receive-invoice"),
     purchaseReceiveNotes: document.getElementById("purchase-receive-notes"),
     purchaseReceiveCancel: document.getElementById("purchase-receive-cancel"),
@@ -3185,7 +3189,8 @@ function renderPurchaseDetail(row) {
     const receiptHistory = receipts.length ? receipts.map((receipt) => {
         const invoiceMatch = String(receipt.notes || "").match(/NOTA_FISCAL:\s*(\/\S+)/i);
         const note = String(receipt.notes || "").replace(/NOTA_FISCAL:\s*\/\S+/i, "").trim();
-        return `<article class="purchase-receipt-history-item"><div><strong>${escapeHtml(formatManausDateTime(receipt.received_at, { short: true }) || "Recebimento")}</strong><span>${escapeHtml(String(receipt.quantity || 0))} unidade(s)${receipt.received_by?.nome ? ` · ${escapeHtml(receipt.received_by.nome)}` : ""}</span></div>${note ? `<p>${escapeHtml(note)}</p>` : ""}${invoiceMatch ? `<button class="secondary-button" type="button" data-purchase-file="${escapeHtml(invoiceMatch[1])}">ABRIR NOTA FISCAL</button>` : ""}</article>`;
+        const invoiceMeta = receipt.invoice_number ? `NF ${receipt.invoice_number}${receipt.invoice_series ? ` · Série ${receipt.invoice_series}` : ""}${receipt.invoice_date ? ` · ${formatManausDateTime(receipt.invoice_date, { short: true })}` : ""}${receipt.invoice_value !== null && receipt.invoice_value !== undefined ? ` · ${formatCurrency(receipt.invoice_value)}` : ""}` : "";
+        return `<article class="purchase-receipt-history-item"><div><strong>${escapeHtml(formatManausDateTime(receipt.received_at, { short: true }) || "Recebimento")}</strong><span>${escapeHtml(String(receipt.quantity || 0))} unidade(s)${receipt.received_by?.nome ? ` · ${escapeHtml(receipt.received_by.nome)}` : ""}</span>${invoiceMeta ? `<em>${escapeHtml(invoiceMeta)}</em>` : ""}</div>${note ? `<p>${escapeHtml(note)}</p>` : ""}${invoiceMatch || receipt.invoice_file_path ? `<button class="secondary-button" type="button" data-purchase-file="${escapeHtml(receipt.invoice_file_path || invoiceMatch[1])}">ABRIR NOTA FISCAL</button>` : ""}</article>`;
     }).join("") : `<div class="purchase-receipt-history-empty">Nenhum recebimento registrado até o momento.</div>`;
     elements.purchaseDetailContent.innerHTML = `<div class="purchase-detail-grid"><span><small>MATERIAL</small><b>${escapeHtml(material.descricao || "Material não informado")}</b></span><span><small>STATUS</small><b class="purchases-request-status status-${status.toLowerCase()}">${escapeHtml(PURCHASE_STATUS_LABELS[status] || status)}</b></span><span><small>QUANTIDADE</small><b>${escapeHtml(String(row.requested_quantity ?? "-"))} solicitada(s)</b></span><span><small>RECEBIDO</small><b>${escapeHtml(String(row.received_quantity ?? 0))} | ${escapeHtml(String(remaining))} restante(s)</b></span><span><small>PRIORIDADE</small><b>${escapeHtml(row.priority || "MEDIA")}</b></span><span><small>PROVEDOR</small><b>${escapeHtml(row.supplier?.name || "Ainda não definido")}</b></span></div><p class="purchase-detail-observation">${escapeHtml(row.justification || row.observation || "Sem observação registrada.")}</p><section class="purchase-receipt-history"><header><div><span>RASTREABILIDADE</span><strong>HISTÓRICO DE RECEBIMENTOS</strong></div><em>${receipts.length} registro(s)</em></header><div class="purchase-receipt-history-list">${receiptHistory}</div></section>`;
     elements.purchaseDetailApprove?.classList.toggle("hidden", !(hasAdminAccess() && String(row.status || "").toUpperCase() === "SOLICITADA"));
@@ -3247,6 +3252,10 @@ function openPurchaseReceiveModal(id) {
     elements.purchaseReceiveId.value = String(id);
     elements.purchaseReceiveQuantity.value = String(Math.max(1, remaining));
     elements.purchaseReceiveQuantity.max = String(remaining);
+    elements.purchaseReceiveInvoiceNumber.value = "";
+    elements.purchaseReceiveInvoiceSeries.value = "";
+    elements.purchaseReceiveInvoiceDate.value = "";
+    elements.purchaseReceiveInvoiceValue.value = "";
     elements.purchaseReceiveNotes.value = "";
     if (elements.purchaseReceiveInvoice) elements.purchaseReceiveInvoice.value = "";
     elements.purchaseReceiveHelp.textContent = `${row.sc_number || row.code || "SC"} — saldo disponível: ${remaining}.`;
@@ -3270,11 +3279,21 @@ async function submitPurchaseReceive(event) {
         const row = purchaseRequestById(id);
         const invoice = elements.purchaseReceiveInvoice?.files?.[0];
         let notes = elements.purchaseReceiveNotes?.value.trim() || "";
+        let invoicePath = null;
         if (invoice) {
-            const invoicePath = await uploadEvidence(invoice, row?.sc_number || row?.code || `SC-${id}`, "NOTA_FISCAL", "nota_fiscal", "COMPRAS");
+            invoicePath = await uploadEvidence(invoice, row?.sc_number || row?.code || `SC-${id}`, "NOTA_FISCAL", "nota_fiscal", "COMPRAS");
             notes = `${notes}${notes ? "\n" : ""}NOTA_FISCAL: ${invoicePath}`;
         }
-        await apiFetch(`/compras/solicitacoes/${id}/recebimentos`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ quantity, notes: notes || null, idempotency_key: `web-${id}-${Date.now()}` }) });
+        await apiFetch(`/compras/solicitacoes/${id}/recebimentos`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({
+            quantity,
+            notes: notes || null,
+            idempotency_key: `web-${id}-${Date.now()}`,
+            invoice_number: elements.purchaseReceiveInvoiceNumber?.value.trim() || null,
+            invoice_series: elements.purchaseReceiveInvoiceSeries?.value.trim() || null,
+            invoice_date: elements.purchaseReceiveInvoiceDate?.value || null,
+            invoice_value: elements.purchaseReceiveInvoiceValue?.value || null,
+            invoice_file_path: invoicePath || null,
+        }) });
         closePurchaseReceiveModal();
         closePurchaseDetailModal();
         await loadPurchasesData();

@@ -461,6 +461,11 @@ class PurchaseReceipt(db.Model):
     received_at = db.Column(db.DateTime, nullable=False, default=now_manaus_naive)
     received_by_user_id = db.Column(db.Integer, db.ForeignKey("users.id"), nullable=False, index=True)
     notes = db.Column(db.Text, nullable=True)
+    invoice_number = db.Column(db.String(80), nullable=True, index=True)
+    invoice_series = db.Column(db.String(30), nullable=True)
+    invoice_date = db.Column(db.Date, nullable=True)
+    invoice_value = db.Column(db.Numeric(18, 2), nullable=True)
+    invoice_file_path = db.Column(db.String(500), nullable=True)
 
     purchase_request = db.relationship("PurchaseRequest", back_populates="receipts", lazy="joined")
     received_by = db.relationship("User", lazy="joined")
@@ -475,4 +480,9 @@ class PurchaseReceipt(db.Model):
             "idempotency_key": self.idempotency_key,
             "received_at": self.received_at.isoformat() if self.received_at else None,
             "notes": self.notes,
+            "invoice_number": self.invoice_number,
+            "invoice_series": self.invoice_series,
+            "invoice_date": self.invoice_date.isoformat() if self.invoice_date else None,
+            "invoice_value": float(self.invoice_value) if self.invoice_value is not None else None,
+            "invoice_file_path": self.invoice_file_path,
         }
