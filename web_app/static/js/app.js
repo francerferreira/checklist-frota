@@ -3055,6 +3055,11 @@ function purchaseRequestPriorityRank(priority) {
     return { CRITICA: 0, ALTA: 1, MEDIA: 2, BAIXA: 3 }[String(priority || "MEDIA").toUpperCase()] ?? 4;
 }
 
+function purchaseRequestSupportsCurrentReceiving(row) {
+    const items = Array.isArray(row?.items) ? row.items : [];
+    return !items.length || (items.length === 1 && String(items[0]?.item_type || "").toUpperCase() === "MATERIAL");
+}
+
 function renderPurchaseRequests() {
     if (!elements.purchasesRequestList) return;
     const rows = Array.isArray(state.purchases.requests) ? state.purchases.requests : [];
@@ -3108,7 +3113,7 @@ function renderPurchaseRequests() {
         const quantity = row?.requested_quantity ?? firstItem?.quantity_requested ?? "-";
         const expectedDate = row?.expected_date ? formatManausDateTime(row.expected_date, { short: true }) : "Sem previsão";
         const canApprove = hasAdminAccess() && String(row?.status || "").toUpperCase() === "SOLICITADA";
-        const canReceive = hasWashReportAccess() && ["APROVADA", "EM_TRANSITO", "PARCIALMENTE_RECEBIDA"].includes(String(row?.status || "").toUpperCase());
+        const canReceive = hasWashReportAccess() && purchaseRequestSupportsCurrentReceiving(row) && ["APROVADA", "EM_TRANSITO", "PARCIALMENTE_RECEBIDA"].includes(String(row?.status || "").toUpperCase());
         return `<article class="purchases-request-card">
             <header><div><span class="purchases-request-code">${escapeHtml(row?.sc_number || row?.code || "SC")}</span><strong>${escapeHtml(materialName)}</strong><em>${escapeHtml(materialReference)}</em></div><b class="purchases-request-status status-${status.toLowerCase()}">${escapeHtml(statusLabel)}</b></header>
             <div class="purchases-request-details"><span><small>MÓDULO</small>${escapeHtml(row?.module || "COMPRAS")}</span><span><small>QUANTIDADE</small>${escapeHtml(String(quantity))}</span><span><small>PRIORIDADE</small><b class="purchases-request-priority priority-${priority.toLowerCase()}">${escapeHtml(priority)}</b></span><span><small>PREVISÃO</small>${escapeHtml(expectedDate)}</span></div>
@@ -3263,7 +3268,7 @@ function renderPurchaseDetail(row) {
     }).join("") : `<div class="purchase-receipt-history-empty">Nenhum recebimento registrado até o momento.</div>`;
     elements.purchaseDetailContent.innerHTML = `<div class="purchase-detail-grid"><span><small>MATERIAL</small><b>${escapeHtml(material.descricao || "Material não informado")}</b></span><span><small>STATUS</small><b class="purchases-request-status status-${status.toLowerCase()}">${escapeHtml(PURCHASE_STATUS_LABELS[status] || status)}</b></span><span><small>QUANTIDADE</small><b>${escapeHtml(String(row.requested_quantity ?? "-"))} solicitada(s)</b></span><span><small>RECEBIDO</small><b>${escapeHtml(String(row.received_quantity ?? 0))} | ${escapeHtml(String(remaining))} restante(s)</b></span><span><small>PRIORIDADE</small><b>${escapeHtml(row.priority || "MEDIA")}</b></span><span><small>PROVEDOR</small><b>${escapeHtml(row.supplier?.name || "Ainda não definido")}</b></span></div><p class="purchase-detail-observation">${escapeHtml(row.justification || row.observation || "Sem observação registrada.")}</p><section class="purchase-receipt-history"><header><div><span>RASTREABILIDADE</span><strong>HISTÓRICO DE RECEBIMENTOS</strong></div><em>${receipts.length} registro(s)</em></header><div class="purchase-receipt-history-list">${receiptHistory}</div></section>`;
     elements.purchaseDetailApprove?.classList.toggle("hidden", !(hasAdminAccess() && String(row.status || "").toUpperCase() === "SOLICITADA"));
-    elements.purchaseDetailReceive?.classList.toggle("hidden", !(hasWashReportAccess() && ["APROVADA", "EM_TRANSITO", "PARCIALMENTE_RECEBIDA"].includes(String(row.status || "").toUpperCase()) && remaining > 0));
+    elements.purchaseDetailReceive?.classList.toggle("hidden", !(hasWashReportAccess() && purchaseRequestSupportsCurrentReceiving(row) && ["APROVADA", "EM_TRANSITO", "PARCIALMENTE_RECEBIDA"].includes(String(row.status || "").toUpperCase()) && remaining > 0));
 }
 
 async function openProtectedPurchaseFile(path) {
