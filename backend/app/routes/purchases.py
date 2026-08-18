@@ -8,7 +8,7 @@ import tempfile
 from flask import Blueprint, g, request
 
 from app.extensions import db
-from app.models import MaintenanceMaterial, Material, PurchaseImportBatch, PurchaseReceipt, PurchaseRequest, PurchaseRequestItem, Supplier
+from app.models import MaintenanceMaterial, Material, PurchaseImportBatch, PurchaseReceipt, PurchaseRequest, PurchaseRequestItem, PurchaseServiceCatalog, Supplier, User, Vehicle
 from app.services.auth_service import auth_required, user_has_management_access
 from app.services.material_service import register_material_movement
 from app.services.purchase_import_service import import_purchase_workbook
@@ -50,6 +50,68 @@ def _parse_date(value) -> date | None:
         return date.fromisoformat(str(value))
     except (TypeError, ValueError) as exc:
         raise ValueError("Data prevista invalida.") from exc
+
+
+def _normalize_request_items(payload: dict) -> list[dict]:
+    """Normaliza o payload novo de itens e preserva o formato legado de uma SC."""
+    raw_items = payload.get("items")
+    if raw_items is None:
+        raw_items = [{
+            "item_type": "MATERIAL",
+            "material_id": payload.get("material_id"),
+            "quantity": payload.get("requested_quantity"),
+            "unit_of_measure": payload.get("unit_of_measure"),
+            "maintenance_material_id": payload.get("maintenance_material_id"),
+        }]
+    if not isinstance(raw_items, list) or not raw_items:
+        raise ValueError("Adicione pelo menos um item na solicitacao.")
+    if len(raw_items) > 200:
+        raise ValueError("A solicitacao pode ter no maximo 200 itens.")
+
+    normalized = []
+    for position, raw in enumerate(raw_items, start=1):
+        if not isinstance(raw, dict):
+            raise ValueError(f"Item {position} invalido.")
+        item_type = str(raw.get("item_type") or raw.get("type") or "MATERIAL").strip().upper()
+        if item_type in {"SERVICE", "SERVICO", "SERVIÇO"}:
+            item_type = "SERVICO"
+        elif item_type != "MATERIAL":
+            raise ValueError(f"Tipo do item {position} invalido.")
+        quantity = _positive_int(raw.get("quantity", raw.get("quantity_requested")), f"Quantidade do item {position}")
+        material = None
+        service = None
+        if item_type == "MATERIAL":
+            material_id = _positive_int(raw.get("material_id"), f"Material do item {position}")
+            material = db.session.get(Material, material_id)
+            if not material or not material.ativo:
+                raise ValueError(f"Material ativo do item {position} nao encontrado.")
+            description = _clean(raw.get("description_raw")) or material.descricao
+            product_code = _clean(raw.get("product_code_raw")) or material.referencia
+        else:
+            service_id = raw.get("service_catalog_id")
+            if service_id not in (None, ""):
+                service = db.session.get(PurchaseServiceCatalog, _positive_int(service_id, f"Servico do item {position}"))
+                if not service or not service.active:
+                    raise ValueError(f"Servico ativo do item {position} nao encontrado.")
+            description = _clean(raw.get("description_raw")) or (service.service_name if service else None)
+            if not description:
+                raise ValueError(f"Informe a descricao do servico no item {position}.")
+            product_code = _clean(raw.get("product_code_raw"))
+        normalized.append({
+            "line_number": position,
+            "item_type": item_type,
+            "material": material,
+            "service": service,
+            "product_code_raw": product_code,
+            "description_raw": description,
+            "brand_raw": _clean(raw.get("brand_raw")),
+            "manual_reference_raw": _clean(raw.get("manual_reference_raw")),
+            "manufacturer_part_number_raw": _clean(raw.get("manufacturer_part_number_raw")),
+            "quantity_requested": quantity,
+            "unit_of_measure": _clean(raw.get("unit_of_measure")) or "UN",
+            "notes": _clean(raw.get("notes")),
+        })
+    return normalized
 
 
 def _parse_money(value) -> Decimal | None:
@@ -205,10 +267,8 @@ def create_purchase_request():
 
     def action():
         payload = request.get_json(silent=True) or {}
-        material_id = _positive_int(payload.get("material_id"), "Material")
-        material = db.session.get(Material, material_id)
-        if not material or not material.ativo:
-            raise ValueError("Material ativo nao encontrado.")
+        items = _normalize_request_items(payload)
+        first_material = next((item["material"] for item in items if item["material"]), None)
         supplier_id = payload.get("supplier_id")
         supplier = None
         if supplier_id not in (None, ""):
@@ -219,21 +279,63 @@ def create_purchase_request():
         link = None
         if link_id not in (None, ""):
             link = db.session.get(MaintenanceMaterial, _positive_int(link_id, "Material de manutencao"))
-            if not link or link.material_id != material.id:
+            if not link or not first_material or link.material_id != first_material.id or len(items) != 1:
                 raise ValueError("Vinculo de manutencao invalido para este material.")
         priority = str(payload.get("priority") or "MEDIA").strip().upper()
         if priority not in PRIORITIES:
             raise ValueError("Prioridade invalida.")
+        equipment_id = payload.get("equipment_id")
+        equipment = None
+        if equipment_id not in (None, ""):
+            equipment = db.session.get(Vehicle, _positive_int(equipment_id, "Equipamento"))
+            if not equipment:
+                raise ValueError("Equipamento nao encontrado.")
+        item_types = {item["item_type"] for item in items}
+        request_type = "MISTO" if len(item_types) > 1 else next(iter(item_types))
+        requested_quantity = sum(item["quantity_requested"] for item in items)
+        requester_id = payload.get("requester_id")
+        requester = g.current_user
+        if requester_id not in (None, ""):
+            requester = db.session.get(User, _positive_int(requester_id, "Solicitante"))
+            if not requester or not requester.ativo:
+                raise ValueError("Solicitante ativo nao encontrado.")
         purchase = PurchaseRequest(
-            code="SC-PEND", material_id=material.id, supplier_id=supplier.id if supplier else None,
+            code="SC-PEND", material_id=first_material.id if first_material else None, supplier_id=supplier.id if supplier else None,
             maintenance_material_id=link.id if link else None,
-            requested_quantity=_positive_int(payload.get("requested_quantity"), "Quantidade solicitada"),
+            requested_quantity=requested_quantity,
             priority=priority, expected_date=_parse_date(payload.get("expected_date")),
             observation=_clean(payload.get("observation")), created_by_user_id=g.current_user.id,
+            company_code=_clean(payload.get("company_code")), branch_code=_clean(payload.get("branch_code")),
+            sc_date=_parse_date(payload.get("sc_date")) or date.today(),
+            requester_id=requester.id, requester_raw=_clean(payload.get("requester_raw")) or requester.nome,
+            request_type=request_type, module=_clean(payload.get("module")),
+            equipment_id=equipment.id if equipment else None, equipment_raw=_clean(payload.get("equipment_raw")),
+            work_order_number=_clean(payload.get("work_order_number")),
+            cost_center=_clean(payload.get("cost_center")),
+            justification=_clean(payload.get("justification")) or _clean(payload.get("observation")),
+            external_quote_number=_clean(payload.get("external_quote_number")),
         )
         db.session.add(purchase)
         db.session.flush()
         purchase.code = f"SC-{purchase.id:06d}"
+        purchase.sc_number = purchase.code
+        for item_data in items:
+            item = PurchaseRequestItem(
+                purchase_request_id=purchase.id,
+                line_number=item_data["line_number"],
+                item_type=item_data["item_type"],
+                material_id=item_data["material"].id if item_data["material"] else None,
+                service_catalog_id=item_data["service"].id if item_data["service"] else None,
+                product_code_raw=item_data["product_code_raw"],
+                description_raw=item_data["description_raw"],
+                brand_raw=item_data["brand_raw"],
+                manual_reference_raw=item_data["manual_reference_raw"],
+                manufacturer_part_number_raw=item_data["manufacturer_part_number_raw"],
+                quantity_requested=item_data["quantity_requested"],
+                unit_of_measure=item_data["unit_of_measure"],
+                notes=item_data["notes"],
+            )
+            db.session.add(item)
         if link:
             link.status = "EM_COMPRAS"
         db.session.commit()
@@ -286,6 +388,8 @@ def receive_purchase_request(purchase_id: int):
             raise LookupError("Solicitacao de compra nao encontrada.")
         if purchase.status not in {"APROVADA", "EM_TRANSITO", "PARCIALMENTE_RECEBIDA"}:
             raise ValueError("A solicitacao precisa estar aprovada antes do recebimento.")
+        if purchase.items and (len(purchase.items) != 1 or purchase.items[0].item_type != "MATERIAL"):
+            raise ValueError("O recebimento por item sera habilitado na etapa de NF.")
         quantity = _positive_int(payload.get("quantity"), "Quantidade recebida")
         if quantity > purchase.requested_quantity - purchase.received_quantity:
             raise ValueError("Quantidade recebida excede o saldo da solicitacao.")
@@ -307,6 +411,10 @@ def receive_purchase_request(purchase_id: int):
         )
         purchase.received_quantity += quantity
         purchase.status = "RECEBIDA" if purchase.received_quantity == purchase.requested_quantity else "PARCIALMENTE_RECEBIDA"
+        if purchase.items:
+            request_item = purchase.items[0]
+            request_item.quantity_received += quantity
+            request_item.status = "RECEBIDA" if request_item.quantity_received == request_item.quantity_requested else "PARCIALMENTE_RECEBIDA"
         db.session.add(receipt)
         db.session.commit()
         return purchase.to_dict()

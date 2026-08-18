@@ -1435,13 +1435,23 @@
     <div id="purchase-request-modal" class="app-modal hidden" role="dialog" aria-modal="true" aria-labelledby="purchase-request-modal-title">
         <div class="app-modal-backdrop" data-close-purchase-request="true"></div>
         <div class="app-modal-card purchase-request-modal-card" role="document">
-            <div class="app-modal-header"><h3 id="purchase-request-modal-title">Nova solicitação de compra</h3><p>Selecione o material e informe a quantidade necessária.</p></div>
+            <div class="app-modal-header"><h3 id="purchase-request-modal-title">Nova solicitação de compra</h3><p>Abra uma SC e adicione todos os materiais ou serviços do mesmo processo.</p></div>
             <form id="purchase-request-form" class="purchase-request-form">
-                <label class="modal-field purchase-request-field-wide"><span>MATERIAL *</span><select id="purchase-request-material" required><option value="">Carregando materiais...</option></select></label>
-                <label class="modal-field"><span>QUANTIDADE *</span><input id="purchase-request-quantity" type="number" min="1" step="1" value="1" required></label>
+                <label class="modal-field"><span>DATA DA SC</span><input id="purchase-request-sc-date" type="date"></label>
+                <label class="modal-field"><span>Nº ORÇAMENTO</span><input id="purchase-request-quote" maxlength="120" placeholder="Referência opcional"></label>
+                <label class="modal-field"><span>SOLICITANTE</span><input id="purchase-request-requester" maxlength="180" placeholder="Nome ou equipe solicitante"></label>
+                <label class="modal-field"><span>CENTRO DE CUSTO</span><input id="purchase-request-cost-center" maxlength="160" placeholder="Ex.: Manutenção de Máquinas Pesadas"></label>
+                <label class="modal-field"><span>MÓDULO</span><input id="purchase-request-module" maxlength="40" placeholder="RTG, LBS, Spreader..."></label>
+                <label class="modal-field"><span>EQUIPAMENTO / FROTA</span><input id="purchase-request-equipment" maxlength="180" placeholder="Ex.: RTG-01"></label>
+                <label class="modal-field"><span>OS RELACIONADA</span><input id="purchase-request-work-order" maxlength="80" placeholder="Número da OS, se houver"></label>
                 <label class="modal-field"><span>PRIORIDADE</span><select id="purchase-request-priority"><option value="BAIXA">BAIXA</option><option value="MEDIA" selected>MÉDIA</option><option value="ALTA">ALTA</option><option value="CRITICA">CRÍTICA</option></select></label>
                 <label class="modal-field"><span>DATA PREVISTA</span><input id="purchase-request-expected-date" type="date"></label>
-                <label class="modal-field purchase-request-field-wide"><span>OBSERVAÇÃO</span><textarea id="purchase-request-observation" rows="3" maxlength="1000" placeholder="Explique a necessidade da compra"></textarea></label>
+                <section class="purchase-request-items-section purchase-request-field-wide">
+                    <header><div><span>ITENS DA SC</span><strong>Materiais e serviços</strong></div><button id="purchase-request-add-item" class="secondary-button" type="button">+ ADICIONAR ITEM</button></header>
+                    <p class="modal-help">Uma SC pode conter vários itens. O sistema separa automaticamente material, serviço e quantidade.</p>
+                    <div id="purchase-request-items" class="purchase-request-items"></div>
+                </section>
+                <label class="modal-field purchase-request-field-wide"><span>JUSTIFICATIVA / OBSERVAÇÃO</span><textarea id="purchase-request-observation" rows="3" maxlength="1000" placeholder="Explique a necessidade da compra"></textarea></label>
                 <div class="password-change-actions purchase-request-field-wide"><button id="purchase-request-cancel" class="icon-button" type="button">CANCELAR</button><button id="purchase-request-submit" class="primary-button" type="submit">ABRIR SOLICITAÇÃO</button></div>
             </form>
         </div>

@@ -19,7 +19,7 @@ os.environ["WASH_CONTROL_FILE"] = ""
 
 from app import create_app
 from app.extensions import db
-from app.models import Material, User
+from app.models import Material, PurchaseServiceCatalog, User
 from app.services.auth_service import generate_token
 
 
@@ -36,9 +36,11 @@ class PurchaseRouteTests(unittest.TestCase):
             gestor = User(nome="Gestor Compras", login="gestor_compras", tipo="gestor", ativo=True)
             gestor.set_password("teste123")
             material = Material(referencia="MAT-COMPRA", descricao="Kit hidráulico", aplicacao_tipo="ambos", quantidade_estoque=0, estoque_minimo=2)
-            db.session.add_all([admin, gestor, material])
+            service = PurchaseServiceCatalog(code="SERV-001", service_name="Reparo de bomba hidráulica", active=True)
+            db.session.add_all([admin, gestor, material, service])
             db.session.commit()
             cls.material_id = material.id
+            cls.service_id = service.id
             cls.admin_headers = {"Authorization": f"Bearer {generate_token(admin)}"}
             cls.gestor_headers = {"Authorization": f"Bearer {generate_token(gestor)}"}
 
@@ -132,6 +134,43 @@ class PurchaseRouteTests(unittest.TestCase):
 
         allowed = self.client.get("/compras/importacoes", headers=self.admin_headers)
         self.assertEqual(allowed.status_code, 200, allowed.get_json())
+
+    def test_purchase_request_supports_multiple_material_and_service_items(self):
+        response = self.client.post(
+            "/compras/solicitacoes",
+            headers=self.gestor_headers,
+            json={
+                "sc_date": date.today().isoformat(),
+                "external_quote_number": "ORC-2026-001",
+                "requester_raw": "Equipe de Manutenção",
+                "cost_center": "Manutenção de Máquinas Pesadas",
+                "module": "RTG",
+                "equipment_raw": "RTG-01",
+                "work_order_number": "OS-7788",
+                "priority": "ALTA",
+                "items": [
+                    {"item_type": "MATERIAL", "material_id": self.material_id, "quantity": 4, "unit_of_measure": "UN"},
+                    {"item_type": "SERVICO", "service_catalog_id": self.service_id, "quantity": 1, "unit_of_measure": "SV"},
+                ],
+            },
+        )
+        self.assertEqual(response.status_code, 201, response.get_json())
+        data = response.get_json()["data"]
+        self.assertEqual(data["request_type"], "MISTO")
+        self.assertEqual(data["item_count"], 2)
+        self.assertEqual(data["requested_quantity"], 5)
+        self.assertEqual(data["sc_number"], data["code"])
+        self.assertEqual(data["module"], "RTG")
+        self.assertEqual([item["status"] for item in data["items"]], ["AGUARDANDO_PC", "AGUARDANDO_PC"])
+        self.assertEqual(data["items"][0]["product_code_raw"], "MAT-COMPRA")
+        self.assertEqual(data["items"][1]["description_raw"], "Reparo de bomba hidráulica")
+
+        denied_receive = self.client.post(
+            f"/compras/solicitacoes/{data['id']}/recebimentos",
+            headers=self.gestor_headers,
+            json={"quantity": 1, "idempotency_key": "rcv-mixed-001"},
+        )
+        self.assertEqual(denied_receive.status_code, 400, denied_receive.get_json())
 
     def test_provider_registration_is_admin_only_and_can_be_updated(self):
         denied_list = self.client.get("/compras/provedores", headers=self.gestor_headers)

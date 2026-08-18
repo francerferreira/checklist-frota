@@ -617,8 +617,15 @@ const elements = {
     purchasesRequestNew: document.getElementById("purchases-request-new"),
     purchaseRequestModal: document.getElementById("purchase-request-modal"),
     purchaseRequestForm: document.getElementById("purchase-request-form"),
-    purchaseRequestMaterial: document.getElementById("purchase-request-material"),
-    purchaseRequestQuantity: document.getElementById("purchase-request-quantity"),
+    purchaseRequestScDate: document.getElementById("purchase-request-sc-date"),
+    purchaseRequestQuote: document.getElementById("purchase-request-quote"),
+    purchaseRequestRequester: document.getElementById("purchase-request-requester"),
+    purchaseRequestCostCenter: document.getElementById("purchase-request-cost-center"),
+    purchaseRequestModule: document.getElementById("purchase-request-module"),
+    purchaseRequestEquipment: document.getElementById("purchase-request-equipment"),
+    purchaseRequestWorkOrder: document.getElementById("purchase-request-work-order"),
+    purchaseRequestItems: document.getElementById("purchase-request-items"),
+    purchaseRequestAddItem: document.getElementById("purchase-request-add-item"),
     purchaseRequestPriority: document.getElementById("purchase-request-priority"),
     purchaseRequestExpectedDate: document.getElementById("purchase-request-expected-date"),
     purchaseRequestObservation: document.getElementById("purchase-request-observation"),
@@ -3112,11 +3119,15 @@ function renderPurchaseRequests() {
 }
 
 function renderPurchaseMaterialOptions() {
-    if (!elements.purchaseRequestMaterial) return;
     const materials = Array.isArray(state.materials) ? state.materials.filter((material) => material?.ativo !== false) : [];
-    elements.purchaseRequestMaterial.innerHTML = materials.length
+    const options = materials.length
         ? `<option value="">Selecione um material</option>${materials.map((material) => `<option value="${Number(material.id)}">${escapeHtml(`${material.referencia || "SEM REF."} — ${material.descricao || "MATERIAL"}`)}</option>`).join("")}`
         : `<option value="">Nenhum material ativo encontrado</option>`;
+    elements.purchaseRequestItems?.querySelectorAll(".purchase-request-item-material").forEach((select) => {
+        const selected = select.value;
+        select.innerHTML = options;
+        if (selected) select.value = selected;
+    });
 }
 
 async function loadPurchaseMaterials() {
@@ -3126,16 +3137,53 @@ async function loadPurchaseMaterials() {
     renderPurchaseMaterialOptions();
 }
 
+function purchaseRequestItemMarkup(item = {}) {
+    const materials = Array.isArray(state.materials) ? state.materials.filter((material) => material?.ativo !== false) : [];
+    const options = materials.length
+        ? `<option value="">Selecione um material</option>${materials.map((material) => `<option value="${Number(material.id)}" ${Number(item.material_id) === Number(material.id) ? "selected" : ""}>${escapeHtml(`${material.referencia || "SEM REF."} — ${material.descricao || "MATERIAL"}`)}</option>`).join("")}`
+        : `<option value="">Carregando materiais...</option>`;
+    const type = String(item.item_type || "MATERIAL").toUpperCase() === "SERVICO" ? "SERVICO" : "MATERIAL";
+    return `<article class="purchase-request-item-row" data-item-type="${type}">
+        <div class="purchase-request-item-row-header"><strong>ITEM</strong><button class="icon-button" type="button" data-purchase-remove-item="true">REMOVER</button></div>
+        <label class="modal-field"><span>TIPO *</span><select class="purchase-request-item-type"><option value="MATERIAL" ${type === "MATERIAL" ? "selected" : ""}>MATERIAL</option><option value="SERVICO" ${type === "SERVICO" ? "selected" : ""}>SERVIÇO</option></select></label>
+        <label class="modal-field purchase-request-item-material-field ${type === "SERVICO" ? "hidden" : ""}"><span>MATERIAL *</span><select class="purchase-request-item-material">${options}</select></label>
+        <label class="modal-field purchase-request-item-service-field ${type === "MATERIAL" ? "hidden" : ""}"><span>DESCRIÇÃO DO SERVIÇO *</span><input class="purchase-request-item-service" maxlength="255" value="${escapeHtml(item.description_raw || "")}" placeholder="Ex.: reparo de bomba hidráulica"></label>
+        <label class="modal-field"><span>QUANTIDADE *</span><input class="purchase-request-item-quantity" type="number" min="1" step="1" value="${Number(item.quantity_requested || 1)}" required></label>
+        <label class="modal-field"><span>UNIDADE</span><input class="purchase-request-item-unit" maxlength="30" value="${escapeHtml(item.unit_of_measure || "UN")}" placeholder="UN, KIT..."></label>
+        <label class="modal-field purchase-request-field-wide"><span>OBSERVAÇÃO DO ITEM</span><input class="purchase-request-item-notes" maxlength="500" value="${escapeHtml(item.notes || "")}" placeholder="Informação específica deste item"></label>
+    </article>`;
+}
+
+function renderPurchaseRequestItems() {
+    if (!elements.purchaseRequestItems) return;
+    const rows = elements.purchaseRequestItems.querySelectorAll(".purchase-request-item-row");
+    if (!rows.length) elements.purchaseRequestItems.innerHTML = purchaseRequestItemMarkup();
+}
+
+function addPurchaseRequestItem(item = {}) {
+    if (!elements.purchaseRequestItems) return;
+    elements.purchaseRequestItems.insertAdjacentHTML("beforeend", purchaseRequestItemMarkup(item));
+}
+
+function togglePurchaseRequestItemType(row) {
+    const type = String(row.querySelector(".purchase-request-item-type")?.value || "MATERIAL").toUpperCase();
+    row.dataset.itemType = type;
+    row.querySelector(".purchase-request-item-material-field")?.classList.toggle("hidden", type !== "MATERIAL");
+    row.querySelector(".purchase-request-item-service-field")?.classList.toggle("hidden", type !== "SERVICO");
+}
+
 async function openPurchaseRequestModal() {
     if (!hasWashReportAccess()) return;
     elements.purchaseRequestForm?.reset();
-    elements.purchaseRequestQuantity && (elements.purchaseRequestQuantity.value = "1");
+    if (elements.purchaseRequestScDate) elements.purchaseRequestScDate.value = formatDateInputValue(new Date());
     elements.purchaseRequestPriority && (elements.purchaseRequestPriority.value = "MEDIA");
+    if (elements.purchaseRequestItems) elements.purchaseRequestItems.innerHTML = purchaseRequestItemMarkup();
     elements.purchaseRequestModal?.classList.remove("hidden");
     document.body.classList.add("modal-open");
     try {
         await loadPurchaseMaterials();
-        elements.purchaseRequestMaterial?.focus();
+        renderPurchaseRequestItems();
+        elements.purchaseRequestItems?.querySelector(".purchase-request-item-material")?.focus();
     } catch (error) {
         showToast(error.message || "NÃO FOI POSSÍVEL CARREGAR OS MATERIAIS.", true);
     }
@@ -3149,8 +3197,23 @@ function closePurchaseRequestModal() {
 async function submitPurchaseRequest(event) {
     event.preventDefault();
     if (!hasWashReportAccess()) return;
-    const materialId = Number(elements.purchaseRequestMaterial?.value || 0);
-    if (!materialId) { showToast("SELECIONE O MATERIAL.", true); return; }
+    const rows = [...(elements.purchaseRequestItems?.querySelectorAll(".purchase-request-item-row") || [])];
+    if (!rows.length) { showToast("ADICIONE PELO MENOS UM ITEM.", true); return; }
+    const items = [];
+    for (const [index, row] of rows.entries()) {
+        const itemType = String(row.querySelector(".purchase-request-item-type")?.value || "MATERIAL").toUpperCase();
+        const quantity = Number(row.querySelector(".purchase-request-item-quantity")?.value || 0);
+        if (!Number.isInteger(quantity) || quantity <= 0) { showToast(`INFORME UMA QUANTIDADE VÁLIDA NO ITEM ${index + 1}.`, true); return; }
+        const item = { item_type: itemType, quantity, unit_of_measure: row.querySelector(".purchase-request-item-unit")?.value.trim() || "UN", notes: row.querySelector(".purchase-request-item-notes")?.value.trim() || null };
+        if (itemType === "MATERIAL") {
+            item.material_id = Number(row.querySelector(".purchase-request-item-material")?.value || 0);
+            if (!item.material_id) { showToast(`SELECIONE O MATERIAL DO ITEM ${index + 1}.`, true); return; }
+        } else {
+            item.description_raw = row.querySelector(".purchase-request-item-service")?.value.trim() || "";
+            if (!item.description_raw) { showToast(`INFORME A DESCRIÇÃO DO SERVIÇO NO ITEM ${index + 1}.`, true); return; }
+        }
+        items.push(item);
+    }
     const submit = elements.purchaseRequestSubmit;
     if (submit) { submit.disabled = true; submit.textContent = "ABRINDO..."; }
     try {
@@ -3158,8 +3221,14 @@ async function submitPurchaseRequest(event) {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({
-                material_id: materialId,
-                requested_quantity: Number(elements.purchaseRequestQuantity?.value || 0),
+                items,
+                sc_date: elements.purchaseRequestScDate?.value || null,
+                external_quote_number: elements.purchaseRequestQuote?.value.trim() || null,
+                requester_raw: elements.purchaseRequestRequester?.value.trim() || null,
+                cost_center: elements.purchaseRequestCostCenter?.value.trim() || null,
+                module: elements.purchaseRequestModule?.value.trim() || null,
+                equipment_raw: elements.purchaseRequestEquipment?.value.trim() || null,
+                work_order_number: elements.purchaseRequestWorkOrder?.value.trim() || null,
                 priority: elements.purchaseRequestPriority?.value || "MEDIA",
                 expected_date: elements.purchaseRequestExpectedDate?.value || null,
                 observation: elements.purchaseRequestObservation?.value.trim() || null,
@@ -10046,6 +10115,18 @@ on(elements.purchasesRequestSearch, "input", renderPurchaseRequests);
 on(elements.purchasesRequestStatus, "change", renderPurchaseRequests);
 on(elements.purchasesRequestSort, "change", renderPurchaseRequests);
 on(elements.purchasesRequestNew, "click", openPurchaseRequestModal);
+on(elements.purchaseRequestAddItem, "click", () => addPurchaseRequestItem());
+on(elements.purchaseRequestItems, "click", (event) => {
+    const button = event.target instanceof HTMLElement ? event.target.closest("[data-purchase-remove-item]") : null;
+    if (!button) return;
+    const rows = elements.purchaseRequestItems.querySelectorAll(".purchase-request-item-row");
+    if (rows.length <= 1) { showToast("A SC precisa manter pelo menos um item.", true); return; }
+    button.closest(".purchase-request-item-row")?.remove();
+});
+on(elements.purchaseRequestItems, "change", (event) => {
+    const select = event.target instanceof HTMLElement ? event.target.closest(".purchase-request-item-type") : null;
+    if (select) togglePurchaseRequestItemType(select.closest(".purchase-request-item-row"));
+});
 on(elements.purchasesRequestList, "click", (event) => {
     const target = event.target instanceof HTMLElement ? event.target : null;
     const openButton = target?.closest("[data-purchase-open]");

@@ -103,6 +103,7 @@ class PurchaseRequest(db.Model):
         return bool(self.expected_date and self.expected_date < reference_date and self.status not in {"RECEBIDA", "CANCELADA"})
 
     def to_dict(self) -> dict:
+        item_quantities = [Decimal(item.quantity_requested or 0) for item in self.items]
         return {
             "id": self.id,
             "code": self.code,
@@ -132,6 +133,8 @@ class PurchaseRequest(db.Model):
             "expected_date": self.expected_date.isoformat() if self.expected_date else None,
             "delayed": self.delayed(),
             "observation": self.observation,
+            "item_count": len(self.items),
+            "total_requested_quantity": float(sum(item_quantities, Decimal("0"))) if item_quantities else self.requested_quantity,
             "material": self.material.to_dict() if self.material else None,
             "supplier": self.supplier.to_dict() if self.supplier else None,
             "items": [item.to_dict() for item in self.items],
