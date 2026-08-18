@@ -14,7 +14,7 @@
     <title>SIS MMP | Sistema de Manutenção de Máquinas Pesadas</title>
     <link rel="icon" type="image/png" sizes="192x192" href="./static/icons/icon-192.png?v=sis-mmp-20260810">
     <link rel="apple-touch-icon" href="./static/icons/icon-192.png?v=sis-mmp-20260810">
-    <link rel="stylesheet" href="./static/css/styles.css?v=20260818-09">
+    <link rel="stylesheet" href="./static/css/styles.css?v=20260818-10">
 </head>
 <body>
     <div class="mobile-shell">
@@ -435,6 +435,23 @@
                     <article><span>SC ABERTAS</span><strong id="purchases-open-count">0</strong><em>Processos ainda não concluídos.</em></article>
                     <article><span>AGUARDANDO PC</span><strong id="purchases-awaiting-pc-count">0</strong><em>Itens sem pedido de compra.</em></article>
                     <article><span>AGUARDANDO NF</span><strong id="purchases-awaiting-nf-count">0</strong><em>PC emitido sem nota fiscal.</em></article>
+                </section>
+                <section class="module-section purchases-process-center-panel">
+                    <div class="module-header purchases-process-center-header">
+                        <div><span>VISÃO CONSOLIDADA</span><strong>CENTRAL DE PROCESSOS</strong><p class="purchases-help">Uma linha por item para mostrar exatamente o próximo passo da compra.</p></div>
+                        <div class="purchases-process-center-actions"><span id="purchases-process-center-count" class="purchases-request-count">0 itens</span><button id="purchases-process-center-refresh" class="secondary-button" type="button">ATUALIZAR</button></div>
+                    </div>
+                    <div class="purchases-process-summary" aria-label="Resumo da central de processos">
+                        <article><span>PC</span><strong id="purchases-process-pc-count">0</strong><em>aguardando emissão</em></article>
+                        <article><span>NF</span><strong id="purchases-process-nf-count">0</strong><em>aguardando registro</em></article>
+                        <article><span>ENTRADA</span><strong id="purchases-process-receipt-count">0</strong><em>aguardando recebimento</em></article>
+                    </div>
+                    <div class="purchases-process-toolbar" role="search" aria-label="Filtros da central de processos">
+                        <label><span>BUSCAR</span><input id="purchases-process-search" type="search" autocomplete="off" placeholder="SC, item, módulo ou equipamento"></label>
+                        <label><span>STATUS</span><select id="purchases-process-status"><option value="TODOS">TODOS</option><option value="AGUARDANDO_PC">AGUARDANDO PC</option><option value="PC_PARCIAL">PC PARCIAL</option><option value="AGUARDANDO_NF">AGUARDANDO NF</option><option value="AGUARDANDO_RECEBIMENTO">AGUARDANDO RECEBIMENTO</option><option value="PARCIALMENTE_RECEBIDA">RECEBIMENTO PARCIAL</option><option value="RECEBIDA">RECEBIDA</option></select></label>
+                        <label><span>TIPO</span><select id="purchases-process-type"><option value="TODOS">TODOS</option><option value="MATERIAL">MATERIAL</option><option value="SERVICO">SERVIÇO</option></select></label>
+                    </div>
+                    <div id="purchases-process-list" class="purchases-process-list" aria-live="polite"></div>
                 </section>
                 <section class="module-section purchases-requests-panel">
                     <div class="module-header purchases-requests-header">
@@ -1547,7 +1564,7 @@
 
     <div id="toast" class="toast hidden"></div>
     <script src="./static/js/config.js?v=20260719-01"></script>
-    <script src="./static/js/app.js?v=20260818-08"></script>
+    <script src="./static/js/app.js?v=20260818-10"></script>
 </body>
 </html>
 

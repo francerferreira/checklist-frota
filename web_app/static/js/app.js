@@ -314,6 +314,7 @@ const state = {
         pendingPcItems: [],
         orders: [],
         pendingInvoices: { pending_nf: [], pending_receipts: [] },
+        processCenter: { summary: {}, items: [] },
         materialHistory: null,
         selectedRequestId: null,
         selectedInvoiceId: null,
@@ -672,6 +673,15 @@ const elements = {
     purchasesInvoicesRefresh: document.getElementById("purchases-invoices-refresh"),
     purchasesInvoicePendingList: document.getElementById("purchases-invoice-pending-list"),
     purchasesReceiptPendingList: document.getElementById("purchases-receipt-pending-list"),
+    purchasesProcessCenterCount: document.getElementById("purchases-process-center-count"),
+    purchasesProcessPcCount: document.getElementById("purchases-process-pc-count"),
+    purchasesProcessNfCount: document.getElementById("purchases-process-nf-count"),
+    purchasesProcessReceiptCount: document.getElementById("purchases-process-receipt-count"),
+    purchasesProcessCenterRefresh: document.getElementById("purchases-process-center-refresh"),
+    purchasesProcessSearch: document.getElementById("purchases-process-search"),
+    purchasesProcessStatus: document.getElementById("purchases-process-status"),
+    purchasesProcessType: document.getElementById("purchases-process-type"),
+    purchasesProcessList: document.getElementById("purchases-process-list"),
     purchaseInvoiceModal: document.getElementById("purchase-invoice-modal"),
     purchaseInvoiceForm: document.getElementById("purchase-invoice-form"),
     purchaseInvoicePcId: document.getElementById("purchase-invoice-pc-id"),
@@ -3649,6 +3659,56 @@ async function submitPurchaseInvoiceReceive(event) {
     }
 }
 
+function purchaseProcessStatusLabel(status) {
+    return {
+        AGUARDANDO_PC: "AGUARDANDO PC",
+        PC_PARCIAL: "PC PARCIAL",
+        AGUARDANDO_NF: "AGUARDANDO NF",
+        AGUARDANDO_RECEBIMENTO: "AGUARDANDO RECEBIMENTO",
+        PARCIALMENTE_RECEBIDA: "RECEBIMENTO PARCIAL",
+        RECEBIDA: "RECEBIDA",
+    }[status] || status || "SEM STATUS";
+}
+
+function renderPurchaseProcessCenter() {
+    const data = state.purchases.processCenter || { summary: {}, items: [] };
+    const summary = data.summary || {};
+    const rows = data.items || [];
+    if (elements.purchasesProcessCenterCount) elements.purchasesProcessCenterCount.textContent = `${rows.length} ${rows.length === 1 ? "item" : "itens"}`;
+    if (elements.purchasesProcessPcCount) elements.purchasesProcessPcCount.textContent = String(summary.pending_pc || 0);
+    if (elements.purchasesProcessNfCount) elements.purchasesProcessNfCount.textContent = String(summary.pending_nf || 0);
+    if (elements.purchasesProcessReceiptCount) elements.purchasesProcessReceiptCount.textContent = String(summary.pending_receipt || 0);
+    if (!elements.purchasesProcessList) return;
+    if (!rows.length) {
+        elements.purchasesProcessList.innerHTML = `<article class="purchases-process-empty"><strong>NENHUM ITEM ENCONTRADO</strong><span>Ajuste os filtros ou abra uma nova SC.</span></article>`;
+        return;
+    }
+    elements.purchasesProcessList.innerHTML = rows.map((row) => {
+        const description = row.item_type === "SERVICO" ? row.description_raw : (row.material?.descricao || row.description_raw || "Material não informado");
+        const status = String(row.item_status || "").toLowerCase().replaceAll("_", "-");
+        const actionLabel = { EMITIR_PC: "EMITIR PC", REGISTRAR_NF: "REGISTRAR NF", RECEBER_MATERIAL: "RECEBER", RECEBER_SALDO: "RECEBER SALDO", CONCLUIDO: "CONCLUÍDO" }[row.next_action] || "ABRIR SC";
+        return `<article class="purchases-process-card"><div class="purchases-process-card-main"><header><span>${escapeHtml(row.sc_number || "SC")}</span><b class="purchases-process-status purchases-process-status-${escapeHtml(status)}">${escapeHtml(purchaseProcessStatusLabel(row.item_status))}</b></header><strong>${escapeHtml(description)}</strong><p>${escapeHtml(row.item_type || "ITEM")} · ${escapeHtml(row.module || "COMPRAS")} · ${escapeHtml(row.equipment_raw || "Equipamento não informado")}</p></div><div class="purchases-process-card-metrics"><span>SALDO</span><strong>${escapeHtml(String(row.remaining_quantity || 0))}</strong><small>Solicitado ${escapeHtml(String(row.requested_quantity || 0))} · Recebido ${escapeHtml(String(row.received_quantity || 0))}</small></div><button class="secondary-button" type="button" data-purchase-process-open="${Number(row.purchase_request_id)}">${escapeHtml(actionLabel)}</button></article>`;
+    }).join("");
+}
+
+async function loadPurchaseProcessCenter() {
+    const params = new URLSearchParams();
+    const search = elements.purchasesProcessSearch?.value.trim();
+    const status = elements.purchasesProcessStatus?.value || "TODOS";
+    const itemType = elements.purchasesProcessType?.value || "TODOS";
+    if (search) params.set("q", search);
+    if (status !== "TODOS") params.set("status", status);
+    if (itemType !== "TODOS") params.set("item_type", itemType);
+    try {
+        state.purchases.processCenter = await apiFetch(`/compras/central-processos${params.toString() ? `?${params.toString()}` : ""}`) || { summary: {}, items: [] };
+        renderPurchaseProcessCenter();
+    } catch (error) {
+        state.purchases.processCenter = { summary: {}, items: [] };
+        renderPurchaseProcessCenter();
+        showToast(error.message || "FALHA AO CARREGAR A CENTRAL DE PROCESSOS.", true);
+    }
+}
+
 function renderPurchaseOverview() {
     const rows = state.purchases.requests || [];
     const open = rows.filter((row) => !["RECEBIDA", "CANCELADA"].includes(String(row.status || "").toUpperCase()));
@@ -3671,6 +3731,7 @@ async function loadPurchasesData() {
         renderPurchaseOverview();
         await loadPurchaseOrdersData();
         await loadPurchaseInvoiceData();
+        await loadPurchaseProcessCenter();
     } catch (error) {
         showToast(error.message || "FALHA AO CARREGAR COMPRAS.", true);
     }
@@ -10440,6 +10501,14 @@ on(elements.purchaseInvoiceModal, "click", (event) => { if (event.target instanc
 on(elements.purchaseInvoiceReceiveForm, "submit", submitPurchaseInvoiceReceive);
 on(elements.purchaseInvoiceReceiveCancel, "click", closePurchaseInvoiceReceiveModal);
 on(elements.purchaseInvoiceReceiveModal, "click", (event) => { if (event.target instanceof HTMLElement && event.target.dataset.closePurchaseInvoiceReceive === "true") closePurchaseInvoiceReceiveModal(); });
+on(elements.purchasesProcessCenterRefresh, "click", loadPurchaseProcessCenter);
+on(elements.purchasesProcessSearch, "change", loadPurchaseProcessCenter);
+on(elements.purchasesProcessStatus, "change", loadPurchaseProcessCenter);
+on(elements.purchasesProcessType, "change", loadPurchaseProcessCenter);
+on(elements.purchasesProcessList, "click", (event) => {
+    const button = event.target instanceof HTMLElement ? event.target.closest("[data-purchase-process-open]") : null;
+    if (button) openPurchaseRequestDetails(Number(button.dataset.purchaseProcessOpen));
+});
 on(elements.purchaseRequestCancel, "click", closePurchaseRequestModal);
 on(elements.purchaseRequestModal, "click", (event) => { if (event.target instanceof HTMLElement && event.target.dataset.closePurchaseRequest === "true") closePurchaseRequestModal(); });
 on(elements.purchaseDetailClose, "click", closePurchaseDetailModal);

@@ -209,6 +209,35 @@ class PurchaseRouteTests(unittest.TestCase):
         with self.app.app_context():
             self.assertEqual(db.session.get(Material, material_id).quantidade_estoque, 5)
 
+    def test_purchase_process_center_filters_and_summary(self):
+        response = self.client.post(
+            "/compras/solicitacoes",
+            headers=self.gestor_headers,
+            json={
+                "sc_date": date.today().isoformat(),
+                "module": "LBS",
+                "equipment_raw": "LBS-04",
+                "items": [{"item_type": "SERVICO", "description_raw": "Inspeção elétrica", "quantity": 1}],
+            },
+        )
+        self.assertEqual(response.status_code, 201, response.get_json())
+        purchase = response.get_json()["data"]
+
+        center = self.client.get("/compras/central-processos?item_type=SERVICO&q=LBS-04", headers=self.gestor_headers)
+        self.assertEqual(center.status_code, 200, center.get_json())
+        data = center.get_json()["data"]
+        self.assertEqual(data["summary"]["items"], 1)
+        self.assertEqual(data["summary"]["pending_pc"], 1)
+        self.assertEqual(data["items"][0]["purchase_request_id"], purchase["id"])
+        self.assertEqual(data["items"][0]["item_status"], "AGUARDANDO_PC")
+        self.assertEqual(data["items"][0]["next_action"], "EMITIR_PC")
+
+        invalid_period = self.client.get(
+            "/compras/central-processos?date_from=2026-08-20&date_to=2026-08-01",
+            headers=self.gestor_headers,
+        )
+        self.assertEqual(invalid_period.status_code, 400, invalid_period.get_json())
+
     def test_purchase_request_supports_multiple_material_and_service_items(self):
         response = self.client.post(
             "/compras/solicitacoes",

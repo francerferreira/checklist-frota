@@ -690,6 +690,126 @@ def receive_purchase_invoice_item(invoice_id: int):
     return _run(action)
 
 
+def _central_process_item_summary(item: PurchaseRequestItem) -> dict:
+    purchase = item.purchase_request
+    requested = Decimal(item.quantity_requested or 0)
+    ordered = item.ordered_quantity
+    invoiced = Decimal("0")
+    received = Decimal(item.quantity_received or 0)
+    purchase_orders = []
+    for order_item in item.order_links:
+        order_invoiced, _ = _invoice_quantities(order_item)
+        invoiced += order_invoiced
+        invoices = PurchaseInvoiceItem.query.filter_by(purchase_order_item_id=order_item.id).all()
+        purchase_orders.append({
+            "id": order_item.purchase_order_id,
+            "pc_number": order_item.purchase_order.pc_number if order_item.purchase_order else None,
+            "quantity_ordered": float(order_item.quantity_ordered or 0),
+            "quantity_invoiced": float(order_invoiced),
+            "quantity_received": float(sum((Decimal(invoice_item.quantity_received or 0) for invoice_item in invoices), Decimal("0"))),
+            "invoices": [
+                {
+                    "id": invoice_item.invoice_id,
+                    "invoice_number": invoice_item.invoice.invoice_number if invoice_item.invoice else None,
+                    "series": invoice_item.invoice.series if invoice_item.invoice else None,
+                    "status": invoice_item.invoice.status if invoice_item.invoice else None,
+                }
+                for invoice_item in invoices
+            ],
+        })
+    if received >= requested:
+        status = "RECEBIDA"
+        next_action = "CONCLUIDO"
+    elif received > 0:
+        status = "PARCIALMENTE_RECEBIDA"
+        next_action = "RECEBER_SALDO"
+    elif ordered < requested:
+        status = "PC_PARCIAL" if ordered > 0 else "AGUARDANDO_PC"
+        next_action = "EMITIR_PC"
+    elif invoiced < ordered:
+        status = "AGUARDANDO_NF"
+        next_action = "REGISTRAR_NF"
+    else:
+        status = "AGUARDANDO_RECEBIMENTO"
+        next_action = "RECEBER_MATERIAL"
+    return {
+        "id": item.id,
+        "purchase_request_id": purchase.id if purchase else None,
+        "sc_number": purchase.sc_number or purchase.code if purchase else None,
+        "sc_date": purchase.sc_date.isoformat() if purchase and purchase.sc_date else None,
+        "request_status": purchase.status if purchase else None,
+        "item_status": status,
+        "next_action": next_action,
+        "item_type": item.item_type,
+        "description_raw": item.description_raw,
+        "product_code_raw": item.product_code_raw,
+        "material": item.material.to_dict() if item.material else None,
+        "module": purchase.module if purchase else None,
+        "equipment_raw": purchase.equipment_raw if purchase else None,
+        "requester_raw": purchase.requester_raw if purchase else None,
+        "priority": purchase.priority if purchase else None,
+        "cost_center": purchase.cost_center if purchase else None,
+        "requested_quantity": float(requested),
+        "ordered_quantity": float(ordered),
+        "invoiced_quantity": float(invoiced),
+        "received_quantity": float(received),
+        "remaining_quantity": float(max(Decimal("0"), requested - received)),
+        "purchase_orders": purchase_orders,
+    }
+
+
+@bp.get("/compras/central-processos")
+@auth_required
+def purchase_process_center():
+    denied = _guard_management()
+    if denied:
+        return denied
+    status_filter = _clean(request.args.get("status"))
+    type_filter = _clean(request.args.get("item_type"))
+    search = (_clean(request.args.get("q")) or "").lower()
+    try:
+        date_from = _parse_date(request.args.get("date_from"))
+        date_to = _parse_date(request.args.get("date_to"))
+    except ValueError as exc:
+        return api_response(False, error=str(exc), status_code=400)
+    if date_from and date_to and date_from > date_to:
+        return api_response(False, error="O período inicial não pode ser maior que o final.", status_code=400)
+    rows = []
+    for purchase in PurchaseRequest.query.order_by(PurchaseRequest.created_at.desc()).limit(500).all():
+        reference_date = purchase.sc_date or (purchase.created_at.date() if purchase.created_at else None)
+        if date_from and (not reference_date or reference_date < date_from):
+            continue
+        if date_to and (not reference_date or reference_date > date_to):
+            continue
+        for item in purchase.items:
+            summary = _central_process_item_summary(item)
+            if status_filter and status_filter.upper() not in {summary["item_status"], summary["request_status"]}:
+                continue
+            if type_filter and type_filter.upper() != str(summary["item_type"] or "").upper():
+                continue
+            haystack = " ".join(str(summary.get(key) or "") for key in ("sc_number", "description_raw", "product_code_raw", "module", "equipment_raw", "requester_raw")).lower()
+            if search and search not in haystack:
+                continue
+            rows.append(summary)
+    status_counts = {}
+    type_counts = {}
+    for row in rows:
+        status_counts[row["item_status"]] = status_counts.get(row["item_status"], 0) + 1
+        type_counts[row["item_type"]] = type_counts.get(row["item_type"], 0) + 1
+    return api_response(True, data={
+        "summary": {
+            "items": len(rows),
+            "processes": len({row["purchase_request_id"] for row in rows}),
+            "status_counts": status_counts,
+            "type_counts": type_counts,
+            "pending_pc": sum(1 for row in rows if row["item_status"] in {"AGUARDANDO_PC", "PC_PARCIAL"}),
+            "pending_nf": sum(1 for row in rows if row["item_status"] == "AGUARDANDO_NF"),
+            "pending_receipt": sum(1 for row in rows if row["item_status"] == "AGUARDANDO_RECEBIMENTO"),
+        },
+        "items": rows,
+    })
+
+
 @bp.get("/compras/solicitacoes/<int:purchase_id>")
 @auth_required
 def get_purchase_request(purchase_id: int):
