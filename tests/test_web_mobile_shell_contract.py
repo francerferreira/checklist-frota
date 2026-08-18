@@ -23,8 +23,8 @@ class WebMobileShellContractTests(unittest.TestCase):
         cls.legacy_readme = LEGACY_README_PATH.read_text(encoding="utf-8")
 
     def test_index_uses_canonical_frontend_bundle(self):
-        self.assertIn('./static/js/app.js?v=20260818-05', self.index_html)
-        self.assertIn('./static/css/styles.css?v=20260818-06', self.index_html)
+        self.assertIn('./static/js/app.js?v=20260818-06', self.index_html)
+        self.assertIn('./static/css/styles.css?v=20260818-07', self.index_html)
         self.assertNotIn("app-20260419-", self.index_html)
 
     def test_login_uses_institutional_glass_layout_with_sis_mmp_identity(self):
@@ -377,6 +377,29 @@ class WebMobileShellContractTests(unittest.TestCase):
             with self.subTest(script=fragment):
                 self.assertIn(fragment, app_js)
         for fragment in [".purchases-request-actions", ".purchase-detail-grid", ".purchase-request-form"]:
+            with self.subTest(style=fragment):
+                self.assertIn(fragment, styles)
+
+    def test_purchase_detail_exposes_receipt_history_and_invoice_attachment(self):
+        app_js = (PROJECT_ROOT / "web_app" / "static" / "js" / "app.js").read_text(encoding="utf-8")
+        styles = (PROJECT_ROOT / "web_app" / "static" / "css" / "styles.css").read_text(encoding="utf-8")
+        for fragment in [
+            'id="purchase-receive-invoice"',
+            'id="purchase-detail-content"',
+        ]:
+            with self.subTest(fragment=fragment):
+                self.assertIn(fragment, self.index_html)
+        for fragment in [
+            "HISTÓRICO DE RECEBIMENTOS",
+            "ABRIR NOTA FISCAL",
+            "openProtectedPurchaseFile",
+            "uploadEvidence(invoice",
+            "NOTA_FISCAL:",
+            "receiptHistory",
+        ]:
+            with self.subTest(script=fragment):
+                self.assertIn(fragment, app_js)
+        for fragment in [".purchase-receipt-history", ".purchase-receipt-history-item"]:
             with self.subTest(style=fragment):
                 self.assertIn(fragment, styles)
 

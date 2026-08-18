@@ -634,6 +634,7 @@ const elements = {
     purchaseReceiveForm: document.getElementById("purchase-receive-form"),
     purchaseReceiveId: document.getElementById("purchase-receive-id"),
     purchaseReceiveQuantity: document.getElementById("purchase-receive-quantity"),
+    purchaseReceiveInvoice: document.getElementById("purchase-receive-invoice"),
     purchaseReceiveNotes: document.getElementById("purchase-receive-notes"),
     purchaseReceiveCancel: document.getElementById("purchase-receive-cancel"),
     purchaseReceiveHelp: document.getElementById("purchase-receive-help"),
@@ -3180,9 +3181,30 @@ function renderPurchaseDetail(row) {
     const remaining = Math.max(0, Number(row.requested_quantity || 0) - Number(row.received_quantity || 0));
     const material = row.material || {};
     if (elements.purchaseDetailTitle) elements.purchaseDetailTitle.textContent = row.sc_number || row.code || "Solicitação de compra";
-    elements.purchaseDetailContent.innerHTML = `<div class="purchase-detail-grid"><span><small>MATERIAL</small><b>${escapeHtml(material.descricao || "Material não informado")}</b></span><span><small>STATUS</small><b class="purchases-request-status status-${status.toLowerCase()}">${escapeHtml(PURCHASE_STATUS_LABELS[status] || status)}</b></span><span><small>QUANTIDADE</small><b>${escapeHtml(String(row.requested_quantity ?? "-"))} solicitada(s)</b></span><span><small>RECEBIDO</small><b>${escapeHtml(String(row.received_quantity ?? 0))} | ${escapeHtml(String(remaining))} restante(s)</b></span><span><small>PRIORIDADE</small><b>${escapeHtml(row.priority || "MEDIA")}</b></span><span><small>PROVEDOR</small><b>${escapeHtml(row.supplier?.name || "Ainda não definido")}</b></span></div><p class="purchase-detail-observation">${escapeHtml(row.justification || row.observation || "Sem observação registrada.")}</p>`;
+    const receipts = Array.isArray(row.receipts) ? row.receipts : [];
+    const receiptHistory = receipts.length ? receipts.map((receipt) => {
+        const invoiceMatch = String(receipt.notes || "").match(/NOTA_FISCAL:\s*(\/\S+)/i);
+        const note = String(receipt.notes || "").replace(/NOTA_FISCAL:\s*\/\S+/i, "").trim();
+        return `<article class="purchase-receipt-history-item"><div><strong>${escapeHtml(formatManausDateTime(receipt.received_at, { short: true }) || "Recebimento")}</strong><span>${escapeHtml(String(receipt.quantity || 0))} unidade(s)${receipt.received_by?.nome ? ` · ${escapeHtml(receipt.received_by.nome)}` : ""}</span></div>${note ? `<p>${escapeHtml(note)}</p>` : ""}${invoiceMatch ? `<button class="secondary-button" type="button" data-purchase-file="${escapeHtml(invoiceMatch[1])}">ABRIR NOTA FISCAL</button>` : ""}</article>`;
+    }).join("") : `<div class="purchase-receipt-history-empty">Nenhum recebimento registrado até o momento.</div>`;
+    elements.purchaseDetailContent.innerHTML = `<div class="purchase-detail-grid"><span><small>MATERIAL</small><b>${escapeHtml(material.descricao || "Material não informado")}</b></span><span><small>STATUS</small><b class="purchases-request-status status-${status.toLowerCase()}">${escapeHtml(PURCHASE_STATUS_LABELS[status] || status)}</b></span><span><small>QUANTIDADE</small><b>${escapeHtml(String(row.requested_quantity ?? "-"))} solicitada(s)</b></span><span><small>RECEBIDO</small><b>${escapeHtml(String(row.received_quantity ?? 0))} | ${escapeHtml(String(remaining))} restante(s)</b></span><span><small>PRIORIDADE</small><b>${escapeHtml(row.priority || "MEDIA")}</b></span><span><small>PROVEDOR</small><b>${escapeHtml(row.supplier?.name || "Ainda não definido")}</b></span></div><p class="purchase-detail-observation">${escapeHtml(row.justification || row.observation || "Sem observação registrada.")}</p><section class="purchase-receipt-history"><header><div><span>RASTREABILIDADE</span><strong>HISTÓRICO DE RECEBIMENTOS</strong></div><em>${receipts.length} registro(s)</em></header><div class="purchase-receipt-history-list">${receiptHistory}</div></section>`;
     elements.purchaseDetailApprove?.classList.toggle("hidden", !(hasAdminAccess() && String(row.status || "").toUpperCase() === "SOLICITADA"));
     elements.purchaseDetailReceive?.classList.toggle("hidden", !(hasWashReportAccess() && ["APROVADA", "EM_TRANSITO", "PARCIALMENTE_RECEBIDA"].includes(String(row.status || "").toUpperCase()) && remaining > 0));
+}
+
+async function openProtectedPurchaseFile(path) {
+    if (!path) return;
+    try {
+        const response = await fetch(`${state.apiBaseUrl}${path}`, { headers: { Authorization: `Bearer ${state.token}` } });
+        if (!response.ok) throw new Error("NOTA FISCAL NÃO DISPONÍVEL.");
+        const objectUrl = URL.createObjectURL(await response.blob());
+        const anchor = document.createElement("a");
+        anchor.href = objectUrl;
+        anchor.target = "_blank";
+        anchor.rel = "noopener";
+        anchor.click();
+        setTimeout(() => URL.revokeObjectURL(objectUrl), 60_000);
+    } catch (error) { showToast(error.message || "FALHA AO ABRIR NOTA FISCAL.", true); }
 }
 
 async function openPurchaseRequestDetails(id) {
@@ -3226,6 +3248,7 @@ function openPurchaseReceiveModal(id) {
     elements.purchaseReceiveQuantity.value = String(Math.max(1, remaining));
     elements.purchaseReceiveQuantity.max = String(remaining);
     elements.purchaseReceiveNotes.value = "";
+    if (elements.purchaseReceiveInvoice) elements.purchaseReceiveInvoice.value = "";
     elements.purchaseReceiveHelp.textContent = `${row.sc_number || row.code || "SC"} — saldo disponível: ${remaining}.`;
     elements.purchaseReceiveModal?.classList.remove("hidden");
     document.body.classList.add("modal-open");
@@ -3244,7 +3267,14 @@ async function submitPurchaseReceive(event) {
     const quantity = Number(elements.purchaseReceiveQuantity?.value || 0);
     if (!id || quantity < 1) { showToast("INFORME UMA QUANTIDADE VÁLIDA.", true); return; }
     try {
-        await apiFetch(`/compras/solicitacoes/${id}/recebimentos`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ quantity, notes: elements.purchaseReceiveNotes?.value.trim() || null, idempotency_key: `web-${id}-${Date.now()}` }) });
+        const row = purchaseRequestById(id);
+        const invoice = elements.purchaseReceiveInvoice?.files?.[0];
+        let notes = elements.purchaseReceiveNotes?.value.trim() || "";
+        if (invoice) {
+            const invoicePath = await uploadEvidence(invoice, row?.sc_number || row?.code || `SC-${id}`, "NOTA_FISCAL", "nota_fiscal", "COMPRAS");
+            notes = `${notes}${notes ? "\n" : ""}NOTA_FISCAL: ${invoicePath}`;
+        }
+        await apiFetch(`/compras/solicitacoes/${id}/recebimentos`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ quantity, notes: notes || null, idempotency_key: `web-${id}-${Date.now()}` }) });
         closePurchaseReceiveModal();
         closePurchaseDetailModal();
         await loadPurchasesData();
@@ -10012,6 +10042,10 @@ on(elements.purchaseRequestModal, "click", (event) => { if (event.target instanc
 on(elements.purchaseDetailClose, "click", closePurchaseDetailModal);
 on(elements.purchaseDetailApprove, "click", () => approvePurchaseRequest(state.purchases.selectedRequestId));
 on(elements.purchaseDetailReceive, "click", () => openPurchaseReceiveModal(state.purchases.selectedRequestId));
+on(elements.purchaseDetailContent, "click", (event) => {
+    const button = event.target instanceof HTMLElement ? event.target.closest("[data-purchase-file]") : null;
+    if (button) openProtectedPurchaseFile(button.dataset.purchaseFile);
+});
 on(elements.purchaseDetailModal, "click", (event) => { if (event.target instanceof HTMLElement && event.target.dataset.closePurchaseDetail === "true") closePurchaseDetailModal(); });
 on(elements.purchaseReceiveForm, "submit", submitPurchaseReceive);
 on(elements.purchaseReceiveCancel, "click", closePurchaseReceiveModal);

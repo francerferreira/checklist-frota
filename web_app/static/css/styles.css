@@ -6933,6 +6933,21 @@ button.rh-admin-operation-card:hover { border-color: #78aee6; transform: transla
 .purchase-detail-grid b { color: var(--theme-text-strong); font-size: .8rem; }
 .purchase-detail-observation { margin: 0; padding: 12px; border: 1px solid var(--theme-border); border-radius: 12px; color: var(--theme-text-muted); font-size: .78rem; line-height: 1.45; }
 .purchase-detail-actions { justify-content: flex-end; }
+.purchase-receipt-history { display: grid; gap: 10px; padding-top: 4px; }
+.purchase-receipt-history > header { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.purchase-receipt-history > header > div { display: grid; gap: 3px; }
+.purchase-receipt-history > header span { color: var(--theme-text-muted); font-size: .64rem; font-weight: 900; letter-spacing: .08em; }
+.purchase-receipt-history > header strong { color: var(--theme-text-strong); font-size: .86rem; }
+.purchase-receipt-history > header em { color: var(--theme-text-muted); font-size: .7rem; font-style: normal; }
+.purchase-receipt-history-list { display: grid; gap: 8px; max-height: 220px; overflow-y: auto; }
+.purchase-receipt-history-item { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 10px 12px; border: 1px solid var(--theme-border); border-radius: 11px; background: var(--theme-surface-soft); }
+.purchase-receipt-history-item > div { display: grid; gap: 3px; min-width: 0; }
+.purchase-receipt-history-item strong { color: var(--theme-text); font-size: .76rem; }
+.purchase-receipt-history-item span,
+.purchase-receipt-history-item p { margin: 0; color: var(--theme-text-muted); font-size: .7rem; }
+.purchase-receipt-history-item p { flex: 1; }
+.purchase-receipt-history-item button { flex: 0 0 auto; min-height: 34px; padding: 7px 9px; font-size: .62rem; }
+.purchase-receipt-history-empty { padding: 12px; border: 1px dashed var(--theme-border-strong); border-radius: 11px; color: var(--theme-text-muted); font-size: .74rem; text-align: center; }
 
 .purchases-provider-panel {
     display: grid;
@@ -7045,6 +7060,8 @@ button.rh-admin-operation-card:hover { border-color: #78aee6; transform: transla
     .purchase-receive-form,
     .purchase-detail-grid { grid-template-columns: 1fr; }
     .purchase-request-field-wide { grid-column: auto; }
+    .purchase-receipt-history-item { align-items: flex-start; flex-direction: column; }
+    .purchase-receipt-history-item button { width: 100%; }
     .purchases-provider-form { grid-template-columns: 1fr; }
     .purchases-provider-wide { grid-column: auto; }
     .purchases-provider-heading { align-items: stretch; flex-direction: column; }
