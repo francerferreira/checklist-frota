@@ -317,6 +317,8 @@ const state = {
         processCenter: { summary: {}, items: [] },
         reportSummary: { summary: {}, by_status: {}, by_type: {}, by_provider: {} },
         reportSchedules: [],
+        activeArea: "process",
+        views: { process: "QUADRO", requests: "CARTOES", orders: "QUADRO", invoices: "QUADRO" },
         materialHistory: null,
         selectedRequestId: null,
         selectedInvoiceId: null,
@@ -703,6 +705,11 @@ const elements = {
     purchasesReportScheduleNextRun: document.getElementById("purchases-report-schedule-next-run"),
     purchasesReportSchedulesList: document.getElementById("purchases-report-schedules-list"),
     purchasesReportsPanel: document.querySelector(".purchases-reports-panel"),
+    purchasesWorkflowNav: document.getElementById("purchases-workflow-nav"),
+    purchasesProcessBoard: document.getElementById("purchases-process-board"),
+    purchasesRequestBoard: document.getElementById("purchases-request-board"),
+    purchasesOrderBoard: document.getElementById("purchases-order-board"),
+    purchasesInvoiceBoard: document.getElementById("purchases-invoice-board"),
     purchaseInvoiceModal: document.getElementById("purchase-invoice-modal"),
     purchaseInvoiceForm: document.getElementById("purchase-invoice-form"),
     purchaseInvoicePcId: document.getElementById("purchase-invoice-pc-id"),
@@ -3191,6 +3198,7 @@ function renderPurchaseRequests() {
     }
     if (!filtered.length) {
         elements.purchasesRequestList.innerHTML = `<article class="purchases-request-empty"><strong>${rows.length ? "NENHUMA SOLICITAÇÃO NESTE FILTRO" : "NENHUMA SOLICITAÇÃO DE COMPRA"}</strong><span>${rows.length ? "Ajuste a busca ou o status para consultar outra SC." : "As solicitações aparecerão aqui quando forem registradas."}</span></article>`;
+        renderPurchaseRequestBoard([]);
         return;
     }
     elements.purchasesRequestList.innerHTML = filtered.map((row) => {
@@ -3213,6 +3221,36 @@ function renderPurchaseRequests() {
             <footer><span>${escapeHtml(supplierName)}${preferred ? " · PREFERENCIAL" : ""}</span><span>${escapeHtml(row?.requester_raw || "Solicitante não informado")}</span></footer>
             <div class="purchases-request-actions"><button class="secondary-button" type="button" data-purchase-open="${Number(row?.id || 0)}">ABRIR</button>${canApprove ? `<button class="secondary-button" type="button" data-purchase-approve="${Number(row?.id || 0)}">APROVAR</button>` : ""}${canReceive ? `<button class="primary-button" type="button" data-purchase-receive="${Number(row?.id || 0)}">RECEBER</button>` : ""}</div>
         </article>`;
+    }).join("");
+    renderPurchaseRequestBoard(filtered);
+}
+
+const PURCHASE_REQUEST_KANBAN_COLUMNS = [
+    ["SOLICITADA", "SOLICITADAS", "Aguardando análise."],
+    ["APROVADA", "APROVADAS", "Liberadas para montar PC."],
+    ["AGUARDANDO_PC", "AGUARDANDO PC", "Sem pedido emitido."],
+    ["PC_PARCIAL", "PC PARCIAL", "Pedido incompleto."],
+    ["AGUARDANDO_NF", "AGUARDANDO NF", "PC sem nota fiscal."],
+    ["EM_TRANSITO", "EM TRÂNSITO", "Compra em entrega."],
+    ["PARCIALMENTE_RECEBIDA", "RECEBIMENTO PARCIAL", "Ainda há saldo."],
+    ["RECEBIDA", "RECEBIDAS", "Processo concluído."],
+];
+
+function purchaseRequestKanbanCard(row) {
+    const item = (row?.items || [])[0] || {};
+    const material = row?.material || {};
+    const description = material?.descricao || item?.description_raw || "Material não informado";
+    const quantity = row?.requested_quantity ?? item?.quantity_requested ?? "-";
+    const priority = String(row?.priority || "MEDIA").toUpperCase();
+    const status = purchaseRequestItemStatus(row);
+    return `<article class="purchases-kanban-card"><div><b>${escapeHtml(row?.sc_number || row?.code || "SC")}</b><strong>${escapeHtml(description)}</strong><small>${escapeHtml(row?.module || "COMPRAS")} · ${escapeHtml(String(quantity))} un. · ${escapeHtml(priority)}</small></div><button class="secondary-button" type="button" data-purchase-open="${Number(row?.id || 0)}">ABRIR SC</button></article>`;
+}
+
+function renderPurchaseRequestBoard(rows = state.purchases.requests || []) {
+    if (!elements.purchasesRequestBoard) return;
+    elements.purchasesRequestBoard.innerHTML = PURCHASE_REQUEST_KANBAN_COLUMNS.map(([key, title, helper]) => {
+        const cards = rows.filter((row) => purchaseRequestItemStatus(row) === key).map(purchaseRequestKanbanCard);
+        return purchaseKanbanColumnMarkup(key, title, helper, cards);
     }).join("");
 }
 
@@ -3479,6 +3517,7 @@ function renderPurchaseOrderPending() {
     if (!rows.length) {
         elements.purchaseOrderPendingList.innerHTML = `<article class="purchases-request-empty"><strong>NENHUM ITEM AGUARDANDO PC</strong><span>Aprove uma SC para disponibilizar seus itens nesta etapa.</span></article>`;
         if (elements.purchaseOrderSubmit) elements.purchaseOrderSubmit.disabled = true;
+        renderPurchaseOrderBoard([]);
         return;
     }
     if (elements.purchaseOrderSubmit) elements.purchaseOrderSubmit.disabled = false;
@@ -3488,6 +3527,20 @@ function renderPurchaseOrderPending() {
         const maxQuantity = Number(item.remaining_order_quantity || 0);
         return `<label class="purchase-order-pending-row"><input class="purchase-order-item-check" type="checkbox" data-purchase-order-item="${Number(item.id)}"><span class="purchase-order-pending-main"><b>${escapeHtml(item.sc_number || "SC")}</b><strong>${escapeHtml(description)}</strong><em>${escapeHtml(reference)} · ${escapeHtml(item.item_type || "ITEM")} · ${escapeHtml(item.module || "COMPRAS")}</em></span><span class="purchase-order-pending-balance"><small>PENDENTE</small><b>${escapeHtml(String(maxQuantity))}</b></span><input class="purchase-order-item-quantity" type="number" min="0.01" step="1" max="${maxQuantity}" value="${maxQuantity}" data-purchase-order-quantity="${Number(item.id)}" aria-label="Quantidade do item ${Number(item.id)}"></label>`;
     }).join("");
+    renderPurchaseOrderBoard(rows);
+}
+
+function renderPurchaseOrderBoard(rows = purchaseOrderPendingRows()) {
+    if (!elements.purchasesOrderBoard) return;
+    const pendingCards = rows.map((item) => {
+        const description = item.item_type === "SERVICO" ? item.description_raw : (item.material?.descricao || item.description_raw || "Material não informado");
+        return `<article class="purchases-kanban-card"><div><b>${escapeHtml(item.sc_number || "SC")}</b><strong>${escapeHtml(description)}</strong><small>${escapeHtml(item.module || "COMPRAS")} · saldo ${escapeHtml(String(item.remaining_order_quantity || 0))}</small></div><span class="purchases-kanban-hint">SELECIONE NA LISTA PARA EMITIR</span></article>`;
+    });
+    const orderCards = (state.purchases.orders || []).map((order) => `<article class="purchases-kanban-card"><div><b>${escapeHtml(order.pc_number || "PC")}</b><strong>${escapeHtml(order.supplier_raw || "Provedor não informado")}</strong><small>${escapeHtml(order.status || "EMITIDO")} · ${(order.items || []).length} item(ns)</small></div><span class="purchases-kanban-hint">ABERTO</span></article>`);
+    elements.purchasesOrderBoard.innerHTML = [
+        purchaseKanbanColumnMarkup("AGUARDANDO_PC", "AGUARDANDO PC", "Itens aprovados para montar pedido.", pendingCards),
+        purchaseKanbanColumnMarkup("EMITIDO", "PC EMITIDOS", "Pedidos já registrados.", orderCards),
+    ].join("");
 }
 
 async function loadPurchaseOrdersData() {
@@ -3572,6 +3625,21 @@ function renderPurchaseInvoiceData() {
             return `<article class="purchases-invoice-card"><header><div><span>${escapeHtml(item.invoice_number || "NF")} · ${escapeHtml(item.pc_number || "PC")}</span><strong>${escapeHtml(description)}</strong></div><b class="purchases-invoice-balance">${escapeHtml(String(item.remaining_receipt_quantity || 0))} pendente</b></header><p>${escapeHtml(item.sc_number || "SC")} · Faturado: ${escapeHtml(String(item.quantity_invoiced || 0))} · Recebido: ${escapeHtml(String(item.quantity_received || 0))}</p><button class="primary-button" type="button" data-purchase-invoice-receive="${Number(item.id)}">REGISTRAR ENTRADA</button></article>`;
         }).join("") : `<article class="purchases-invoice-empty"><strong>NENHUM ITEM AGUARDANDO RECEBIMENTO</strong><span>As entradas por NF aparecerão aqui para conferência.</span></article>`;
     }
+    renderPurchaseInvoiceBoard(pendingNf, pendingReceipts);
+}
+
+function renderPurchaseInvoiceBoard(pendingNf = state.purchases.pendingInvoices?.pending_nf || [], pendingReceipts = state.purchases.pendingInvoices?.pending_receipts || []) {
+    if (!elements.purchasesInvoiceBoard) return;
+    const nfCards = pendingNf.map((order) => `<article class="purchases-kanban-card"><div><b>${escapeHtml(order.pc_number || "PC")}</b><strong>${escapeHtml(order.supplier_raw || "Provedor não informado")}</strong><small>${(order.items || []).length} item(ns) aguardando faturamento.</small></div><button class="secondary-button" type="button" data-purchase-invoice-open="${Number(order.purchase_order_id)}">REGISTRAR NF</button></article>`);
+    const receiptCards = pendingReceipts.map((item) => {
+        const description = item.item_type === "SERVICO" ? item.description_raw : (item.material?.descricao || item.description_raw || "Material não informado");
+        return `<article class="purchases-kanban-card"><div><b>${escapeHtml(item.invoice_number || "NF")}</b><strong>${escapeHtml(description)}</strong><small>${escapeHtml(item.pc_number || "PC")} · saldo ${escapeHtml(String(item.remaining_receipt_quantity || 0))}</small></div><button class="primary-button" type="button" data-purchase-invoice-receive="${Number(item.id)}">REGISTRAR ENTRADA</button></article>`;
+    });
+    elements.purchasesInvoiceBoard.innerHTML = [
+        purchaseKanbanColumnMarkup("AGUARDANDO_NF", "AGUARDANDO NF", "PC emitido sem nota.", nfCards),
+        purchaseKanbanColumnMarkup("AGUARDANDO_RECEBIMENTO", "AGUARDANDO RECEBIMENTO", "NF registrada, aguardando entrada.", receiptCards),
+        purchaseKanbanColumnMarkup("RECEBIDA", "CONCLUÍDOS", "Itens já recebidos.", []),
+    ].join("");
 }
 
 async function loadPurchaseInvoiceData() {
@@ -3716,6 +3784,7 @@ function renderPurchaseProcessCenter() {
     if (!elements.purchasesProcessList) return;
     if (!rows.length) {
         elements.purchasesProcessList.innerHTML = `<article class="purchases-process-empty"><strong>NENHUM ITEM ENCONTRADO</strong><span>Ajuste os filtros ou abra uma nova SC.</span></article>`;
+        renderPurchaseProcessBoard();
         return;
     }
     elements.purchasesProcessList.innerHTML = rows.map((row) => {
@@ -3723,6 +3792,35 @@ function renderPurchaseProcessCenter() {
         const status = String(row.item_status || "").toLowerCase().replaceAll("_", "-");
         const actionLabel = { EMITIR_PC: "EMITIR PC", REGISTRAR_NF: "REGISTRAR NF", RECEBER_MATERIAL: "RECEBER", RECEBER_SALDO: "RECEBER SALDO", CONCLUIDO: "CONCLUÍDO" }[row.next_action] || "ABRIR SC";
         return `<article class="purchases-process-card"><div class="purchases-process-card-main"><header><span>${escapeHtml(row.sc_number || "SC")}</span><b class="purchases-process-status purchases-process-status-${escapeHtml(status)}">${escapeHtml(purchaseProcessStatusLabel(row.item_status))}</b></header><strong>${escapeHtml(description)}</strong><p>${escapeHtml(row.item_type || "ITEM")} · ${escapeHtml(row.module || "COMPRAS")} · ${escapeHtml(row.equipment_raw || "Equipamento não informado")}</p></div><div class="purchases-process-card-metrics"><span>SALDO</span><strong>${escapeHtml(String(row.remaining_quantity || 0))}</strong><small>Solicitado ${escapeHtml(String(row.requested_quantity || 0))} · Recebido ${escapeHtml(String(row.received_quantity || 0))}</small></div><button class="secondary-button" type="button" data-purchase-process-open="${Number(row.purchase_request_id)}">${escapeHtml(actionLabel)}</button></article>`;
+    }).join("");
+    renderPurchaseProcessBoard();
+}
+
+const PURCHASE_KANBAN_COLUMNS = [
+    ["AGUARDANDO_PC", "AGUARDANDO PC", "Itens aprovados sem pedido."],
+    ["PC_PARCIAL", "PC PARCIAL", "Pedido emitido parcialmente."],
+    ["AGUARDANDO_NF", "AGUARDANDO NF", "PC sem nota fiscal."],
+    ["AGUARDANDO_RECEBIMENTO", "AGUARDANDO RECEBIMENTO", "NF registrada, aguardando entrada."],
+    ["PARCIALMENTE_RECEBIDA", "RECEBIMENTO PARCIAL", "Ainda existe saldo pendente."],
+    ["RECEBIDA", "CONCLUÍDO", "Processo recebido."],
+];
+
+function purchaseKanbanColumnMarkup(key, title, helper, cards) {
+    return `<section class="purchases-kanban-column purchases-kanban-${key.toLowerCase().replaceAll("_", "-")}"><header><div><span>${escapeHtml(title)}</span><small>${escapeHtml(helper)}</small></div><b>${cards.length}</b></header><div class="purchases-kanban-column-body">${cards.length ? cards.join("") : `<p class="purchases-kanban-empty">Nenhum item nesta etapa.</p>`}</div></section>`;
+}
+
+function purchaseProcessKanbanCard(row) {
+    const description = row.item_type === "SERVICO" ? row.description_raw : (row.material?.descricao || row.description_raw || "Material não informado");
+    const actionLabel = { EMITIR_PC: "EMITIR PC", REGISTRAR_NF: "REGISTRAR NF", RECEBER_MATERIAL: "RECEBER", RECEBER_SALDO: "RECEBER SALDO", CONCLUIDO: "CONCLUÍDO" }[row.next_action] || "ABRIR SC";
+    return `<article class="purchases-kanban-card"><div><b>${escapeHtml(row.sc_number || "SC")}</b><strong>${escapeHtml(description)}</strong><small>${escapeHtml(row.module || "COMPRAS")} · saldo ${escapeHtml(String(row.remaining_quantity || 0))}</small></div><button class="secondary-button" type="button" data-purchase-process-open="${Number(row.purchase_request_id)}">${escapeHtml(actionLabel)}</button></article>`;
+}
+
+function renderPurchaseProcessBoard() {
+    if (!elements.purchasesProcessBoard) return;
+    const rows = state.purchases.processCenter?.items || [];
+    elements.purchasesProcessBoard.innerHTML = PURCHASE_KANBAN_COLUMNS.map(([key, title, helper]) => {
+        const cards = rows.filter((row) => String(row.item_status || "").toUpperCase() === key).map(purchaseProcessKanbanCard);
+        return purchaseKanbanColumnMarkup(key, title, helper, cards);
     }).join("");
 }
 
@@ -4055,12 +4153,59 @@ async function loadMaterialPurchaseHistory() {
     } catch (error) { showToast(error.message || "MATERIAL SEM HISTÓRICO DE COMPRAS.", true); }
 }
 
+const PURCHASES_AREAS = new Set(["process", "requests", "orders", "invoices", "materials", "reports"]);
+const PURCHASES_VIEWS = new Set(["QUADRO", "LISTA", "CARTOES"]);
+
+function setPurchasesArea(area = "process") {
+    const nextArea = PURCHASES_AREAS.has(area) ? area : "process";
+    state.purchases.activeArea = nextArea;
+    document.querySelectorAll("[data-purchases-area-section]").forEach((section) => {
+        section.classList.toggle("purchases-area-hidden", section.dataset.purchasesAreaSection !== nextArea);
+    });
+    elements.purchasesWorkflowNav?.querySelectorAll("[data-purchases-area]").forEach((button) => {
+        button.classList.toggle("is-active", button.dataset.purchasesArea === nextArea);
+    });
+}
+
+function setPurchasesView(target, view) {
+    if (!state.purchases.views || !Object.prototype.hasOwnProperty.call(state.purchases.views, target)) return;
+    const nextView = PURCHASES_VIEWS.has(view) ? view : "CARTOES";
+    state.purchases.views[target] = nextView;
+    const listMap = {
+        process: elements.purchasesProcessList,
+        requests: elements.purchasesRequestList,
+        orders: elements.purchaseOrderPendingList,
+        invoices: document.querySelector(".purchases-invoice-columns"),
+    };
+    const boardMap = {
+        process: elements.purchasesProcessBoard,
+        requests: elements.purchasesRequestBoard,
+        orders: elements.purchasesOrderBoard,
+        invoices: elements.purchasesInvoiceBoard,
+    };
+    const list = listMap[target];
+    const board = boardMap[target];
+    board?.classList.toggle("hidden", nextView !== "QUADRO");
+    list?.classList.toggle("hidden", nextView === "QUADRO");
+    list?.classList.toggle("purchases-view-list", nextView === "LISTA");
+    list?.classList.toggle("purchases-view-cards", nextView === "CARTOES");
+    document.querySelector(`[data-purchases-view-target="${target}"]`)?.querySelectorAll("[data-purchases-view-option]").forEach((button) => {
+        button.classList.toggle("is-active", button.dataset.purchasesViewOption === nextView);
+    });
+}
+
+function applyPurchasesViews() {
+    Object.entries(state.purchases.views || {}).forEach(([target, view]) => setPurchasesView(target, view));
+}
+
 async function openPurchasesMenu({ focusProviders = false, focusReports = false } = {}) {
     if (!hasWashReportAccess()) return;
     if (elements.purchasesRoleBadge) elements.purchasesRoleBadge.textContent = hasAdminAccess() ? "ADMINISTRAÇÃO" : "GESTÃO";
     if (elements.purchaseOrderDate && !elements.purchaseOrderDate.value) elements.purchaseOrderDate.value = formatDateInputValue(new Date());
     elements.purchasesProviderPanel?.classList.toggle("hidden", !hasAdminAccess());
     setActiveScreen("purchases");
+    setPurchasesArea(focusReports ? "reports" : focusProviders ? "materials" : state.purchases.activeArea || "process");
+    applyPurchasesViews();
     const loaders = [loadPurchasesData()];
     if (hasAdminAccess()) loaders.push(loadPurchaseProviders());
     await Promise.all(loaders);
@@ -10620,6 +10765,13 @@ on(elements.purchasesBackButton, "click", () => {
     renderHome();
     setActiveScreen("home");
 });
+on(elements.purchasesWorkflowNav, "click", (event) => {
+    const button = event.target instanceof HTMLElement ? event.target.closest("[data-purchases-area]") : null;
+    if (button) setPurchasesArea(button.dataset.purchasesArea);
+});
+document.querySelectorAll("[data-purchases-view-target] [data-purchases-view-option]").forEach((button) => {
+    button.addEventListener("click", () => setPurchasesView(button.closest("[data-purchases-view-target]")?.dataset.purchasesViewTarget, button.dataset.purchasesViewOption));
+});
 on(elements.adminCatalogsBackButton, "click", () => {
     renderHome();
     setActiveScreen("home");
@@ -10659,6 +10811,11 @@ on(elements.purchasesRequestList, "click", (event) => {
     else if (approveButton) approvePurchaseRequest(Number(approveButton.dataset.purchaseApprove));
     else if (receiveButton) openPurchaseReceiveModal(Number(receiveButton.dataset.purchaseReceive));
 });
+on(elements.purchasesRequestBoard, "click", (event) => {
+    const target = event.target instanceof HTMLElement ? event.target : null;
+    const openButton = target?.closest("[data-purchase-open]");
+    if (openButton) openPurchaseRequestDetails(Number(openButton.dataset.purchaseOpen));
+});
 on(elements.purchaseRequestForm, "submit", submitPurchaseRequest);
 on(elements.purchaseOrderForm, "submit", submitPurchaseOrder);
 on(elements.purchasesOrdersRefresh, "click", loadPurchaseOrdersData);
@@ -10666,6 +10823,13 @@ on(elements.purchasesInvoicesRefresh, "click", loadPurchaseInvoiceData);
 on(elements.purchasesInvoicePendingList, "click", (event) => {
     const button = event.target instanceof HTMLElement ? event.target.closest("[data-purchase-invoice-open]") : null;
     if (button) openPurchaseInvoiceModal(purchaseInvoicePendingById(Number(button.dataset.purchaseInvoiceOpen)));
+});
+on(elements.purchasesInvoiceBoard, "click", (event) => {
+    const target = event.target instanceof HTMLElement ? event.target : null;
+    const invoiceButton = target?.closest("[data-purchase-invoice-open]");
+    const receiveButton = target?.closest("[data-purchase-invoice-receive]");
+    if (invoiceButton) openPurchaseInvoiceModal(purchaseInvoicePendingById(Number(invoiceButton.dataset.purchaseInvoiceOpen)));
+    else if (receiveButton) openPurchaseInvoiceReceiveModal(purchaseReceiptPendingById(Number(receiveButton.dataset.purchaseInvoiceReceive)));
 });
 on(elements.purchasesReceiptPendingList, "click", (event) => {
     const button = event.target instanceof HTMLElement ? event.target.closest("[data-purchase-invoice-receive]") : null;
@@ -10682,6 +10846,10 @@ on(elements.purchasesProcessSearch, "change", loadPurchaseProcessCenter);
 on(elements.purchasesProcessStatus, "change", loadPurchaseProcessCenter);
 on(elements.purchasesProcessType, "change", loadPurchaseProcessCenter);
 on(elements.purchasesProcessList, "click", (event) => {
+    const button = event.target instanceof HTMLElement ? event.target.closest("[data-purchase-process-open]") : null;
+    if (button) openPurchaseRequestDetails(Number(button.dataset.purchaseProcessOpen));
+});
+on(elements.purchasesProcessBoard, "click", (event) => {
     const button = event.target instanceof HTMLElement ? event.target.closest("[data-purchase-process-open]") : null;
     if (button) openPurchaseRequestDetails(Number(button.dataset.purchaseProcessOpen));
 });

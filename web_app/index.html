@@ -14,7 +14,7 @@
     <title>SIS MMP | Sistema de Manutenção de Máquinas Pesadas</title>
     <link rel="icon" type="image/png" sizes="192x192" href="./static/icons/icon-192.png?v=sis-mmp-20260810">
     <link rel="apple-touch-icon" href="./static/icons/icon-192.png?v=sis-mmp-20260810">
-    <link rel="stylesheet" href="./static/css/styles.css?v=20260818-11">
+    <link rel="stylesheet" href="./static/css/styles.css?v=20260818-12">
 </head>
 <body>
     <div class="mobile-shell">
@@ -435,15 +435,23 @@
                     <strong>COMPRAS CONVERSA COM MATERIAIS E ESTOQUE</strong>
                     <p>O material cadastrado é o mesmo usado na solicitação, no recebimento do Armazém Principal e na aplicação do Estoque MMP.</p>
                 </section>
+                <nav id="purchases-workflow-nav" class="purchases-workflow-nav" aria-label="Etapas da área de compras">
+                    <button type="button" class="is-active" data-purchases-area="process">VISÃO GERAL</button>
+                    <button type="button" data-purchases-area="requests">SOLICITAÇÕES SC</button>
+                    <button type="button" data-purchases-area="orders">PEDIDOS PC</button>
+                    <button type="button" data-purchases-area="invoices">NF E RECEBIMENTOS</button>
+                    <button type="button" data-purchases-area="materials">MATERIAIS</button>
+                    <button type="button" data-purchases-area="reports">RELATÓRIOS</button>
+                </nav>
                 <section class="purchases-summary-grid" aria-label="Resumo de compras">
                     <article><span>SC ABERTAS</span><strong id="purchases-open-count">0</strong><em>Processos ainda não concluídos.</em></article>
                     <article><span>AGUARDANDO PC</span><strong id="purchases-awaiting-pc-count">0</strong><em>Itens sem pedido de compra.</em></article>
                     <article><span>AGUARDANDO NF</span><strong id="purchases-awaiting-nf-count">0</strong><em>PC emitido sem nota fiscal.</em></article>
                 </section>
-                <section class="module-section purchases-process-center-panel">
+                <section class="module-section purchases-process-center-panel" data-purchases-area-section="process">
                     <div class="module-header purchases-process-center-header">
                         <div><span>VISÃO CONSOLIDADA</span><strong>CENTRAL DE PROCESSOS</strong><p class="purchases-help">Uma linha por item para mostrar exatamente o próximo passo da compra.</p></div>
-                        <div class="purchases-process-center-actions"><span id="purchases-process-center-count" class="purchases-request-count">0 itens</span><button id="purchases-process-center-refresh" class="secondary-button" type="button">ATUALIZAR</button></div>
+                        <div class="purchases-process-center-actions"><span id="purchases-process-center-count" class="purchases-request-count">0 itens</span><div class="purchases-view-toggle" data-purchases-view-target="process"><button type="button" data-purchases-view-option="QUADRO">QUADRO</button><button type="button" data-purchases-view-option="LISTA">LISTA</button><button type="button" data-purchases-view-option="CARTOES">CARTÕES</button></div><button id="purchases-process-center-refresh" class="secondary-button" type="button">ATUALIZAR</button></div>
                     </div>
                     <div class="purchases-process-summary" aria-label="Resumo da central de processos">
                         <article><span>PC</span><strong id="purchases-process-pc-count">0</strong><em>aguardando emissão</em></article>
@@ -455,9 +463,10 @@
                         <label><span>STATUS</span><select id="purchases-process-status"><option value="TODOS">TODOS</option><option value="AGUARDANDO_PC">AGUARDANDO PC</option><option value="PC_PARCIAL">PC PARCIAL</option><option value="AGUARDANDO_NF">AGUARDANDO NF</option><option value="AGUARDANDO_RECEBIMENTO">AGUARDANDO RECEBIMENTO</option><option value="PARCIALMENTE_RECEBIDA">RECEBIMENTO PARCIAL</option><option value="RECEBIDA">RECEBIDA</option></select></label>
                         <label><span>TIPO</span><select id="purchases-process-type"><option value="TODOS">TODOS</option><option value="MATERIAL">MATERIAL</option><option value="SERVICO">SERVIÇO</option></select></label>
                     </div>
+                    <div id="purchases-process-board" class="purchases-kanban-board hidden" aria-live="polite"></div>
                     <div id="purchases-process-list" class="purchases-process-list" aria-live="polite"></div>
                 </section>
-                <section class="module-section purchases-reports-panel">
+                <section class="module-section purchases-reports-panel purchases-area-hidden" data-purchases-area-section="reports">
                     <div class="module-header purchases-reports-header">
                         <div><span>RELATÓRIO DO MÓDULO</span><strong>INDICADORES DE COMPRAS</strong><p class="purchases-help">Consulte o volume solicitado, faturado e recebido sem sair da área de Compras.</p></div>
                         <div class="purchases-report-actions">
@@ -482,22 +491,23 @@
                         <div id="purchases-report-schedules-list" class="purchases-report-schedules-list" aria-live="polite"></div>
                     </section>
                 </section>
-                <section class="module-section purchases-requests-panel">
+                <section class="module-section purchases-requests-panel purchases-area-hidden" data-purchases-area-section="requests">
                     <div class="module-header purchases-requests-header">
                         <div><span>PAINEL OPERACIONAL</span><strong>SOLICITAÇÕES DE COMPRA</strong><p class="purchases-help">Encontre rapidamente uma SC, acompanhe o status e priorize o próximo atendimento.</p></div>
-                        <div class="purchases-requests-header-actions"><span id="purchases-requests-count" class="purchases-requests-count">0 solicitações</span><button id="purchases-request-new" class="primary-button" type="button">+ NOVA SOLICITAÇÃO</button></div>
+                        <div class="purchases-requests-header-actions"><span id="purchases-requests-count" class="purchases-requests-count">0 solicitações</span><div class="purchases-view-toggle" data-purchases-view-target="requests"><button type="button" data-purchases-view-option="QUADRO">QUADRO</button><button type="button" data-purchases-view-option="LISTA">LISTA</button><button type="button" data-purchases-view-option="CARTOES">CARTÕES</button></div><button id="purchases-request-new" class="primary-button" type="button">+ NOVA SOLICITAÇÃO</button></div>
                     </div>
                     <div class="purchases-request-toolbar" role="search" aria-label="Filtros de solicitações de compra">
                         <label class="purchases-request-search"><span>BUSCAR</span><input id="purchases-request-search" type="search" autocomplete="off" placeholder="SC, material, módulo ou solicitante"></label>
                         <label><span>STATUS</span><select id="purchases-request-status"><option value="TODOS">TODOS</option><option value="SOLICITADA">SOLICITADA</option><option value="APROVADA">APROVADA</option><option value="AGUARDANDO_PC">AGUARDANDO PC</option><option value="PC_PARCIAL">PC PARCIAL</option><option value="AGUARDANDO_NF">AGUARDANDO NF</option><option value="EM_TRANSITO">EM TRÂNSITO</option><option value="PARCIALMENTE_RECEBIDA">RECEBIMENTO PARCIAL</option><option value="RECEBIDA">RECEBIDA</option><option value="CANCELADA">CANCELADA</option></select></label>
                         <label><span>ORDENAR POR</span><select id="purchases-request-sort"><option value="RECENTES">MAIS RECENTES</option><option value="PRIORIDADE">PRIORIDADE</option><option value="PROVEDOR_PREFERENCIAL">PROVEDOR PREFERENCIAL</option></select></label>
                     </div>
+                    <div id="purchases-request-board" class="purchases-kanban-board hidden" aria-live="polite"></div>
                     <div id="purchases-request-list" class="purchases-request-list" aria-live="polite"></div>
                 </section>
-                <section class="module-section purchases-orders-panel">
+                <section class="module-section purchases-orders-panel purchases-area-hidden" data-purchases-area-section="orders">
                     <div class="module-header purchases-orders-header">
                         <div><span>ETAPA 02 DO FLUXO</span><strong>PEDIDOS DE COMPRA (PC)</strong><p class="purchases-help">Selecione somente os itens aprovados que serão incluídos neste PC. A mesma SC pode gerar mais de um pedido.</p></div>
-                        <div class="purchases-orders-header-actions"><span id="purchases-orders-pending-count" class="purchases-request-count">0 itens pendentes</span><button id="purchases-orders-refresh" class="secondary-button" type="button">ATUALIZAR</button></div>
+                        <div class="purchases-orders-header-actions"><span id="purchases-orders-pending-count" class="purchases-request-count">0 itens pendentes</span><div class="purchases-view-toggle" data-purchases-view-target="orders"><button type="button" data-purchases-view-option="QUADRO">QUADRO</button><button type="button" data-purchases-view-option="LISTA">LISTA</button><button type="button" data-purchases-view-option="CARTOES">CARTÕES</button></div><button id="purchases-orders-refresh" class="secondary-button" type="button">ATUALIZAR</button></div>
                     </div>
                     <form id="purchase-order-form" class="purchase-order-form">
                         <div class="purchase-order-form-grid">
@@ -509,22 +519,24 @@
                             <label><span>CONDIÇÃO DE PAGAMENTO</span><input id="purchase-order-payment-terms" maxlength="180" placeholder="Ex.: 30 dias"></label>
                             <label class="purchase-order-wide"><span>OBSERVAÇÃO</span><textarea id="purchase-order-notes" rows="2" maxlength="1000" placeholder="Informações do pedido"></textarea></label>
                         </div>
+                        <div id="purchases-order-board" class="purchases-kanban-board hidden" aria-live="polite"></div>
                         <div class="purchase-order-pending-heading"><div><span>ITENS DISPONÍVEIS</span><strong>Selecione os itens e a quantidade do PC</strong></div></div>
                         <div id="purchase-order-pending-list" class="purchase-order-pending-list" aria-live="polite"></div>
                         <div class="purchase-order-actions"><button id="purchase-order-submit" class="primary-button" type="submit">EMITIR PC SELECIONADO</button></div>
                     </form>
                 </section>
-                <section class="module-section purchases-invoices-panel">
+                <section class="module-section purchases-invoices-panel purchases-area-hidden" data-purchases-area-section="invoices">
                     <div class="module-header purchases-invoices-header">
                         <div><span>ETAPA 03 DO FLUXO</span><strong>NOTAS FISCAIS E RECEBIMENTO</strong><p class="purchases-help">Vincule a NF ao PC e registre a entrada por item, inclusive quando a entrega for parcial.</p></div>
-                        <div class="purchases-invoices-header-actions"><span id="purchases-invoices-pending-count" class="purchases-request-count">0 NFs pendentes</span><span id="purchases-receipts-pending-count" class="purchases-request-count">0 itens para receber</span><button id="purchases-invoices-refresh" class="secondary-button" type="button">ATUALIZAR</button></div>
+                        <div class="purchases-invoices-header-actions"><span id="purchases-invoices-pending-count" class="purchases-request-count">0 NFs pendentes</span><span id="purchases-receipts-pending-count" class="purchases-request-count">0 itens para receber</span><div class="purchases-view-toggle" data-purchases-view-target="invoices"><button type="button" data-purchases-view-option="QUADRO">QUADRO</button><button type="button" data-purchases-view-option="LISTA">LISTA</button><button type="button" data-purchases-view-option="CARTOES">CARTÕES</button></div><button id="purchases-invoices-refresh" class="secondary-button" type="button">ATUALIZAR</button></div>
                     </div>
+                    <div id="purchases-invoice-board" class="purchases-kanban-board hidden" aria-live="polite"></div>
                     <div class="purchases-invoice-columns">
                         <section class="purchases-invoice-column"><header><span>PCs AGUARDANDO NF</span><strong>Registrar a nota fiscal</strong></header><div id="purchases-invoice-pending-list" class="purchases-invoice-list" aria-live="polite"></div></section>
                         <section class="purchases-invoice-column"><header><span>NFs AGUARDANDO RECEBIMENTO</span><strong>Dar entrada por item</strong></header><div id="purchases-receipt-pending-list" class="purchases-invoice-list" aria-live="polite"></div></section>
                     </div>
                 </section>
-                <section id="purchases-provider-panel" class="module-section purchases-provider-panel hidden">
+                <section id="purchases-provider-panel" class="module-section purchases-provider-panel hidden purchases-area-hidden" data-purchases-area-section="materials">
                     <div class="purchases-provider-heading">
                         <div><span>CADASTRO EXCLUSIVO DO ADMINISTRADOR</span><strong>PROVEDORES</strong><p>Uma visão rápida de quem atende às compras. Gestores e operação não visualizam esta área.</p></div>
                         <div class="purchases-provider-heading-actions"><span id="purchases-provider-count" class="purchases-provider-count">0 cadastrados</span><button id="purchases-provider-new" class="primary-button" type="button">+ NOVO PROVEDOR</button></div>
@@ -551,7 +563,7 @@
                     </div>
                     <div id="purchases-provider-list" class="purchases-provider-list" aria-live="polite"></div>
                 </section>
-                <section class="module-section purchases-material-panel">
+                <section class="module-section purchases-material-panel purchases-area-hidden" data-purchases-area-section="materials">
                     <div class="module-header"><div><span>INTEGRAÇÃO COM MATERIAIS</span><strong>HISTÓRICO DE UM MATERIAL</strong></div><em>SC, PC, NF e recebimento</em></div>
                     <div class="purchases-material-search"><input id="purchases-material-id" type="number" min="1" placeholder="ID do material cadastrado"><button id="purchases-material-history-button" class="secondary-button" type="button">CONSULTAR HISTÓRICO</button></div>
                     <div id="purchases-material-history" class="sync-list">Informe o ID de um material para ver solicitações, quantidades, status e aplicações.</div>
@@ -1593,7 +1605,7 @@
 
     <div id="toast" class="toast hidden"></div>
     <script src="./static/js/config.js?v=20260719-01"></script>
-    <script src="./static/js/app.js?v=20260818-11"></script>
+    <script src="./static/js/app.js?v=20260818-12"></script>
 </body>
 </html>
 
