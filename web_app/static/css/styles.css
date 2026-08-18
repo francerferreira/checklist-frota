@@ -190,6 +190,42 @@ body[data-theme="dark"] {
     box-shadow: var(--theme-shadow-floating);
 }
 
+/* Variantes do componente: use junto de .floating-panel. */
+.floating-panel--compact {
+    width: min(320px, calc(100vw - 24px));
+    max-height: min(380px, calc(100dvh - 48px));
+    padding: 8px;
+    gap: 6px;
+    border-radius: 10px;
+}
+
+.floating-panel--wide {
+    width: min(760px, calc(100vw - 24px));
+    max-height: min(72dvh, 680px);
+}
+
+.floating-panel--fullscreen {
+    position: fixed;
+    inset: max(12px, env(safe-area-inset-top)) max(12px, env(safe-area-inset-right)) max(12px, env(safe-area-inset-bottom)) max(12px, env(safe-area-inset-left));
+    width: auto;
+    max-width: none;
+    max-height: none;
+    min-height: 0;
+    border-radius: 18px;
+    z-index: var(--layer-floating-panel);
+}
+
+@media (max-width: 640px) {
+    .floating-panel--wide {
+        width: calc(100vw - 16px);
+    }
+
+    .floating-panel--fullscreen {
+        inset: max(8px, env(safe-area-inset-top)) 8px max(8px, env(safe-area-inset-bottom)) 8px;
+        border-radius: 12px;
+    }
+}
+
 body[data-theme="dark"] .app-topbar {
     border-color: #33465d !important;
     background: rgba(20, 30, 43, .96) !important;
