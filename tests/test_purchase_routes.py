@@ -244,6 +244,33 @@ class PurchaseRouteTests(unittest.TestCase):
         )
         self.assertEqual(invalid_period.status_code, 400, invalid_period.get_json())
 
+    def test_purchase_report_exports_and_schedule_controls(self):
+        pdf = self.client.get("/compras/relatorios/exportar?formato=PDF", headers=self.gestor_headers)
+        self.assertEqual(pdf.status_code, 200)
+        self.assertIn("application/pdf", pdf.content_type)
+
+        xlsx = self.client.get("/compras/relatorios/exportar?formato=XLSX", headers=self.gestor_headers)
+        self.assertEqual(xlsx.status_code, 200)
+        self.assertIn("spreadsheetml", xlsx.content_type)
+
+        denied = self.client.get("/compras/relatorios/automaticos", headers=self.gestor_headers)
+        self.assertEqual(denied.status_code, 403, denied.get_json())
+        created = self.client.post(
+            "/compras/relatorios/automaticos",
+            headers=self.admin_headers,
+            json={"name": "Compras semanal", "frequency": "WEEKLY", "period_days": 7, "export_format": "XLSX", "next_run_at": "2000-01-01T00:00:00"},
+        )
+        self.assertEqual(created.status_code, 201, created.get_json())
+        schedule_id = created.get_json()["data"]["id"]
+        executed = self.client.post(f"/compras/relatorios/automaticos/executar?schedule_id={schedule_id}", headers=self.admin_headers)
+        self.assertEqual(executed.status_code, 200, executed.get_json())
+        run = executed.get_json()["data"]["runs"][0]
+        self.assertEqual(run["status"], "CONCLUIDO")
+        downloaded = self.client.get(f"/compras/relatorios/automaticos/runs/{run['id']}/download", headers=self.gestor_headers)
+        self.assertEqual(downloaded.status_code, 200)
+        downloaded.close()
+        Path(run["file_path"]).unlink(missing_ok=True)
+
     def test_purchase_request_supports_multiple_material_and_service_items(self):
         response = self.client.post(
             "/compras/solicitacoes",

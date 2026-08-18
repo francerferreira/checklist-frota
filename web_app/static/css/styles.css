@@ -6985,6 +6985,7 @@ button.rh-admin-operation-card:hover { border-color: #78aee6; transform: transla
 .purchases-process-empty { display: grid; gap: 5px; padding: 22px 14px; border: 1px dashed var(--theme-border-strong); border-radius: 13px; color: var(--theme-text-muted); text-align: center; }
 .purchases-process-empty strong { color: var(--theme-text); font-size: .78rem; }
 .purchases-reports-panel { display: grid; gap: 16px; }
+.purchases-report-actions { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 8px; }
 .purchases-reports-header { align-items: flex-start; }
 .purchases-report-filters { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; max-width: 620px; }
 .purchases-report-filters label { display: grid; gap: 5px; color: var(--theme-text-muted); font-size: .68rem; font-weight: 900; letter-spacing: .07em; }
@@ -7002,6 +7003,17 @@ button.rh-admin-operation-card:hover { border-color: #78aee6; transform: transla
 .purchases-report-list > div { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 7px 8px; border-radius: 8px; background: var(--theme-surface-soft); color: var(--theme-text-muted); font-size: .71rem; }
 .purchases-report-list > div b { color: var(--theme-text); white-space: nowrap; }
 .purchases-report-empty { color: var(--theme-text-muted); font-size: .72rem; }
+.purchases-report-schedules-panel { display: grid; gap: 12px; padding: 14px; border: 1px solid var(--theme-border); border-radius: 14px; background: var(--theme-surface-soft); }
+.purchases-report-schedule-form { display: grid; grid-template-columns: 2fr repeat(3, minmax(120px, 1fr)) 1.4fr auto; align-items: end; gap: 9px; }
+.purchases-report-schedule-form label { display: grid; gap: 5px; color: var(--theme-text-muted); font-size: .66rem; font-weight: 900; letter-spacing: .07em; }
+.purchases-report-schedule-form input, .purchases-report-schedule-form select { min-height: 40px; padding: 8px 10px; border: 1px solid var(--theme-border-strong); border-radius: 9px; background: var(--theme-input); color: var(--theme-text); font: inherit; letter-spacing: normal; }
+.purchases-report-schedules-list { display: grid; gap: 8px; }
+.purchases-report-schedule-card { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 11px 12px; border: 1px solid var(--theme-border); border-radius: 11px; background: var(--theme-surface); }
+.purchases-report-schedule-card.is-inactive { opacity: .65; }
+.purchases-report-schedule-card > div:first-child { display: grid; gap: 3px; }
+.purchases-report-schedule-card strong { color: var(--theme-text-strong); }
+.purchases-report-schedule-card span, .purchases-report-schedule-card small { color: var(--theme-text-muted); font-size: .71rem; }
+.purchases-report-schedule-actions { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 7px; }
 .purchases-invoices-panel { display: grid; gap: 16px; }
 .purchases-invoices-header { align-items: flex-start; }
 .purchases-invoices-header-actions { display: flex; align-items: center; justify-content: flex-end; gap: 8px; flex-wrap: wrap; }
@@ -7218,10 +7230,15 @@ button.rh-admin-operation-card:hover { border-color: #78aee6; transform: transla
     .purchases-process-card-metrics { padding-top: 10px; padding-left: 0; border-top: 1px solid var(--theme-border); border-left: 0; }
     .purchases-process-card > button { width: 100%; }
     .purchases-reports-header { align-items: stretch; flex-direction: column; }
-    .purchases-reports-header .secondary-button { width: 100%; }
+    .purchases-reports-header .secondary-button, .purchases-report-actions { width: 100%; }
+    .purchases-report-actions { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); }
     .purchases-report-filters,
     .purchases-report-metrics,
     .purchases-report-breakdowns { grid-template-columns: 1fr; max-width: none; }
+    .purchases-report-schedule-form { grid-template-columns: 1fr; }
+    .purchases-report-schedule-card { align-items: stretch; flex-direction: column; }
+    .purchases-report-schedule-actions { justify-content: stretch; }
+    .purchases-report-schedule-actions .secondary-button { flex: 1; }
     .purchase-invoice-form,
     .purchase-invoice-receive-form { grid-template-columns: 1fr; }
     .purchase-invoice-form .purchase-request-field-wide,

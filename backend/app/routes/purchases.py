@@ -1,17 +1,20 @@
 from __future__ import annotations
 
-from datetime import date
+from datetime import date, datetime, timedelta
 from decimal import Decimal, InvalidOperation
+from io import BytesIO
 import os
+from pathlib import Path
 import tempfile
 
-from flask import Blueprint, g, request
+from flask import Blueprint, current_app, g, request, send_file
 
 from app.extensions import db
-from app.models import InvoicePurchaseOrderLink, MaintenanceMaterial, Material, PurchaseImportBatch, PurchaseInvoice, PurchaseInvoiceItem, PurchaseOrder, PurchaseOrderItem, PurchaseProcessEvent, PurchaseReceipt, PurchaseRequest, PurchaseRequestItem, PurchaseServiceCatalog, Supplier, User, Vehicle
+from app.models import InvoicePurchaseOrderLink, MaintenanceMaterial, Material, PurchaseImportBatch, PurchaseInvoice, PurchaseInvoiceItem, PurchaseOrder, PurchaseOrderItem, PurchaseProcessEvent, PurchaseReceipt, PurchaseReportRun, PurchaseReportSchedule, PurchaseRequest, PurchaseRequestItem, PurchaseServiceCatalog, Supplier, User, Vehicle
 from app.services.auth_service import auth_required, user_has_management_access
 from app.services.material_service import register_material_movement
 from app.services.purchase_import_service import import_purchase_workbook
+from app.services.purchase_report_export_service import export_purchase_report_pdf, export_purchase_report_xlsx
 from app.utils.responses import api_response
 from app.utils.timezone import now_manaus_naive
 
@@ -811,6 +814,48 @@ def purchase_process_center():
     })
 
 
+def _build_purchase_report_data(date_from: date | None = None, date_to: date | None = None) -> dict:
+    rows = []
+    for purchase in PurchaseRequest.query.order_by(PurchaseRequest.created_at.desc()).limit(500).all():
+        reference_date = purchase.sc_date or (purchase.created_at.date() if purchase.created_at else None)
+        if date_from and (not reference_date or reference_date < date_from):
+            continue
+        if date_to and (not reference_date or reference_date > date_to):
+            continue
+        rows.extend(_central_process_item_summary(item) for item in purchase.items)
+    by_status = {}
+    by_type = {}
+    by_module = {}
+    by_provider = {}
+    for row in rows:
+        by_status[row["item_status"]] = by_status.get(row["item_status"], 0) + 1
+        type_bucket = by_type.setdefault(row["item_type"] or "NAO_INFORMADO", {"items": 0, "requested": 0, "received": 0})
+        type_bucket["items"] += 1
+        type_bucket["requested"] += row["requested_quantity"]
+        type_bucket["received"] += row["received_quantity"]
+        module = row["module"] or "NAO_INFORMADO"
+        by_module[module] = by_module.get(module, 0) + 1
+        for order in row["purchase_orders"]:
+            provider = order["supplier_raw"] or "NAO INFORMADO"
+            by_provider[provider] = by_provider.get(provider, 0) + 1
+    return {
+        "summary": {
+            "processes": len({row["purchase_request_id"] for row in rows}),
+            "items": len(rows),
+            "requested_quantity": sum(row["requested_quantity"] for row in rows),
+            "ordered_quantity": sum(row["ordered_quantity"] for row in rows),
+            "invoiced_quantity": sum(row["invoiced_quantity"] for row in rows),
+            "received_quantity": sum(row["received_quantity"] for row in rows),
+            "remaining_quantity": sum(row["remaining_quantity"] for row in rows),
+        },
+        "by_status": by_status,
+        "by_type": by_type,
+        "by_module": by_module,
+        "by_provider": by_provider,
+        "items": rows,
+    }
+
+
 @bp.get("/compras/relatorios/resumo")
 @auth_required
 def purchase_report_summary():
@@ -863,6 +908,204 @@ def purchase_report_summary():
         "by_provider": by_provider,
         "items": rows,
     })
+
+
+def _report_datetime(value) -> datetime | None:
+    if value in (None, ""):
+        return None
+    try:
+        return datetime.fromisoformat(str(value).replace("Z", "+00:00")).replace(tzinfo=None)
+    except ValueError as exc:
+        raise ValueError("Informe uma data e hora validas para o agendamento.") from exc
+
+
+def _report_file_path(filename: str) -> Path:
+    root = Path(current_app.config["UPLOAD_FOLDER"]).resolve()
+    target = (root / "relatorios" / "compras" / filename).resolve()
+    if root not in target.parents:
+        raise ValueError("Caminho de relatorio invalido.")
+    target.parent.mkdir(parents=True, exist_ok=True)
+    return target
+
+
+def _generate_purchase_report_file(data: dict, export_format: str, filename: str, generated_by: str) -> Path:
+    path = _report_file_path(filename)
+    if export_format == "PDF":
+        return export_purchase_report_pdf(data, path, generated_by=generated_by)
+    return export_purchase_report_xlsx(data, path, generated_by=generated_by)
+
+
+@bp.get("/compras/relatorios/exportar")
+@auth_required
+def export_purchase_report():
+    denied = _guard_management()
+    if denied:
+        return denied
+    export_format = str(request.args.get("formato") or request.args.get("format") or "XLSX").strip().upper()
+    if export_format not in {"PDF", "XLSX"}:
+        return api_response(False, error="Formato invalido. Use PDF ou XLSX.", status_code=400)
+    try:
+        date_from = _parse_date(request.args.get("date_from"))
+        date_to = _parse_date(request.args.get("date_to"))
+    except ValueError as exc:
+        return api_response(False, error=str(exc), status_code=400)
+    if date_from and date_to and date_from > date_to:
+        return api_response(False, error="O periodo inicial nao pode ser maior que o final.", status_code=400)
+    data = _build_purchase_report_data(date_from, date_to)
+    data["period_label"] = f"{date_from.isoformat() if date_from else 'inicio'} a {date_to.isoformat() if date_to else 'hoje'}"
+    suffix = "pdf" if export_format == "PDF" else "xlsx"
+    filename = f"relatorio_compras_{date_from.isoformat() if date_from else 'inicio'}_{date_to.isoformat() if date_to else 'hoje'}.{suffix}"
+    tmp = tempfile.NamedTemporaryFile(prefix="compras_export_", suffix=f".{suffix}", delete=False)
+    tmp_path = Path(tmp.name)
+    tmp.close()
+    try:
+        if export_format == "PDF":
+            export_purchase_report_pdf(data, tmp_path, generated_by=g.current_user.nome or g.current_user.login)
+            mimetype = "application/pdf"
+        else:
+            export_purchase_report_xlsx(data, tmp_path, generated_by=g.current_user.nome or g.current_user.login)
+            mimetype = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+        content = BytesIO(tmp_path.read_bytes())
+        content.seek(0)
+    finally:
+        tmp_path.unlink(missing_ok=True)
+    return send_file(content, mimetype=mimetype, as_attachment=True, download_name=filename)
+
+
+@bp.get("/compras/relatorios/automaticos")
+@auth_required
+def list_purchase_report_schedules():
+    denied = _guard_admin()
+    if denied:
+        return denied
+    schedules = PurchaseReportSchedule.query.order_by(PurchaseReportSchedule.active.desc(), PurchaseReportSchedule.next_run_at.asc()).all()
+    return api_response(True, data=[schedule.to_dict() for schedule in schedules])
+
+
+@bp.post("/compras/relatorios/automaticos")
+@auth_required
+def create_purchase_report_schedule():
+    denied = _guard_admin()
+    if denied:
+        return denied
+
+    def action():
+        payload = request.get_json(silent=True) or {}
+        name = _clean(payload.get("name"))
+        frequency = str(payload.get("frequency") or "MONTHLY").strip().upper()
+        export_format = str(payload.get("export_format") or payload.get("format") or "XLSX").strip().upper()
+        if not name:
+            raise ValueError("Informe o nome do relatorio automatico.")
+        if frequency not in {"WEEKLY", "MONTHLY"}:
+            raise ValueError("Frequencia invalida. Use WEEKLY ou MONTHLY.")
+        if export_format not in {"PDF", "XLSX"}:
+            raise ValueError("Formato invalido. Use PDF ou XLSX.")
+        period_days = _positive_int(payload.get("period_days") or (7 if frequency == "WEEKLY" else 30), "Periodo")
+        if period_days > 366:
+            raise ValueError("O periodo automatico nao pode ultrapassar 366 dias.")
+        next_run_at = _report_datetime(payload.get("next_run_at")) or (now_manaus_naive() + timedelta(days=1))
+        schedule = PurchaseReportSchedule(name=name, frequency=frequency, period_days=period_days, export_format=export_format, filter_status=_clean(payload.get("filter_status")), filter_item_type=_clean(payload.get("filter_item_type")), next_run_at=next_run_at, active=bool(payload.get("active", True)), created_by_user_id=g.current_user.id)
+        db.session.add(schedule)
+        db.session.commit()
+        return schedule.to_dict()
+    return _run(action, status_code=201)
+
+
+@bp.put("/compras/relatorios/automaticos/<int:schedule_id>")
+@auth_required
+def update_purchase_report_schedule(schedule_id: int):
+    denied = _guard_admin()
+    if denied:
+        return denied
+
+    def action():
+        schedule = db.session.get(PurchaseReportSchedule, schedule_id)
+        if not schedule:
+            raise LookupError("Agendamento de relatorio nao encontrado.")
+        payload = request.get_json(silent=True) or {}
+        if "name" in payload:
+            schedule.name = _clean(payload.get("name")) or schedule.name
+        if "active" in payload:
+            schedule.active = bool(payload.get("active"))
+        if "next_run_at" in payload:
+            schedule.next_run_at = _report_datetime(payload.get("next_run_at")) or schedule.next_run_at
+        db.session.commit()
+        return schedule.to_dict()
+    return _run(action)
+
+
+@bp.delete("/compras/relatorios/automaticos/<int:schedule_id>")
+@auth_required
+def delete_purchase_report_schedule(schedule_id: int):
+    denied = _guard_admin()
+    if denied:
+        return denied
+    schedule = db.session.get(PurchaseReportSchedule, schedule_id)
+    if not schedule:
+        return api_response(False, error="Agendamento de relatorio nao encontrado.", status_code=404)
+    schedule.active = False
+    db.session.commit()
+    return api_response(True, data=schedule.to_dict())
+
+
+@bp.post("/compras/relatorios/automaticos/executar")
+@auth_required
+def execute_purchase_report_schedules():
+    denied = _guard_admin()
+    if denied:
+        return denied
+    requested_id = request.args.get("schedule_id", type=int)
+    now = now_manaus_naive()
+    query = PurchaseReportSchedule.query.filter_by(active=True)
+    if requested_id:
+        query = query.filter_by(id=requested_id)
+    else:
+        query = query.filter(PurchaseReportSchedule.next_run_at <= now)
+    schedules = query.order_by(PurchaseReportSchedule.next_run_at.asc()).all()
+    runs = []
+    for schedule in schedules:
+        period_to = date.today() - timedelta(days=1)
+        period_from = period_to - timedelta(days=max(schedule.period_days, 1) - 1)
+        run = PurchaseReportRun(schedule_id=schedule.id, export_format=schedule.export_format, period_from=period_from, period_to=period_to, status="PROCESSANDO", started_at=now, created_by_user_id=g.current_user.id)
+        db.session.add(run)
+        db.session.flush()
+        try:
+            data = _build_purchase_report_data(period_from, period_to)
+            data["period_label"] = f"{period_from.isoformat()} a {period_to.isoformat()}"
+            suffix = "pdf" if schedule.export_format == "PDF" else "xlsx"
+            filename = f"compras_automatico_{schedule.id}_{period_to.isoformat()}.{suffix}"
+            path = _generate_purchase_report_file(data, schedule.export_format, filename, g.current_user.nome or g.current_user.login)
+            run.filename = filename
+            run.file_path = str(path)
+            run.status = "CONCLUIDO"
+            run.finished_at = now_manaus_naive()
+            schedule.last_run_at = run.finished_at
+            schedule.next_run_at = schedule.next_run_at + timedelta(days=7 if schedule.frequency == "WEEKLY" else 30)
+            runs.append(run.to_dict())
+        except Exception as exc:
+            run.status = "ERRO"
+            run.error_message = str(exc)
+            run.finished_at = now_manaus_naive()
+            runs.append(run.to_dict())
+    db.session.commit()
+    return api_response(True, data={"executed": len(runs), "runs": runs})
+
+
+@bp.get("/compras/relatorios/automaticos/runs/<int:run_id>/download")
+@auth_required
+def download_purchase_report_run(run_id: int):
+    denied = _guard_management()
+    if denied:
+        return denied
+    run = db.session.get(PurchaseReportRun, run_id)
+    if not run or run.status != "CONCLUIDO" or not run.file_path:
+        return api_response(False, error="Arquivo do relatorio nao encontrado.", status_code=404)
+    root = Path(current_app.config["UPLOAD_FOLDER"]).resolve()
+    path = Path(run.file_path).resolve()
+    if root not in path.parents or not path.is_file():
+        return api_response(False, error="Arquivo do relatorio nao esta disponivel.", status_code=404)
+    mimetype = "application/pdf" if run.export_format == "PDF" else "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+    return send_file(path, mimetype=mimetype, as_attachment=True, download_name=run.filename or path.name)
 
 
 @bp.get("/compras/solicitacoes/<int:purchase_id>")

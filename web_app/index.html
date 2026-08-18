@@ -14,7 +14,7 @@
     <title>SIS MMP | Sistema de Manutenção de Máquinas Pesadas</title>
     <link rel="icon" type="image/png" sizes="192x192" href="./static/icons/icon-192.png?v=sis-mmp-20260810">
     <link rel="apple-touch-icon" href="./static/icons/icon-192.png?v=sis-mmp-20260810">
-    <link rel="stylesheet" href="./static/css/styles.css?v=20260818-10">
+    <link rel="stylesheet" href="./static/css/styles.css?v=20260818-11">
 </head>
 <body>
     <div class="mobile-shell">
@@ -460,11 +460,27 @@
                 <section class="module-section purchases-reports-panel">
                     <div class="module-header purchases-reports-header">
                         <div><span>RELATÓRIO DO MÓDULO</span><strong>INDICADORES DE COMPRAS</strong><p class="purchases-help">Consulte o volume solicitado, faturado e recebido sem sair da área de Compras.</p></div>
-                        <button id="purchases-report-refresh" class="secondary-button" type="button">ATUALIZAR RELATÓRIO</button>
+                        <div class="purchases-report-actions">
+                            <button id="purchases-report-refresh" class="secondary-button" type="button">ATUALIZAR</button>
+                            <button id="purchases-report-export-pdf" class="secondary-button" type="button">EXPORTAR PDF</button>
+                            <button id="purchases-report-export-xlsx" class="secondary-button" type="button">EXPORTAR EXCEL</button>
+                        </div>
                     </div>
                     <div class="purchases-report-filters"><label><span>DATA INICIAL</span><input id="purchases-report-date-from" type="date"></label><label><span>DATA FINAL</span><input id="purchases-report-date-to" type="date"></label></div>
                     <div id="purchases-report-metrics" class="purchases-report-metrics" aria-live="polite"></div>
                     <div class="purchases-report-breakdowns"><section><header><span>POR STATUS</span><strong>PROCESSOS</strong></header><div id="purchases-report-status-list" class="purchases-report-list"></div></section><section><header><span>POR TIPO</span><strong>MATERIAL X SERVIÇO</strong></header><div id="purchases-report-type-list" class="purchases-report-list"></div></section><section><header><span>POR PROVEDOR</span><strong>PCs EMITIDOS</strong></header><div id="purchases-report-provider-list" class="purchases-report-list"></div></section></div>
+                    <section id="purchases-report-schedules-panel" class="purchases-report-schedules-panel hidden">
+                        <div class="module-header purchases-report-schedules-header"><div><span>ADMINISTRAÇÃO</span><strong>RELATÓRIOS AUTOMÁTICOS</strong><p class="purchases-help">Programe uma visão periódica do fluxo SC → PC → NF para baixar quando precisar.</p></div></div>
+                        <form id="purchases-report-schedule-form" class="purchases-report-schedule-form">
+                            <label><span>NOME</span><input id="purchases-report-schedule-name" type="text" required maxlength="100" placeholder="Ex.: Compras semanal"></label>
+                            <label><span>FREQUÊNCIA</span><select id="purchases-report-schedule-frequency"><option value="WEEKLY">SEMANAL</option><option value="MONTHLY">MENSAL</option></select></label>
+                            <label><span>PERÍODO (DIAS)</span><input id="purchases-report-schedule-period-days" type="number" min="1" max="366" value="7" required></label>
+                            <label><span>FORMATO</span><select id="purchases-report-schedule-format"><option value="XLSX">EXCEL</option><option value="PDF">PDF</option></select></label>
+                            <label><span>PRÓXIMA EXECUÇÃO</span><input id="purchases-report-schedule-next-run" type="datetime-local"></label>
+                            <button class="primary-button" type="submit">CRIAR AGENDAMENTO</button>
+                        </form>
+                        <div id="purchases-report-schedules-list" class="purchases-report-schedules-list" aria-live="polite"></div>
+                    </section>
                 </section>
                 <section class="module-section purchases-requests-panel">
                     <div class="module-header purchases-requests-header">
@@ -1577,7 +1593,7 @@
 
     <div id="toast" class="toast hidden"></div>
     <script src="./static/js/config.js?v=20260719-01"></script>
-    <script src="./static/js/app.js?v=20260818-10"></script>
+    <script src="./static/js/app.js?v=20260818-11"></script>
 </body>
 </html>
 

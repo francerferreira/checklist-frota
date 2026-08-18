@@ -488,6 +488,77 @@ class PurchaseProcessEvent(db.Model):
     event_metadata = db.Column("metadata", db.JSON, nullable=True)
 
 
+class PurchaseReportSchedule(db.Model):
+    __tablename__ = "purchase_report_schedules"
+
+    id = db.Column(db.Integer, primary_key=True)
+    name = db.Column(db.String(120), nullable=False)
+    frequency = db.Column(db.String(20), nullable=False, default="MONTHLY")
+    period_days = db.Column(db.Integer, nullable=False, default=30)
+    export_format = db.Column(db.String(10), nullable=False, default="XLSX")
+    filter_status = db.Column(db.String(40), nullable=True)
+    filter_item_type = db.Column(db.String(20), nullable=True)
+    next_run_at = db.Column(db.DateTime, nullable=False, index=True)
+    last_run_at = db.Column(db.DateTime, nullable=True)
+    active = db.Column(db.Boolean, nullable=False, default=True, index=True)
+    created_by_user_id = db.Column(db.Integer, db.ForeignKey("users.id"), nullable=False, index=True)
+    created_at = db.Column(db.DateTime, nullable=False, default=now_manaus_naive)
+    updated_at = db.Column(db.DateTime, nullable=False, default=now_manaus_naive, onupdate=now_manaus_naive)
+
+    created_by = db.relationship("User", lazy="joined")
+    runs = db.relationship("PurchaseReportRun", back_populates="schedule", cascade="all, delete-orphan", lazy="selectin")
+
+    def to_dict(self) -> dict:
+        return {
+            "id": self.id,
+            "name": self.name,
+            "frequency": self.frequency,
+            "period_days": self.period_days,
+            "export_format": self.export_format,
+            "filter_status": self.filter_status,
+            "filter_item_type": self.filter_item_type,
+            "next_run_at": self.next_run_at.isoformat() if self.next_run_at else None,
+            "last_run_at": self.last_run_at.isoformat() if self.last_run_at else None,
+            "active": self.active,
+            "created_by": self.created_by.nome if self.created_by else None,
+        }
+
+
+class PurchaseReportRun(db.Model):
+    __tablename__ = "purchase_report_runs"
+
+    id = db.Column(db.Integer, primary_key=True)
+    schedule_id = db.Column(db.Integer, db.ForeignKey("purchase_report_schedules.id"), nullable=True, index=True)
+    export_format = db.Column(db.String(10), nullable=False)
+    period_from = db.Column(db.Date, nullable=True)
+    period_to = db.Column(db.Date, nullable=True)
+    status = db.Column(db.String(20), nullable=False, default="CONCLUIDO", index=True)
+    filename = db.Column(db.String(255), nullable=True)
+    file_path = db.Column(db.String(500), nullable=True)
+    error_message = db.Column(db.Text, nullable=True)
+    started_at = db.Column(db.DateTime, nullable=False, default=now_manaus_naive)
+    finished_at = db.Column(db.DateTime, nullable=True)
+    created_by_user_id = db.Column(db.Integer, db.ForeignKey("users.id"), nullable=True, index=True)
+
+    schedule = db.relationship("PurchaseReportSchedule", back_populates="runs")
+    created_by = db.relationship("User", lazy="joined")
+
+    def to_dict(self) -> dict:
+        return {
+            "id": self.id,
+            "schedule_id": self.schedule_id,
+            "export_format": self.export_format,
+            "period_from": self.period_from.isoformat() if self.period_from else None,
+            "period_to": self.period_to.isoformat() if self.period_to else None,
+            "status": self.status,
+            "filename": self.filename,
+            "file_path": self.file_path,
+            "error_message": self.error_message,
+            "started_at": self.started_at.isoformat() if self.started_at else None,
+            "finished_at": self.finished_at.isoformat() if self.finished_at else None,
+        }
+
+
 class PurchaseReceipt(db.Model):
     __tablename__ = "purchase_receipts"
 

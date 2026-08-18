@@ -316,6 +316,7 @@ const state = {
         pendingInvoices: { pending_nf: [], pending_receipts: [] },
         processCenter: { summary: {}, items: [] },
         reportSummary: { summary: {}, by_status: {}, by_type: {}, by_provider: {} },
+        reportSchedules: [],
         materialHistory: null,
         selectedRequestId: null,
         selectedInvoiceId: null,
@@ -685,12 +686,22 @@ const elements = {
     purchasesProcessType: document.getElementById("purchases-process-type"),
     purchasesProcessList: document.getElementById("purchases-process-list"),
     purchasesReportRefresh: document.getElementById("purchases-report-refresh"),
+    purchasesReportExportPdf: document.getElementById("purchases-report-export-pdf"),
+    purchasesReportExportXlsx: document.getElementById("purchases-report-export-xlsx"),
     purchasesReportDateFrom: document.getElementById("purchases-report-date-from"),
     purchasesReportDateTo: document.getElementById("purchases-report-date-to"),
     purchasesReportMetrics: document.getElementById("purchases-report-metrics"),
     purchasesReportStatusList: document.getElementById("purchases-report-status-list"),
     purchasesReportTypeList: document.getElementById("purchases-report-type-list"),
     purchasesReportProviderList: document.getElementById("purchases-report-provider-list"),
+    purchasesReportSchedulesPanel: document.getElementById("purchases-report-schedules-panel"),
+    purchasesReportScheduleForm: document.getElementById("purchases-report-schedule-form"),
+    purchasesReportScheduleName: document.getElementById("purchases-report-schedule-name"),
+    purchasesReportScheduleFrequency: document.getElementById("purchases-report-schedule-frequency"),
+    purchasesReportSchedulePeriodDays: document.getElementById("purchases-report-schedule-period-days"),
+    purchasesReportScheduleFormat: document.getElementById("purchases-report-schedule-format"),
+    purchasesReportScheduleNextRun: document.getElementById("purchases-report-schedule-next-run"),
+    purchasesReportSchedulesList: document.getElementById("purchases-report-schedules-list"),
     purchasesReportsPanel: document.querySelector(".purchases-reports-panel"),
     purchaseInvoiceModal: document.getElementById("purchase-invoice-modal"),
     purchaseInvoiceForm: document.getElementById("purchase-invoice-form"),
@@ -3774,6 +3785,102 @@ async function loadPurchaseReportSummary() {
     }
 }
 
+function purchaseReportQuery(format = "") {
+    const params = new URLSearchParams();
+    if (format) params.set("formato", format);
+    if (elements.purchasesReportDateFrom?.value) params.set("date_from", elements.purchasesReportDateFrom.value);
+    if (elements.purchasesReportDateTo?.value) params.set("date_to", elements.purchasesReportDateTo.value);
+    return params.toString() ? `?${params.toString()}` : "";
+}
+
+async function exportPurchaseReport(format) {
+    if (!hasWashReportAccess()) return;
+    try {
+        const extension = format === "PDF" ? "pdf" : "xlsx";
+        const period = elements.purchasesReportDateFrom?.value || elements.purchasesReportDateTo?.value ? "-periodo" : "";
+        await downloadAuthenticatedFile(`/compras/relatorios/exportar${purchaseReportQuery(format)}`, `relatorio-compras${period}.${extension}`);
+        showToast(`RELATÓRIO DE COMPRAS EXPORTADO EM ${format}.`);
+    } catch (error) {
+        showToast(error.message || "FALHA AO EXPORTAR O RELATÓRIO.", true);
+    }
+}
+
+function renderPurchaseReportSchedules() {
+    const panel = elements.purchasesReportSchedulesPanel;
+    if (!panel) return;
+    const visible = hasAdminAccess();
+    panel.classList.toggle("hidden", !visible);
+    if (!visible || !elements.purchasesReportSchedulesList) return;
+    const schedules = state.purchases.reportSchedules || [];
+    elements.purchasesReportSchedulesList.innerHTML = schedules.length ? schedules.map((schedule) => {
+        const active = Boolean(schedule.active);
+        const nextRun = schedule.next_run_at ? new Date(schedule.next_run_at).toLocaleString("pt-BR") : "não definido";
+        const format = String(schedule.export_format || "XLSX").toUpperCase();
+        const frequency = String(schedule.frequency || "WEEKLY").toUpperCase() === "MONTHLY" ? "MENSAL" : "SEMANAL";
+        return `<article class="purchases-report-schedule-card ${active ? "" : "is-inactive"}">
+            <div><strong>${escapeHtml(schedule.name || "Relatório automático")}</strong><span>${frequency} · ${format} · ${schedule.period_days || 7} dias</span><small>Próxima execução: ${escapeHtml(nextRun)}</small></div>
+            <div class="purchases-report-schedule-actions"><button class="secondary-button" type="button" data-purchase-report-run="${schedule.id}">EXECUTAR AGORA</button><button class="secondary-button" type="button" data-purchase-report-toggle="${schedule.id}" data-active="${active ? "false" : "true"}">${active ? "PAUSAR" : "ATIVAR"}</button></div>
+        </article>`;
+    }).join("") : `<span class="purchases-report-empty">Nenhum agendamento criado.</span>`;
+}
+
+async function loadPurchaseReportSchedules() {
+    if (!hasAdminAccess()) {
+        renderPurchaseReportSchedules();
+        return;
+    }
+    try {
+        state.purchases.reportSchedules = await apiFetch("/compras/relatorios/automaticos") || [];
+    } catch (error) {
+        state.purchases.reportSchedules = [];
+        showToast(error.message || "FALHA AO CARREGAR AGENDAMENTOS.", true);
+    }
+    renderPurchaseReportSchedules();
+}
+
+async function submitPurchaseReportSchedule(event) {
+    event.preventDefault();
+    if (!hasAdminAccess()) return;
+    const payload = {
+        name: elements.purchasesReportScheduleName?.value?.trim(),
+        frequency: elements.purchasesReportScheduleFrequency?.value,
+        period_days: Number(elements.purchasesReportSchedulePeriodDays?.value || 7),
+        export_format: elements.purchasesReportScheduleFormat?.value,
+        next_run_at: elements.purchasesReportScheduleNextRun?.value || undefined,
+    };
+    try {
+        await apiFetch("/compras/relatorios/automaticos", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload) });
+        elements.purchasesReportScheduleForm?.reset();
+        if (elements.purchasesReportSchedulePeriodDays) elements.purchasesReportSchedulePeriodDays.value = "7";
+        showToast("AGENDAMENTO CRIADO.");
+        await loadPurchaseReportSchedules();
+    } catch (error) {
+        showToast(error.message || "FALHA AO CRIAR AGENDAMENTO.", true);
+    }
+}
+
+async function executePurchaseReportSchedule(scheduleId) {
+    try {
+        const result = await apiFetch(`/compras/relatorios/automaticos/executar?schedule_id=${scheduleId}`, { method: "POST" });
+        const run = result?.runs?.[0];
+        showToast(run?.status === "CONCLUIDO" ? "RELATÓRIO AUTOMÁTICO GERADO." : "AGENDAMENTO PROCESSADO.");
+        await loadPurchaseReportSchedules();
+        if (run?.id) await downloadAuthenticatedFile(`/compras/relatorios/automaticos/runs/${run.id}/download`, run.filename || "relatorio-compras.xlsx");
+    } catch (error) {
+        showToast(error.message || "FALHA AO EXECUTAR AGENDAMENTO.", true);
+    }
+}
+
+async function togglePurchaseReportSchedule(scheduleId, active) {
+    try {
+        await apiFetch(`/compras/relatorios/automaticos/${scheduleId}`, { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ active }) });
+        showToast(active ? "AGENDAMENTO ATIVADO." : "AGENDAMENTO PAUSADO.");
+        await loadPurchaseReportSchedules();
+    } catch (error) {
+        showToast(error.message || "FALHA AO ATUALIZAR AGENDAMENTO.", true);
+    }
+}
+
 function renderPurchaseOverview() {
     const rows = state.purchases.requests || [];
     const open = rows.filter((row) => !["RECEBIDA", "CANCELADA"].includes(String(row.status || "").toUpperCase()));
@@ -3798,6 +3905,7 @@ async function loadPurchasesData() {
         await loadPurchaseInvoiceData();
         await loadPurchaseProcessCenter();
         await loadPurchaseReportSummary();
+        await loadPurchaseReportSchedules();
     } catch (error) {
         showToast(error.message || "FALHA AO CARREGAR COMPRAS.", true);
     }
@@ -10578,6 +10686,16 @@ on(elements.purchasesProcessList, "click", (event) => {
     if (button) openPurchaseRequestDetails(Number(button.dataset.purchaseProcessOpen));
 });
 on(elements.purchasesReportRefresh, "click", loadPurchaseReportSummary);
+on(elements.purchasesReportExportPdf, "click", () => exportPurchaseReport("PDF"));
+on(elements.purchasesReportExportXlsx, "click", () => exportPurchaseReport("XLSX"));
+on(elements.purchasesReportScheduleForm, "submit", submitPurchaseReportSchedule);
+on(elements.purchasesReportSchedulesList, "click", (event) => {
+    const target = event.target instanceof HTMLElement ? event.target : null;
+    const runButton = target?.closest("[data-purchase-report-run]");
+    const toggleButton = target?.closest("[data-purchase-report-toggle]");
+    if (runButton) executePurchaseReportSchedule(Number(runButton.dataset.purchaseReportRun));
+    else if (toggleButton) togglePurchaseReportSchedule(Number(toggleButton.dataset.purchaseReportToggle), toggleButton.dataset.active === "true");
+});
 on(elements.purchaseRequestCancel, "click", closePurchaseRequestModal);
 on(elements.purchaseRequestModal, "click", (event) => { if (event.target instanceof HTMLElement && event.target.dataset.closePurchaseRequest === "true") closePurchaseRequestModal(); });
 on(elements.purchaseDetailClose, "click", closePurchaseDetailModal);
