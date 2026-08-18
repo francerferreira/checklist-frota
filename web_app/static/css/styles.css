@@ -7077,6 +7077,9 @@ button.rh-admin-operation-card:hover { border-color: #78aee6; transform: transla
 .purchases-workflow-nav button { min-height: 36px; padding: 8px 13px; border: 1px solid transparent; border-radius: 9px; background: transparent; color: var(--theme-text-muted); font: inherit; font-size: .68rem; font-weight: 900; letter-spacing: .04em; cursor: pointer; }
 .purchases-workflow-nav button:hover { border-color: var(--theme-border-strong); color: var(--theme-text); }
 .purchases-workflow-nav button.is-active { border-color: var(--theme-accent); background: var(--theme-accent); color: var(--theme-accent-contrast); box-shadow: var(--theme-shadow); }
+.purchases-global-actions { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin: 10px 0 14px; padding: 9px 12px; border: 1px solid var(--theme-border); border-radius: 11px; background: var(--theme-surface-soft); }
+.purchases-next-step { color: var(--theme-text-strong); font-size: .72rem; letter-spacing: .03em; }
+.purchases-order-form-empty { display: none !important; }
 .purchases-view-toggle { display: inline-flex; flex-wrap: wrap; gap: 3px; padding: 3px; border: 1px solid var(--theme-border); border-radius: 9px; background: var(--theme-surface-soft); }
 .purchases-view-toggle button { min-height: 30px; padding: 6px 9px; border: 0; border-radius: 7px; background: transparent; color: var(--theme-text-muted); font: inherit; font-size: .61rem; font-weight: 900; letter-spacing: .04em; cursor: pointer; }
 .purchases-view-toggle button.is-active { background: var(--theme-accent); color: var(--theme-accent-contrast); }
@@ -7128,6 +7131,7 @@ button.rh-admin-operation-card:hover { border-color: #78aee6; transform: transla
 
 @media (max-width: 620px) {
     .purchases-summary-grid { grid-template-columns: 1fr; }
+    .purchases-global-actions { align-items: stretch; flex-direction: column; }
     .purchases-view-toggle { width: 100%; }
     .purchases-view-toggle button { flex: 1 1 0; }
     .purchases-request-toolbar,

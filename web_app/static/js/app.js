@@ -706,6 +706,8 @@ const elements = {
     purchasesReportSchedulesList: document.getElementById("purchases-report-schedules-list"),
     purchasesReportsPanel: document.querySelector(".purchases-reports-panel"),
     purchasesWorkflowNav: document.getElementById("purchases-workflow-nav"),
+    purchasesRefreshAll: document.getElementById("purchases-refresh-all"),
+    purchasesNextStep: document.getElementById("purchases-next-step"),
     purchasesProcessBoard: document.getElementById("purchases-process-board"),
     purchasesRequestBoard: document.getElementById("purchases-request-board"),
     purchasesOrderBoard: document.getElementById("purchases-order-board"),
@@ -3513,6 +3515,7 @@ function purchaseOrderPendingRows() {
 function renderPurchaseOrderPending() {
     if (!elements.purchaseOrderPendingList) return;
     const rows = purchaseOrderPendingRows();
+    elements.purchaseOrderForm?.classList.toggle("purchases-order-form-empty", !rows.length);
     if (elements.purchasesOrdersPendingCount) elements.purchasesOrdersPendingCount.textContent = `${rows.length} ${rows.length === 1 ? "item pendente" : "itens pendentes"}`;
     if (!rows.length) {
         elements.purchaseOrderPendingList.innerHTML = `<article class="purchases-request-empty"><strong>NENHUM ITEM AGUARDANDO PC</strong><span>Aprove uma SC para disponibilizar seus itens nesta etapa.</span></article>`;
@@ -3991,7 +3994,20 @@ function renderPurchaseOverview() {
     if (elements.purchasesOpenCount) elements.purchasesOpenCount.textContent = String(open.length);
     if (elements.purchasesAwaitingPcCount) elements.purchasesAwaitingPcCount.textContent = String(awaitingPc);
     if (elements.purchasesAwaitingNfCount) elements.purchasesAwaitingNfCount.textContent = String(awaitingNf.length);
+    renderPurchasesNextStep({ open: open.length, awaitingPc, awaitingNf: awaitingNf.length, pendingReceipts: state.purchases.pendingInvoices?.pending_receipts?.length || 0 });
     renderPurchaseRequests();
+}
+
+function renderPurchasesNextStep({ open = 0, awaitingPc = 0, awaitingNf = 0, pendingReceipts = 0 } = {}) {
+    if (!elements.purchasesNextStep) return;
+    let message = "FLUXO EM DIA — nenhuma ação pendente.";
+    let area = "process";
+    if (awaitingPc > 0) { message = `PRÓXIMA AÇÃO: emitir ${awaitingPc} PC${awaitingPc === 1 ? "" : "s"}.`; area = "orders"; }
+    else if (awaitingNf > 0) { message = `PRÓXIMA AÇÃO: registrar ${awaitingNf} NF${awaitingNf === 1 ? "" : "s"}.`; area = "invoices"; }
+    else if (pendingReceipts > 0) { message = `PRÓXIMA AÇÃO: receber ${pendingReceipts} item${pendingReceipts === 1 ? "" : "ns"}.`; area = "invoices"; }
+    else if (open > 0) { message = `FLUXO ABERTO: ${open} solicitação${open === 1 ? "" : "ões"} em acompanhamento.`; }
+    elements.purchasesNextStep.textContent = message;
+    elements.purchasesNextStep.dataset.purchasesNextArea = area;
 }
 
 async function loadPurchasesData() {
@@ -10768,6 +10784,17 @@ on(elements.purchasesBackButton, "click", () => {
 on(elements.purchasesWorkflowNav, "click", (event) => {
     const button = event.target instanceof HTMLElement ? event.target.closest("[data-purchases-area]") : null;
     if (button) setPurchasesArea(button.dataset.purchasesArea);
+});
+on(elements.purchasesRefreshAll, "click", async () => {
+    const button = elements.purchasesRefreshAll;
+    if (button) { button.disabled = true; button.textContent = "ATUALIZANDO..."; }
+    try {
+        await loadPurchasesData();
+        if (hasAdminAccess()) await loadPurchaseProviders();
+        showToast("DADOS DE COMPRAS ATUALIZADOS.");
+    } finally {
+        if (button) { button.disabled = false; button.textContent = "ATUALIZAR DADOS"; }
+    }
 });
 document.querySelectorAll("[data-purchases-view-target] [data-purchases-view-option]").forEach((button) => {
     button.addEventListener("click", () => setPurchasesView(button.closest("[data-purchases-view-target]")?.dataset.purchasesViewTarget, button.dataset.purchasesViewOption));
