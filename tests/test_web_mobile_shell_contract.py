@@ -23,8 +23,8 @@ class WebMobileShellContractTests(unittest.TestCase):
         cls.legacy_readme = LEGACY_README_PATH.read_text(encoding="utf-8")
 
     def test_index_uses_canonical_frontend_bundle(self):
-        self.assertIn('./static/js/app.js?v=20260818-02', self.index_html)
-        self.assertIn('./static/css/styles.css?v=20260818-03', self.index_html)
+        self.assertIn('./static/js/app.js?v=20260818-03', self.index_html)
+        self.assertIn('./static/css/styles.css?v=20260818-04', self.index_html)
         self.assertNotIn("app-20260419-", self.index_html)
 
     def test_login_uses_institutional_glass_layout_with_sis_mmp_identity(self):
@@ -377,6 +377,8 @@ class WebMobileShellContractTests(unittest.TestCase):
             'id="admin-catalogs-screen"',
             'data-admin-catalog-action="providers"',
             'id="purchases-provider-panel"',
+            'id="purchases-provider-new"',
+            'id="purchases-provider-editor"',
             'id="purchases-provider-form"',
             'id="purchases-provider-list"',
         ]:
@@ -386,6 +388,11 @@ class WebMobileShellContractTests(unittest.TestCase):
         self.assertIn('apiFetch("/compras/provedores")', app_js)
         self.assertIn('method: providerId ? "PUT" : "POST"', app_js)
         self.assertIn('elements.purchasesProviderPanel?.classList.toggle("hidden", !hasAdminAccess())', app_js)
+        self.assertIn("openPurchaseProviderEditor", app_js)
+        styles = (PROJECT_ROOT / "web_app" / "static" / "css" / "styles.css").read_text(encoding="utf-8")
+        for fragment in [".purchases-provider-heading", ".purchases-provider-card", ".purchases-provider-badges"]:
+            with self.subTest(style=fragment):
+                self.assertIn(fragment, styles)
 
     def test_availability_and_hourmeter_mobile_operations_are_connected(self):
         app_js = (PROJECT_ROOT / "web_app" / "static" / "js" / "app.js").read_text(encoding="utf-8")

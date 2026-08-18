@@ -14,7 +14,7 @@
     <title>SIS MMP | Sistema de Manutenção de Máquinas Pesadas</title>
     <link rel="icon" type="image/png" sizes="192x192" href="./static/icons/icon-192.png?v=sis-mmp-20260810">
     <link rel="apple-touch-icon" href="./static/icons/icon-192.png?v=sis-mmp-20260810">
-    <link rel="stylesheet" href="./static/css/styles.css?v=20260818-03">
+    <link rel="stylesheet" href="./static/css/styles.css?v=20260818-04">
 </head>
 <body>
     <div class="mobile-shell">
@@ -437,28 +437,30 @@
                     <article><span>AGUARDANDO NF</span><strong id="purchases-awaiting-nf-count">0</strong><em>PC emitido sem nota fiscal.</em></article>
                 </section>
                 <section id="purchases-provider-panel" class="module-section purchases-provider-panel hidden">
-                    <div class="module-header"><div><span>CADASTRO EXCLUSIVO DO ADMINISTRADOR</span><strong>PROVEDORES</strong></div><em>Vinculado à Área de Compras</em></div>
-                    <p class="purchases-help">Cadastre quem fornece materiais ou serviços ao processo de compras. Gestores e operação não visualizam esta área.</p>
-                    <form id="purchases-provider-form" class="purchases-provider-form">
-                        <label><span>CÓDIGO *</span><input id="purchases-provider-code" maxlength="40" placeholder="PROV-001" required></label>
-                        <label><span>NOME *</span><input id="purchases-provider-name" maxlength="180" placeholder="Nome principal" required></label>
-                        <label><span>RAZÃO SOCIAL</span><input id="purchases-provider-legal-name" maxlength="220"></label>
-                        <label><span>NOME FANTASIA</span><input id="purchases-provider-trade-name" maxlength="180"></label>
-                        <label><span>CNPJ / DOCUMENTO</span><input id="purchases-provider-tax-id" maxlength="30"></label>
-                        <label><span>CONTATO</span><input id="purchases-provider-contact" maxlength="160"></label>
-                        <label><span>E-MAIL</span><input id="purchases-provider-email" type="email" maxlength="160"></label>
-                        <label><span>TELEFONE</span><input id="purchases-provider-phone" maxlength="40"></label>
-                        <label class="purchases-provider-wide"><span>OBSERVAÇÕES</span><textarea id="purchases-provider-notes" rows="3"></textarea></label>
-                        <div class="purchases-provider-flags purchases-provider-wide">
-                            <label><input id="purchases-provider-active" type="checkbox" checked><span>ATIVO</span></label>
-                            <label><input id="purchases-provider-homologated" type="checkbox"><span>HOMOLOGADO</span></label>
-                            <label><input id="purchases-provider-preferred" type="checkbox"><span>PREFERENCIAL</span></label>
-                        </div>
-                        <div class="purchases-provider-actions purchases-provider-wide">
-                            <button id="purchases-provider-submit" class="primary-button" type="submit">CADASTRAR PROVEDOR</button>
-                            <button id="purchases-provider-cancel" class="secondary-button hidden" type="button">CANCELAR EDIÇÃO</button>
-                        </div>
-                    </form>
+                    <div class="purchases-provider-heading">
+                        <div><span>CADASTRO EXCLUSIVO DO ADMINISTRADOR</span><strong>PROVEDORES</strong><p>Uma visão rápida de quem atende às compras. Gestores e operação não visualizam esta área.</p></div>
+                        <div class="purchases-provider-heading-actions"><span id="purchases-provider-count" class="purchases-provider-count">0 cadastrados</span><button id="purchases-provider-new" class="primary-button" type="button">+ NOVO PROVEDOR</button></div>
+                    </div>
+                    <div id="purchases-provider-editor" class="purchases-provider-editor hidden">
+                        <div class="purchases-provider-editor-heading"><div><span>CADASTRO RÁPIDO</span><strong id="purchases-provider-editor-title">NOVO PROVEDOR</strong></div><button id="purchases-provider-cancel" class="secondary-button" type="button">FECHAR</button></div>
+                        <form id="purchases-provider-form" class="purchases-provider-form">
+                            <label><span>CÓDIGO *</span><input id="purchases-provider-code" maxlength="40" placeholder="PROV-001" required></label>
+                            <label><span>NOME *</span><input id="purchases-provider-name" maxlength="180" placeholder="Nome principal" required></label>
+                            <label><span>RAZÃO SOCIAL</span><input id="purchases-provider-legal-name" maxlength="220"></label>
+                            <label><span>NOME FANTASIA</span><input id="purchases-provider-trade-name" maxlength="180"></label>
+                            <label><span>CNPJ / DOCUMENTO</span><input id="purchases-provider-tax-id" maxlength="30"></label>
+                            <label><span>CONTATO</span><input id="purchases-provider-contact" maxlength="160"></label>
+                            <label><span>E-MAIL</span><input id="purchases-provider-email" type="email" maxlength="160"></label>
+                            <label><span>TELEFONE</span><input id="purchases-provider-phone" maxlength="40"></label>
+                            <label class="purchases-provider-wide"><span>OBSERVAÇÕES</span><textarea id="purchases-provider-notes" rows="3"></textarea></label>
+                            <div class="purchases-provider-flags purchases-provider-wide">
+                                <label><input id="purchases-provider-active" type="checkbox" checked><span>ATIVO</span></label>
+                                <label><input id="purchases-provider-homologated" type="checkbox"><span>HOMOLOGADO</span></label>
+                                <label><input id="purchases-provider-preferred" type="checkbox"><span>PREFERENCIAL</span></label>
+                            </div>
+                            <div class="purchases-provider-actions purchases-provider-wide"><button id="purchases-provider-submit" class="primary-button" type="submit">CADASTRAR PROVEDOR</button></div>
+                        </form>
+                    </div>
                     <div id="purchases-provider-list" class="purchases-provider-list" aria-live="polite"></div>
                 </section>
                 <section class="module-section purchases-material-panel">
@@ -1420,7 +1422,7 @@
 
     <div id="toast" class="toast hidden"></div>
     <script src="./static/js/config.js?v=20260719-01"></script>
-    <script src="./static/js/app.js?v=20260818-02"></script>
+    <script src="./static/js/app.js?v=20260818-03"></script>
 </body>
 </html>
 

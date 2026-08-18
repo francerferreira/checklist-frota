@@ -609,6 +609,10 @@ const elements = {
     purchasesAwaitingPcCount: document.getElementById("purchases-awaiting-pc-count"),
     purchasesAwaitingNfCount: document.getElementById("purchases-awaiting-nf-count"),
     purchasesProviderPanel: document.getElementById("purchases-provider-panel"),
+    purchasesProviderEditor: document.getElementById("purchases-provider-editor"),
+    purchasesProviderEditorTitle: document.getElementById("purchases-provider-editor-title"),
+    purchasesProviderNew: document.getElementById("purchases-provider-new"),
+    purchasesProviderCount: document.getElementById("purchases-provider-count"),
     purchasesProviderForm: document.getElementById("purchases-provider-form"),
     purchasesProviderCode: document.getElementById("purchases-provider-code"),
     purchasesProviderName: document.getElementById("purchases-provider-name"),
@@ -3009,27 +3013,36 @@ function resetPurchaseProviderForm() {
     elements.purchasesProviderForm?.reset();
     if (elements.purchasesProviderActive) elements.purchasesProviderActive.checked = true;
     if (elements.purchasesProviderSubmit) elements.purchasesProviderSubmit.textContent = "CADASTRAR PROVEDOR";
-    elements.purchasesProviderCancel?.classList.add("hidden");
+    if (elements.purchasesProviderEditorTitle) elements.purchasesProviderEditorTitle.textContent = "NOVO PROVEDOR";
+    elements.purchasesProviderEditor?.classList.add("hidden");
+}
+
+function openPurchaseProviderEditor(provider = null) {
+    if (!hasAdminAccess()) return;
+    if (provider) {
+        editPurchaseProvider(provider);
+        return;
+    }
+    resetPurchaseProviderForm();
+    elements.purchasesProviderEditor?.classList.remove("hidden");
+    elements.purchasesProviderEditorTitle && (elements.purchasesProviderEditorTitle.textContent = "NOVO PROVEDOR");
+    elements.purchasesProviderCode?.focus({ preventScroll: true });
 }
 
 function renderPurchaseProviders() {
     if (!elements.purchasesProviderList || !hasAdminAccess()) return;
     const providers = state.purchases.providers || [];
+    if (elements.purchasesProviderCount) elements.purchasesProviderCount.textContent = `${providers.length} ${providers.length === 1 ? "cadastrado" : "cadastrados"}`;
     if (!providers.length) {
-        elements.purchasesProviderList.innerHTML = `<article class="empty-state"><strong>NENHUM PROVEDOR CADASTRADO.</strong><span>Preencha o formulário acima para iniciar o cadastro.</span></article>`;
+        elements.purchasesProviderList.innerHTML = `<article class="purchases-provider-empty"><strong>NENHUM PROVEDOR CADASTRADO</strong><span>Comece pelo botão “+ NOVO PROVEDOR”.</span></article>`;
         return;
     }
     elements.purchasesProviderList.innerHTML = providers.map((provider) => {
-        const flags = [
-            provider.active === false ? "INATIVO" : "ATIVO",
-            provider.homologated ? "HOMOLOGADO" : "NÃO HOMOLOGADO",
-            provider.preferred ? "PREFERENCIAL" : "PADRÃO",
-        ];
         const contact = [provider.contact_name, provider.phone, provider.email].filter(Boolean).join(" | ") || "Contato não informado";
         return `<article class="purchases-provider-card ${provider.active === false ? "is-inactive" : ""}">
-            <div><span>${escapeHtml(provider.code || "SEM CÓDIGO")}</span><strong>${escapeHtml(provider.name || "PROVEDOR")}</strong><em>${escapeHtml(provider.trade_name || provider.legal_name || contact)}</em></div>
-            <small>${escapeHtml(flags.join(" • "))}</small>
-            <button class="secondary-button" type="button" data-purchase-provider-edit="${provider.id}">EDITAR</button>
+            <header><div><span>${escapeHtml(provider.code || "SEM CÓDIGO")}</span><strong>${escapeHtml(provider.name || "PROVEDOR")}</strong><em>${escapeHtml(provider.trade_name || provider.legal_name || "Nome comercial não informado")}</em></div><button class="secondary-button" type="button" data-purchase-provider-edit="${provider.id}">EDITAR</button></header>
+            <p>${escapeHtml(contact)}</p>
+            <div class="purchases-provider-badges"><b class="${provider.active === false ? "is-off" : "is-on"}">${provider.active === false ? "INATIVO" : "ATIVO"}</b><b class="${provider.homologated ? "is-approved" : "is-pending"}">${provider.homologated ? "HOMOLOGADO" : "PENDENTE"}</b>${provider.preferred ? '<b class="is-preferred">PREFERENCIAL</b>' : ""}</div>
         </article>`;
     }).join("");
 }
@@ -3065,7 +3078,8 @@ function editPurchaseProvider(provider) {
     elements.purchasesProviderHomologated.checked = Boolean(provider.homologated);
     elements.purchasesProviderPreferred.checked = Boolean(provider.preferred);
     elements.purchasesProviderSubmit.textContent = "SALVAR PROVEDOR";
-    elements.purchasesProviderCancel.classList.remove("hidden");
+    elements.purchasesProviderEditorTitle && (elements.purchasesProviderEditorTitle.textContent = "EDITAR PROVEDOR");
+    elements.purchasesProviderEditor?.classList.remove("hidden");
     elements.purchasesProviderPanel.scrollIntoView({ behavior: "smooth", block: "start" });
 }
 
@@ -3148,7 +3162,7 @@ async function openPurchasesMenu({ focusProviders = false } = {}) {
     await Promise.all(loaders);
     if (focusProviders && hasAdminAccess()) {
         elements.purchasesProviderPanel?.scrollIntoView({ behavior: "smooth", block: "start" });
-        elements.purchasesProviderCode?.focus({ preventScroll: true });
+        openPurchaseProviderEditor();
     }
 }
 
@@ -9705,6 +9719,7 @@ on(elements.adminCatalogsBackButton, "click", () => {
     setActiveScreen("home");
 });
 on(elements.purchasesProviderForm, "submit", submitPurchaseProvider);
+on(elements.purchasesProviderNew, "click", () => openPurchaseProviderEditor());
 on(elements.purchasesProviderCancel, "click", resetPurchaseProviderForm);
 on(elements.purchasesProviderList, "click", (event) => {
     const button = event.target instanceof HTMLElement ? event.target.closest("[data-purchase-provider-edit]") : null;
