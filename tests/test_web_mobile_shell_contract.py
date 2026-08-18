@@ -23,8 +23,8 @@ class WebMobileShellContractTests(unittest.TestCase):
         cls.legacy_readme = LEGACY_README_PATH.read_text(encoding="utf-8")
 
     def test_index_uses_canonical_frontend_bundle(self):
-        self.assertIn('./static/js/app.js?v=20260818-04', self.index_html)
-        self.assertIn('./static/css/styles.css?v=20260818-05', self.index_html)
+        self.assertIn('./static/js/app.js?v=20260818-05', self.index_html)
+        self.assertIn('./static/css/styles.css?v=20260818-06', self.index_html)
         self.assertNotIn("app-20260419-", self.index_html)
 
     def test_login_uses_institutional_glass_layout_with_sis_mmp_identity(self):
@@ -350,6 +350,33 @@ class WebMobileShellContractTests(unittest.TestCase):
             with self.subTest(script=fragment):
                 self.assertIn(fragment, app_js)
         for fragment in [".purchases-request-toolbar", ".purchases-request-card", ".purchases-request-status"]:
+            with self.subTest(style=fragment):
+                self.assertIn(fragment, styles)
+
+    def test_purchase_cards_expose_request_approval_and_receiving_actions(self):
+        app_js = (PROJECT_ROOT / "web_app" / "static" / "js" / "app.js").read_text(encoding="utf-8")
+        styles = (PROJECT_ROOT / "web_app" / "static" / "css" / "styles.css").read_text(encoding="utf-8")
+        for fragment in [
+            'id="purchases-request-new"',
+            'id="purchase-request-modal"',
+            'id="purchase-detail-modal"',
+            'id="purchase-receive-modal"',
+        ]:
+            with self.subTest(fragment=fragment):
+                self.assertIn(fragment, self.index_html)
+        for fragment in [
+            'apiFetch("/compras/solicitacoes",',
+            'apiFetch(`/compras/solicitacoes/${Number(id)}/aprovar`',
+            'apiFetch(`/compras/solicitacoes/${id}/recebimentos`',
+            'data-purchase-approve=',
+            'data-purchase-receive=',
+            "openPurchaseRequestModal",
+            "openPurchaseRequestDetails",
+            "submitPurchaseReceive",
+        ]:
+            with self.subTest(script=fragment):
+                self.assertIn(fragment, app_js)
+        for fragment in [".purchases-request-actions", ".purchase-detail-grid", ".purchase-request-form"]:
             with self.subTest(style=fragment):
                 self.assertIn(fragment, styles)
 

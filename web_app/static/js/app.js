@@ -312,6 +312,7 @@ const state = {
     purchases: {
         requests: [],
         materialHistory: null,
+        selectedRequestId: null,
         providers: [],
         editingProviderId: null,
     },
@@ -613,6 +614,29 @@ const elements = {
     purchasesRequestStatus: document.getElementById("purchases-request-status"),
     purchasesRequestSort: document.getElementById("purchases-request-sort"),
     purchasesRequestList: document.getElementById("purchases-request-list"),
+    purchasesRequestNew: document.getElementById("purchases-request-new"),
+    purchaseRequestModal: document.getElementById("purchase-request-modal"),
+    purchaseRequestForm: document.getElementById("purchase-request-form"),
+    purchaseRequestMaterial: document.getElementById("purchase-request-material"),
+    purchaseRequestQuantity: document.getElementById("purchase-request-quantity"),
+    purchaseRequestPriority: document.getElementById("purchase-request-priority"),
+    purchaseRequestExpectedDate: document.getElementById("purchase-request-expected-date"),
+    purchaseRequestObservation: document.getElementById("purchase-request-observation"),
+    purchaseRequestCancel: document.getElementById("purchase-request-cancel"),
+    purchaseRequestSubmit: document.getElementById("purchase-request-submit"),
+    purchaseDetailModal: document.getElementById("purchase-detail-modal"),
+    purchaseDetailTitle: document.getElementById("purchase-detail-title"),
+    purchaseDetailContent: document.getElementById("purchase-detail-content"),
+    purchaseDetailClose: document.getElementById("purchase-detail-close"),
+    purchaseDetailApprove: document.getElementById("purchase-detail-approve"),
+    purchaseDetailReceive: document.getElementById("purchase-detail-receive"),
+    purchaseReceiveModal: document.getElementById("purchase-receive-modal"),
+    purchaseReceiveForm: document.getElementById("purchase-receive-form"),
+    purchaseReceiveId: document.getElementById("purchase-receive-id"),
+    purchaseReceiveQuantity: document.getElementById("purchase-receive-quantity"),
+    purchaseReceiveNotes: document.getElementById("purchase-receive-notes"),
+    purchaseReceiveCancel: document.getElementById("purchase-receive-cancel"),
+    purchaseReceiveHelp: document.getElementById("purchase-receive-help"),
     purchasesProviderPanel: document.getElementById("purchases-provider-panel"),
     purchasesProviderEditor: document.getElementById("purchases-provider-editor"),
     purchasesProviderEditorTitle: document.getElementById("purchases-provider-editor-title"),
@@ -3071,12 +3095,161 @@ function renderPurchaseRequests() {
         const preferred = purchaseRequestIsProviderPreferred(row);
         const quantity = row?.requested_quantity ?? firstItem?.quantity_requested ?? "-";
         const expectedDate = row?.expected_date ? formatManausDateTime(row.expected_date, { short: true }) : "Sem previsão";
+        const canApprove = hasAdminAccess() && String(row?.status || "").toUpperCase() === "SOLICITADA";
+        const canReceive = hasWashReportAccess() && ["APROVADA", "EM_TRANSITO", "PARCIALMENTE_RECEBIDA"].includes(String(row?.status || "").toUpperCase());
         return `<article class="purchases-request-card">
             <header><div><span class="purchases-request-code">${escapeHtml(row?.sc_number || row?.code || "SC")}</span><strong>${escapeHtml(materialName)}</strong><em>${escapeHtml(materialReference)}</em></div><b class="purchases-request-status status-${status.toLowerCase()}">${escapeHtml(statusLabel)}</b></header>
             <div class="purchases-request-details"><span><small>MÓDULO</small>${escapeHtml(row?.module || "COMPRAS")}</span><span><small>QUANTIDADE</small>${escapeHtml(String(quantity))}</span><span><small>PRIORIDADE</small><b class="purchases-request-priority priority-${priority.toLowerCase()}">${escapeHtml(priority)}</b></span><span><small>PREVISÃO</small>${escapeHtml(expectedDate)}</span></div>
             <footer><span>${escapeHtml(supplierName)}${preferred ? " · PREFERENCIAL" : ""}</span><span>${escapeHtml(row?.requester_raw || "Solicitante não informado")}</span></footer>
+            <div class="purchases-request-actions"><button class="secondary-button" type="button" data-purchase-open="${Number(row?.id || 0)}">ABRIR</button>${canApprove ? `<button class="secondary-button" type="button" data-purchase-approve="${Number(row?.id || 0)}">APROVAR</button>` : ""}${canReceive ? `<button class="primary-button" type="button" data-purchase-receive="${Number(row?.id || 0)}">RECEBER</button>` : ""}</div>
         </article>`;
     }).join("");
+}
+
+function renderPurchaseMaterialOptions() {
+    if (!elements.purchaseRequestMaterial) return;
+    const materials = Array.isArray(state.materials) ? state.materials.filter((material) => material?.ativo !== false) : [];
+    elements.purchaseRequestMaterial.innerHTML = materials.length
+        ? `<option value="">Selecione um material</option>${materials.map((material) => `<option value="${Number(material.id)}">${escapeHtml(`${material.referencia || "SEM REF."} — ${material.descricao || "MATERIAL"}`)}</option>`).join("")}`
+        : `<option value="">Nenhum material ativo encontrado</option>`;
+}
+
+async function loadPurchaseMaterials() {
+    if (!Array.isArray(state.materials) || !state.materials.length) {
+        state.materials = await apiFetch("/materiais?ativos=true");
+    }
+    renderPurchaseMaterialOptions();
+}
+
+async function openPurchaseRequestModal() {
+    if (!hasWashReportAccess()) return;
+    elements.purchaseRequestForm?.reset();
+    elements.purchaseRequestQuantity && (elements.purchaseRequestQuantity.value = "1");
+    elements.purchaseRequestPriority && (elements.purchaseRequestPriority.value = "MEDIA");
+    elements.purchaseRequestModal?.classList.remove("hidden");
+    document.body.classList.add("modal-open");
+    try {
+        await loadPurchaseMaterials();
+        elements.purchaseRequestMaterial?.focus();
+    } catch (error) {
+        showToast(error.message || "NÃO FOI POSSÍVEL CARREGAR OS MATERIAIS.", true);
+    }
+}
+
+function closePurchaseRequestModal() {
+    elements.purchaseRequestModal?.classList.add("hidden");
+    document.body.classList.remove("modal-open");
+}
+
+async function submitPurchaseRequest(event) {
+    event.preventDefault();
+    if (!hasWashReportAccess()) return;
+    const materialId = Number(elements.purchaseRequestMaterial?.value || 0);
+    if (!materialId) { showToast("SELECIONE O MATERIAL.", true); return; }
+    const submit = elements.purchaseRequestSubmit;
+    if (submit) { submit.disabled = true; submit.textContent = "ABRINDO..."; }
+    try {
+        await apiFetch("/compras/solicitacoes", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+                material_id: materialId,
+                requested_quantity: Number(elements.purchaseRequestQuantity?.value || 0),
+                priority: elements.purchaseRequestPriority?.value || "MEDIA",
+                expected_date: elements.purchaseRequestExpectedDate?.value || null,
+                observation: elements.purchaseRequestObservation?.value.trim() || null,
+            }),
+        });
+        closePurchaseRequestModal();
+        await loadPurchasesData();
+        showToast("SOLICITAÇÃO DE COMPRA ABERTA.");
+    } catch (error) {
+        showToast(error.message || "FALHA AO ABRIR SOLICITAÇÃO.", true);
+    } finally {
+        if (submit) { submit.disabled = false; submit.textContent = "ABRIR SOLICITAÇÃO"; }
+    }
+}
+
+function purchaseRequestById(id) {
+    return (state.purchases.requests || []).find((row) => Number(row.id) === Number(id));
+}
+
+function renderPurchaseDetail(row) {
+    if (!row || !elements.purchaseDetailContent) return;
+    const status = purchaseRequestItemStatus(row);
+    const remaining = Math.max(0, Number(row.requested_quantity || 0) - Number(row.received_quantity || 0));
+    const material = row.material || {};
+    if (elements.purchaseDetailTitle) elements.purchaseDetailTitle.textContent = row.sc_number || row.code || "Solicitação de compra";
+    elements.purchaseDetailContent.innerHTML = `<div class="purchase-detail-grid"><span><small>MATERIAL</small><b>${escapeHtml(material.descricao || "Material não informado")}</b></span><span><small>STATUS</small><b class="purchases-request-status status-${status.toLowerCase()}">${escapeHtml(PURCHASE_STATUS_LABELS[status] || status)}</b></span><span><small>QUANTIDADE</small><b>${escapeHtml(String(row.requested_quantity ?? "-"))} solicitada(s)</b></span><span><small>RECEBIDO</small><b>${escapeHtml(String(row.received_quantity ?? 0))} | ${escapeHtml(String(remaining))} restante(s)</b></span><span><small>PRIORIDADE</small><b>${escapeHtml(row.priority || "MEDIA")}</b></span><span><small>PROVEDOR</small><b>${escapeHtml(row.supplier?.name || "Ainda não definido")}</b></span></div><p class="purchase-detail-observation">${escapeHtml(row.justification || row.observation || "Sem observação registrada.")}</p>`;
+    elements.purchaseDetailApprove?.classList.toggle("hidden", !(hasAdminAccess() && String(row.status || "").toUpperCase() === "SOLICITADA"));
+    elements.purchaseDetailReceive?.classList.toggle("hidden", !(hasWashReportAccess() && ["APROVADA", "EM_TRANSITO", "PARCIALMENTE_RECEBIDA"].includes(String(row.status || "").toUpperCase()) && remaining > 0));
+}
+
+async function openPurchaseRequestDetails(id) {
+    const row = purchaseRequestById(id);
+    if (!row) return;
+    state.purchases.selectedRequestId = Number(id);
+    renderPurchaseDetail(row);
+    elements.purchaseDetailModal?.classList.remove("hidden");
+    document.body.classList.add("modal-open");
+    try {
+        const detail = await apiFetch(`/compras/solicitacoes/${Number(id)}`);
+        state.purchases.requests = (state.purchases.requests || []).map((item) => Number(item.id) === Number(id) ? detail : item);
+        renderPurchaseDetail(detail);
+    } catch (error) {
+        showToast(error.message || "DETALHES PARCIAIS DA SOLICITAÇÃO.", true);
+    }
+}
+
+function closePurchaseDetailModal() {
+    elements.purchaseDetailModal?.classList.add("hidden");
+    document.body.classList.remove("modal-open");
+    state.purchases.selectedRequestId = null;
+}
+
+async function approvePurchaseRequest(id) {
+    if (!hasAdminAccess()) return;
+    try {
+        await apiFetch(`/compras/solicitacoes/${Number(id)}/aprovar`, { method: "POST" });
+        closePurchaseDetailModal();
+        await loadPurchasesData();
+        showToast("SOLICITAÇÃO APROVADA.");
+    } catch (error) { showToast(error.message || "FALHA AO APROVAR SOLICITAÇÃO.", true); }
+}
+
+function openPurchaseReceiveModal(id) {
+    if (!hasWashReportAccess()) return;
+    const row = purchaseRequestById(id);
+    if (!row) return;
+    const remaining = Math.max(0, Number(row.requested_quantity || 0) - Number(row.received_quantity || 0));
+    elements.purchaseReceiveId.value = String(id);
+    elements.purchaseReceiveQuantity.value = String(Math.max(1, remaining));
+    elements.purchaseReceiveQuantity.max = String(remaining);
+    elements.purchaseReceiveNotes.value = "";
+    elements.purchaseReceiveHelp.textContent = `${row.sc_number || row.code || "SC"} — saldo disponível: ${remaining}.`;
+    elements.purchaseReceiveModal?.classList.remove("hidden");
+    document.body.classList.add("modal-open");
+    elements.purchaseReceiveQuantity.focus();
+}
+
+function closePurchaseReceiveModal() {
+    elements.purchaseReceiveModal?.classList.add("hidden");
+    document.body.classList.remove("modal-open");
+}
+
+async function submitPurchaseReceive(event) {
+    event.preventDefault();
+    if (!hasWashReportAccess()) return;
+    const id = Number(elements.purchaseReceiveId?.value || 0);
+    const quantity = Number(elements.purchaseReceiveQuantity?.value || 0);
+    if (!id || quantity < 1) { showToast("INFORME UMA QUANTIDADE VÁLIDA.", true); return; }
+    try {
+        await apiFetch(`/compras/solicitacoes/${id}/recebimentos`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ quantity, notes: elements.purchaseReceiveNotes?.value.trim() || null, idempotency_key: `web-${id}-${Date.now()}` }) });
+        closePurchaseReceiveModal();
+        closePurchaseDetailModal();
+        await loadPurchasesData();
+        showToast("RECEBIMENTO REGISTRADO.");
+    } catch (error) { showToast(error.message || "FALHA AO REGISTRAR RECEBIMENTO.", true); }
 }
 
 function renderPurchaseOverview() {
@@ -9823,6 +9996,26 @@ on(elements.purchasesMaterialHistoryButton, "click", loadMaterialPurchaseHistory
 on(elements.purchasesRequestSearch, "input", renderPurchaseRequests);
 on(elements.purchasesRequestStatus, "change", renderPurchaseRequests);
 on(elements.purchasesRequestSort, "change", renderPurchaseRequests);
+on(elements.purchasesRequestNew, "click", openPurchaseRequestModal);
+on(elements.purchasesRequestList, "click", (event) => {
+    const target = event.target instanceof HTMLElement ? event.target : null;
+    const openButton = target?.closest("[data-purchase-open]");
+    const approveButton = target?.closest("[data-purchase-approve]");
+    const receiveButton = target?.closest("[data-purchase-receive]");
+    if (openButton) openPurchaseRequestDetails(Number(openButton.dataset.purchaseOpen));
+    else if (approveButton) approvePurchaseRequest(Number(approveButton.dataset.purchaseApprove));
+    else if (receiveButton) openPurchaseReceiveModal(Number(receiveButton.dataset.purchaseReceive));
+});
+on(elements.purchaseRequestForm, "submit", submitPurchaseRequest);
+on(elements.purchaseRequestCancel, "click", closePurchaseRequestModal);
+on(elements.purchaseRequestModal, "click", (event) => { if (event.target instanceof HTMLElement && event.target.dataset.closePurchaseRequest === "true") closePurchaseRequestModal(); });
+on(elements.purchaseDetailClose, "click", closePurchaseDetailModal);
+on(elements.purchaseDetailApprove, "click", () => approvePurchaseRequest(state.purchases.selectedRequestId));
+on(elements.purchaseDetailReceive, "click", () => openPurchaseReceiveModal(state.purchases.selectedRequestId));
+on(elements.purchaseDetailModal, "click", (event) => { if (event.target instanceof HTMLElement && event.target.dataset.closePurchaseDetail === "true") closePurchaseDetailModal(); });
+on(elements.purchaseReceiveForm, "submit", submitPurchaseReceive);
+on(elements.purchaseReceiveCancel, "click", closePurchaseReceiveModal);
+on(elements.purchaseReceiveModal, "click", (event) => { if (event.target instanceof HTMLElement && event.target.dataset.closePurchaseReceive === "true") closePurchaseReceiveModal(); });
 on(elements.mmpCreatePrincipalButton, "click", () => createMmpWarehouse("PRINCIPAL"));
 on(elements.mmpCreateWarehouseButton, "click", () => createMmpWarehouse("MMP"));
 on(elements.mmpLocationForm, "submit", submitMmpLocation);

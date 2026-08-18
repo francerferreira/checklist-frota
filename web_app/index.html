@@ -14,7 +14,7 @@
     <title>SIS MMP | Sistema de Manutenção de Máquinas Pesadas</title>
     <link rel="icon" type="image/png" sizes="192x192" href="./static/icons/icon-192.png?v=sis-mmp-20260810">
     <link rel="apple-touch-icon" href="./static/icons/icon-192.png?v=sis-mmp-20260810">
-    <link rel="stylesheet" href="./static/css/styles.css?v=20260818-05">
+    <link rel="stylesheet" href="./static/css/styles.css?v=20260818-06">
 </head>
 <body>
     <div class="mobile-shell">
@@ -439,7 +439,7 @@
                 <section class="module-section purchases-requests-panel">
                     <div class="module-header purchases-requests-header">
                         <div><span>PAINEL OPERACIONAL</span><strong>SOLICITAÇÕES DE COMPRA</strong><p class="purchases-help">Encontre rapidamente uma SC, acompanhe o status e priorize o próximo atendimento.</p></div>
-                        <span id="purchases-requests-count" class="purchases-requests-count">0 solicitações</span>
+                        <div class="purchases-requests-header-actions"><span id="purchases-requests-count" class="purchases-requests-count">0 solicitações</span><button id="purchases-request-new" class="primary-button" type="button">+ NOVA SOLICITAÇÃO</button></div>
                     </div>
                     <div class="purchases-request-toolbar" role="search" aria-label="Filtros de solicitações de compra">
                         <label class="purchases-request-search"><span>BUSCAR</span><input id="purchases-request-search" type="search" autocomplete="off" placeholder="SC, material, módulo ou solicitante"></label>
@@ -1432,9 +1432,46 @@
         </div>
     </div>
 
+    <div id="purchase-request-modal" class="app-modal hidden" role="dialog" aria-modal="true" aria-labelledby="purchase-request-modal-title">
+        <div class="app-modal-backdrop" data-close-purchase-request="true"></div>
+        <div class="app-modal-card purchase-request-modal-card" role="document">
+            <div class="app-modal-header"><h3 id="purchase-request-modal-title">Nova solicitação de compra</h3><p>Selecione o material e informe a quantidade necessária.</p></div>
+            <form id="purchase-request-form" class="purchase-request-form">
+                <label class="modal-field purchase-request-field-wide"><span>MATERIAL *</span><select id="purchase-request-material" required><option value="">Carregando materiais...</option></select></label>
+                <label class="modal-field"><span>QUANTIDADE *</span><input id="purchase-request-quantity" type="number" min="1" step="1" value="1" required></label>
+                <label class="modal-field"><span>PRIORIDADE</span><select id="purchase-request-priority"><option value="BAIXA">BAIXA</option><option value="MEDIA" selected>MÉDIA</option><option value="ALTA">ALTA</option><option value="CRITICA">CRÍTICA</option></select></label>
+                <label class="modal-field"><span>DATA PREVISTA</span><input id="purchase-request-expected-date" type="date"></label>
+                <label class="modal-field purchase-request-field-wide"><span>OBSERVAÇÃO</span><textarea id="purchase-request-observation" rows="3" maxlength="1000" placeholder="Explique a necessidade da compra"></textarea></label>
+                <div class="password-change-actions purchase-request-field-wide"><button id="purchase-request-cancel" class="icon-button" type="button">CANCELAR</button><button id="purchase-request-submit" class="primary-button" type="submit">ABRIR SOLICITAÇÃO</button></div>
+            </form>
+        </div>
+    </div>
+
+    <div id="purchase-detail-modal" class="app-modal hidden" role="dialog" aria-modal="true" aria-labelledby="purchase-detail-title">
+        <div class="app-modal-backdrop" data-close-purchase-detail="true"></div>
+        <div class="app-modal-card purchase-detail-modal-card" role="document">
+            <div class="app-modal-header"><h3 id="purchase-detail-title">Solicitação de compra</h3><p>Acompanhe o processo e execute a próxima etapa.</p></div>
+            <div id="purchase-detail-content" class="purchase-detail-content"></div>
+            <div class="password-change-actions purchase-detail-actions"><button id="purchase-detail-close" class="icon-button" type="button">FECHAR</button><button id="purchase-detail-approve" class="secondary-button hidden" type="button">APROVAR</button><button id="purchase-detail-receive" class="primary-button hidden" type="button">REGISTRAR RECEBIMENTO</button></div>
+        </div>
+    </div>
+
+    <div id="purchase-receive-modal" class="app-modal hidden" role="dialog" aria-modal="true" aria-labelledby="purchase-receive-title">
+        <div class="app-modal-backdrop" data-close-purchase-receive="true"></div>
+        <div class="app-modal-card purchase-receive-modal-card" role="document">
+            <div class="app-modal-header"><h3 id="purchase-receive-title">Registrar recebimento</h3><p id="purchase-receive-help">Informe a quantidade que entrou no estoque.</p></div>
+            <form id="purchase-receive-form" class="purchase-receive-form">
+                <input id="purchase-receive-id" type="hidden">
+                <label class="modal-field"><span>QUANTIDADE RECEBIDA *</span><input id="purchase-receive-quantity" type="number" min="1" step="1" required></label>
+                <label class="modal-field purchase-request-field-wide"><span>OBSERVAÇÃO</span><textarea id="purchase-receive-notes" rows="3" maxlength="500"></textarea></label>
+                <div class="password-change-actions purchase-request-field-wide"><button id="purchase-receive-cancel" class="icon-button" type="button">CANCELAR</button><button class="primary-button" type="submit">CONFIRMAR RECEBIMENTO</button></div>
+            </form>
+        </div>
+    </div>
+
     <div id="toast" class="toast hidden"></div>
     <script src="./static/js/config.js?v=20260719-01"></script>
-    <script src="./static/js/app.js?v=20260818-04"></script>
+    <script src="./static/js/app.js?v=20260818-05"></script>
 </body>
 </html>
 
