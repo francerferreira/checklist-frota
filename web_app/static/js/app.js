@@ -608,6 +608,11 @@ const elements = {
     purchasesOpenCount: document.getElementById("purchases-open-count"),
     purchasesAwaitingPcCount: document.getElementById("purchases-awaiting-pc-count"),
     purchasesAwaitingNfCount: document.getElementById("purchases-awaiting-nf-count"),
+    purchasesRequestsCount: document.getElementById("purchases-requests-count"),
+    purchasesRequestSearch: document.getElementById("purchases-request-search"),
+    purchasesRequestStatus: document.getElementById("purchases-request-status"),
+    purchasesRequestSort: document.getElementById("purchases-request-sort"),
+    purchasesRequestList: document.getElementById("purchases-request-list"),
     purchasesProviderPanel: document.getElementById("purchases-provider-panel"),
     purchasesProviderEditor: document.getElementById("purchases-provider-editor"),
     purchasesProviderEditorTitle: document.getElementById("purchases-provider-editor-title"),
@@ -2988,6 +2993,92 @@ function openAdminPurchaseImport() {
     document.getElementById("admin-purchases-import-button")?.addEventListener("click", submitPurchaseImport);
 }
 
+const PURCHASE_STATUS_LABELS = {
+    SOLICITADA: "SOLICITADA",
+    APROVADA: "APROVADA",
+    AGUARDANDO_PC: "AGUARDANDO PC",
+    EM_TRANSITO: "EM TRÂNSITO",
+    PARCIALMENTE_RECEBIDA: "RECEBIMENTO PARCIAL",
+    RECEBIDA: "RECEBIDA",
+    CANCELADA: "CANCELADA",
+};
+
+function purchaseRequestItemStatus(row) {
+    const requestStatus = String(row?.status || "SOLICITADA").toUpperCase();
+    if (requestStatus === "SOLICITADA" && (row?.items || []).some((item) => String(item?.status || "").toUpperCase() === "AGUARDANDO_PC")) {
+        return "AGUARDANDO_PC";
+    }
+    return requestStatus;
+}
+
+function purchaseRequestIsProviderPreferred(row) {
+    return Boolean(row?.supplier?.preferred || row?.provider?.preferred || row?.supplier_preferred || row?.provider_preferred);
+}
+
+function purchaseRequestPriorityRank(priority) {
+    return { CRITICA: 0, ALTA: 1, MEDIA: 2, BAIXA: 3 }[String(priority || "MEDIA").toUpperCase()] ?? 4;
+}
+
+function renderPurchaseRequests() {
+    if (!elements.purchasesRequestList) return;
+    const rows = Array.isArray(state.purchases.requests) ? state.purchases.requests : [];
+    const query = String(elements.purchasesRequestSearch?.value || "").trim().toLocaleLowerCase("pt-BR");
+    const statusFilter = String(elements.purchasesRequestStatus?.value || "TODOS").toUpperCase();
+    const sortKey = String(elements.purchasesRequestSort?.value || "RECENTES").toUpperCase();
+    const filtered = rows.filter((row) => {
+        const itemStatus = purchaseRequestItemStatus(row);
+        const matchesStatus = statusFilter === "TODOS" || itemStatus === statusFilter || (statusFilter === "AGUARDANDO_PC" && String(row?.status || "").toUpperCase() === "SOLICITADA");
+        if (!matchesStatus) return false;
+        if (!query) return true;
+        const material = row?.material || {};
+        const firstItem = (row?.items || [])[0] || {};
+        const haystack = [
+            row?.code, row?.sc_number, row?.module, row?.requester_raw, row?.equipment_raw,
+            row?.supplier?.name, row?.supplier?.trade_name, material?.referencia, material?.descricao,
+            firstItem?.description_raw, firstItem?.product_code_raw,
+        ].filter(Boolean).join(" ").toLocaleLowerCase("pt-BR");
+        return haystack.includes(query);
+    }).sort((left, right) => {
+        if (sortKey === "PRIORIDADE") {
+            const priorityDelta = purchaseRequestPriorityRank(left?.priority) - purchaseRequestPriorityRank(right?.priority);
+            if (priorityDelta) return priorityDelta;
+        }
+        if (sortKey === "PROVEDOR_PREFERENCIAL") {
+            const preferredDelta = Number(purchaseRequestIsProviderPreferred(right)) - Number(purchaseRequestIsProviderPreferred(left));
+            if (preferredDelta) return preferredDelta;
+            const providerDelta = String(left?.supplier?.name || "").localeCompare(String(right?.supplier?.name || ""), "pt-BR");
+            if (providerDelta) return providerDelta;
+        }
+        return Number(right?.id || 0) - Number(left?.id || 0);
+    });
+
+    if (elements.purchasesRequestsCount) {
+        elements.purchasesRequestsCount.textContent = `${filtered.length} de ${rows.length} ${rows.length === 1 ? "solicitação" : "solicitações"}`;
+    }
+    if (!filtered.length) {
+        elements.purchasesRequestList.innerHTML = `<article class="purchases-request-empty"><strong>${rows.length ? "NENHUMA SOLICITAÇÃO NESTE FILTRO" : "NENHUMA SOLICITAÇÃO DE COMPRA"}</strong><span>${rows.length ? "Ajuste a busca ou o status para consultar outra SC." : "As solicitações aparecerão aqui quando forem registradas."}</span></article>`;
+        return;
+    }
+    elements.purchasesRequestList.innerHTML = filtered.map((row) => {
+        const status = purchaseRequestItemStatus(row);
+        const statusLabel = PURCHASE_STATUS_LABELS[status] || status.replaceAll("_", " ");
+        const priority = String(row?.priority || "MEDIA").toUpperCase();
+        const material = row?.material || {};
+        const firstItem = (row?.items || [])[0] || {};
+        const materialName = material?.descricao || firstItem?.description_raw || "Material não informado";
+        const materialReference = material?.referencia || firstItem?.product_code_raw || "Sem referência";
+        const supplierName = row?.supplier?.name || "Provedor ainda não definido";
+        const preferred = purchaseRequestIsProviderPreferred(row);
+        const quantity = row?.requested_quantity ?? firstItem?.quantity_requested ?? "-";
+        const expectedDate = row?.expected_date ? formatManausDateTime(row.expected_date, { short: true }) : "Sem previsão";
+        return `<article class="purchases-request-card">
+            <header><div><span class="purchases-request-code">${escapeHtml(row?.sc_number || row?.code || "SC")}</span><strong>${escapeHtml(materialName)}</strong><em>${escapeHtml(materialReference)}</em></div><b class="purchases-request-status status-${status.toLowerCase()}">${escapeHtml(statusLabel)}</b></header>
+            <div class="purchases-request-details"><span><small>MÓDULO</small>${escapeHtml(row?.module || "COMPRAS")}</span><span><small>QUANTIDADE</small>${escapeHtml(String(quantity))}</span><span><small>PRIORIDADE</small><b class="purchases-request-priority priority-${priority.toLowerCase()}">${escapeHtml(priority)}</b></span><span><small>PREVISÃO</small>${escapeHtml(expectedDate)}</span></div>
+            <footer><span>${escapeHtml(supplierName)}${preferred ? " · PREFERENCIAL" : ""}</span><span>${escapeHtml(row?.requester_raw || "Solicitante não informado")}</span></footer>
+        </article>`;
+    }).join("");
+}
+
 function renderPurchaseOverview() {
     const rows = state.purchases.requests || [];
     const open = rows.filter((row) => !["RECEBIDA", "CANCELADA"].includes(String(row.status || "").toUpperCase()));
@@ -2996,6 +3087,7 @@ function renderPurchaseOverview() {
     if (elements.purchasesOpenCount) elements.purchasesOpenCount.textContent = String(open.length);
     if (elements.purchasesAwaitingPcCount) elements.purchasesAwaitingPcCount.textContent = String(awaitingPc.length);
     if (elements.purchasesAwaitingNfCount) elements.purchasesAwaitingNfCount.textContent = String(awaitingNf.length);
+    renderPurchaseRequests();
 }
 
 async function loadPurchasesData() {
@@ -9728,6 +9820,9 @@ on(elements.purchasesProviderList, "click", (event) => {
     if (provider) editPurchaseProvider(provider);
 });
 on(elements.purchasesMaterialHistoryButton, "click", loadMaterialPurchaseHistory);
+on(elements.purchasesRequestSearch, "input", renderPurchaseRequests);
+on(elements.purchasesRequestStatus, "change", renderPurchaseRequests);
+on(elements.purchasesRequestSort, "change", renderPurchaseRequests);
 on(elements.mmpCreatePrincipalButton, "click", () => createMmpWarehouse("PRINCIPAL"));
 on(elements.mmpCreateWarehouseButton, "click", () => createMmpWarehouse("MMP"));
 on(elements.mmpLocationForm, "submit", submitMmpLocation);

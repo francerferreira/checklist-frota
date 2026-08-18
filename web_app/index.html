@@ -14,7 +14,7 @@
     <title>SIS MMP | Sistema de Manutenção de Máquinas Pesadas</title>
     <link rel="icon" type="image/png" sizes="192x192" href="./static/icons/icon-192.png?v=sis-mmp-20260810">
     <link rel="apple-touch-icon" href="./static/icons/icon-192.png?v=sis-mmp-20260810">
-    <link rel="stylesheet" href="./static/css/styles.css?v=20260818-04">
+    <link rel="stylesheet" href="./static/css/styles.css?v=20260818-05">
 </head>
 <body>
     <div class="mobile-shell">
@@ -435,6 +435,18 @@
                     <article><span>SC ABERTAS</span><strong id="purchases-open-count">0</strong><em>Processos ainda não concluídos.</em></article>
                     <article><span>AGUARDANDO PC</span><strong id="purchases-awaiting-pc-count">0</strong><em>Itens sem pedido de compra.</em></article>
                     <article><span>AGUARDANDO NF</span><strong id="purchases-awaiting-nf-count">0</strong><em>PC emitido sem nota fiscal.</em></article>
+                </section>
+                <section class="module-section purchases-requests-panel">
+                    <div class="module-header purchases-requests-header">
+                        <div><span>PAINEL OPERACIONAL</span><strong>SOLICITAÇÕES DE COMPRA</strong><p class="purchases-help">Encontre rapidamente uma SC, acompanhe o status e priorize o próximo atendimento.</p></div>
+                        <span id="purchases-requests-count" class="purchases-requests-count">0 solicitações</span>
+                    </div>
+                    <div class="purchases-request-toolbar" role="search" aria-label="Filtros de solicitações de compra">
+                        <label class="purchases-request-search"><span>BUSCAR</span><input id="purchases-request-search" type="search" autocomplete="off" placeholder="SC, material, módulo ou solicitante"></label>
+                        <label><span>STATUS</span><select id="purchases-request-status"><option value="TODOS">TODOS</option><option value="SOLICITADA">SOLICITADA</option><option value="APROVADA">APROVADA</option><option value="AGUARDANDO_PC">AGUARDANDO PC</option><option value="EM_TRANSITO">EM TRÂNSITO</option><option value="PARCIALMENTE_RECEBIDA">RECEBIMENTO PARCIAL</option><option value="RECEBIDA">RECEBIDA</option><option value="CANCELADA">CANCELADA</option></select></label>
+                        <label><span>ORDENAR POR</span><select id="purchases-request-sort"><option value="RECENTES">MAIS RECENTES</option><option value="PRIORIDADE">PRIORIDADE</option><option value="PROVEDOR_PREFERENCIAL">PROVEDOR PREFERENCIAL</option></select></label>
+                    </div>
+                    <div id="purchases-request-list" class="purchases-request-list" aria-live="polite"></div>
                 </section>
                 <section id="purchases-provider-panel" class="module-section purchases-provider-panel hidden">
                     <div class="purchases-provider-heading">
@@ -1422,7 +1434,7 @@
 
     <div id="toast" class="toast hidden"></div>
     <script src="./static/js/config.js?v=20260719-01"></script>
-    <script src="./static/js/app.js?v=20260818-03"></script>
+    <script src="./static/js/app.js?v=20260818-04"></script>
 </body>
 </html>
 
