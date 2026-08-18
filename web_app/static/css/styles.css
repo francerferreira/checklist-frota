@@ -8160,3 +8160,153 @@ body[data-theme="dark"] .admin-settings-user-meta span { color: var(--theme-text
 body[data-theme="dark"] .admin-settings-user-identity span,
 body[data-theme="dark"] .admin-settings-user-meta b { color: var(--theme-text-muted) !important; }
 body[data-theme="dark"] .app-modal-backdrop { background: rgba(3,8,14,.82) !important; }
+
+/* Superfícies operacionais: nenhum cartão/tabela/calendário deve voltar ao branco no dark. */
+body[data-theme="dark"] .search-box,
+body[data-theme="dark"] .vehicle-family-card,
+body[data-theme="dark"] .wash-calendar-card,
+body[data-theme="dark"] .wash-day-summary,
+body[data-theme="dark"] .wash-report-panel,
+body[data-theme="dark"] .wash-shift-tab,
+body[data-theme="dark"] .maintenance-family-tabs,
+body[data-theme="dark"] .maintenance-family-tab,
+body[data-theme="dark"] .maintenance-view-controls,
+body[data-theme="dark"] .maintenance-dashboard-filter,
+body[data-theme="dark"] .maintenance-kanban-column,
+body[data-theme="dark"] .maintenance-kanban-card,
+body[data-theme="dark"] .maintenance-table-wrap,
+body[data-theme="dark"] .maintenance-dashboard-card,
+body[data-theme="dark"] .rh-admin-tabs,
+body[data-theme="dark"] .rh-admin-tab,
+body[data-theme="dark"] .rh-admin-summary-card,
+body[data-theme="dark"] .rh-admin-box,
+body[data-theme="dark"] .rh-admin-list-row,
+body[data-theme="dark"] .rh-admin-employee-row,
+body[data-theme="dark"] .rh-admin-operation-card,
+body[data-theme="dark"] .history-table-wrap,
+body[data-theme="dark"] .history-summary-card,
+body[data-theme="dark"] .history-summary article,
+body[data-theme="dark"] .schedule-table-filters,
+body[data-theme="dark"] .schedule-tab {
+    background: var(--theme-surface) !important;
+    border-color: var(--theme-border) !important;
+    color: var(--theme-text) !important;
+    box-shadow: var(--theme-shadow) !important;
+}
+
+body[data-theme="dark"] .vehicle-family-card.is-active {
+    background: linear-gradient(145deg, var(--theme-surface-muted), var(--theme-surface)) !important;
+    border-color: var(--theme-accent-strong) !important;
+}
+
+body[data-theme="dark"] .wash-day,
+body[data-theme="dark"] .wash-day.has-items {
+    background: var(--theme-surface-soft) !important;
+    color: var(--theme-text-muted) !important;
+    box-shadow: none !important;
+}
+
+body[data-theme="dark"] .wash-day strong,
+body[data-theme="dark"] .wash-calendar-header strong,
+body[data-theme="dark"] .wash-shift-title strong,
+body[data-theme="dark"] .maintenance-kanban-column > header strong,
+body[data-theme="dark"] .maintenance-kanban-card strong,
+body[data-theme="dark"] .maintenance-dashboard-card > div > strong,
+body[data-theme="dark"] .maintenance-dashboard-card h3,
+body[data-theme="dark"] .maintenance-dashboard-table td strong,
+body[data-theme="dark"] .rh-admin-summary-card strong,
+body[data-theme="dark"] .rh-admin-panel-header strong,
+body[data-theme="dark"] .rh-admin-box-header strong,
+body[data-theme="dark"] .rh-admin-list-row strong,
+body[data-theme="dark"] .rh-admin-employee-main strong {
+    color: var(--theme-text) !important;
+}
+
+body[data-theme="dark"] .wash-day span,
+body[data-theme="dark"] .wash-day-summary span,
+body[data-theme="dark"] .wash-shift-title span,
+body[data-theme="dark"] .maintenance-kanban-column > header span,
+body[data-theme="dark"] .maintenance-kanban-card span,
+body[data-theme="dark"] .maintenance-kanban-card small,
+body[data-theme="dark"] .maintenance-dashboard-card p,
+body[data-theme="dark"] .maintenance-dashboard-card p b,
+body[data-theme="dark"] .maintenance-dashboard-empty,
+body[data-theme="dark"] .rh-admin-summary-card span,
+body[data-theme="dark"] .rh-admin-summary-card em,
+body[data-theme="dark"] .rh-admin-panel-header span,
+body[data-theme="dark"] .rh-admin-box-header span,
+body[data-theme="dark"] .rh-admin-list-row span,
+body[data-theme="dark"] .rh-admin-list-row em,
+body[data-theme="dark"] .rh-admin-employee-main small,
+body[data-theme="dark"] .rh-admin-operation-card span {
+    color: var(--theme-text-muted) !important;
+}
+
+body[data-theme="dark"] .maintenance-dashboard-table,
+body[data-theme="dark"] .maintenance-dashboard-table tbody tr,
+body[data-theme="dark"] .maintenance-dashboard-table tbody td,
+body[data-theme="dark"] .history-table,
+body[data-theme="dark"] .history-table tbody tr,
+body[data-theme="dark"] .history-table tbody td {
+    background: var(--theme-surface) !important;
+    color: var(--theme-text) !important;
+    border-color: var(--theme-border) !important;
+}
+
+body[data-theme="dark"] .maintenance-dashboard-table tbody tr:hover td,
+body[data-theme="dark"] .history-table tbody tr:hover td {
+    background: var(--theme-hover) !important;
+}
+
+body[data-theme="dark"] .maintenance-dashboard-filter b,
+body[data-theme="dark"] .maintenance-kanban-column > header b {
+    background: var(--theme-surface-muted) !important;
+    color: var(--theme-accent) !important;
+}
+
+body[data-theme="dark"] .wash-day.done { background: var(--state-completed-bg) !important; color: var(--state-completed-text) !important; }
+body[data-theme="dark"] .wash-day.blocked { background: var(--state-blocked-bg) !important; color: var(--state-blocked-text) !important; }
+body[data-theme="dark"] .wash-day.active { background: var(--theme-accent-strong) !important; color: #fff !important; }
+
+body[data-theme="dark"] .schedule-tab.is-active,
+body[data-theme="dark"] .maintenance-family-tab.is-active,
+body[data-theme="dark"] .rh-admin-tab.is-active,
+body[data-theme="dark"] .maintenance-dashboard-filter.is-active,
+body[data-theme="dark"] .wash-shift-tab.active {
+    background: var(--theme-accent-strong) !important;
+    border-color: var(--theme-accent-strong) !important;
+    color: #fff !important;
+}
+
+body[data-theme="dark"] .maintenance-kanban-bloqueado > header b,
+body[data-theme="dark"] .maintenance-dashboard-filter[data-maintenance-dashboard-filter="BLOQUEADO"] b {
+    background: var(--state-blocked-bg) !important;
+    color: var(--state-blocked-text) !important;
+}
+
+body[data-theme="dark"] .maintenance-kanban-em-execucao > header b,
+body[data-theme="dark"] .maintenance-dashboard-filter[data-maintenance-dashboard-filter="EM_EXECUCAO"] b {
+    background: var(--state-progress-bg) !important;
+    color: var(--state-progress-text) !important;
+}
+
+body[data-theme="dark"] .maintenance-kanban-concluido > header b,
+body[data-theme="dark"] .maintenance-dashboard-filter[data-maintenance-dashboard-filter="CONCLUIDO"] b {
+    background: var(--state-completed-bg) !important;
+    color: var(--state-completed-text) !important;
+}
+
+body[data-theme="dark"] .maintenance-dashboard-filter[data-maintenance-dashboard-filter="ATRASADO"] b {
+    background: var(--state-critical-bg) !important;
+    color: var(--state-critical-text) !important;
+}
+
+body[data-theme="dark"] .rh-admin-filters input,
+body[data-theme="dark"] .rh-admin-filters select,
+body[data-theme="dark"] .rh-admin-employee-form input,
+body[data-theme="dark"] .rh-admin-employee-form select,
+body[data-theme="dark"] .rh-admin-employee-form textarea {
+    background: var(--theme-input) !important;
+    border-color: var(--theme-border-strong) !important;
+    color: var(--theme-text) !important;
+}

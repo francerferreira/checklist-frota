@@ -16,8 +16,8 @@ class WebMobileShellContractTests(unittest.TestCase):
         cls.legacy_readme = LEGACY_README_PATH.read_text(encoding="utf-8")
 
     def test_index_uses_canonical_frontend_bundle(self):
-        self.assertIn('./static/js/app.js?v=20260818-01', self.index_html)
-        self.assertIn('./static/css/styles.css?v=20260818-01', self.index_html)
+        self.assertIn('./static/js/app.js?v=20260818-02', self.index_html)
+        self.assertIn('./static/css/styles.css?v=20260818-02', self.index_html)
         self.assertNotIn("app-20260419-", self.index_html)
 
     def test_login_uses_institutional_glass_layout_with_sis_mmp_identity(self):
@@ -136,6 +136,22 @@ class WebMobileShellContractTests(unittest.TestCase):
         self.assertIn("position: fixed", styles)
         self.assertIn("width: min(760px, calc(100vw - 24px))", styles)
         self.assertIn("@media (max-width: 640px)", styles)
+
+    def test_dark_theme_covers_operational_surfaces(self):
+        styles = (PROJECT_ROOT / "web_app" / "static" / "css" / "styles.css").read_text(encoding="utf-8")
+        for selector in [
+            'body[data-theme="dark"] .vehicle-family-card',
+            'body[data-theme="dark"] .maintenance-kanban-column',
+            'body[data-theme="dark"] .maintenance-table-wrap',
+            'body[data-theme="dark"] .wash-calendar-card',
+            'body[data-theme="dark"] .rh-admin-summary-card',
+            'body[data-theme="dark"] .rh-admin-box',
+            'body[data-theme="dark"] .rh-admin-operation-card',
+        ]:
+            with self.subTest(selector=selector):
+                self.assertIn(selector, styles)
+        self.assertIn('background: var(--theme-surface) !important;', styles)
+        self.assertIn('background: var(--theme-hover) !important;', styles)
 
     def test_frontend_expires_session_after_inactivity(self):
         app_js = (PROJECT_ROOT / "web_app" / "static" / "js" / "app.js").read_text(encoding="utf-8")
