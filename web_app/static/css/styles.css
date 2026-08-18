@@ -8310,3 +8310,5 @@ body[data-theme="dark"] .rh-admin-employee-form textarea {
     border-color: var(--theme-border-strong) !important;
     color: var(--theme-text) !important;
 }
+
+/* Contrato visual Dark: novas regras devem usar variáveis de tema. */

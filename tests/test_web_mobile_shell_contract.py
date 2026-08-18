@@ -3,7 +3,12 @@ from __future__ import annotations
 import unittest
 from pathlib import Path
 
-from tools.check_dark_theme_surfaces import find_light_dark_backgrounds
+from tools.check_dark_theme_surfaces import (
+    find_dark_components_without_theme_variables,
+    find_light_dark_backgrounds,
+    find_light_dark_borders,
+    find_low_contrast_dark_text,
+)
 
 
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
@@ -19,7 +24,7 @@ class WebMobileShellContractTests(unittest.TestCase):
 
     def test_index_uses_canonical_frontend_bundle(self):
         self.assertIn('./static/js/app.js?v=20260818-02', self.index_html)
-        self.assertIn('./static/css/styles.css?v=20260818-02', self.index_html)
+        self.assertIn('./static/css/styles.css?v=20260818-03', self.index_html)
         self.assertNotIn("app-20260419-", self.index_html)
 
     def test_login_uses_institutional_glass_layout_with_sis_mmp_identity(self):
@@ -166,6 +171,17 @@ class WebMobileShellContractTests(unittest.TestCase):
             len(find_light_dark_backgrounds('body[data-theme="dark"] .new-card { background: rgb(255, 255, 255); }')),
             1,
         )
+
+    def test_dark_theme_checker_covers_contrast_borders_and_tokens(self):
+        styles = (PROJECT_ROOT / "web_app" / "static" / "css" / "styles.css").read_text(encoding="utf-8")
+        self.assertEqual(find_low_contrast_dark_text(styles), [])
+        self.assertEqual(find_light_dark_borders(styles), [])
+        self.assertEqual(find_dark_components_without_theme_variables(styles), [])
+        contract = "/* Contrato visual Dark: novas regras devem usar variáveis de tema. */"
+        bad_rule = contract + '\nbody[data-theme="dark"] .new-card { background: #172332; color: #182534; border: 1px solid #ffffff; }'
+        self.assertEqual(len(find_low_contrast_dark_text(bad_rule)), 1)
+        self.assertEqual(len(find_light_dark_borders(bad_rule)), 1)
+        self.assertEqual(len(find_dark_components_without_theme_variables(bad_rule)), 1)
 
     def test_frontend_expires_session_after_inactivity(self):
         app_js = (PROJECT_ROOT / "web_app" / "static" / "js" / "app.js").read_text(encoding="utf-8")
