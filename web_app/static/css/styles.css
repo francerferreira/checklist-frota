@@ -2134,6 +2134,116 @@ textarea {
     }
 }
 
+/* O módulo de horímetro oferece três leituras visuais sem misturar ações de disponibilidade. */
+.availability-view-switch {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 4px;
+    border: 1px solid var(--theme-border, #cbd8e6);
+    border-radius: 10px;
+    background: var(--theme-surface-muted, #eaf1f8);
+}
+
+.availability-view-button {
+    min-height: 32px;
+    padding: 6px 11px;
+    border: 0;
+    border-radius: 7px;
+    background: transparent;
+    color: var(--theme-text-muted, #50657d);
+    font: inherit;
+    font-size: 0.68rem;
+    font-weight: 900;
+    letter-spacing: 0.02em;
+    cursor: pointer;
+}
+
+.availability-view-button.is-active {
+    background: var(--theme-primary, #0b65c2);
+    color: var(--theme-on-primary, #ffffff);
+}
+
+.availability-list.view-quadro {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.availability-list.view-list {
+    grid-template-columns: 1fr;
+}
+
+.availability-list.view-list .availability-card {
+    display: grid;
+    grid-template-columns: minmax(220px, 1fr) minmax(180px, 0.8fr) minmax(300px, 1.2fr);
+    align-items: stretch;
+}
+
+.availability-list.view-list .availability-card > header,
+.availability-list.view-list .availability-reading {
+    border: 0;
+}
+
+.availability-list.view-list .availability-card > header {
+    border-right: 1px solid var(--theme-border, #cbd8e6);
+}
+
+.availability-list.view-list .availability-reading {
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    border-right: 1px solid var(--theme-border, #cbd8e6);
+}
+
+.availability-list.view-list .availability-reading small {
+    margin-left: 0;
+}
+
+.availability-list.view-list .availability-action-panel {
+    border-top: 0;
+}
+
+.availability-list.view-cartao {
+    grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+}
+
+.availability-list.view-cartao .availability-card > header {
+    padding: 13px;
+}
+
+.availability-list.view-cartao .availability-reading {
+    padding: 11px 13px;
+}
+
+@media (min-width: 760px) {
+    .availability-filter-panel {
+        grid-template-columns: minmax(220px, 1fr) minmax(260px, 1.25fr) auto;
+    }
+}
+
+@media (max-width: 759px) {
+    #availability-screen > .list-toolbar {
+        align-items: flex-start;
+        flex-direction: column;
+    }
+
+    .availability-view-switch {
+        width: 100%;
+    }
+
+    .availability-view-button {
+        flex: 1;
+    }
+
+    .availability-list.view-list .availability-card {
+        display: block;
+    }
+
+    .availability-list.view-list .availability-card > header,
+    .availability-list.view-list .availability-reading {
+        border-right: 0;
+    }
+}
+
 /* Regras finais do tema escuro: ficam após a identidade visual para garantir contraste. */
 html[data-theme="dark"],
 body[data-theme="dark"],

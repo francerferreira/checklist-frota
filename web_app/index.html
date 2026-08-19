@@ -14,7 +14,7 @@
     <title>SIS MMP | Sistema de Manutenção de Máquinas Pesadas</title>
     <link rel="icon" type="image/png" sizes="192x192" href="./static/icons/icon-192.png?v=sis-mmp-20260810">
     <link rel="apple-touch-icon" href="./static/icons/icon-192.png?v=sis-mmp-20260810">
-    <link rel="stylesheet" href="./static/css/styles.css?v=20260818-15">
+    <link rel="stylesheet" href="./static/css/styles.css?v=20260819-16">
 </head>
 <body>
     <div class="mobile-shell">
@@ -89,7 +89,7 @@
                         <button type="button" data-topbar-action="checklistHistory" data-source-menu="open-checklist-history-menu"><b>02</b><span><strong>Histórico de checklist</strong><em>Consultar registros por equipamento.</em></span></button>
                         <button type="button" data-topbar-action="checklistCatalog" data-source-menu="open-checklist-catalog-menu"><b>ADM</b><span><strong>Catálogo de checklist</strong><em>Administrar itens de inspeção.</em></span></button>
                         <button type="button" data-topbar-action="activities" data-source-menu="open-activities-menu"><b>03</b><span><strong>Inspeções</strong><em>Conferir atividades abertas.</em></span></button>
-                        <button type="button" data-topbar-action="availability" data-source-menu="open-availability-menu"><b>04</b><span><strong>Disponibilidade e horímetro</strong><em>Apontar condição operacional.</em></span></button>
+                        <button type="button" data-topbar-action="availability" data-source-menu="open-availability-menu"><b>04</b><span><strong>Horímetro</strong><em>Consultar e registrar leituras.</em></span></button>
                         <button type="button" data-topbar-action="technicalInspections" data-source-menu="open-technical-inspections-menu"><b>05</b><span><strong>Inspeção técnica</strong><em>Executar modelos publicados.</em></span></button>
                         <button type="button" data-topbar-action="technicalLibrary" data-source-menu="open-technical-library-menu"><b>06</b><span><strong>Biblioteca técnica</strong><em>Consultar manuais e procedimentos.</em></span></button>
                         <button type="button" data-topbar-action="equipmentReports" data-source-menu="open-equipment-reports-menu"><b>REL</b><span><strong>Relatórios de equipamentos</strong><em>Indicadores e históricos do módulo.</em></span></button>
@@ -221,7 +221,7 @@
                         <span>03</span><strong>INSPEÇÕES</strong><em>Conferir inspeções abertas e registrar evidências.</em>
                     </button>
                     <button id="open-availability-menu" class="menu-card" type="button">
-                        <span>04</span><strong>DISPONIBILIDADE E HORÍMETRO</strong><em>Apontar situação, motivo, evidência e leitura.</em>
+                        <span>04</span><strong>HORÍMETRO</strong><em>Consultar e registrar leituras.</em>
                     </button>
                     <button id="open-technical-inspections-menu" class="menu-card" type="button">
                         <span>05</span><strong>INSPEÇÃO TÉCNICA</strong><em>Executar modelos publicados por módulo.</em>
@@ -1209,16 +1209,20 @@
                 <div class="screen-heading compact">
                     <button id="availability-back-button" class="icon-button" type="button">MENU</button>
                     <div>
-                        <h2>DISPONIBILIDADE E HORÍMETRO</h2>
-                        <p class="screen-heading-note">Consulte RTG e LBS e registre somente o que foi observado em campo.</p>
+                        <h2>HORÍMETRO</h2>
+                        <p class="screen-heading-note">Consulte os equipamentos e registre somente a leitura do horímetro.</p>
                     </div>
                 </div>
 
                 <div class="list-toolbar">
-                    <strong id="availability-counter">0 EQUIPAMENTOS</strong>
-                    <span>APONTE SOMENTE A SITUAÇÃO REAL OBSERVADA EM CAMPO.</span>
+                    <strong id="availability-counter">0 EQUIPAMENTOS COM HORÍMETRO</strong>
+                    <div id="availability-view-switch" class="availability-view-switch" role="group" aria-label="Visualização do horímetro">
+                        <button type="button" class="availability-view-button is-active" data-availability-view="QUADRO" aria-pressed="true">QUADRO</button>
+                        <button type="button" class="availability-view-button" data-availability-view="LISTA" aria-pressed="false">LISTA</button>
+                        <button type="button" class="availability-view-button" data-availability-view="CARTÃO" aria-pressed="false">CARTÃO</button>
+                    </div>
                 </div>
-                <section class="availability-filter-panel" aria-label="Filtros de disponibilidade">
+                <section class="availability-filter-panel" aria-label="Filtros de horímetro">
                     <div class="availability-family-tabs" role="tablist" aria-label="Filtro por módulo">
                         <button type="button" class="availability-family-tab is-active" data-availability-family="TODOS" role="tab" aria-selected="true">TODOS</button>
                         <button type="button" class="availability-family-tab" data-availability-family="RTG" role="tab" aria-selected="false">RTG</button>
@@ -1227,17 +1231,6 @@
                     <label>
                         <span>BUSCAR EQUIPAMENTO</span>
                         <input id="availability-search" type="search" placeholder="Frota, placa, modelo ou local" autocomplete="off">
-                    </label>
-                    <label>
-                        <span>SITUAÇÃO</span>
-                        <select id="availability-status-filter">
-                            <option value="">TODAS AS SITUAÇÕES</option>
-                            <option value="DISPONIVEL">DISPONÍVEL</option>
-                            <option value="INDISPONIVEL">INDISPONÍVEL</option>
-                            <option value="RESTRICAO">COM RESTRIÇÃO</option>
-                            <option value="MANUTENCAO">EM MANUTENÇÃO</option>
-                            <option value="SEM_APONTAMENTO">SEM APONTAMENTO</option>
-                        </select>
                     </label>
                     <button id="availability-clear-filters" class="secondary-button" type="button">LIMPAR FILTROS</button>
                 </section>
@@ -1594,7 +1587,7 @@
 
     <div id="toast" class="toast hidden"></div>
     <script src="./static/js/config.js?v=20260719-01"></script>
-    <script src="./static/js/app.js?v=20260818-15"></script>
+    <script src="./static/js/app.js?v=20260819-16"></script>
 </body>
 </html>
 

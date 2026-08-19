@@ -246,7 +246,8 @@ const state = {
     absenteeism: { rows: [], summary: {} },
     pendingAbsenteeismAtestado: null,
     availabilityOverview: null,
-    availabilityFilters: { search: "", family: "TODOS", status: "" },
+    availabilityFilters: { search: "", family: "TODOS" },
+    availabilityView: "QUADRO",
     technicalInspectionTemplates: [],
     emergencies: [],
     technicalDocuments: [],
@@ -866,9 +867,9 @@ const elements = {
     availabilitySummary: document.getElementById("availability-summary"),
     availabilityList: document.getElementById("availability-list"),
     availabilitySearch: document.getElementById("availability-search"),
-    availabilityStatusFilter: document.getElementById("availability-status-filter"),
     availabilityClearFilters: document.getElementById("availability-clear-filters"),
     availabilityFamilyTabs: Array.from(document.querySelectorAll("[data-availability-family]")),
+    availabilityViewButtons: Array.from(document.querySelectorAll("[data-availability-view]")),
     technicalInspectionsBackButton: document.getElementById("technical-inspections-back-button"),
     technicalInspectionVehicle: document.getElementById("technical-inspection-vehicle"),
     technicalInspectionTemplate: document.getElementById("technical-inspection-template"),
@@ -2863,7 +2864,7 @@ const MODULE_REPORT_DEFINITIONS = {
         context: "EQUIPAMENTOS",
         reports: [
             { label: "CHECKLIST", title: "HISTÓRICO DE CHECKLIST", description: "Matriz por equipamento, período e usuário executor.", action: "checklistHistory" },
-            { label: "OPERAÇÃO", title: "DISPONIBILIDADE E HORÍMETRO", description: "Situação operacional, motivos, evidências e leituras.", action: "availability" },
+            { label: "OPERAÇÃO", title: "HORÍMETRO", description: "Consultar e registrar leituras por equipamento.", action: "availability" },
             { label: "INSPEÇÕES", title: "INSPEÇÃO TÉCNICA", description: "Execuções dos modelos publicados por equipamento.", action: "technicalInspections" },
         ],
     },
@@ -5287,7 +5288,7 @@ async function openAvailabilityMenu(options = {}) {
     elements.availabilityCounter.textContent = "CARREGANDO...";
     renderStateCard(elements.availabilityList, {
         title: "CARREGANDO EQUIPAMENTOS",
-        message: "Buscando a situação operacional e as últimas leituras.",
+        message: "Buscando os equipamentos e as últimas leituras de horímetro.",
         tone: "loading",
     });
     try {
@@ -5299,12 +5300,12 @@ async function openAvailabilityMenu(options = {}) {
         if (cachedOverview) {
             state.availabilityOverview = cachedOverview;
             renderAvailability();
-            showToast("DISPONIBILIDADE OFFLINE CARREGADA. O APONTAMENTO SERÁ SINCRONIZADO.");
+            showToast("HORÍMETRO OFFLINE CARREGADO. O REGISTRO SERÁ SINCRONIZADO.");
             return;
         }
         elements.availabilityCounter.textContent = "FALHA";
         renderStateCard(elements.availabilityList, {
-            title: "NÃO FOI POSSÍVEL CARREGAR A DISPONIBILIDADE",
+            title: "NÃO FOI POSSÍVEL CARREGAR O HORÍMETRO",
             message: error.message || "Verifique a conexão e tente novamente.",
             tone: "error",
         });
@@ -5316,27 +5317,28 @@ function renderAvailability() {
     const overview = state.availabilityOverview || { summary: {}, rows: [] };
     const rows = overview.rows || [];
     const visibleRows = filterAvailabilityRows(rows);
-    const counts = availabilityCounts(visibleRows);
-    const measured = visibleRows
-        .map((row) => row.availability_percentage)
-        .filter((value) => value !== null && value !== undefined)
-        .map(Number);
-    const average = measured.length ? measured.reduce((total, value) => total + value, 0) / measured.length : null;
+    const measured = visibleRows.filter((row) => row.vehicle?.operational_state?.latest_hourmeter != null).length;
+    const withoutReading = Math.max(visibleRows.length - measured, 0);
     elements.availabilityCounter.textContent = visibleRows.length === rows.length
-        ? `${rows.length} EQUIPAMENTO${rows.length === 1 ? "" : "S"}`
-        : `${visibleRows.length} DE ${rows.length} EQUIPAMENTOS`;
+        ? `${rows.length} EQUIPAMENTO${rows.length === 1 ? "" : "S"} COM HORÍMETRO`
+        : `${visibleRows.length} DE ${rows.length} EQUIPAMENTOS COM HORÍMETRO`;
     elements.availabilityFamilyTabs.forEach((button) => {
         const active = String(button.dataset.availabilityFamily || "TODOS").toUpperCase() === state.availabilityFilters.family;
         button.classList.toggle("is-active", active);
         button.setAttribute("aria-selected", String(active));
     });
+    elements.availabilityViewButtons.forEach((button) => {
+        const active = String(button.dataset.availabilityView || "QUADRO").toUpperCase() === state.availabilityView;
+        button.classList.toggle("is-active", active);
+        button.setAttribute("aria-pressed", String(active));
+    });
+    const viewClass = { QUADRO: "view-quadro", LISTA: "view-lista", "CARTÃO": "view-cartao" }[state.availabilityView] || "view-quadro";
+    elements.availabilityList.classList.remove("view-quadro", "view-lista", "view-cartao");
+    elements.availabilityList.classList.add(viewClass);
     elements.availabilitySummary.innerHTML = `
-        <article><span>DISPONÍVEIS</span><strong>${Number(counts.DISPONIVEL || 0)}</strong></article>
-        <article><span>INDISPONÍVEIS</span><strong>${Number(counts.INDISPONIVEL || 0)}</strong></article>
-        <article><span>RESTRIÇÃO</span><strong>${Number(counts.RESTRICAO || 0)}</strong></article>
-        <article><span>MANUTENÇÃO</span><strong>${Number(counts.MANUTENCAO || 0)}</strong></article>
-        <article><span>SEM APONTAMENTO</span><strong>${Number(counts.SEM_APONTAMENTO || 0)}</strong></article>
-        <article><span>DISPONIBILIDADE MEDIDA</span><strong>${average == null ? "-" : `${Number(average).toFixed(2)}%`}</strong></article>
+        <article><span>EQUIPAMENTOS</span><strong>${visibleRows.length}</strong></article>
+        <article><span>COM LEITURA</span><strong>${measured}</strong></article>
+        <article><span>SEM LEITURA</span><strong>${withoutReading}</strong></article>
     `;
     elements.availabilityList.innerHTML = "";
     if (!visibleRows.length) {
@@ -5367,11 +5369,8 @@ function availabilityFamilyKey(row) {
 function filterAvailabilityRows(rows) {
     const search = normalizeText(state.availabilityFilters.search);
     const family = String(state.availabilityFilters.family || "TODOS").toUpperCase();
-    const status = String(state.availabilityFilters.status || "").toUpperCase();
-    const priority = { INDISPONIVEL: 0, MANUTENCAO: 1, RESTRICAO: 2, SEM_APONTAMENTO: 3, DISPONIVEL: 4 };
     return rows.filter((row) => {
         const vehicle = row.vehicle || {};
-        const operationalStatus = String(vehicle.operational_state?.operational_status || "SEM_APONTAMENTO").toUpperCase();
         const haystack = normalizeText([
             vehicle.frota,
             vehicle.placa,
@@ -5381,13 +5380,8 @@ function filterAvailabilityRows(rows) {
             row.location?.full_name,
         ].join(" "));
         return (!search || haystack.includes(search))
-            && (family === "TODOS" || availabilityFamilyKey(row) === family)
-            && (!status || operationalStatus === status);
+            && (family === "TODOS" || availabilityFamilyKey(row) === family);
     }).sort((left, right) => {
-        const leftStatus = String(left.vehicle?.operational_state?.operational_status || "SEM_APONTAMENTO").toUpperCase();
-        const rightStatus = String(right.vehicle?.operational_state?.operational_status || "SEM_APONTAMENTO").toUpperCase();
-        const statusDifference = (priority[leftStatus] ?? 9) - (priority[rightStatus] ?? 9);
-        if (statusDifference) return statusDifference;
         return String(left.vehicle?.frota || left.vehicle?.placa || "").localeCompare(
             String(right.vehicle?.frota || right.vehicle?.placa || ""),
             "pt-BR",
@@ -5396,22 +5390,14 @@ function filterAvailabilityRows(rows) {
     });
 }
 
-function availabilityCounts(rows) {
-    const counts = { DISPONIVEL: 0, INDISPONIVEL: 0, RESTRICAO: 0, MANUTENCAO: 0, SEM_APONTAMENTO: 0 };
-    rows.forEach((row) => {
-        const status = String(row.vehicle?.operational_state?.operational_status || "SEM_APONTAMENTO").toUpperCase();
-        counts[status] = Number(counts[status] || 0) + 1;
-    });
-    return counts;
-}
-
 function makeAvailabilityCard(row) {
     const vehicle = row.vehicle || {};
     const operationalState = vehicle.operational_state || {};
     const status = operationalState.operational_status || "SEM_APONTAMENTO";
+    const hasHourmeter = operationalState.latest_hourmeter != null;
     const card = document.createElement("article");
     card.dataset.vehicleId = String(vehicle.id || "");
-    card.className = `availability-card status-${status.toLowerCase()}`;
+    card.className = `availability-card hourmeter-card ${hasHourmeter ? "hourmeter-measured" : "hourmeter-missing"} status-${status.toLowerCase()}`;
     card.innerHTML = `
         <header>
             <div>
@@ -5419,31 +5405,15 @@ function makeAvailabilityCard(row) {
                 <strong>${escapeHtml(vehicle.frota || vehicle.placa || "EQUIPAMENTO")}</strong>
                 <em>${escapeHtml(row.family?.name || vehicle.tipo || "SEM FAMÍLIA")}</em>
             </div>
-            <b>${escapeHtml(OPERATIONAL_STATUS_LABELS[status] || status)}</b>
+            <b>${hasHourmeter ? "COM LEITURA" : "SEM LEITURA"}</b>
         </header>
         <div class="availability-reading">
             <span>ÚLTIMO HORÍMETRO</span>
             <strong>${operationalState.latest_hourmeter == null ? "SEM LEITURA" : `${Number(operationalState.latest_hourmeter).toFixed(2)} h`}</strong>
             <small>${operationalState.latest_hourmeter_at ? formatManausDateTime(operationalState.latest_hourmeter_at) : ""}</small>
         </div>
-        <details class="availability-action-panel availability-action-status">
-            <summary><span>01</span><div><strong>ATUALIZAR SITUAÇÃO</strong><small>Informe a condição observada agora.</small></div></summary>
-            <div class="availability-form-grid">
-                <label><span>NOVA SITUAÇÃO</span>
-                    <select class="availability-status">
-                        <option value="DISPONIVEL">DISPONÍVEL</option>
-                        <option value="INDISPONIVEL">INDISPONÍVEL</option>
-                        <option value="RESTRICAO">COM RESTRIÇÃO</option>
-                        <option value="MANUTENCAO">EM MANUTENÇÃO</option>
-                    </select>
-                </label>
-                <label><span>MOTIVO / CONDIÇÃO</span><input class="availability-reason" maxlength="255" placeholder="Obrigatório fora da condição disponível"></label>
-                <label><span>EVIDÊNCIA DO STATUS</span><input class="availability-status-photo" type="file" accept="image/*" capture="environment"></label>
-                <button class="primary-button availability-status-save" type="button">SALVAR SITUAÇÃO</button>
-            </div>
-        </details>
         <details class="availability-action-panel availability-action-hourmeter">
-            <summary><span>02</span><div><strong>REGISTRAR HORÍMETRO</strong><small>Digite a leitura mostrada no painel.</small></div></summary>
+            <summary><span>01</span><div><strong>REGISTRAR HORÍMETRO</strong><small>Digite a leitura mostrada no painel.</small></div></summary>
             <div class="availability-form-grid hourmeter-form">
                 <label><span>NOVA LEITURA</span><input class="availability-hourmeter" type="number" min="0" step="0.01" inputmode="decimal" placeholder="Ex.: 1250,50"></label>
                 <label><span>OBSERVAÇÃO</span><input class="availability-hourmeter-notes" maxlength="255" placeholder="Opcional"></label>
@@ -5452,8 +5422,6 @@ function makeAvailabilityCard(row) {
             </div>
         </details>
     `;
-    card.querySelector(".availability-status").value = status === "SEM_APONTAMENTO" ? "DISPONIVEL" : status;
-    card.querySelector(".availability-status-save").addEventListener("click", () => submitOperationalStatus(card, vehicle));
     card.querySelector(".availability-hourmeter-save").addEventListener("click", () => submitHourmeter(card, vehicle));
     card.querySelectorAll(".availability-action-panel").forEach((panel) => {
         panel.addEventListener("toggle", () => {
@@ -10543,20 +10511,21 @@ on(elements.availabilitySearch, "input", () => {
     state.availabilityFilters.search = elements.availabilitySearch.value;
     renderAvailability();
 });
-on(elements.availabilityStatusFilter, "change", () => {
-    state.availabilityFilters.status = elements.availabilityStatusFilter.value;
-    renderAvailability();
-});
 elements.availabilityFamilyTabs.forEach((button) => {
     on(button, "click", () => {
         state.availabilityFilters.family = String(button.dataset.availabilityFamily || "TODOS").toUpperCase();
         renderAvailability();
     });
 });
+elements.availabilityViewButtons.forEach((button) => {
+    on(button, "click", () => {
+        state.availabilityView = String(button.dataset.availabilityView || "QUADRO").toUpperCase();
+        renderAvailability();
+    });
+});
 on(elements.availabilityClearFilters, "click", () => {
-    state.availabilityFilters = { search: "", family: "TODOS", status: "" };
+    state.availabilityFilters = { search: "", family: "TODOS" };
     elements.availabilitySearch.value = "";
-    elements.availabilityStatusFilter.value = "";
     renderAvailability();
 });
 on(elements.openTechnicalInspectionsMenu, "click", openTechnicalInspectionsMenu);
