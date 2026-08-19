@@ -8713,4 +8713,32 @@ body[data-theme="dark"] .rh-admin-employee-form textarea {
     color: var(--theme-text) !important;
 }
 
+/* Interface minimalista: manter somente títulos, dados e ações operacionais. */
+body:not(.entry-screen) .screen-heading-note,
+body:not(.entry-screen) .module-reports-intro,
+body:not(.entry-screen) .module-header > div > p,
+body:not(.entry-screen) .module-header > em,
+body:not(.entry-screen) .list-toolbar > span,
+body:not(.entry-screen) .menu-group-heading > em,
+body:not(.entry-screen) .menu-card > em,
+body:not(.entry-screen) .module-report-card > em,
+body:not(.entry-screen) .module-report-context,
+body:not(.entry-screen) .purchases-help,
+body:not(.entry-screen) .purchases-summary-grid em,
+body:not(.entry-screen) .purchases-kanban-column > header small,
+body:not(.entry-screen) .purchases-kanban-hint {
+    display: none !important;
+}
+
+body:not(.entry-screen) .screen-heading {
+    min-height: 58px;
+    padding-top: 8px;
+    padding-bottom: 8px;
+}
+
+body:not(.entry-screen) .module-header,
+body:not(.entry-screen) .list-toolbar {
+    min-height: 48px;
+}
+
 /* Contrato visual Dark: novas regras devem usar variáveis de tema. */
