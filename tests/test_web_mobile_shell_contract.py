@@ -4,6 +4,7 @@ import unittest
 from pathlib import Path
 
 from tools.check_dark_theme_surfaces import (
+    find_fixed_operational_colors,
     find_dark_components_without_theme_variables,
     find_light_dark_backgrounds,
     find_light_dark_borders,
@@ -182,6 +183,13 @@ class WebMobileShellContractTests(unittest.TestCase):
         self.assertEqual(len(find_low_contrast_dark_text(bad_rule)), 1)
         self.assertEqual(len(find_light_dark_borders(bad_rule)), 1)
         self.assertEqual(len(find_dark_components_without_theme_variables(bad_rule)), 1)
+
+    def test_dark_theme_checker_blocks_fixed_operational_colors(self):
+        styles = (PROJECT_ROOT / "web_app" / "static" / "css" / "styles.css").read_text(encoding="utf-8")
+        self.assertEqual(find_fixed_operational_colors(styles), [])
+        bad_rule = ".planning-item-card { background: #fff; color: #123456; border: 1px solid #dbe5ef; }"
+        findings = find_fixed_operational_colors(bad_rule)
+        self.assertEqual(len(findings), 3)
 
     def test_frontend_expires_session_after_inactivity(self):
         app_js = (PROJECT_ROOT / "web_app" / "static" / "js" / "app.js").read_text(encoding="utf-8")

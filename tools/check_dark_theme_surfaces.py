@@ -16,6 +16,11 @@ COLOR_PATTERN = re.compile(r"(?P<property>color|border(?:-[\w-]+)?(?:-color)?)\s
 HEX_PATTERN = re.compile(r"#[0-9a-f]{3,8}\b", re.IGNORECASE)
 RGB_PATTERN = re.compile(r"rgba?\(\s*([0-9.]+)[,\s]+([0-9.]+)[,\s]+([0-9.]+)", re.IGNORECASE)
 THEME_VARIABLE_PATTERN = re.compile(r"var\(--(?:theme|state)-[\w-]+\)", re.IGNORECASE)
+OPERATIONAL_SELECTOR_PATTERN = re.compile(
+    r"\.(?:planning(?:[-_]|\b)|empty-state(?:[-_]|\b)|section-caption(?:[-_]|\b))",
+    re.IGNORECASE,
+)
+LITERAL_COLOR_PATTERN = re.compile(r"(?:#[0-9a-f]{3,8}\b|rgba?\([^)]*\)|\b(?:white|black)\b)", re.IGNORECASE)
 
 
 def _hex_luminance(value: str) -> float:
@@ -143,6 +148,30 @@ def find_dark_components_without_theme_variables(css_text: str) -> list[tuple[in
     return findings
 
 
+def find_fixed_operational_colors(css_text: str) -> list[tuple[int, str, str]]:
+    """Detecta cores literais em superfícies operacionais que deveriam usar tokens."""
+
+    findings: list[tuple[int, str, str]] = []
+    for rule in RULE_PATTERN.finditer(css_text):
+        selectors = " ".join(rule.group("selectors").split())
+        if not OPERATIONAL_SELECTOR_PATTERN.search(selectors):
+            continue
+        if 'body[data-theme="dark"]' in selectors:
+            continue
+        for declaration in list(BACKGROUND_PATTERN.finditer(rule.group("body"))) + list(COLOR_PATTERN.finditer(rule.group("body"))):
+            value = declaration.group("value").strip()
+            if THEME_VARIABLE_PATTERN.search(value) or not LITERAL_COLOR_PATTERN.search(value):
+                continue
+            property_name = declaration.group(0).split(":", 1)[0].strip().lower()
+            # Fundos claros são sempre uma divergência no Dark. Textos e bordas
+            # literais também entram no alerta para evitar novas exceções visuais.
+            if property_name.startswith("background") and not _contains_light_literal(value):
+                continue
+            line = css_text.count("\n", 0, rule.start() + declaration.start()) + 1
+            findings.append((line, selectors, f"{property_name}: {value}"))
+    return findings
+
+
 def main() -> int:
     css_text = STYLESHEET_PATH.read_text(encoding="utf-8")
     checks = [
@@ -150,6 +179,7 @@ def main() -> int:
         ("texto com baixo contraste", find_low_contrast_dark_text(css_text)),
         ("bordas claras", find_light_dark_borders(css_text)),
         ("componentes sem tokens", find_dark_components_without_theme_variables(css_text)),
+        ("cores fixas em componentes operacionais", find_fixed_operational_colors(css_text)),
     ]
     findings = [(category, finding) for category, category_findings in checks for finding in category_findings]
     if not findings:

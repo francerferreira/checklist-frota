@@ -1939,10 +1939,10 @@ textarea {
 
 .list-toolbar,
 .section-caption {
-    border: 1px solid rgba(255, 255, 255, 0.62);
+    border: 1px solid var(--theme-border);
     border-radius: 18px;
-    background: rgba(255, 255, 255, 0.96);
-    box-shadow: 0 12px 28px rgba(15, 23, 42, 0.07);
+    background: var(--theme-surface);
+    box-shadow: var(--theme-shadow);
 }
 
 .list-toolbar {
@@ -1950,12 +1950,12 @@ textarea {
 }
 
 .list-toolbar strong {
-    color: var(--ink);
+    color: var(--theme-text-strong);
     font-size: 0.98rem;
 }
 
 .list-toolbar span {
-    color: var(--muted);
+    color: var(--theme-text-muted);
     font-size: 0.78rem;
     line-height: 1.4;
     text-align: right;
@@ -1964,7 +1964,7 @@ textarea {
 .section-caption {
     margin: -2px 0 10px;
     padding: 12px 14px;
-    color: var(--muted);
+    color: var(--theme-text-muted);
     font-size: 0.8rem;
     line-height: 1.45;
 }
@@ -3368,14 +3368,14 @@ body[data-theme="dark"]:not(.entry-screen) .menu-group-heading > em { color: #9f
     gap: 5px;
     padding: 18px;
     border-radius: 18px;
-    background: #ffffff;
-    border: 1px solid rgba(122, 140, 166, 0.14);
-    color: var(--muted);
-    box-shadow: var(--shadow-soft);
+    background: var(--theme-surface);
+    border: 1px solid var(--theme-border);
+    color: var(--theme-text-muted);
+    box-shadow: var(--theme-shadow);
 }
 
 .empty-state strong {
-    color: var(--ink);
+    color: var(--theme-text-strong);
 }
 
 .state-card {
@@ -5177,7 +5177,7 @@ body[data-theme="dark"]:not(.entry-screen) .menu-group-heading > em { color: #9f
 }
 
 .planning-month-controls strong {
-    color: #153a63;
+    color: var(--theme-text-strong);
     text-align: center;
     font-size: 0.9rem;
     font-weight: 950;
@@ -5196,10 +5196,10 @@ body[data-theme="dark"]:not(.entry-screen) .menu-group-heading > em { color: #9f
     display: grid;
     gap: 12px;
     padding: 15px;
-    border: 1px solid rgba(84, 100, 126, 0.16);
+    border: 1px solid var(--theme-border);
     border-radius: 16px;
-    background: #ffffff;
-    box-shadow: 0 8px 18px rgba(9, 26, 52, 0.06);
+    background: var(--theme-surface);
+    box-shadow: var(--theme-shadow);
 }
 
 .planning-item-card .item-topline {
@@ -5215,12 +5215,12 @@ body[data-theme="dark"]:not(.entry-screen) .menu-group-heading > em { color: #9f
 .planning-item-grid span {
     display: grid;
     gap: 4px;
-    color: var(--muted);
+    color: var(--theme-text);
     font-size: 0.72rem;
 }
 
 .planning-item-grid strong {
-    color: #7890a8;
+    color: var(--theme-text-muted);
     font-size: 0.62rem;
     letter-spacing: 0.04em;
 }
@@ -5230,7 +5230,7 @@ body[data-theme="dark"]:not(.entry-screen) .menu-group-heading > em { color: #9f
     align-items: end;
     gap: 10px;
     padding-top: 8px;
-    border-top: 1px solid rgba(84, 100, 126, 0.12);
+    border-top: 1px solid var(--theme-border);
 }
 
 .planning-reprogram-row label {
@@ -5240,7 +5240,7 @@ body[data-theme="dark"]:not(.entry-screen) .menu-group-heading > em { color: #9f
 }
 
 .planning-reprogram-row label span {
-    color: #7890a8;
+    color: var(--theme-text-muted);
     font-size: 0.62rem;
     font-weight: 900;
 }
@@ -7940,9 +7940,9 @@ body:not(.entry-screen) .checklist-group-card,
 body:not(.entry-screen) .module-report-card,
 body:not(.entry-screen) .empty-state,
 body:not(.entry-screen) .state-card {
-    border-color: #dce4ec;
+    border-color: var(--theme-border);
     border-radius: 12px;
-    box-shadow: 0 5px 15px rgba(25, 50, 78, .06);
+    box-shadow: var(--theme-shadow);
 }
 
 body:not(.entry-screen) .menu-card,
