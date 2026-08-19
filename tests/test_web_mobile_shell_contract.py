@@ -6,6 +6,7 @@ from pathlib import Path
 from tools.check_dark_theme_surfaces import (
     find_fixed_operational_colors,
     find_dark_components_without_theme_variables,
+    find_native_dark_components_without_theme_variables,
     find_light_dark_backgrounds,
     find_light_dark_borders,
     find_low_contrast_dark_text,
@@ -190,6 +191,13 @@ class WebMobileShellContractTests(unittest.TestCase):
         bad_rule = ".planning-item-card { background: #fff; color: #123456; border: 1px solid #dbe5ef; }"
         findings = find_fixed_operational_colors(bad_rule)
         self.assertEqual(len(findings), 3)
+
+    def test_dark_theme_checker_covers_native_fields_and_modals(self):
+        styles = (PROJECT_ROOT / "web_app" / "static" / "css" / "styles.css").read_text(encoding="utf-8")
+        self.assertEqual(find_native_dark_components_without_theme_variables(styles), [])
+        contract = "/* Contrato visual Dark: novas regras devem usar variÃ¡veis de tema. */"
+        bad_rule = contract + '\nbody[data-theme="dark"] input[type="file"], body[data-theme="dark"] select, body[data-theme="dark"] .app-modal-card { background: #172332; color: #ffffff; }'
+        self.assertEqual(len(find_native_dark_components_without_theme_variables(bad_rule)), 1)
 
     def test_frontend_expires_session_after_inactivity(self):
         app_js = (PROJECT_ROOT / "web_app" / "static" / "js" / "app.js").read_text(encoding="utf-8")

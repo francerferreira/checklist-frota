@@ -51,6 +51,7 @@
     --theme-accent-warm: #b45309;
     --theme-shadow: 0 5px 15px rgba(25, 50, 78, .06);
     --theme-shadow-floating: 0 18px 38px rgba(15, 35, 58, .18);
+    --theme-backdrop: rgba(3, 8, 14, .82);
 
     /* Escada única de camadas: quanto maior, mais à frente fica o elemento. */
     --layer-pull-refresh: 6;
@@ -142,6 +143,7 @@ body[data-theme="dark"] {
     --theme-accent-warm: #ffd36a;
     --theme-shadow: 0 5px 15px rgba(0, 0, 0, .26);
     --theme-shadow-floating: 0 20px 42px rgba(0, 0, 0, .42);
+    --theme-backdrop: rgba(3, 8, 14, .82);
 
     --state-available-bg: #143d31;
     --state-available-text: #8ee8c2;
@@ -8879,4 +8881,34 @@ body[data-theme="dark"] .availability-form-grid .primary-button {
     background: var(--theme-accent-strong) !important;
     border-color: var(--theme-accent-strong) !important;
     color: var(--theme-accent-contrast) !important;
+}
+
+/* Contrato Dark para elementos nativos e camadas modais. */
+body[data-theme="dark"] input,
+body[data-theme="dark"] textarea,
+body[data-theme="dark"] select {
+    background: var(--theme-input) !important;
+    border-color: var(--theme-border-strong) !important;
+    color: var(--theme-text) !important;
+}
+
+body[data-theme="dark"] input::placeholder,
+body[data-theme="dark"] textarea::placeholder {
+    color: var(--theme-text-muted) !important;
+}
+
+body[data-theme="dark"] input[type="file"],
+body[data-theme="dark"] option {
+    background: var(--theme-input) !important;
+    color: var(--theme-text) !important;
+}
+
+body[data-theme="dark"] .app-modal-card {
+    background: var(--theme-surface) !important;
+    border-color: var(--theme-border) !important;
+    color: var(--theme-text) !important;
+}
+
+body[data-theme="dark"] .app-modal-backdrop {
+    background: var(--theme-backdrop) !important;
 }

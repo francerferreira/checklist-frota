@@ -21,6 +21,10 @@ OPERATIONAL_SELECTOR_PATTERN = re.compile(
     re.IGNORECASE,
 )
 LITERAL_COLOR_PATTERN = re.compile(r"(?:#[0-9a-f]{3,8}\b|rgba?\([^)]*\)|\b(?:white|black)\b)", re.IGNORECASE)
+NATIVE_DARK_SELECTOR_PATTERN = re.compile(
+    r"(?:\b(?:input|textarea|select|option)(?:\b|\[)|\.app-modal(?:[-\w]*)?)",
+    re.IGNORECASE,
+)
 
 
 def _hex_luminance(value: str) -> float:
@@ -148,6 +152,28 @@ def find_dark_components_without_theme_variables(css_text: str) -> list[tuple[in
     return findings
 
 
+def find_native_dark_components_without_theme_variables(css_text: str) -> list[tuple[int, str, str]]:
+    """Verifica tokens nos campos nativos e modais do contrato Dark."""
+
+    if THEME_CONTRACT_MARKER not in css_text:
+        return [(1, "<stylesheet>", "marcador do contrato visual Dark ausente")]
+    marker_position = css_text.find(THEME_CONTRACT_MARKER)
+    contract_css = css_text[marker_position + len(THEME_CONTRACT_MARKER) :]
+    findings: list[tuple[int, str, str]] = []
+    for rule in RULE_PATTERN.finditer(contract_css):
+        selectors = " ".join(rule.group("selectors").split())
+        if 'body[data-theme="dark"]' not in selectors or not NATIVE_DARK_SELECTOR_PATTERN.search(selectors):
+            continue
+        declarations = list(BACKGROUND_PATTERN.finditer(rule.group("body"))) + list(COLOR_PATTERN.finditer(rule.group("body")))
+        if not declarations:
+            continue
+        if all(THEME_VARIABLE_PATTERN.search(declaration.group("value")) for declaration in declarations):
+            continue
+        line = css_text.count("\n", 0, marker_position + len(THEME_CONTRACT_MARKER) + rule.start()) + 1
+        findings.append((line, selectors, "campo nativo ou modal sem variável --theme-*"))
+    return findings
+
+
 def find_fixed_operational_colors(css_text: str) -> list[tuple[int, str, str]]:
     """Detecta cores literais em superfícies operacionais que deveriam usar tokens."""
 
@@ -179,6 +205,7 @@ def main() -> int:
         ("texto com baixo contraste", find_low_contrast_dark_text(css_text)),
         ("bordas claras", find_light_dark_borders(css_text)),
         ("componentes sem tokens", find_dark_components_without_theme_variables(css_text)),
+        ("campos nativos e modais sem tokens", find_native_dark_components_without_theme_variables(css_text)),
         ("cores fixas em componentes operacionais", find_fixed_operational_colors(css_text)),
     ]
     findings = [(category, finding) for category, category_findings in checks for finding in category_findings]
