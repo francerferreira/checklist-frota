@@ -8852,3 +8852,31 @@ body:not(.entry-screen) .list-toolbar {
 }
 
 /* Contrato visual Dark: novas regras devem usar variáveis de tema. */
+
+/* O formulário aberto do horímetro também deve permanecer totalmente escuro. */
+body[data-theme="dark"] .availability-form-grid.hourmeter-form {
+    background: var(--theme-surface-elevated) !important;
+    border-top-color: var(--theme-border) !important;
+}
+
+body[data-theme="dark"] .availability-form-grid input,
+body[data-theme="dark"] .availability-form-grid select {
+    background: var(--theme-input) !important;
+    border-color: var(--theme-border-strong) !important;
+    color: var(--theme-text) !important;
+}
+
+body[data-theme="dark"] .availability-form-grid input::placeholder,
+body[data-theme="dark"] .availability-form-grid select::placeholder {
+    color: var(--theme-text-muted) !important;
+}
+
+body[data-theme="dark"] .availability-form-grid input[type="file"] {
+    color: var(--theme-text) !important;
+}
+
+body[data-theme="dark"] .availability-form-grid .primary-button {
+    background: var(--theme-accent-strong) !important;
+    border-color: var(--theme-accent-strong) !important;
+    color: var(--theme-accent-contrast) !important;
+}
