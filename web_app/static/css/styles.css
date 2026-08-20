@@ -7092,6 +7092,7 @@ button.rh-admin-operation-card:hover { border-color: #78aee6; transform: transla
 .purchases-process-card-main header span { color: var(--theme-accent); font-size: .69rem; font-weight: 900; letter-spacing: .05em; }
 .purchases-process-card-main > strong { overflow: hidden; color: var(--theme-text-strong); font-size: .86rem; text-overflow: ellipsis; white-space: nowrap; }
 .purchases-process-card-main > p { margin: 0; overflow: hidden; color: var(--theme-text-muted); font-size: .73rem; text-overflow: ellipsis; white-space: nowrap; }
+.purchases-process-updated { color: var(--theme-text-muted); font-size: .64rem; font-weight: 800; letter-spacing: .03em; }
 .purchases-process-status { padding: 5px 8px; border-radius: 999px; font-size: .61rem; letter-spacing: .03em; white-space: nowrap; }
 .purchases-process-status-aguardando-pc,
 .purchases-process-status-pc-parcial { background: var(--state-attention-bg); color: var(--state-attention-text); }

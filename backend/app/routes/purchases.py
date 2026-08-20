@@ -8,6 +8,7 @@ from pathlib import Path
 import tempfile
 
 from flask import Blueprint, current_app, g, request, send_file
+from sqlalchemy import or_
 from sqlalchemy.orm import joinedload, selectinload
 
 from app.extensions import db
@@ -885,6 +886,7 @@ def _central_process_item_summary(item: PurchaseRequestItem) -> dict:
         "invoiced_quantity": float(invoiced),
         "received_quantity": float(received),
         "remaining_quantity": float(max(Decimal("0"), requested - received)),
+        "updated_at": item.updated_at.isoformat() if item.updated_at else (purchase.updated_at.isoformat() if purchase and purchase.updated_at else None),
         "purchase_orders": purchase_orders,
     }
 
@@ -905,23 +907,48 @@ def purchase_process_center():
         return api_response(False, error=str(exc), status_code=400)
     if date_from and date_to and date_from > date_to:
         return api_response(False, error="O período inicial não pode ser maior que o final.", status_code=400)
-    rows = []
-    for purchase in PurchaseRequest.query.order_by(PurchaseRequest.created_at.desc()).limit(500).all():
-        reference_date = purchase.sc_date or (purchase.created_at.date() if purchase.created_at else None)
-        if date_from and (not reference_date or reference_date < date_from):
-            continue
-        if date_to and (not reference_date or reference_date > date_to):
-            continue
-        for item in purchase.items:
-            summary = _central_process_item_summary(item)
-            if status_filter and status_filter.upper() not in {summary["item_status"], summary["request_status"]}:
-                continue
-            if type_filter and type_filter.upper() != str(summary["item_type"] or "").upper():
-                continue
-            haystack = " ".join(str(summary.get(key) or "") for key in ("sc_number", "description_raw", "product_code_raw", "module", "equipment_raw", "requester_raw")).lower()
-            if search and search not in haystack:
-                continue
-            rows.append(summary)
+    # Preserva a mesma janela operacional já usada pela Central (500 SCs mais recentes),
+    # mas entrega somente os 100 itens mais recentes para a tela.
+    recent_request_ids = [
+        row[0]
+        for row in db.session.query(PurchaseRequest.id)
+        .order_by(PurchaseRequest.created_at.desc())
+        .limit(500)
+        .all()
+    ]
+    query = PurchaseRequestItem.query.join(PurchaseRequest).filter(PurchaseRequest.id.in_(recent_request_ids))
+    if date_from:
+        query = query.filter(PurchaseRequest.sc_date >= date_from)
+    if date_to:
+        query = query.filter(PurchaseRequest.sc_date <= date_to)
+    if status_filter:
+        query = query.filter(PurchaseRequestItem.status == status_filter.upper())
+    if type_filter:
+        query = query.filter(PurchaseRequestItem.item_type == type_filter.upper())
+    if search:
+        like = f"%{search}%"
+        query = query.filter(or_(
+            PurchaseRequest.sc_number.ilike(like),
+            PurchaseRequest.code.ilike(like),
+            PurchaseRequestItem.description_raw.ilike(like),
+            PurchaseRequestItem.product_code_raw.ilike(like),
+            PurchaseRequest.module.ilike(like),
+            PurchaseRequest.equipment_raw.ilike(like),
+            PurchaseRequest.requester_raw.ilike(like),
+        ))
+    total_items = query.count()
+    items = (
+        query.options(
+            joinedload(PurchaseRequestItem.purchase_request),
+            joinedload(PurchaseRequestItem.material),
+            joinedload(PurchaseRequestItem.service_catalog),
+            selectinload(PurchaseRequestItem.order_links).joinedload(PurchaseOrderItem.purchase_order),
+        )
+        .order_by(PurchaseRequestItem.updated_at.desc(), PurchaseRequestItem.id.desc())
+        .limit(100)
+        .all()
+    )
+    rows = [_central_process_item_summary(item) for item in items]
     status_counts = {}
     type_counts = {}
     for row in rows:
@@ -930,6 +957,8 @@ def purchase_process_center():
     return api_response(True, data={
         "summary": {
             "items": len(rows),
+            "total_items": total_items,
+            "display_limit": 100,
             "processes": len({row["purchase_request_id"] for row in rows}),
             "status_counts": status_counts,
             "type_counts": type_counts,

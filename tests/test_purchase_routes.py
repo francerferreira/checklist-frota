@@ -245,10 +245,13 @@ class PurchaseRouteTests(unittest.TestCase):
         self.assertEqual(center.status_code, 200, center.get_json())
         data = center.get_json()["data"]
         self.assertEqual(data["summary"]["items"], 1)
+        self.assertEqual(data["summary"]["total_items"], 1)
+        self.assertLessEqual(len(data["items"]), 100)
         self.assertEqual(data["summary"]["pending_pc"], 1)
         self.assertEqual(data["items"][0]["purchase_request_id"], purchase["id"])
         self.assertEqual(data["items"][0]["item_status"], "AGUARDANDO_PC")
         self.assertEqual(data["items"][0]["next_action"], "EMITIR_PC")
+        self.assertIsNotNone(data["items"][0]["updated_at"])
 
         report = self.client.get("/compras/relatorios/resumo", headers=self.gestor_headers)
         self.assertEqual(report.status_code, 200, report.get_json())

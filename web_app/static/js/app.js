@@ -3854,7 +3854,12 @@ function renderPurchaseProcessCenter() {
     const data = state.purchases.processCenter || { summary: {}, items: [] };
     const summary = data.summary || {};
     const rows = data.items || [];
-    if (elements.purchasesProcessCenterCount) elements.purchasesProcessCenterCount.textContent = `${rows.length} ${rows.length === 1 ? "item" : "itens"}`;
+    const totalItems = Number(summary.total_items ?? summary.items ?? rows.length);
+    if (elements.purchasesProcessCenterCount) {
+        elements.purchasesProcessCenterCount.textContent = totalItems > rows.length
+            ? `${rows.length} mais recentes de ${totalItems}`
+            : `${rows.length} ${rows.length === 1 ? "item" : "itens"}`;
+    }
     if (elements.purchasesProcessPcCount) elements.purchasesProcessPcCount.textContent = String(summary.pending_pc || 0);
     if (elements.purchasesProcessNfCount) elements.purchasesProcessNfCount.textContent = String(summary.pending_nf || 0);
     if (elements.purchasesProcessReceiptCount) elements.purchasesProcessReceiptCount.textContent = String(summary.pending_receipt || 0);
@@ -3868,7 +3873,8 @@ function renderPurchaseProcessCenter() {
         const description = row.item_type === "SERVICO" ? row.description_raw : (row.material?.descricao || row.description_raw || "Material não informado");
         const status = String(row.item_status || "").toLowerCase().replaceAll("_", "-");
         const actionLabel = { EMITIR_PC: "EMITIR PC", REGISTRAR_NF: "REGISTRAR NF", RECEBER_MATERIAL: "RECEBER", RECEBER_SALDO: "RECEBER SALDO", CONCLUIDO: "CONCLUÍDO" }[row.next_action] || "ABRIR SC";
-        return `<article class="purchases-process-card"><div class="purchases-process-card-main"><header><span>${escapeHtml(row.sc_number || "SC")}</span><b class="purchases-process-status purchases-process-status-${escapeHtml(status)}">${escapeHtml(purchaseProcessStatusLabel(row.item_status))}</b></header><strong>${escapeHtml(description)}</strong><p>${escapeHtml(row.item_type || "ITEM")} · ${escapeHtml(row.module || "COMPRAS")} · ${escapeHtml(row.equipment_raw || "Equipamento não informado")}</p></div><div class="purchases-process-card-metrics"><span>SALDO</span><strong>${escapeHtml(String(row.remaining_quantity || 0))}</strong><small>Solicitado ${escapeHtml(String(row.requested_quantity || 0))} · Recebido ${escapeHtml(String(row.received_quantity || 0))}</small></div><button class="secondary-button" type="button" data-purchase-process-open="${Number(row.purchase_request_id)}">${escapeHtml(actionLabel)}</button></article>`;
+        const updatedAt = row.updated_at ? formatManausDateTime(row.updated_at, { short: true }) : "Sem atualização";
+        return `<article class="purchases-process-card"><div class="purchases-process-card-main"><header><span>${escapeHtml(row.sc_number || "SC")}</span><b class="purchases-process-status purchases-process-status-${escapeHtml(status)}">${escapeHtml(purchaseProcessStatusLabel(row.item_status))}</b></header><strong>${escapeHtml(description)}</strong><p>${escapeHtml(row.item_type || "ITEM")} · ${escapeHtml(row.module || "COMPRAS")} · ${escapeHtml(row.equipment_raw || "Equipamento não informado")}</p><small class="purchases-process-updated">ATUALIZADO: ${escapeHtml(updatedAt)}</small></div><div class="purchases-process-card-metrics"><span>SALDO</span><strong>${escapeHtml(String(row.remaining_quantity || 0))}</strong><small>Solicitado ${escapeHtml(String(row.requested_quantity || 0))} · Recebido ${escapeHtml(String(row.received_quantity || 0))}</small></div><button class="secondary-button" type="button" data-purchase-process-open="${Number(row.purchase_request_id)}">${escapeHtml(actionLabel)}</button></article>`;
     }).join("");
     renderPurchaseProcessBoard();
 }
@@ -3902,7 +3908,8 @@ function applyPurchaseKanbanFocus(board) {
 function purchaseProcessKanbanCard(row) {
     const description = row.item_type === "SERVICO" ? row.description_raw : (row.material?.descricao || row.description_raw || "Material não informado");
     const actionLabel = { EMITIR_PC: "EMITIR PC", REGISTRAR_NF: "REGISTRAR NF", RECEBER_MATERIAL: "RECEBER", RECEBER_SALDO: "RECEBER SALDO", CONCLUIDO: "CONCLUÍDO" }[row.next_action] || "ABRIR SC";
-    return `<article class="purchases-kanban-card"><div><b>${escapeHtml(row.sc_number || "SC")}</b><strong>${escapeHtml(description)}</strong><small>${escapeHtml(row.module || "COMPRAS")} · saldo ${escapeHtml(String(row.remaining_quantity || 0))}</small></div><button class="secondary-button" type="button" data-purchase-process-open="${Number(row.purchase_request_id)}">${escapeHtml(actionLabel)}</button></article>`;
+    const updatedAt = row.updated_at ? formatManausDateTime(row.updated_at, { short: true }) : "Sem atualização";
+    return `<article class="purchases-kanban-card"><div><b>${escapeHtml(row.sc_number || "SC")}</b><strong>${escapeHtml(description)}</strong><small>${escapeHtml(row.module || "COMPRAS")} · saldo ${escapeHtml(String(row.remaining_quantity || 0))}</small><small>ATUALIZADO: ${escapeHtml(updatedAt)}</small></div><button class="secondary-button" type="button" data-purchase-process-open="${Number(row.purchase_request_id)}">${escapeHtml(actionLabel)}</button></article>`;
 }
 
 function renderPurchaseProcessBoard() {
