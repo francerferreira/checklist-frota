@@ -8,6 +8,7 @@ from pathlib import Path
 import tempfile
 
 from flask import Blueprint, current_app, g, request, send_file
+from sqlalchemy.orm import joinedload, selectinload
 
 from app.extensions import db
 from app.models import InvoicePurchaseOrderLink, MaintenanceMaterial, Material, PurchaseImportBatch, PurchaseInvoice, PurchaseInvoiceItem, PurchaseOrder, PurchaseOrderItem, PurchaseProcessEvent, PurchaseReceipt, PurchaseReportRun, PurchaseReportSchedule, PurchaseRequest, PurchaseRequestItem, PurchaseServiceCatalog, Supplier, User, Vehicle
@@ -21,6 +22,26 @@ from app.utils.timezone import now_manaus_naive
 
 bp = Blueprint("purchases", __name__)
 PRIORITIES = {"BAIXA", "MEDIA", "ALTA", "CRITICA"}
+
+
+def _request_list_options():
+    """Carrega as relações usadas pelos cartões sem repetir consultas por item."""
+    return (
+        joinedload(PurchaseRequest.material),
+        joinedload(PurchaseRequest.supplier),
+        selectinload(PurchaseRequest.items).joinedload(PurchaseRequestItem.material),
+        selectinload(PurchaseRequest.items).joinedload(PurchaseRequestItem.service_catalog),
+        selectinload(PurchaseRequest.items).selectinload(PurchaseRequestItem.order_links),
+    )
+
+
+def _order_list_options():
+    """Mantém a lista de PCs leve; o histórico completo é carregado somente ao abrir o cartão."""
+    return (
+        joinedload(PurchaseOrder.supplier),
+        selectinload(PurchaseOrder.items).joinedload(PurchaseOrderItem.request_item),
+        selectinload(PurchaseOrder.invoice_links).joinedload(InvoicePurchaseOrderLink.invoice),
+    )
 
 
 def _clean(value) -> str | None:
@@ -258,7 +279,10 @@ def list_purchase_requests():
     denied = _guard_management()
     if denied:
         return denied
-    rows = PurchaseRequest.query.order_by(PurchaseRequest.created_at.desc()).all()
+    query = PurchaseRequest.query.options(*_request_list_options()).order_by(PurchaseRequest.created_at.desc())
+    if str(request.args.get("modo") or "").strip().upper() == "OPERACIONAL":
+        query = query.filter(~PurchaseRequest.status.in_({"RECEBIDA", "CANCELADA"}))
+    rows = query.all()
     return api_response(True, data=[row.to_dict() for row in rows])
 
 
@@ -291,10 +315,13 @@ def list_pending_purchase_order_items():
     if denied:
         return denied
     pending = []
-    requests = PurchaseRequest.query.order_by(PurchaseRequest.created_at.asc()).all()
+    requests = (
+        PurchaseRequest.query.options(*_request_list_options())
+        .filter(PurchaseRequest.status.in_({"APROVADA", "EM_TRANSITO"}))
+        .order_by(PurchaseRequest.created_at.asc())
+        .all()
+    )
     for purchase in requests:
-        if purchase.status not in {"APROVADA", "EM_TRANSITO"}:
-            continue
         items = [item.to_dict() for item in purchase.items if item.remaining_order_quantity > 0]
         if not items:
             continue
@@ -319,8 +346,83 @@ def list_purchase_orders():
     denied = _guard_management()
     if denied:
         return denied
-    rows = PurchaseOrder.query.order_by(PurchaseOrder.created_at.desc()).limit(100).all()
+    rows = PurchaseOrder.query.options(*_order_list_options()).order_by(PurchaseOrder.created_at.desc()).limit(100).all()
     return api_response(True, data=[row.to_dict() for row in rows])
+
+
+@bp.get("/compras/pedidos/<int:order_id>/historico")
+@auth_required
+def get_purchase_order_history(order_id: int):
+    """Detalhe sob demanda de um PC, sem pesar o carregamento do quadro."""
+    denied = _guard_management()
+    if denied:
+        return denied
+    order = (
+        PurchaseOrder.query.options(
+            *_order_list_options(),
+            selectinload(PurchaseOrder.items)
+            .joinedload(PurchaseOrderItem.request_item)
+            .joinedload(PurchaseRequestItem.purchase_request),
+        )
+        .filter(PurchaseOrder.id == order_id)
+        .first()
+    )
+    if not order:
+        return api_response(False, error="Pedido de compra nao encontrado.", status_code=404)
+
+    order_item_ids = [item.id for item in order.items]
+    invoice_items = []
+    if order_item_ids:
+        invoice_items = (
+            PurchaseInvoiceItem.query.options(joinedload(PurchaseInvoiceItem.invoice))
+            .filter(PurchaseInvoiceItem.purchase_order_item_id.in_(order_item_ids))
+            .all()
+        )
+    invoice_items_by_order_item: dict[int, list[PurchaseInvoiceItem]] = {}
+    for invoice_item in invoice_items:
+        invoice_items_by_order_item.setdefault(invoice_item.purchase_order_item_id, []).append(invoice_item)
+
+    item_history = []
+    for order_item in order.items:
+        request_item = order_item.request_item
+        purchase = request_item.purchase_request if request_item else None
+        related_invoices = invoice_items_by_order_item.get(order_item.id, [])
+        item_history.append({
+            "id": order_item.id,
+            "sc_number": purchase.sc_number if purchase else None,
+            "sc_status": purchase.status if purchase else None,
+            "description": request_item.description_raw if request_item else None,
+            "item_type": request_item.item_type if request_item else None,
+            "quantity_ordered": float(order_item.quantity_ordered or 0),
+            "quantity_invoiced": float(sum((Decimal(item.quantity_invoiced or 0) for item in related_invoices), Decimal("0"))),
+            "quantity_received": float(sum((Decimal(item.quantity_received or 0) for item in related_invoices), Decimal("0"))),
+            "invoices": [{
+                "id": item.invoice.id if item.invoice else None,
+                "number": item.invoice.invoice_number if item.invoice else None,
+                "series": item.invoice.series if item.invoice else None,
+                "status": item.invoice.status if item.invoice else None,
+                "date": item.invoice.invoice_date.isoformat() if item.invoice and item.invoice.invoice_date else None,
+                "quantity_invoiced": float(item.quantity_invoiced or 0),
+                "quantity_received": float(item.quantity_received or 0),
+            } for item in related_invoices],
+        })
+
+    invoice_ids = [link.invoice_id for link in order.invoice_links]
+    events = PurchaseProcessEvent.query.filter(
+        (PurchaseProcessEvent.entity_type == "PURCHASE_ORDER") & (PurchaseProcessEvent.entity_id == order.id)
+        | ((PurchaseProcessEvent.entity_type == "PURCHASE_INVOICE") & PurchaseProcessEvent.entity_id.in_(invoice_ids or [-1]))
+    ).order_by(PurchaseProcessEvent.timestamp.desc()).limit(50).all()
+    return api_response(True, data={
+        "order": order.to_dict(),
+        "items": item_history,
+        "events": [{
+            "type": event.event_type,
+            "old_status": event.old_status,
+            "new_status": event.new_status,
+            "timestamp": event.timestamp.isoformat() if event.timestamp else None,
+            "comment": event.comment,
+        } for event in events],
+    })
 
 
 @bp.post("/compras/pedidos")

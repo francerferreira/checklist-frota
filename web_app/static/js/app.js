@@ -3422,6 +3422,10 @@ async function openProtectedPurchaseFile(path) {
 async function openPurchaseRequestDetails(id) {
     const row = purchaseRequestById(id);
     if (!row) return;
+    const title = document.getElementById("purchase-detail-title");
+    const subtitle = elements.purchaseDetailModal?.querySelector(".app-modal-header p");
+    if (title) title.textContent = "Solicitação de compra";
+    if (subtitle) subtitle.textContent = "Acompanhe o processo e execute a próxima etapa.";
     state.purchases.selectedRequestId = Number(id);
     renderPurchaseDetail(row);
     elements.purchaseDetailModal?.classList.remove("hidden");
@@ -3432,6 +3436,37 @@ async function openPurchaseRequestDetails(id) {
         renderPurchaseDetail(detail);
     } catch (error) {
         showToast(error.message || "DETALHES PARCIAIS DA SOLICITAÇÃO.", true);
+    }
+}
+
+function renderPurchaseOrderHistory(data) {
+    const order = data?.order || {};
+    const items = Array.isArray(data?.items) ? data.items : [];
+    const events = Array.isArray(data?.events) ? data.events : [];
+    const itemRows = items.map((item) => {
+        const invoices = (item.invoices || []).map((invoice) => `${invoice.number || "NF"}${invoice.series ? `/${invoice.series}` : ""} · ${invoice.status || "REGISTRADA"}`).join(" | ") || "Sem NF vinculada";
+        return `<article class="purchase-history-item"><div><b>${escapeHtml(item.sc_number || "SC não informada")}</b><strong>${escapeHtml(item.description || "Item não informado")}</strong><small>${escapeHtml(item.item_type || "ITEM")} · PC ${escapeHtml(String(item.quantity_ordered || 0))} · NF ${escapeHtml(String(item.quantity_invoiced || 0))} · recebido ${escapeHtml(String(item.quantity_received || 0))}</small></div><em>${escapeHtml(invoices)}</em></article>`;
+    }).join("") || '<div class="purchase-receipt-history-empty">Nenhum item vinculado a este PC.</div>';
+    const eventRows = events.map((event) => `<article class="purchase-history-event"><b>${escapeHtml(event.type || "ATUALIZAÇÃO")}</b><span>${escapeHtml(event.new_status || event.old_status || "Registrado")}</span><small>${escapeHtml(event.timestamp ? String(event.timestamp).replace("T", " ").slice(0, 16) : "Data não informada")}</small></article>`).join("") || '<div class="purchase-receipt-history-empty">Sem eventos adicionais. Os vínculos abaixo representam o histórico importado.</div>';
+    elements.purchaseDetailContent.innerHTML = `<div class="purchase-detail-grid"><span><small>PC</small><b>${escapeHtml(order.pc_number || "Não informado")}</b></span><span><small>STATUS</small><b>${escapeHtml(order.status || "EMITIDO")}</b></span><span><small>PROVEDOR</small><b>${escapeHtml(order.supplier_raw || order.supplier?.name || "Não informado")}</b></span><span><small>DATA DO PC</small><b>${escapeHtml(order.pc_date || "Não informada")}</b></span></div><section class="purchase-receipt-history"><header><div><span>ITENS VINCULADOS</span><strong>SC → PC → NF → RECEBIMENTO</strong></div><em>${items.length} item(ns)</em></header><div class="purchase-history-list">${itemRows}</div></section><section class="purchase-receipt-history"><header><div><span>LINHA DO TEMPO</span><strong>HISTÓRICO DO PROCESSO</strong></div></header><div class="purchase-history-events">${eventRows}</div></section>`;
+}
+
+async function openPurchaseOrderHistory(id) {
+    if (!id) return;
+    const title = document.getElementById("purchase-detail-title");
+    const subtitle = elements.purchaseDetailModal?.querySelector(".app-modal-header p");
+    if (title) title.textContent = "Histórico do pedido de compra";
+    if (subtitle) subtitle.textContent = "Consulta sob demanda: SC, PC, NF e recebimento deste pedido.";
+    elements.purchaseDetailApprove?.classList.add("hidden");
+    elements.purchaseDetailReceive?.classList.add("hidden");
+    if (elements.purchaseDetailContent) elements.purchaseDetailContent.innerHTML = '<div class="purchase-receipt-history-empty">Carregando histórico do PC...</div>';
+    elements.purchaseDetailModal?.classList.remove("hidden");
+    document.body.classList.add("modal-open");
+    try {
+        renderPurchaseOrderHistory(await apiFetch(`/compras/pedidos/${Number(id)}/historico`));
+    } catch (error) {
+        if (elements.purchaseDetailContent) elements.purchaseDetailContent.innerHTML = '<div class="purchase-receipt-history-empty">Não foi possível carregar o histórico deste PC.</div>';
+        showToast(error.message || "FALHA AO ABRIR O HISTÓRICO DO PC.", true);
     }
 }
 
@@ -3539,7 +3574,7 @@ function renderPurchaseOrderBoard(rows = purchaseOrderPendingRows()) {
         const description = item.item_type === "SERVICO" ? item.description_raw : (item.material?.descricao || item.description_raw || "Material não informado");
         return `<article class="purchases-kanban-card"><div><b>${escapeHtml(item.sc_number || "SC")}</b><strong>${escapeHtml(description)}</strong><small>${escapeHtml(item.module || "COMPRAS")} · saldo ${escapeHtml(String(item.remaining_order_quantity || 0))}</small></div><span class="purchases-kanban-hint">SELECIONE NA LISTA PARA EMITIR</span></article>`;
     });
-    const orderCards = (state.purchases.orders || []).map((order) => `<article class="purchases-kanban-card"><div><b>${escapeHtml(order.pc_number || "PC")}</b><strong>${escapeHtml(order.supplier_raw || "Provedor não informado")}</strong><small>${escapeHtml(order.status || "EMITIDO")} · ${(order.items || []).length} item(ns)</small></div><span class="purchases-kanban-hint">ABERTO</span></article>`);
+    const orderCards = (state.purchases.orders || []).map((order) => `<article class="purchases-kanban-card purchases-kanban-card-action" role="button" tabindex="0" data-purchase-order-history="${Number(order.id)}" aria-label="Abrir histórico do ${escapeHtml(order.pc_number || "pedido de compra")}"><div><b>${escapeHtml(order.pc_number || "PC")}</b><strong>${escapeHtml(order.supplier_raw || "Provedor não informado")}</strong><small>${escapeHtml(order.status || "EMITIDO")} · ${(order.items || []).length} item(ns)</small></div><span class="purchases-kanban-hint">ABRIR HISTÓRICO</span></article>`);
     elements.purchasesOrderBoard.innerHTML = [
         purchaseKanbanColumnMarkup("AGUARDANDO_PC", "AGUARDANDO PC", "Itens aprovados para montar pedido.", pendingCards),
         purchaseKanbanColumnMarkup("EMITIDO", "PC EMITIDOS", "Pedidos já registrados.", orderCards),
@@ -4015,14 +4050,10 @@ function renderPurchaseOverview() {
 
 async function loadPurchasesData() {
     try {
-        const requests = await apiFetch("/compras/solicitacoes");
+        const requests = await apiFetch("/compras/solicitacoes?modo=OPERACIONAL");
         state.purchases.requests = requests || [];
         renderPurchaseOverview();
-        await loadPurchaseOrdersData();
-        await loadPurchaseInvoiceData();
-        await loadPurchaseProcessCenter();
-        await loadPurchaseReportSummary();
-        await loadPurchaseReportSchedules();
+        await loadPurchasesAreaData(state.purchases.activeArea || "process");
     } catch (error) {
         showToast(error.message || "FALHA AO CARREGAR COMPRAS.", true);
     }
@@ -4184,6 +4215,16 @@ function setPurchasesArea(area = "process") {
     elements.purchasesWorkflowNav?.querySelectorAll("[data-purchases-area]").forEach((button) => {
         button.classList.toggle("is-active", button.dataset.purchasesArea === nextArea);
     });
+}
+
+async function loadPurchasesAreaData(area = "process") {
+    if (area === "orders") return loadPurchaseOrdersData();
+    if (area === "invoices") return loadPurchaseInvoiceData();
+    if (area === "process") return loadPurchaseProcessCenter();
+    if (area === "reports") {
+        await loadPurchaseReportSummary();
+        return loadPurchaseReportSchedules();
+    }
 }
 
 function setPurchasesView(target, view) {
@@ -10754,7 +10795,10 @@ on(elements.purchasesBackButton, "click", () => {
 });
 on(elements.purchasesWorkflowNav, "click", (event) => {
     const button = event.target instanceof HTMLElement ? event.target.closest("[data-purchases-area]") : null;
-    if (button) setPurchasesArea(button.dataset.purchasesArea);
+    if (button) {
+        setPurchasesArea(button.dataset.purchasesArea);
+        void loadPurchasesAreaData(button.dataset.purchasesArea);
+    }
 });
 document.querySelectorAll("[data-purchases-view-target] [data-purchases-view-option]").forEach((button) => {
     button.addEventListener("click", () => setPurchasesView(button.closest("[data-purchases-view-target]")?.dataset.purchasesViewTarget, button.dataset.purchasesViewOption));
@@ -10811,6 +10855,18 @@ on(elements.purchasesRequestBoard, "click", (event) => {
     const target = event.target instanceof HTMLElement ? event.target : null;
     const openButton = target?.closest("[data-purchase-open]");
     if (openButton) openPurchaseRequestDetails(Number(openButton.dataset.purchaseOpen));
+});
+on(elements.purchasesOrderBoard, "click", (event) => {
+    const target = event.target instanceof HTMLElement ? event.target : null;
+    const card = target?.closest("[data-purchase-order-history]");
+    if (card) openPurchaseOrderHistory(Number(card.dataset.purchaseOrderHistory));
+});
+on(elements.purchasesOrderBoard, "keydown", (event) => {
+    if (event.key !== "Enter" && event.key !== " ") return;
+    const target = event.target instanceof HTMLElement ? event.target.closest("[data-purchase-order-history]") : null;
+    if (!target) return;
+    event.preventDefault();
+    openPurchaseOrderHistory(Number(target.dataset.purchaseOrderHistory));
 });
 on(elements.purchaseRequestForm, "submit", submitPurchaseRequest);
 on(elements.purchaseOrderForm, "submit", submitPurchaseOrder);

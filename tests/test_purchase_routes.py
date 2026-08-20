@@ -206,6 +206,17 @@ class PurchaseRouteTests(unittest.TestCase):
         self.assertEqual(final_receipt.get_json()["data"]["invoice"]["status"], "RECEBIDA")
         self.assertEqual(final_receipt.get_json()["data"]["purchase_request"]["status"], "RECEBIDA")
 
+        history = self.client.get(
+            "/compras/pedidos/{}/historico".format(order.get_json()["data"]["purchase_order"]["id"]),
+            headers=self.gestor_headers,
+        )
+        self.assertEqual(history.status_code, 200, history.get_json())
+        history_data = history.get_json()["data"]
+        self.assertEqual(history_data["order"]["pc_number"], "PC-NF-30001")
+        self.assertEqual(history_data["items"][0]["sc_number"], purchase["sc_number"])
+        self.assertEqual(history_data["items"][0]["invoices"][0]["number"], "NF-30001")
+        self.assertEqual(history_data["items"][0]["quantity_received"], 5.0)
+
         with self.app.app_context():
             self.assertEqual(db.session.get(Material, material_id).quantidade_estoque, 5)
 
