@@ -3253,6 +3253,7 @@ function renderPurchaseRequestBoard(rows = state.purchases.requests || []) {
         const cards = rows.filter((row) => purchaseRequestItemStatus(row) === key).map(purchaseRequestKanbanCard);
         return purchaseKanbanColumnMarkup(key, title, helper, cards);
     }).join("");
+    applyPurchaseKanbanFocus(elements.purchasesRequestBoard);
 }
 
 function renderPurchaseMaterialOptions() {
@@ -3543,6 +3544,7 @@ function renderPurchaseOrderBoard(rows = purchaseOrderPendingRows()) {
         purchaseKanbanColumnMarkup("AGUARDANDO_PC", "AGUARDANDO PC", "Itens aprovados para montar pedido.", pendingCards),
         purchaseKanbanColumnMarkup("EMITIDO", "PC EMITIDOS", "Pedidos já registrados.", orderCards),
     ].join("");
+    applyPurchaseKanbanFocus(elements.purchasesOrderBoard);
 }
 
 async function loadPurchaseOrdersData() {
@@ -3642,6 +3644,7 @@ function renderPurchaseInvoiceBoard(pendingNf = state.purchases.pendingInvoices?
         purchaseKanbanColumnMarkup("AGUARDANDO_RECEBIMENTO", "AGUARDANDO RECEBIMENTO", "NF registrada, aguardando entrada.", receiptCards),
         purchaseKanbanColumnMarkup("RECEBIDA", "CONCLUÍDOS", "Itens já recebidos.", []),
     ].join("");
+    applyPurchaseKanbanFocus(elements.purchasesInvoiceBoard);
 }
 
 async function loadPurchaseInvoiceData() {
@@ -3808,7 +3811,20 @@ const PURCHASE_KANBAN_COLUMNS = [
 ];
 
 function purchaseKanbanColumnMarkup(key, title, helper, cards) {
-    return `<section class="purchases-kanban-column purchases-kanban-${key.toLowerCase().replaceAll("_", "-")}"><header><div><span>${escapeHtml(title)}</span><small>${escapeHtml(helper)}</small></div><b>${cards.length}</b></header><div class="purchases-kanban-column-body">${cards.length ? cards.join("") : `<p class="purchases-kanban-empty">Nenhum item nesta etapa.</p>`}</div></section>`;
+    return `<section class="purchases-kanban-column purchases-kanban-${key.toLowerCase().replaceAll("_", "-")}" data-purchase-kanban-column="${escapeHtml(key)}"><header><div><span>${escapeHtml(title)}</span><small>${escapeHtml(helper)}</small></div><div class="purchases-kanban-column-tools"><b>${cards.length}</b><button class="purchases-kanban-filter" type="button" data-purchase-kanban-filter="${escapeHtml(key)}" aria-pressed="false" title="Mostrar somente esta etapa">FILTRAR</button></div></header><div class="purchases-kanban-column-body">${cards.length ? cards.join("") : `<p class="purchases-kanban-empty">Nenhum item nesta etapa.</p>`}</div></section>`;
+}
+
+function applyPurchaseKanbanFocus(board) {
+    if (!board) return;
+    const focus = String(board.dataset.kanbanFocus || "").toUpperCase();
+    board.querySelectorAll("[data-purchase-kanban-column]").forEach((column) => {
+        column.hidden = Boolean(focus && String(column.dataset.purchaseKanbanColumn || "").toUpperCase() !== focus);
+    });
+    board.querySelectorAll("[data-purchase-kanban-filter]").forEach((button) => {
+        const active = String(button.dataset.purchaseKanbanFilter || "").toUpperCase() === focus;
+        button.classList.toggle("is-active", active);
+        button.setAttribute("aria-pressed", active ? "true" : "false");
+    });
 }
 
 function purchaseProcessKanbanCard(row) {
@@ -3824,6 +3840,7 @@ function renderPurchaseProcessBoard() {
         const cards = rows.filter((row) => String(row.item_status || "").toUpperCase() === key).map(purchaseProcessKanbanCard);
         return purchaseKanbanColumnMarkup(key, title, helper, cards);
     }).join("");
+    applyPurchaseKanbanFocus(elements.purchasesProcessBoard);
 }
 
 async function loadPurchaseProcessCenter() {
@@ -10780,6 +10797,15 @@ on(elements.purchasesRequestList, "click", (event) => {
     if (openButton) openPurchaseRequestDetails(Number(openButton.dataset.purchaseOpen));
     else if (approveButton) approvePurchaseRequest(Number(approveButton.dataset.purchaseApprove));
     else if (receiveButton) openPurchaseReceiveModal(Number(receiveButton.dataset.purchaseReceive));
+});
+document.addEventListener("click", (event) => {
+    const target = event.target instanceof HTMLElement ? event.target : null;
+    const filterButton = target?.closest("[data-purchase-kanban-filter]");
+    const board = filterButton?.closest(".purchases-kanban-board");
+    if (!filterButton || !board) return;
+    const key = String(filterButton.dataset.purchaseKanbanFilter || "").toUpperCase();
+    board.dataset.kanbanFocus = board.dataset.kanbanFocus === key ? "" : key;
+    applyPurchaseKanbanFocus(board);
 });
 on(elements.purchasesRequestBoard, "click", (event) => {
     const target = event.target instanceof HTMLElement ? event.target : null;
