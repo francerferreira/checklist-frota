@@ -75,6 +75,15 @@ class PurchaseRouteTests(unittest.TestCase):
         self.assertEqual(request.status_code, 201, request.get_json())
         purchase = request.get_json()["data"]
 
+        filtered_requests = self.client.get(
+            f"/compras/solicitacoes?modo=OPERACIONAL&page=1&per_page=100&q={purchase['sc_number']}&status=AGUARDANDO_PC",
+            headers=self.gestor_headers,
+        )
+        self.assertEqual(filtered_requests.status_code, 200, filtered_requests.get_json())
+        filtered_request_data = filtered_requests.get_json()["data"]
+        self.assertEqual(filtered_request_data["pagination"]["total"], 1)
+        self.assertEqual(filtered_request_data["items"][0]["id"], purchase["id"])
+
         gestor_approval = self.client.post(f"/compras/solicitacoes/{purchase['id']}/aprovar", headers=self.gestor_headers)
         self.assertEqual(gestor_approval.status_code, 403, gestor_approval.get_json())
         approved = self.client.post(f"/compras/solicitacoes/{purchase['id']}/aprovar", headers=self.admin_headers)
@@ -192,6 +201,15 @@ class PurchaseRouteTests(unittest.TestCase):
         paged_pending = self.client.get("/compras/notas/pendentes?page=1&per_page=100", headers=self.gestor_headers)
         self.assertEqual(paged_pending.status_code, 200, paged_pending.get_json())
         self.assertEqual(paged_pending.get_json()["data"]["pagination"]["per_page"], 100)
+
+        filtered_pending = self.client.get(
+            "/compras/notas/pendentes?page=1&per_page=100&q=NF-30001&status=AGUARDANDO_RECEBIMENTO",
+            headers=self.gestor_headers,
+        )
+        self.assertEqual(filtered_pending.status_code, 200, filtered_pending.get_json())
+        filtered_pending_data = filtered_pending.get_json()["data"]
+        self.assertEqual(filtered_pending_data["pagination"]["pending_nf"]["total"], 0)
+        self.assertEqual(filtered_pending_data["pagination"]["pending_receipts"]["total"], 1)
 
         first_receipt = self.client.post(
             "/compras/notas/{}/recebimentos".format(invoice_data["id"]),

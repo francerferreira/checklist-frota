@@ -317,8 +317,10 @@ const state = {
         orders: [],
         ordersPagination: { page: 1, per_page: 100, total: 0, total_pages: 1, query: "" },
         ordersSearchTimer: null,
+        requestsSearchTimer: null,
         pendingInvoices: { pending_nf: [], pending_receipts: [] },
         invoicesPagination: { page: 1, per_page: 100, pending_nf: { total: 0, total_pages: 1 }, pending_receipts: { total: 0, total_pages: 1 } },
+        invoicesSearchTimer: null,
         processCenter: { summary: {}, items: [] },
         overview: null,
         processCenterPagination: { page: 1, per_page: 100, total_pages: 1 },
@@ -691,6 +693,8 @@ const elements = {
     purchaseOrderSubmit: document.getElementById("purchase-order-submit"),
     purchasesInvoicesPendingCount: document.getElementById("purchases-invoices-pending-count"),
     purchasesReceiptsPendingCount: document.getElementById("purchases-receipts-pending-count"),
+    purchasesInvoiceSearch: document.getElementById("purchases-invoice-search"),
+    purchasesInvoiceStatus: document.getElementById("purchases-invoice-status"),
     purchasesInvoicesRefresh: document.getElementById("purchases-invoices-refresh"),
     purchasesInvoicesPagination: document.getElementById("purchases-invoices-pagination"),
     purchasesInvoicesPageInfo: document.getElementById("purchases-invoices-page-info"),
@@ -3760,7 +3764,12 @@ async function loadPurchaseInvoiceData({ page = null } = {}) {
     try {
         const current = state.purchases.invoicesPagination || {};
         const nextPage = Math.max(1, Number(page || current.page || 1));
-        const payload = await apiFetch(`/compras/notas/pendentes?page=${nextPage}&per_page=100`) || { pending_nf: [], pending_receipts: [] };
+        const params = new URLSearchParams({ page: String(nextPage), per_page: "100" });
+        const query = String(elements.purchasesInvoiceSearch?.value || "").trim();
+        const status = String(elements.purchasesInvoiceStatus?.value || "TODOS").toUpperCase();
+        if (query) params.set("q", query);
+        if (status !== "TODOS") params.set("status", status);
+        const payload = await apiFetch(`/compras/notas/pendentes?${params.toString()}`) || { pending_nf: [], pending_receipts: [] };
         state.purchases.pendingInvoices = payload;
         state.purchases.invoicesPagination = payload.pagination || { page: nextPage, per_page: 100, pending_nf: { total: payload.pending_nf?.length || 0, total_pages: 1 }, pending_receipts: { total: payload.pending_receipts?.length || 0, total_pages: 1 } };
         renderPurchaseInvoiceData();
@@ -4150,7 +4159,14 @@ async function loadPurchaseRequestsData({ page = null } = {}) {
     try {
         const current = state.purchases.requestsPagination || {};
         const nextPage = Math.max(1, Number(page || current.page || 1));
-        const payload = await apiFetch(`/compras/solicitacoes?modo=OPERACIONAL&page=${nextPage}&per_page=100`);
+        const params = new URLSearchParams({ modo: "OPERACIONAL", page: String(nextPage), per_page: "100" });
+        const query = String(elements.purchasesRequestSearch?.value || "").trim();
+        const status = String(elements.purchasesRequestStatus?.value || "TODOS").toUpperCase();
+        const sort = String(elements.purchasesRequestSort?.value || "RECENTES").toUpperCase();
+        if (query) params.set("q", query);
+        if (status !== "TODOS") params.set("status", status);
+        if (sort !== "RECENTES") params.set("sort", sort);
+        const payload = await apiFetch(`/compras/solicitacoes?${params.toString()}`);
         state.purchases.requests = Array.isArray(payload) ? payload : (payload?.items || []);
         state.purchases.requestsPagination = Array.isArray(payload)
             ? { page: 1, per_page: 100, total: state.purchases.requests.length, total_pages: 1 }
@@ -4162,6 +4178,20 @@ async function loadPurchaseRequestsData({ page = null } = {}) {
         renderPurchaseOverview();
         showToast(error.message || "FALHA AO CARREGAR AS SOLICITAÇÕES DE COMPRA.", true);
     }
+}
+
+function schedulePurchaseRequestsReload() {
+    window.clearTimeout(state.purchases.requestsSearchTimer);
+    state.purchases.requestsSearchTimer = window.setTimeout(() => {
+        void loadPurchaseRequestsData({ page: 1 });
+    }, 250);
+}
+
+function schedulePurchaseInvoicesReload() {
+    window.clearTimeout(state.purchases.invoicesSearchTimer);
+    state.purchases.invoicesSearchTimer = window.setTimeout(() => {
+        void loadPurchaseInvoiceData({ page: 1 });
+    }, 250);
 }
 
 async function loadPurchasesData() {
@@ -10937,9 +10967,9 @@ on(elements.purchasesProviderList, "click", (event) => {
     if (provider) editPurchaseProvider(provider);
 });
 on(elements.purchasesMaterialHistoryButton, "click", loadMaterialPurchaseHistory);
-on(elements.purchasesRequestSearch, "input", renderPurchaseRequests);
-on(elements.purchasesRequestStatus, "change", renderPurchaseRequests);
-on(elements.purchasesRequestSort, "change", renderPurchaseRequests);
+on(elements.purchasesRequestSearch, "input", schedulePurchaseRequestsReload);
+on(elements.purchasesRequestStatus, "change", schedulePurchaseRequestsReload);
+on(elements.purchasesRequestSort, "change", schedulePurchaseRequestsReload);
 on(elements.purchasesRequestsPagePrev, "click", () => {
     const page = Number(state.purchases.requestsPagination?.page || 1);
     if (page > 1) void loadPurchaseRequestsData({ page: page - 1 });
@@ -11016,6 +11046,8 @@ on(elements.purchasesOrdersPageNext, "click", () => {
     if (page < Number(pagination.total_pages || 1)) void loadPurchaseOrdersData({ page: page + 1, refreshPending: false });
 });
 on(elements.purchasesInvoicesRefresh, "click", loadPurchaseInvoiceData);
+on(elements.purchasesInvoiceSearch, "input", schedulePurchaseInvoicesReload);
+on(elements.purchasesInvoiceStatus, "change", schedulePurchaseInvoicesReload);
 on(elements.purchasesInvoicesPagePrev, "click", () => {
     const page = Number(state.purchases.invoicesPagination?.page || 1);
     if (page > 1) void loadPurchaseInvoiceData({ page: page - 1 });

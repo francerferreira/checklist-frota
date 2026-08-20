@@ -8,7 +8,7 @@ from pathlib import Path
 import tempfile
 
 from flask import Blueprint, current_app, g, request, send_file
-from sqlalchemy import func, or_
+from sqlalchemy import case, func, or_
 from sqlalchemy.orm import joinedload, selectinload
 
 from app.extensions import db
@@ -286,6 +286,50 @@ def list_purchase_requests():
     query = PurchaseRequest.query.options(*_request_list_options()).order_by(PurchaseRequest.created_at.desc())
     if str(request.args.get("modo") or "").strip().upper() == "OPERACIONAL":
         query = query.filter(~PurchaseRequest.status.in_({"RECEBIDA", "CANCELADA"}))
+    search = _clean(request.args.get("q"))
+    if search:
+        term = f"%{search[:120]}%"
+        query = query.filter(or_(
+            PurchaseRequest.code.ilike(term),
+            PurchaseRequest.sc_number.ilike(term),
+            PurchaseRequest.module.ilike(term),
+            PurchaseRequest.requester_raw.ilike(term),
+            PurchaseRequest.equipment_raw.ilike(term),
+            PurchaseRequest.cost_center.ilike(term),
+            PurchaseRequest.material.has(or_(Material.referencia.ilike(term), Material.descricao.ilike(term))),
+            PurchaseRequest.supplier.has(or_(Supplier.code.ilike(term), Supplier.name.ilike(term), Supplier.trade_name.ilike(term))),
+            PurchaseRequest.items.any(or_(
+                PurchaseRequestItem.product_code_raw.ilike(term),
+                PurchaseRequestItem.description_raw.ilike(term),
+                PurchaseRequestItem.manual_reference_raw.ilike(term),
+                PurchaseRequestItem.material.has(or_(Material.referencia.ilike(term), Material.descricao.ilike(term))),
+                PurchaseRequestItem.service_catalog.has(or_(PurchaseServiceCatalog.code.ilike(term), PurchaseServiceCatalog.service_name.ilike(term))),
+            )),
+        ))
+    status_filter = str(request.args.get("status") or "TODOS").strip().upper()
+    if status_filter and status_filter != "TODOS":
+        query = query.filter(or_(
+            PurchaseRequest.status == status_filter,
+            PurchaseRequest.items.any(PurchaseRequestItem.status == status_filter),
+        ))
+    sort_key = str(request.args.get("sort") or "RECENTES").strip().upper()
+    if sort_key == "PRIORIDADE":
+        query = query.order_by(None).order_by(
+            case(
+                (PurchaseRequest.priority == "CRITICA", 0),
+                (PurchaseRequest.priority == "ALTA", 1),
+                (PurchaseRequest.priority == "MEDIA", 2),
+                (PurchaseRequest.priority == "BAIXA", 3),
+                else_=4,
+            ),
+            PurchaseRequest.created_at.desc(),
+        )
+    elif sort_key == "PROVEDOR_PREFERENCIAL":
+        query = query.order_by(None).outerjoin(PurchaseRequest.supplier).order_by(
+            Supplier.preferred.desc(),
+            Supplier.name.asc(),
+            PurchaseRequest.created_at.desc(),
+        )
     if not page_requested:
         rows = query.all()
         return api_response(True, data=[row.to_dict() for row in rows])
@@ -658,6 +702,9 @@ def list_pending_purchase_invoices():
     page_requested = "page" in request.args or "per_page" in request.args
     page = max(1, request.args.get("page", 1, type=int) or 1)
     per_page = min(100, max(1, request.args.get("per_page", 100, type=int) or 100))
+    search = _clean(request.args.get("q"))
+    status_filter = str(request.args.get("status") or "TODOS").strip().upper()
+    term = f"%{search[:120]}%" if search else None
     pending_nf = []
     invoiced_by_order_item = (
         db.session.query(
@@ -667,16 +714,35 @@ def list_pending_purchase_invoices():
         .group_by(PurchaseInvoiceItem.purchase_order_item_id)
         .subquery()
     )
-    orders_query = (
-        PurchaseOrder.query
-        .join(PurchaseOrderItem, PurchaseOrderItem.purchase_order_id == PurchaseOrder.id)
-        .outerjoin(invoiced_by_order_item, invoiced_by_order_item.c.purchase_order_item_id == PurchaseOrderItem.id)
-        .group_by(PurchaseOrder.id)
-        .having(func.sum(PurchaseOrderItem.quantity_ordered - func.coalesce(invoiced_by_order_item.c.quantity_invoiced, 0)) > 0)
-        .order_by(PurchaseOrder.created_at.desc())
-    )
-    total_pending_nf = orders_query.count()
-    orders = orders_query.offset((page - 1) * per_page).limit(per_page).all() if page_requested else orders_query.all()
+    orders_query = None
+    if status_filter in {"TODOS", "AGUARDANDO_NF"}:
+        orders_query = (
+            PurchaseOrder.query
+            .join(PurchaseOrderItem, PurchaseOrderItem.purchase_order_id == PurchaseOrder.id)
+            .join(PurchaseRequestItem, PurchaseRequestItem.id == PurchaseOrderItem.purchase_request_item_id)
+            .outerjoin(PurchaseRequest, PurchaseRequest.id == PurchaseRequestItem.purchase_request_id)
+            .outerjoin(Material, Material.id == PurchaseRequestItem.material_id)
+            .outerjoin(PurchaseServiceCatalog, PurchaseServiceCatalog.id == PurchaseRequestItem.service_catalog_id)
+            .outerjoin(invoiced_by_order_item, invoiced_by_order_item.c.purchase_order_item_id == PurchaseOrderItem.id)
+            .group_by(PurchaseOrder.id)
+            .having(func.sum(PurchaseOrderItem.quantity_ordered - func.coalesce(invoiced_by_order_item.c.quantity_invoiced, 0)) > 0)
+            .order_by(PurchaseOrder.created_at.desc())
+        )
+        if term:
+            orders_query = orders_query.filter(or_(
+                PurchaseOrder.pc_number.ilike(term),
+                PurchaseOrder.supplier_raw.ilike(term),
+                PurchaseRequest.sc_number.ilike(term),
+                PurchaseRequest.requester_raw.ilike(term),
+                PurchaseRequestItem.product_code_raw.ilike(term),
+                PurchaseRequestItem.description_raw.ilike(term),
+                Material.referencia.ilike(term),
+                Material.descricao.ilike(term),
+                PurchaseServiceCatalog.code.ilike(term),
+                PurchaseServiceCatalog.service_name.ilike(term),
+            ))
+    total_pending_nf = orders_query.count() if orders_query is not None else 0
+    orders = orders_query.offset((page - 1) * per_page).limit(per_page).all() if page_requested and orders_query is not None else (orders_query.all() if orders_query is not None else [])
     for order in orders:
         pending_items = []
         for order_item in order.items:
@@ -708,13 +774,37 @@ def list_pending_purchase_invoices():
                 "items": pending_items,
             })
     pending_receipts = []
-    receipt_query = (
-        PurchaseInvoiceItem.query
-        .filter(func.coalesce(PurchaseInvoiceItem.quantity_received, 0) < func.coalesce(PurchaseInvoiceItem.quantity_invoiced, 0))
-        .order_by(PurchaseInvoiceItem.id.desc())
-    )
-    total_pending_receipts = receipt_query.count()
-    invoice_items = receipt_query.offset((page - 1) * per_page).limit(per_page).all() if page_requested else receipt_query.all()
+    receipt_query = None
+    if status_filter in {"TODOS", "AGUARDANDO_RECEBIMENTO"}:
+        receipt_query = (
+            PurchaseInvoiceItem.query
+            .join(PurchaseInvoice, PurchaseInvoice.id == PurchaseInvoiceItem.invoice_id)
+            .join(PurchaseOrderItem, PurchaseOrderItem.id == PurchaseInvoiceItem.purchase_order_item_id)
+            .join(PurchaseOrder, PurchaseOrder.id == PurchaseOrderItem.purchase_order_id)
+            .join(PurchaseRequestItem, PurchaseRequestItem.id == PurchaseOrderItem.purchase_request_item_id)
+            .outerjoin(PurchaseRequest, PurchaseRequest.id == PurchaseRequestItem.purchase_request_id)
+            .outerjoin(Material, Material.id == PurchaseRequestItem.material_id)
+            .outerjoin(PurchaseServiceCatalog, PurchaseServiceCatalog.id == PurchaseRequestItem.service_catalog_id)
+            .filter(func.coalesce(PurchaseInvoiceItem.quantity_received, 0) < func.coalesce(PurchaseInvoiceItem.quantity_invoiced, 0))
+            .order_by(PurchaseInvoiceItem.id.desc())
+        )
+        if term:
+            receipt_query = receipt_query.filter(or_(
+                PurchaseInvoice.invoice_number.ilike(term),
+                PurchaseInvoice.series.ilike(term),
+                PurchaseInvoice.supplier_raw.ilike(term),
+                PurchaseOrder.pc_number.ilike(term),
+                PurchaseOrder.supplier_raw.ilike(term),
+                PurchaseRequest.sc_number.ilike(term),
+                PurchaseRequestItem.product_code_raw.ilike(term),
+                PurchaseRequestItem.description_raw.ilike(term),
+                Material.referencia.ilike(term),
+                Material.descricao.ilike(term),
+                PurchaseServiceCatalog.code.ilike(term),
+                PurchaseServiceCatalog.service_name.ilike(term),
+            ))
+    total_pending_receipts = receipt_query.count() if receipt_query is not None else 0
+    invoice_items = receipt_query.offset((page - 1) * per_page).limit(per_page).all() if page_requested and receipt_query is not None else (receipt_query.all() if receipt_query is not None else [])
     for invoice_item in invoice_items:
         summary = _invoice_item_summary(invoice_item)
         if summary["remaining_receipt_quantity"] > 0:

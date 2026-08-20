@@ -14,7 +14,7 @@
     <title>SIS MMP | Sistema de Manutenção de Máquinas Pesadas</title>
     <link rel="icon" type="image/png" sizes="192x192" href="./static/icons/icon-192.png?v=sis-mmp-20260810">
     <link rel="apple-touch-icon" href="./static/icons/icon-192.png?v=sis-mmp-20260810">
-    <link rel="stylesheet" href="./static/css/styles.css?v=20260820-purchases-paged-sc-nf">
+    <link rel="stylesheet" href="./static/css/styles.css?v=20260820-purchases-api-filters">
 </head>
 <body>
     <div class="mobile-shell">
@@ -520,6 +520,10 @@
                     <div class="module-header purchases-invoices-header">
                         <div><span>ETAPA 03 DO FLUXO</span><strong>NOTAS FISCAIS E RECEBIMENTO</strong><p class="purchases-help">Vincule a NF ao PC e registre a entrada por item, inclusive quando a entrega for parcial.</p></div>
                         <div class="purchases-invoices-header-actions"><span id="purchases-invoices-pending-count" class="purchases-request-count">0 NFs pendentes</span><span id="purchases-receipts-pending-count" class="purchases-request-count">0 itens para receber</span><div id="purchases-invoices-pagination" class="purchases-orders-pagination hidden"><span id="purchases-invoices-page-info"></span><div><button id="purchases-invoices-page-prev" class="secondary-button" type="button">ANTERIOR</button><button id="purchases-invoices-page-next" class="secondary-button" type="button">PRÓXIMA</button></div></div><div class="purchases-view-toggle" data-purchases-view-target="invoices"><button type="button" data-purchases-view-option="QUADRO">QUADRO</button><button type="button" data-purchases-view-option="LISTA">LISTA</button><button type="button" data-purchases-view-option="CARTOES">CARTÕES</button></div></div>
+                    </div>
+                    <div class="purchases-request-toolbar purchases-invoice-toolbar" role="search" aria-label="Filtros de notas fiscais e recebimentos">
+                        <label class="purchases-request-search"><span>BUSCAR</span><input id="purchases-invoice-search" type="search" autocomplete="off" placeholder="NF, PC, SC, material ou provedor"></label>
+                        <label><span>ETAPA</span><select id="purchases-invoice-status"><option value="TODOS">TODAS AS ETAPAS</option><option value="AGUARDANDO_NF">AGUARDANDO NF</option><option value="AGUARDANDO_RECEBIMENTO">AGUARDANDO RECEBIMENTO</option></select></label>
                     </div>
                     <div id="purchases-invoice-board" class="purchases-kanban-board hidden" aria-live="polite"></div>
                     <div class="purchases-invoice-columns">
@@ -1589,7 +1593,7 @@
 
     <div id="toast" class="toast hidden"></div>
     <script src="./static/js/config.js?v=20260719-01"></script>
-    <script src="./static/js/app.js?v=20260820-purchases-paged-sc-nf"></script>
+    <script src="./static/js/app.js?v=20260820-purchases-api-filters"></script>
 </body>
 </html>
 
