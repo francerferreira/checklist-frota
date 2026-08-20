@@ -14,7 +14,7 @@
     <title>SIS MMP | Sistema de Manutenção de Máquinas Pesadas</title>
     <link rel="icon" type="image/png" sizes="192x192" href="./static/icons/icon-192.png?v=sis-mmp-20260810">
     <link rel="apple-touch-icon" href="./static/icons/icon-192.png?v=sis-mmp-20260810">
-    <link rel="stylesheet" href="./static/css/styles.css?v=20260820-process-limit">
+    <link rel="stylesheet" href="./static/css/styles.css?v=20260820-process-pagination">
 </head>
 <body>
     <div class="mobile-shell">
@@ -446,7 +446,7 @@
                 <section class="module-section purchases-process-center-panel" data-purchases-area-section="process">
                     <div class="module-header purchases-process-center-header">
                         <div><span>VISÃO CONSOLIDADA</span><strong>CENTRAL DE PROCESSOS</strong><p class="purchases-help">Uma linha por item para mostrar exatamente o próximo passo da compra.</p></div>
-                        <div class="purchases-process-center-actions"><span id="purchases-process-center-count" class="purchases-request-count">0 itens</span><div class="purchases-view-toggle" data-purchases-view-target="process"><button type="button" data-purchases-view-option="QUADRO">QUADRO</button><button type="button" data-purchases-view-option="LISTA">LISTA</button><button type="button" data-purchases-view-option="CARTOES">CARTÕES</button></div></div>
+                        <div class="purchases-process-center-actions"><span id="purchases-process-center-count" class="purchases-request-count">0 itens</span><div id="purchases-process-pagination" class="purchases-process-pagination hidden"><button id="purchases-process-page-prev" class="secondary-button" type="button">ANTERIOR</button><span id="purchases-process-page-info"></span><button id="purchases-process-page-next" class="secondary-button" type="button">PRÓXIMA</button></div><div class="purchases-view-toggle" data-purchases-view-target="process"><button type="button" data-purchases-view-option="QUADRO">QUADRO</button><button type="button" data-purchases-view-option="LISTA">LISTA</button><button type="button" data-purchases-view-option="CARTOES">CARTÕES</button></div></div>
                     </div>
                     <div class="purchases-process-toolbar" role="search" aria-label="Filtros da central de processos">
                         <label><span>BUSCAR</span><input id="purchases-process-search" type="search" autocomplete="off" placeholder="SC, item, módulo ou equipamento"></label>
@@ -1588,7 +1588,7 @@
 
     <div id="toast" class="toast hidden"></div>
     <script src="./static/js/config.js?v=20260719-01"></script>
-    <script src="./static/js/app.js?v=20260820-process-limit"></script>
+    <script src="./static/js/app.js?v=20260820-process-pagination"></script>
 </body>
 </html>
 

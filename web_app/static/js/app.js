@@ -318,6 +318,7 @@ const state = {
         ordersSearchTimer: null,
         pendingInvoices: { pending_nf: [], pending_receipts: [] },
         processCenter: { summary: {}, items: [] },
+        processCenterPagination: { page: 1, per_page: 100, total_pages: 1 },
         reportSummary: { summary: {}, by_status: {}, by_type: {}, by_provider: {} },
         reportSchedules: [],
         activeArea: "process",
@@ -687,6 +688,10 @@ const elements = {
     purchasesInvoicePendingList: document.getElementById("purchases-invoice-pending-list"),
     purchasesReceiptPendingList: document.getElementById("purchases-receipt-pending-list"),
     purchasesProcessCenterCount: document.getElementById("purchases-process-center-count"),
+    purchasesProcessPagination: document.getElementById("purchases-process-pagination"),
+    purchasesProcessPageInfo: document.getElementById("purchases-process-page-info"),
+    purchasesProcessPagePrev: document.getElementById("purchases-process-page-prev"),
+    purchasesProcessPageNext: document.getElementById("purchases-process-page-next"),
     purchasesProcessPcCount: document.getElementById("purchases-process-pc-count"),
     purchasesProcessNfCount: document.getElementById("purchases-process-nf-count"),
     purchasesProcessReceiptCount: document.getElementById("purchases-process-receipt-count"),
@@ -3855,14 +3860,22 @@ function renderPurchaseProcessCenter() {
     const summary = data.summary || {};
     const rows = data.items || [];
     const totalItems = Number(summary.total_items ?? summary.items ?? rows.length);
+    const currentPage = Number(summary.page || 1);
     if (elements.purchasesProcessCenterCount) {
         elements.purchasesProcessCenterCount.textContent = totalItems > rows.length
-            ? `${rows.length} mais recentes de ${totalItems}`
+            ? (currentPage === 1 ? `${rows.length} mais recentes de ${totalItems}` : `${rows.length} itens de ${totalItems}`)
             : `${rows.length} ${rows.length === 1 ? "item" : "itens"}`;
     }
     if (elements.purchasesProcessPcCount) elements.purchasesProcessPcCount.textContent = String(summary.pending_pc || 0);
     if (elements.purchasesProcessNfCount) elements.purchasesProcessNfCount.textContent = String(summary.pending_nf || 0);
     if (elements.purchasesProcessReceiptCount) elements.purchasesProcessReceiptCount.textContent = String(summary.pending_receipt || 0);
+    const page = Number(summary.page || state.purchases.processCenterPagination?.page || 1);
+    const totalPages = Math.max(1, Number(summary.total_pages || state.purchases.processCenterPagination?.total_pages || 1));
+    state.purchases.processCenterPagination = { page, per_page: Number(summary.per_page || 100), total_pages: totalPages };
+    if (elements.purchasesProcessPageInfo) elements.purchasesProcessPageInfo.textContent = `PÁGINA ${page}/${totalPages}`;
+    elements.purchasesProcessPagination?.classList.toggle("hidden", totalPages <= 1);
+    if (elements.purchasesProcessPagePrev) elements.purchasesProcessPagePrev.disabled = page <= 1;
+    if (elements.purchasesProcessPageNext) elements.purchasesProcessPageNext.disabled = page >= totalPages;
     if (!elements.purchasesProcessList) return;
     if (!rows.length) {
         elements.purchasesProcessList.innerHTML = `<article class="purchases-process-empty"><strong>NENHUM ITEM ENCONTRADO</strong><span>Ajuste os filtros ou abra uma nova SC.</span></article>`;
@@ -3922,14 +3935,17 @@ function renderPurchaseProcessBoard() {
     applyPurchaseKanbanFocus(elements.purchasesProcessBoard);
 }
 
-async function loadPurchaseProcessCenter() {
+async function loadPurchaseProcessCenter({ page } = {}) {
     const params = new URLSearchParams();
+    const currentPagination = state.purchases.processCenterPagination || {};
     const search = elements.purchasesProcessSearch?.value.trim();
     const status = elements.purchasesProcessStatus?.value || "TODOS";
     const itemType = elements.purchasesProcessType?.value || "TODOS";
     if (search) params.set("q", search);
     if (status !== "TODOS") params.set("status", status);
     if (itemType !== "TODOS") params.set("item_type", itemType);
+    params.set("page", String(Math.max(1, Number(page || currentPagination.page || 1))));
+    params.set("per_page", String(currentPagination.per_page || 100));
     try {
         state.purchases.processCenter = await apiFetch(`/compras/central-processos${params.toString() ? `?${params.toString()}` : ""}`) || { summary: {}, items: [] };
         renderPurchaseProcessCenter();
@@ -10953,9 +10969,18 @@ on(elements.purchaseInvoiceReceiveForm, "submit", submitPurchaseInvoiceReceive);
 on(elements.purchaseInvoiceReceiveCancel, "click", closePurchaseInvoiceReceiveModal);
 on(elements.purchaseInvoiceReceiveModal, "click", (event) => { if (event.target instanceof HTMLElement && event.target.dataset.closePurchaseInvoiceReceive === "true") closePurchaseInvoiceReceiveModal(); });
 on(elements.purchasesProcessCenterRefresh, "click", loadPurchaseProcessCenter);
-on(elements.purchasesProcessSearch, "change", loadPurchaseProcessCenter);
-on(elements.purchasesProcessStatus, "change", loadPurchaseProcessCenter);
-on(elements.purchasesProcessType, "change", loadPurchaseProcessCenter);
+on(elements.purchasesProcessSearch, "change", () => loadPurchaseProcessCenter({ page: 1 }));
+on(elements.purchasesProcessStatus, "change", () => loadPurchaseProcessCenter({ page: 1 }));
+on(elements.purchasesProcessType, "change", () => loadPurchaseProcessCenter({ page: 1 }));
+on(elements.purchasesProcessPagePrev, "click", () => {
+    const page = Number(state.purchases.processCenterPagination?.page || 1);
+    if (page > 1) void loadPurchaseProcessCenter({ page: page - 1 });
+});
+on(elements.purchasesProcessPageNext, "click", () => {
+    const pagination = state.purchases.processCenterPagination || {};
+    const page = Number(pagination.page || 1);
+    if (page < Number(pagination.total_pages || 1)) void loadPurchaseProcessCenter({ page: page + 1 });
+});
 on(elements.purchasesProcessList, "click", (event) => {
     const button = event.target instanceof HTMLElement ? event.target.closest("[data-purchase-process-open]") : null;
     if (button) openPurchaseRequestDetails(Number(button.dataset.purchaseProcessOpen));

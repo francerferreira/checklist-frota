@@ -7076,6 +7076,8 @@ button.rh-admin-operation-card:hover { border-color: #78aee6; transform: transla
 .purchases-process-center-panel { display: grid; gap: 16px; }
 .purchases-process-center-header { align-items: flex-start; }
 .purchases-process-center-actions { display: flex; align-items: center; justify-content: flex-end; gap: 8px; flex-wrap: wrap; }
+.purchases-process-pagination { display: flex; align-items: center; gap: 7px; color: var(--theme-text-muted); font-size: .65rem; font-weight: 850; white-space: nowrap; }
+.purchases-process-pagination .secondary-button { min-height: 31px; padding: 6px 9px; font-size: .62rem; }
 .purchases-process-summary { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; }
 .purchases-process-summary article { display: grid; gap: 4px; padding: 13px 14px; border: 1px solid var(--theme-border); border-radius: 12px; background: var(--theme-surface-soft); }
 .purchases-process-summary span { color: var(--theme-accent); font-size: .68rem; font-weight: 900; letter-spacing: .08em; }
@@ -7443,6 +7445,8 @@ button.rh-admin-operation-card:hover { border-color: #78aee6; transform: transla
     .purchases-invoice-columns { grid-template-columns: 1fr; }
     .purchases-process-center-actions { align-items: stretch; flex-direction: column; }
     .purchases-process-center-actions .secondary-button { width: 100%; }
+    .purchases-process-pagination { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    .purchases-process-pagination span { grid-column: 1 / -1; text-align: center; }
     .purchases-process-summary { grid-template-columns: 1fr; }
     .purchases-process-toolbar { grid-template-columns: 1fr; }
     .purchases-process-card { grid-template-columns: 1fr; align-items: stretch; }

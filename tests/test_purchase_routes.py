@@ -241,11 +241,14 @@ class PurchaseRouteTests(unittest.TestCase):
         self.assertEqual(response.status_code, 201, response.get_json())
         purchase = response.get_json()["data"]
 
-        center = self.client.get("/compras/central-processos?item_type=SERVICO&q=LBS-04", headers=self.gestor_headers)
+        center = self.client.get("/compras/central-processos?item_type=SERVICO&q=LBS-04&page=1&per_page=100", headers=self.gestor_headers)
         self.assertEqual(center.status_code, 200, center.get_json())
         data = center.get_json()["data"]
         self.assertEqual(data["summary"]["items"], 1)
         self.assertEqual(data["summary"]["total_items"], 1)
+        self.assertEqual(data["summary"]["page"], 1)
+        self.assertEqual(data["summary"]["per_page"], 100)
+        self.assertEqual(data["summary"]["total_pages"], 1)
         self.assertLessEqual(len(data["items"]), 100)
         self.assertEqual(data["summary"]["pending_pc"], 1)
         self.assertEqual(data["items"][0]["purchase_request_id"], purchase["id"])

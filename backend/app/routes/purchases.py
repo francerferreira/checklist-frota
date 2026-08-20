@@ -900,6 +900,8 @@ def purchase_process_center():
     status_filter = _clean(request.args.get("status"))
     type_filter = _clean(request.args.get("item_type"))
     search = (_clean(request.args.get("q")) or "").lower()
+    page = max(1, request.args.get("page", 1, type=int) or 1)
+    per_page = min(100, max(1, request.args.get("per_page", 100, type=int) or 100))
     try:
         date_from = _parse_date(request.args.get("date_from"))
         date_to = _parse_date(request.args.get("date_to"))
@@ -945,7 +947,8 @@ def purchase_process_center():
             selectinload(PurchaseRequestItem.order_links).joinedload(PurchaseOrderItem.purchase_order),
         )
         .order_by(PurchaseRequestItem.updated_at.desc(), PurchaseRequestItem.id.desc())
-        .limit(100)
+        .offset((page - 1) * per_page)
+        .limit(per_page)
         .all()
     )
     rows = [_central_process_item_summary(item) for item in items]
@@ -958,7 +961,10 @@ def purchase_process_center():
         "summary": {
             "items": len(rows),
             "total_items": total_items,
-            "display_limit": 100,
+            "display_limit": per_page,
+            "page": page,
+            "per_page": per_page,
+            "total_pages": max(1, (total_items + per_page - 1) // per_page),
             "processes": len({row["purchase_request_id"] for row in rows}),
             "status_counts": status_counts,
             "type_counts": type_counts,
