@@ -307,7 +307,9 @@ const state = {
         activeTab: "list",
         rows: [],
         editingId: null,
+        editingKind: "default",
         loading: false,
+        searchTimer: null,
     },
     mmpStock: {
         warehouses: [],
@@ -615,6 +617,7 @@ const elements = {
     adminCatalogDetailDescription: document.getElementById("admin-catalog-detail-description"),
     adminCatalogDetailTabs: document.getElementById("admin-catalog-detail-tabs"),
     adminCatalogNewButton: document.getElementById("admin-catalog-new-button"),
+    adminCatalogNewLocationButton: document.getElementById("admin-catalog-new-location-button"),
     adminCatalogSearch: document.getElementById("admin-catalog-search"),
     adminCatalogStatus: document.getElementById("admin-catalog-status"),
     adminCatalogRefresh: document.getElementById("admin-catalog-refresh"),
@@ -3145,7 +3148,8 @@ const ADMIN_CATALOG_DEFINITIONS = {
     checklist: { section: "EQUIPAMENTOS", title: "ITENS DE CHECKLIST", description: "Itens e agrupamentos que aparecem nos checklists operacionais.", endpoint: "/checklist-itens?ativos=all", entity: "CHECKLIST", name: (row) => row.item_nome, code: (row) => row.tipo || row.vehicle_type, active: (row) => Boolean(row.ativo) },
     employees: { section: "RH", title: "COLABORADORES", description: "Cadastro funcional, vínculo, equipe, turno e situação cadastral.", endpoint: "/rh/colaboradores", entity: "EMPLOYEE", name: (row) => row.full_name, code: (row) => row.registration, active: (row) => String(row.status || "").toUpperCase() !== "INATIVO" },
     users: { section: "ACESSO", title: "USUÁRIOS E PERMISSÕES", description: "Logins, perfis, situação, última entrada e controle de acesso.", endpoint: "/usuarios", entity: "USER", name: (row) => row.nome || row.login, code: (row) => row.login, active: (row) => row.ativo !== false },
-    stock: { section: "MATERIAIS", title: "ARMAZÉNS E LOCAIS MMP", description: "Armazém Principal, Estoque MMP, prateleiras e posições administrativas.", endpoint: "/suprimentos/depositos", entity: "WAREHOUSE", name: (row) => row.name, code: (row) => row.code, active: (row) => row.active !== false },
+    stock: { section: "MATERIAIS", title: "ARMAZÉNS E LOCAIS MMP", description: "Armazém Principal, Estoque MMP, prateleiras e posições administrativas.", endpoint: "/suprimentos/depositos", locationsEndpoint: "/suprimentos/locais", entity: "WAREHOUSE", name: (row) => row.name || row.label, code: (row) => row.code || row.location_code, active: (row) => row.active !== false },
+    materials: { section: "MATERIAIS", title: "CATÁLOGO DE MATERIAIS", description: "Referências usadas em compras, armazéns MMP e aplicações nos equipamentos.", endpoint: "/materiais?ativos=all", entity: "MATERIAL", name: (row) => row.descricao, code: (row) => row.referencia, active: (row) => row.ativo !== false },
 };
 
 function adminCatalogDefinition() {
@@ -3158,6 +3162,14 @@ function adminCatalogSearchable(row, definition) {
 
 function adminCatalogFormFields(catalog, row = {}) {
     const value = (key) => escapeHtml(String(row[key] ?? ""));
+    if (catalog === "stock" && state.adminCatalogs.editingKind === "location") {
+        const warehouses = state.adminCatalogs.rows.filter((item) => item.record_kind === "warehouse");
+        return `<label class="admin-catalog-field-wide"><span>ARMAZÉM *</span><select name="warehouse_id" required>${warehouses.map((warehouse) => `<option value="${Number(warehouse.id)}" ${Number(row.warehouse_id) === Number(warehouse.id) ? "selected" : ""}>${escapeHtml(warehouse.name || warehouse.code)}</option>`).join("")}</select></label>
+            <label><span>PRATELEIRA *</span><input name="shelf_code" required value="${value("shelf_code")}" placeholder="P1"></label>
+            <label><span>LOCAL *</span><input name="location_code" required value="${value("location_code")}" placeholder="A"></label>
+            <label><span>POSIÇÃO *</span><input name="position_code" required value="${value("position_code")}" placeholder="01"></label>
+            <label><span>SITUAÇÃO</span><select name="active"><option value="true" ${row.active !== false ? "selected" : ""}>ATIVO</option><option value="false" ${row.active === false ? "selected" : ""}>INATIVO</option></select></label>`;
+    }
     if (catalog === "providers") return `
         <label><span>CÓDIGO *</span><input name="code" required value="${value("code")}" placeholder="PROV-001"></label>
         <label><span>NOME *</span><input name="name" required value="${value("name")}" placeholder="Nome principal"></label>
@@ -3190,6 +3202,19 @@ function adminCatalogFormFields(catalog, row = {}) {
         <label><span>PERFIL</span><select name="tipo"><option value="operacional">OPERACIONAL</option><option value="gestor">GESTOR</option><option value="admin">ADMIN</option></select></label>
         <label><span>NOVA SENHA</span><input type="password" name="senha" placeholder="Obrigatória ao criar"></label>
         <label><span>SITUAÇÃO</span><select name="ativo"><option value="true" ${row.ativo !== false ? "selected" : ""}>ATIVO</option><option value="false" ${row.ativo === false ? "selected" : ""}>INATIVO</option></select></label>`;
+    if (catalog === "materials") return `
+        <label><span>REFERÊNCIA *</span><input name="referencia" required value="${value("referencia")}"></label>
+        <label><span>DESCRIÇÃO *</span><input name="descricao" required value="${value("descricao")}"></label>
+        <label><span>APLICAÇÃO</span><select name="aplicacao_tipo"><option value="ambos">AMBOS</option><option value="cavalo">CAVALO</option><option value="carreta">CARRETA</option></select></label>
+        <label><span>CLASSE ABC</span><select name="classe_abc"><option value="A">A</option><option value="B">B</option><option value="C">C</option></select></label>
+        <label><span>ESTOQUE MÍNIMO</span><input type="number" min="0" name="estoque_minimo" value="${value("estoque_minimo") || "0"}"></label>
+        <label><span>PONTO DE REPOSIÇÃO</span><input type="number" min="0" name="ponto_reposicao" value="${value("ponto_reposicao") || "0"}"></label>
+        <label><span>CÓDIGO DO PRODUTO</span><input name="codigo_produto" value="${value("codigo_produto")}"></label>
+        <label><span>MARCA</span><input name="marca" value="${value("marca")}"></label>
+        <label><span>REFERÊNCIA DO FABRICANTE</span><input name="referencia_manual" value="${value("referencia_manual")}"></label>
+        <label><span>NÚMERO DO FABRICANTE</span><input name="numero_fabricante" value="${value("numero_fabricante")}"></label>
+        <label><span>FAMÍLIA</span><input name="familia_codigo" value="${value("familia_codigo")}"></label>
+        <label><span>SITUAÇÃO</span><select name="ativo"><option value="true" ${row.ativo !== false ? "selected" : ""}>ATIVO</option><option value="false" ${row.ativo === false ? "selected" : ""}>INATIVO</option></select></label>`;
     return `
         <label><span>CÓDIGO *</span><input name="code" required value="${value("code")}" placeholder="MMP-001"></label>
         <label><span>NOME *</span><input name="name" required value="${value("name")}" placeholder="Estoque MMP"></label>
@@ -3208,7 +3233,7 @@ function renderAdminCatalogList() {
         return;
     }
     elements.adminCatalogDetailContent.innerHTML = `<div class="admin-catalog-record-grid">${rows.map((row) => `
-        <article class="admin-catalog-record"><header><span>${escapeHtml(String(definition.code(row) || "SEM CÓDIGO"))}</span><b class="status-pill">${definition.active(row) ? "ATIVO" : "INATIVO"}</b></header><strong>${escapeHtml(String(definition.name(row) || "SEM NOME"))}</strong><small>${escapeHtml(String(row.legal_name || row.team_name || row.location || row.warehouse_type || row.tipo || row.login || "Cadastro administrativo"))}</small><footer><small>Atualizado: ${escapeHtml(formatAdminDate(row.updated_at || row.created_at))}</small><button class="secondary-button" type="button" data-admin-catalog-edit="${Number(row.id)}">EDITAR</button></footer></article>`).join("")}</div>`;
+        <article class="admin-catalog-record"><header><span>${escapeHtml(String(definition.code(row) || "SEM CÓDIGO"))}</span><b class="status-pill">${definition.active(row) ? "ATIVO" : "INATIVO"}</b></header><strong>${escapeHtml(String(definition.name(row) || "SEM NOME"))}</strong><small>${escapeHtml(String(row.legal_name || row.team_name || row.location || row.warehouse_type || row.tipo || row.login || row.shelf_code || "Cadastro administrativo"))}</small><footer><small>${row.record_kind === "location" ? "LOCAL MMP" : `Atualizado: ${escapeHtml(formatAdminDate(row.updated_at || row.created_at))}`}</small><button class="secondary-button" type="button" data-admin-catalog-edit="${Number(row.id)}">EDITAR</button></footer></article>`).join("")}</div>`;
 }
 
 function renderAdminCatalogForm(row = null) {
@@ -3226,6 +3251,8 @@ function renderAdminCatalogForm(row = null) {
             active: row.active !== undefined ? String(Boolean(row.active)) : undefined,
             homologated: row.homologated !== undefined ? String(Boolean(row.homologated)) : undefined,
             login: row.login,
+            aplicacao_tipo: row.aplicacao_tipo,
+            classe_abc: row.classe_abc,
         };
         Object.entries(selectedValues).forEach(([name, selected]) => {
             if (selected === undefined || selected === null) return;
@@ -3237,9 +3264,11 @@ function renderAdminCatalogForm(row = null) {
 
 async function loadAdminCatalogAudit(mode = "audit") {
     try {
-        const logs = await apiFetch(`/admin/audit-logs?entidade=${encodeURIComponent(adminCatalogDefinition().entity)}`);
-        const rows = Array.isArray(logs) ? logs : [];
-        elements.adminCatalogDetailContent.innerHTML = rows.length ? `<div class="admin-catalog-log-list">${rows.map((log) => `<article class="admin-catalog-log"><strong>${escapeHtml(log.action || log.event_type || "ALTERAÇÃO")}</strong><span>${escapeHtml(log.entity_type || adminCatalogDefinition().entity)} #${escapeHtml(String(log.entity_id || "-"))}</span><small>${escapeHtml(formatAdminDate(log.created_at))} · ${escapeHtml(log.user_name || log.username || "Usuário do sistema")}</small></article>`).join("")}</div>` : `<div class="empty-state"><strong>${mode === "history" ? "NENHUM HISTÓRICO REGISTRADO" : "NENHUM EVENTO DE AUDITORIA"}</strong><span>As próximas alterações deste cadastro aparecerão aqui.</span></div>`;
+        const definition = adminCatalogDefinition();
+        const entities = state.adminCatalogs.activeCatalog === "stock" ? ["WAREHOUSE", "WAREHOUSE_LOCATION"] : [definition.entity];
+        const responses = await Promise.all(entities.map((entity) => apiFetch(`/admin/audit-logs?entidade=${encodeURIComponent(entity)}`)));
+        const rows = responses.flatMap((logs) => Array.isArray(logs) ? logs : []).sort((left, right) => String(right.created_at || "").localeCompare(String(left.created_at || "")));
+        elements.adminCatalogDetailContent.innerHTML = rows.length ? `<div class="admin-catalog-log-list">${rows.map((log) => `<article class="admin-catalog-log"><strong>${escapeHtml(log.action || log.event_type || "ALTERAÇÃO")}</strong><span>${escapeHtml(log.entity_type || adminCatalogDefinition().entity)} #${escapeHtml(String(log.entity_id || "-"))}</span><small>${escapeHtml(formatAdminDate(log.created_at))} · ${escapeHtml(log.user || "Usuário do sistema")}</small></article>`).join("")}</div>` : `<div class="empty-state"><strong>${mode === "history" ? "NENHUM HISTÓRICO REGISTRADO" : "NENHUM EVENTO DE AUDITORIA"}</strong><span>As próximas alterações deste cadastro aparecerão aqui.</span></div>`;
     } catch (error) {
         renderStateCard(elements.adminCatalogDetailContent, { title: "AUDITORIA INDISPONÍVEL", message: error.message || "Não foi possível consultar os registros.", tone: "error" });
     }
@@ -3260,8 +3289,28 @@ async function loadAdminCatalogRecords() {
     state.adminCatalogs.loading = true;
     renderStateCard(elements.adminCatalogDetailContent, { title: "CARREGANDO CADASTRO", message: "Consultando registros administrativos.", tone: "loading" });
     try {
-        const rows = await apiFetch(definition.endpoint);
-        state.adminCatalogs.rows = Array.isArray(rows) ? rows : [];
+        const params = new URLSearchParams(definition.endpoint.split("?")[1] || "");
+        const query = String(elements.adminCatalogSearch?.value || "").trim();
+        const status = String(elements.adminCatalogStatus?.value || "TODOS");
+        if (query) {
+            if (state.adminCatalogs.activeCatalog === "employees") params.set("busca", query);
+            else params.set("q", query);
+        }
+        if (state.adminCatalogs.activeCatalog === "checklist") params.set("ativos", status === "TODOS" ? "all" : status === "ATIVO" ? "true" : "false");
+        else if (state.adminCatalogs.activeCatalog === "employees") { if (status !== "TODOS") params.set("situacao", status); }
+        else if (status !== "TODOS") params.set("status", status);
+        const queryString = params.toString();
+        const endpoint = `${definition.endpoint.split("?")[0]}${queryString ? `?${queryString}` : ""}`;
+        const rows = await apiFetch(endpoint);
+        if (state.adminCatalogs.activeCatalog === "stock") {
+            const locations = await apiFetch(definition.locationsEndpoint);
+            state.adminCatalogs.rows = [
+                ...(Array.isArray(rows) ? rows : []).map((row) => ({ ...row, record_kind: "warehouse" })),
+                ...(Array.isArray(locations) ? locations : []).map((row) => ({ ...row, record_kind: "location", name: row.label, code: row.location_code })),
+            ];
+        } else {
+            state.adminCatalogs.rows = Array.isArray(rows) ? rows : [];
+        }
         setAdminCatalogTab("list");
     } catch (error) {
         renderStateCard(elements.adminCatalogDetailContent, { title: "CADASTRO INDISPONÍVEL", message: error.message || "Tente novamente.", tone: "error" });
@@ -3280,6 +3329,7 @@ function openAdminCatalogDetail(action) {
     elements.adminCatalogDetailSection.textContent = definition.section;
     elements.adminCatalogDetailTitle.textContent = definition.title;
     elements.adminCatalogDetailDescription.textContent = definition.description;
+    elements.adminCatalogNewLocationButton?.classList.toggle("hidden", action !== "stock");
     elements.adminCatalogSearch.value = "";
     elements.adminCatalogStatus.value = "TODOS";
     setAdminCatalogTab("list");
@@ -3300,9 +3350,16 @@ async function submitAdminCatalogForm(event) {
     const form = event.currentTarget;
     const values = Object.fromEntries(new FormData(form).entries());
     let endpoint = ADMIN_CATALOG_DEFINITIONS[catalog].endpoint.split("?")[0];
+    if (catalog === "stock" && state.adminCatalogs.editingKind === "location") endpoint = ADMIN_CATALOG_DEFINITIONS[catalog].locationsEndpoint;
     let payload = { ...values };
     ["active", "ativo", "homologated"].forEach((key) => { if (key in payload) payload[key] = payload[key] === "true"; });
     if (catalog === "checklist") payload.position = Number(values.position || 1);
+    if (catalog === "materials") {
+        payload.estoque_minimo = Number(values.estoque_minimo || 0);
+        payload.ponto_reposicao = Number(values.ponto_reposicao || 0);
+        payload.ativo = values.ativo === "true";
+        if (!id) payload.quantidade_estoque = 0;
+    }
     if (catalog === "employees") payload.hired_on = values.hired_on || null;
     if (catalog === "users" && !id && !values.senha) { showToast("INFORME A SENHA AO CRIAR UM USUÁRIO.", true); return; }
     try {
@@ -10961,14 +11018,22 @@ on(elements.adminCatalogsGrid, "click", (event) => {
 on(elements.adminCatalogDetailBack, "click", closeAdminCatalogDetail);
 on(elements.adminCatalogNewButton, "click", () => {
     state.adminCatalogs.editingId = null;
+    state.adminCatalogs.editingKind = "default";
+    setAdminCatalogTab("form");
+});
+on(elements.adminCatalogNewLocationButton, "click", () => {
+    state.adminCatalogs.editingId = null;
+    state.adminCatalogs.editingKind = "location";
     setAdminCatalogTab("form");
 });
 on(elements.adminCatalogRefresh, "click", () => void loadAdminCatalogRecords());
 on(elements.adminCatalogSearch, "input", () => {
-    if (state.adminCatalogs.activeTab === "list") renderAdminCatalogList();
+    if (state.adminCatalogs.activeTab !== "list") return;
+    window.clearTimeout(state.adminCatalogs.searchTimer);
+    state.adminCatalogs.searchTimer = window.setTimeout(() => void loadAdminCatalogRecords(), 250);
 });
 on(elements.adminCatalogStatus, "change", () => {
-    if (state.adminCatalogs.activeTab === "list") renderAdminCatalogList();
+    if (state.adminCatalogs.activeTab === "list") void loadAdminCatalogRecords();
 });
 on(elements.adminCatalogDetailTabs, "click", (event) => {
     const button = event.target instanceof HTMLElement ? event.target.closest("[data-admin-catalog-tab]") : null;
@@ -10980,6 +11045,7 @@ on(elements.adminCatalogDetailContent, "click", (event) => {
     const row = state.adminCatalogs.rows.find((item) => Number(item.id) === Number(button.dataset.adminCatalogEdit));
     if (row) {
         state.adminCatalogs.editingId = Number(row.id);
+        state.adminCatalogs.editingKind = row.record_kind || "default";
         setAdminCatalogTab("form");
         renderAdminCatalogForm(row);
     }

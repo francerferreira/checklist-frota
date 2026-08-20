@@ -418,13 +418,16 @@
                     <button class="module-report-card admin-settings-card" type="button" data-admin-catalog-action="stock">
                         <span>MATERIAIS</span><strong>ARMAZÉNS E LOCAIS MMP</strong><em>Armazém Principal, Estoque MMP, prateleiras e posições.</em><b>ABRIR CADASTRO</b>
                     </button>
+                    <button class="module-report-card admin-settings-card" type="button" data-admin-catalog-action="materials">
+                        <span>MATERIAIS</span><strong>CATÁLOGO DE MATERIAIS</strong><em>Referências, aplicação, estoque mínimo e classificação dos materiais.</em><b>ABRIR CADASTRO</b>
+                    </button>
                 </div>
 
                 <section id="admin-catalog-detail" class="admin-catalog-detail hidden" aria-live="polite">
                     <div class="admin-catalog-detail-heading">
                         <button id="admin-catalog-detail-back" class="icon-button" type="button">CADASTROS</button>
                         <div><span id="admin-catalog-detail-section">CADASTRO ADMINISTRATIVO</span><h3 id="admin-catalog-detail-title">CADASTRO</h3><p id="admin-catalog-detail-description"></p></div>
-                        <button id="admin-catalog-new-button" class="primary-button" type="button">+ NOVO CADASTRO</button>
+                        <div class="admin-catalog-detail-actions"><button id="admin-catalog-new-location-button" class="secondary-button hidden" type="button">+ NOVO LOCAL</button><button id="admin-catalog-new-button" class="primary-button" type="button">+ NOVO CADASTRO</button></div>
                     </div>
                     <nav id="admin-catalog-detail-tabs" class="admin-catalog-detail-tabs" aria-label="Seções do cadastro">
                         <button type="button" class="is-active" data-admin-catalog-tab="list">LISTA</button>

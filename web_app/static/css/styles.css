@@ -7518,6 +7518,13 @@ button.rh-admin-operation-card:hover { border-color: #78aee6; transform: transla
     gap: 4px;
 }
 
+.admin-catalog-detail-actions {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: flex-end;
+    gap: 8px;
+}
+
 .admin-catalog-detail-heading span,
 .admin-catalog-toolbar label > span {
     color: var(--muted);
@@ -7696,6 +7703,8 @@ button.rh-admin-operation-card:hover { border-color: #78aee6; transform: transla
     .admin-catalog-toolbar,
     .admin-catalog-form { grid-template-columns: 1fr; }
     .admin-catalog-detail-heading .primary-button,
+    .admin-catalog-detail-actions,
+    .admin-catalog-detail-actions button,
     .admin-catalog-toolbar .secondary-button { width: 100%; }
     .admin-catalog-form .admin-catalog-form-actions { flex-direction: column-reverse; }
     .admin-catalog-form .admin-catalog-form-actions button { width: 100%; }

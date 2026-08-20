@@ -8,6 +8,7 @@ from app.extensions import db
 from app.utils.timezone import today_manaus
 from app.models import Checklist, ChecklistCatalogItem, ChecklistItem, Vehicle
 from app.services.auth_service import auth_required, user_has_management_access
+from app.services.audit_service import record_event
 from app.services.checklist_catalog import (
     CHECKLIST_CATALOG,
     build_checklist_catalog,
@@ -177,6 +178,8 @@ def create_checklist_item():
     try:
         _item_payload_from_request(item, payload, is_create=True)
         db.session.add(item)
+        db.session.flush()
+        record_event(user_id=g.current_user.id, entity_type="CHECKLIST", entity_id=item.id, action="CREATED", new_value=item.to_dict())
         db.session.commit()
     except ValueError as exc:
         db.session.rollback()
@@ -198,6 +201,7 @@ def update_checklist_item(item_id: int):
     payload = request.get_json(silent=True) or {}
     try:
         _item_payload_from_request(item, payload)
+        record_event(user_id=g.current_user.id, entity_type="CHECKLIST", entity_id=item.id, action="UPDATED", new_value=item.to_dict())
         db.session.commit()
     except ValueError as exc:
         db.session.rollback()
@@ -217,6 +221,7 @@ def delete_checklist_item(item_id: int):
 
     item = ChecklistCatalogItem.query.get_or_404(item_id)
     item.ativo = False
+    record_event(user_id=g.current_user.id, entity_type="CHECKLIST", entity_id=item.id, action="INACTIVATED", new_value=item.to_dict())
     db.session.commit()
     return api_response(True, data=enrich_catalog_item_payload(item.to_dict()))
 
@@ -312,6 +317,9 @@ def checklist_history_matrix():
             vehicle_type = _normalize_vehicle_type(vehicle_type)
         except ValueError as exc:
             return api_response(False, error=str(exc), status_code=400)
+    if search := str(request.args.get("q") or "").strip():
+        pattern = f"%{search}%"
+        query = query.filter(ChecklistCatalogItem.item_nome.ilike(pattern))
 
     today = today_manaus()
     try:

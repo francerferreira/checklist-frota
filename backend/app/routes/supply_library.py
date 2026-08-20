@@ -2,8 +2,9 @@ from flask import Blueprint, g, request
 
 from app.extensions import db
 from app.services.auth_service import auth_required, user_has_management_access, user_has_mechanic_workspace_access
+from app.services.audit_service import record_event
 from app.services.supply_library_service import (
-    adjust_warehouse_stock, create_technical_document, create_warehouse, create_warehouse_location, create_warehouse_transfer, initialize_warehouse_stock,
+    adjust_warehouse_stock, create_technical_document, create_warehouse, create_warehouse_location, create_warehouse_transfer, initialize_warehouse_stock, update_warehouse_location,
     issue_mmp_stock, list_mmp_stocks, list_technical_documents, list_warehouse_locations, list_warehouse_stocks, list_warehouse_transfers, list_warehouses, lookup_mmp_qr, reserve_warehouse_material,
     set_material_family_applications, update_technical_document, update_warehouse,
 )
@@ -30,7 +31,14 @@ def _run(action, *, status_code=200):
 @bp.get("/suprimentos/depositos")
 @auth_required
 def warehouse_list():
-    return api_response(True, data=list_warehouses())
+    search = str(request.args.get("q") or "").strip().lower()
+    status = str(request.args.get("status") or "").strip().upper()
+    rows = list_warehouses()
+    if search:
+        rows = [row for row in rows if search in f"{row.get('code', '')} {row.get('name', '')} {row.get('location', '')}".lower()]
+    if status in {"ATIVO", "INATIVO"}:
+        rows = [row for row in rows if bool(row.get("active")) is (status == "ATIVO")]
+    return api_response(True, data=rows)
 
 
 @bp.post("/suprimentos/depositos")
@@ -38,7 +46,12 @@ def warehouse_list():
 def warehouse_create():
     denied = _guard_management()
     if denied: return denied
-    return _run(lambda: create_warehouse(request.get_json(silent=True) or {}).to_dict(), status_code=201)
+    def action():
+        row = create_warehouse(request.get_json(silent=True) or {})
+        record_event(user_id=g.current_user.id, entity_type="WAREHOUSE", entity_id=row.id, action="CREATED", new_value=row.to_dict())
+        db.session.commit()
+        return row.to_dict()
+    return _run(action, status_code=201)
 
 
 @bp.put("/suprimentos/depositos/<int:warehouse_id>")
@@ -46,7 +59,12 @@ def warehouse_create():
 def warehouse_update(warehouse_id: int):
     denied = _guard_management()
     if denied: return denied
-    return _run(lambda: update_warehouse(warehouse_id, request.get_json(silent=True) or {}).to_dict())
+    def action():
+        row = update_warehouse(warehouse_id, request.get_json(silent=True) or {})
+        record_event(user_id=g.current_user.id, entity_type="WAREHOUSE", entity_id=row.id, action="UPDATED", new_value=row.to_dict())
+        db.session.commit()
+        return row.to_dict()
+    return _run(action)
 
 
 @bp.get("/suprimentos/estoques")
@@ -72,7 +90,25 @@ def warehouse_location_list():
 def warehouse_location_create():
     denied = _guard_management()
     if denied: return denied
-    return _run(lambda: create_warehouse_location(request.get_json(silent=True) or {}).to_dict(), status_code=201)
+    def action():
+        row = create_warehouse_location(request.get_json(silent=True) or {})
+        record_event(user_id=g.current_user.id, entity_type="WAREHOUSE_LOCATION", entity_id=row.id, action="CREATED", new_value=row.to_dict())
+        db.session.commit()
+        return row.to_dict()
+    return _run(action, status_code=201)
+
+
+@bp.put("/suprimentos/locais/<int:location_id>")
+@auth_required
+def warehouse_location_update(location_id: int):
+    denied = _guard_management()
+    if denied: return denied
+    def action():
+        row = update_warehouse_location(location_id, request.get_json(silent=True) or {})
+        record_event(user_id=g.current_user.id, entity_type="WAREHOUSE_LOCATION", entity_id=row.id, action="UPDATED", new_value=row.to_dict())
+        db.session.commit()
+        return row.to_dict()
+    return _run(action)
 
 
 @bp.post("/suprimentos/estoques")

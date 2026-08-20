@@ -11,6 +11,7 @@ from sqlalchemy.exc import IntegrityError
 from app.extensions import db
 from app.models import AuditLog, Employee, User, UserPagePermission
 from app.services.auth_service import auth_required, user_has_management_access
+from app.services.audit_service import record_event
 from app.services.identity_service import normalize_login
 from app.utils.responses import api_response
 from app.utils.timezone import now_manaus_naive
@@ -89,7 +90,14 @@ def list_users():
     if denied:
         return denied
 
-    users = User.query.order_by(User.nome.asc()).all()
+    query = User.query
+    if search := str(request.args.get("q") or "").strip():
+        pattern = f"%{search}%"
+        query = query.filter((User.nome.ilike(pattern)) | (User.login.ilike(pattern)))
+    if status := str(request.args.get("status") or "").strip().upper():
+        if status in {"ATIVO", "INATIVO"}:
+            query = query.filter(User.ativo.is_(status == "ATIVO"))
+    users = query.order_by(User.nome.asc()).all()
     activity = _session_activity_by_user([user.id for user in users])
     return api_response(True, data=[_user_with_activity(user, activity.get(user.id, {})) for user in users])
 
@@ -246,6 +254,8 @@ def create_user():
     user.set_password(payload["senha"])
     db.session.add(user)
     try:
+        db.session.flush()
+        record_event(user_id=g.current_user.id, entity_type="USER", entity_id=user.id, action="CREATED", new_value=user.to_dict())
         db.session.commit()
     except IntegrityError:
         db.session.rollback()
@@ -280,6 +290,7 @@ def update_user(user_id: int):
         user.set_password(payload["senha"])
 
     try:
+        record_event(user_id=g.current_user.id, entity_type="USER", entity_id=user.id, action="UPDATED", new_value=user.to_dict())
         db.session.commit()
     except IntegrityError:
         db.session.rollback()

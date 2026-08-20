@@ -107,6 +107,37 @@ def create_warehouse_location(payload: dict) -> WarehouseLocation:
     return row
 
 
+def update_warehouse_location(location_id: int, payload: dict) -> WarehouseLocation:
+    row = db.session.get(WarehouseLocation, location_id)
+    if not row:
+        raise LookupError("Local não encontrado.")
+    warehouse_id = _positive_int(payload.get("warehouse_id", row.warehouse_id), "Depósito")
+    warehouse = db.session.get(Warehouse, warehouse_id)
+    if not warehouse or not warehouse.active:
+        raise ValueError("Depósito ativo não encontrado.")
+    shelf_code = _clean(payload.get("shelf_code", row.shelf_code))
+    location_code = _clean(payload.get("location_code", row.location_code))
+    position_code = _clean(payload.get("position_code", row.position_code))
+    if not shelf_code or not location_code or not position_code:
+        raise ValueError("Informe prateleira, local e posição.")
+    duplicate = WarehouseLocation.query.filter(
+        WarehouseLocation.warehouse_id == warehouse_id,
+        WarehouseLocation.shelf_code == shelf_code.upper(),
+        WarehouseLocation.location_code == location_code.upper(),
+        WarehouseLocation.position_code == position_code.upper(),
+        WarehouseLocation.id != row.id,
+    ).first()
+    if duplicate:
+        raise ValueError("Este local já existe no depósito.")
+    row.warehouse_id = warehouse_id
+    row.shelf_code = shelf_code.upper()
+    row.location_code = location_code.upper()
+    row.position_code = position_code.upper()
+    row.active = bool(payload.get("active", row.active))
+    db.session.commit()
+    return row
+
+
 def _warehouse_by_type(warehouse_type: str) -> Warehouse:
     row = Warehouse.query.filter_by(warehouse_type=warehouse_type, active=True).order_by(Warehouse.id.asc()).first()
     if not row:

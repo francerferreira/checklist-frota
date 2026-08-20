@@ -17,6 +17,7 @@ from sqlalchemy.orm import joinedload, selectinload
 from app.extensions import db
 from app.models import InvoicePurchaseOrderLink, MaintenanceMaterial, Material, PurchaseImportBatch, PurchaseInvoice, PurchaseInvoiceItem, PurchaseOrder, PurchaseOrderItem, PurchaseProcessEvent, PurchaseReceipt, PurchaseReportRun, PurchaseReportSchedule, PurchaseRequest, PurchaseRequestItem, PurchaseServiceCatalog, Supplier, User, Vehicle
 from app.services.auth_service import auth_required, user_has_management_access
+from app.services.audit_service import record_event
 from app.services.material_service import register_material_movement
 from app.services.purchase_import_service import import_purchase_workbook
 from app.services.purchase_report_export_service import export_purchase_report_pdf, export_purchase_report_xlsx
@@ -235,7 +236,13 @@ def list_suppliers():
     denied = _guard_admin()
     if denied:
         return denied
-    return api_response(True, data=[row.to_dict() for row in Supplier.query.order_by(Supplier.active.desc(), Supplier.name.asc()).all()])
+    query = Supplier.query
+    if search := _clean(request.args.get("q")):
+        term = f"%{search}%"
+        query = query.filter(or_(Supplier.code.ilike(term), Supplier.name.ilike(term), Supplier.legal_name.ilike(term), Supplier.trade_name.ilike(term)))
+    if status := _clean(request.args.get("status")):
+        query = query.filter(Supplier.active.is_(status.upper() == "ATIVO"))
+    return api_response(True, data=[row.to_dict() for row in query.order_by(Supplier.active.desc(), Supplier.name.asc()).all()])
 
 
 @bp.post("/compras/provedores")
@@ -262,6 +269,8 @@ def create_supplier():
             homologated=_as_bool(payload.get("homologated")), preferred=_as_bool(payload.get("preferred")),
         )
         db.session.add(supplier)
+        db.session.flush()
+        record_event(user_id=g.current_user.id, entity_type="SUPPLIER", entity_id=supplier.id, action="CREATED", new_value=supplier.to_dict())
         db.session.commit()
         return supplier.to_dict()
 
@@ -300,6 +309,7 @@ def update_supplier(provider_id: int):
         supplier.active = _as_bool(payload.get("active"), supplier.active)
         supplier.homologated = _as_bool(payload.get("homologated"), supplier.homologated)
         supplier.preferred = _as_bool(payload.get("preferred"), supplier.preferred)
+        record_event(user_id=g.current_user.id, entity_type="SUPPLIER", entity_id=supplier.id, action="UPDATED", new_value=supplier.to_dict())
         db.session.commit()
         return supplier.to_dict()
 

@@ -10,6 +10,7 @@ from app.extensions import db
 from app.models import Employee, User
 from app.models.employee import EMPLOYEE_STATUSES
 from app.services.auth_service import auth_required, user_has_management_access
+from app.services.audit_service import record_event
 from app.utils.responses import api_response
 
 
@@ -119,6 +120,8 @@ def create_employee():
     try:
         employee = Employee(**_employee_payload(request.get_json(silent=True) or {}))
         db.session.add(employee)
+        db.session.flush()
+        record_event(user_id=g.current_user.id, entity_type="EMPLOYEE", entity_id=employee.id, action="CREATED", new_value=employee.to_dict())
         db.session.commit()
     except ValueError as exc:
         db.session.rollback()
@@ -153,6 +156,7 @@ def update_employee(employee_id: int):
     try:
         for field, value in _employee_payload(request.get_json(silent=True) or {}).items():
             setattr(employee, field, value)
+        record_event(user_id=g.current_user.id, entity_type="EMPLOYEE", entity_id=employee.id, action="UPDATED", new_value=employee.to_dict())
         db.session.commit()
     except ValueError as exc:
         db.session.rollback()

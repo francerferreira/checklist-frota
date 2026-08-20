@@ -10,6 +10,7 @@ from app.extensions import db
 from app.models import MaintenanceMaterial, Material, MaterialMovement
 from app.services.intelligent_rules_service import get_rule_value
 from app.services.auth_service import auth_required, user_has_management_access
+from app.services.audit_service import record_event
 from app.services.material_service import register_material_movement
 from app.utils.responses import api_response
 
@@ -458,6 +459,7 @@ def create_material():
             observation="Estoque inicial do cadastro",
         )
 
+    record_event(user_id=g.current_user.id, entity_type="MATERIAL", entity_id=material.id, action="CREATED", new_value=material.to_dict())
     db.session.commit()
     return api_response(True, data=material.to_dict(), status_code=201)
 
@@ -502,6 +504,7 @@ def update_material(material_id: int):
     material.classe_abc = classe_abc
     material.ativo = bool(payload.get("ativo", material.ativo))
 
+    record_event(user_id=g.current_user.id, entity_type="MATERIAL", entity_id=material.id, action="UPDATED", new_value=material.to_dict())
     db.session.commit()
     return api_response(True, data=material.to_dict())
 
@@ -515,6 +518,7 @@ def delete_material(material_id: int):
 
     material = Material.query.get_or_404(material_id)
     material.ativo = False
+    record_event(user_id=g.current_user.id, entity_type="MATERIAL", entity_id=material.id, action="INACTIVATED", new_value=material.to_dict())
     db.session.commit()
     return api_response(True, data={"status": "ok", "material": material.to_dict()})
 
