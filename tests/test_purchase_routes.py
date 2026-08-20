@@ -206,6 +206,13 @@ class PurchaseRouteTests(unittest.TestCase):
         self.assertEqual(final_receipt.get_json()["data"]["invoice"]["status"], "RECEBIDA")
         self.assertEqual(final_receipt.get_json()["data"]["purchase_request"]["status"], "RECEBIDA")
 
+        paged_orders = self.client.get("/compras/pedidos?page=1&per_page=100&q=PC-NF-30001", headers=self.gestor_headers)
+        self.assertEqual(paged_orders.status_code, 200, paged_orders.get_json())
+        paged_data = paged_orders.get_json()["data"]
+        self.assertEqual(paged_data["pagination"]["page"], 1)
+        self.assertEqual(paged_data["pagination"]["total"], 1)
+        self.assertEqual(paged_data["items"][0]["pc_number"], "PC-NF-30001")
+
         history = self.client.get(
             "/compras/pedidos/{}/historico".format(order.get_json()["data"]["purchase_order"]["id"]),
             headers=self.gestor_headers,

@@ -7045,6 +7045,11 @@ button.rh-admin-operation-card:hover { border-color: #78aee6; transform: transla
 .purchases-orders-panel { display: grid; gap: 16px; }
 .purchases-orders-header { align-items: flex-start; }
 .purchases-orders-header-actions { display: flex; align-items: center; gap: 10px; }
+.purchases-orders-search { display: grid; gap: 4px; min-width: 180px; color: var(--theme-text-muted); font-size: .62rem; font-weight: 850; letter-spacing: .06em; }
+.purchases-orders-search input { min-height: 34px; width: 100%; padding: 7px 10px; border: 1px solid var(--theme-border-strong); border-radius: 8px; background: var(--theme-input); color: var(--theme-text); font-size: .72rem; }
+.purchases-orders-pagination { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 8px 10px; border: 1px solid var(--theme-border); border-radius: 10px; background: var(--theme-surface-soft); color: var(--theme-text-muted); font-size: .72rem; font-weight: 750; }
+.purchases-orders-pagination > div { display: flex; gap: 8px; }
+.purchases-orders-pagination .secondary-button { min-height: 32px; padding: 6px 10px; font-size: .65rem; }
 .purchase-order-form { display: grid; gap: 16px; }
 .purchase-order-form-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
 .purchase-order-form-grid label { display: grid; gap: 6px; color: var(--theme-text-muted); font-size: .74rem; font-weight: 800; letter-spacing: .07em; }
@@ -7429,6 +7434,9 @@ button.rh-admin-operation-card:hover { border-color: #78aee6; transform: transla
     .purchase-order-form-grid { grid-template-columns: 1fr; }
     .purchase-order-wide { grid-column: auto; }
     .purchases-orders-header-actions { align-items: stretch; flex-direction: column; width: 100%; }
+    .purchases-orders-search { width: 100%; }
+    .purchases-orders-pagination { align-items: stretch; flex-direction: column; }
+    .purchases-orders-pagination > div { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); }
     .purchases-invoices-header-actions { align-items: stretch; flex-direction: column; }
     .purchases-invoices-header-actions .secondary-button { width: 100%; }
     .purchases-invoice-columns { grid-template-columns: 1fr; }

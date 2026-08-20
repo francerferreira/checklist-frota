@@ -314,6 +314,8 @@ const state = {
         requests: [],
         pendingPcItems: [],
         orders: [],
+        ordersPagination: { page: 1, per_page: 100, total: 0, total_pages: 1, query: "" },
+        ordersSearchTimer: null,
         pendingInvoices: { pending_nf: [], pending_receipts: [] },
         processCenter: { summary: {}, items: [] },
         reportSummary: { summary: {}, by_status: {}, by_type: {}, by_provider: {} },
@@ -664,6 +666,11 @@ const elements = {
     purchasesProviderPanel: document.getElementById("purchases-provider-panel"),
     purchasesOrdersPendingCount: document.getElementById("purchases-orders-pending-count"),
     purchasesOrdersRefresh: document.getElementById("purchases-orders-refresh"),
+    purchasesOrdersSearch: document.getElementById("purchases-orders-search"),
+    purchasesOrdersPagination: document.getElementById("purchases-orders-pagination"),
+    purchasesOrdersPageInfo: document.getElementById("purchases-orders-page-info"),
+    purchasesOrdersPagePrev: document.getElementById("purchases-orders-page-prev"),
+    purchasesOrdersPageNext: document.getElementById("purchases-orders-page-next"),
     purchaseOrderForm: document.getElementById("purchase-order-form"),
     purchaseOrderNumber: document.getElementById("purchase-order-number"),
     purchaseOrderDate: document.getElementById("purchase-order-date"),
@@ -3582,15 +3589,45 @@ function renderPurchaseOrderBoard(rows = purchaseOrderPendingRows()) {
     applyPurchaseKanbanFocus(elements.purchasesOrderBoard);
 }
 
-async function loadPurchaseOrdersData() {
+function renderPurchaseOrderPagination() {
+    const pagination = state.purchases.ordersPagination || {};
+    const page = Number(pagination.page || 1);
+    const totalPages = Math.max(1, Number(pagination.total_pages || 1));
+    const total = Number(pagination.total || 0);
+    const visible = (state.purchases.orders || []).length;
+    if (elements.purchasesOrdersPageInfo) {
+        elements.purchasesOrdersPageInfo.textContent = total
+            ? `${visible} de ${total} PCs · página ${page}/${totalPages}`
+            : "Nenhum PC encontrado";
+    }
+    elements.purchasesOrdersPagination?.classList.toggle("hidden", total <= 100 && !pagination.query);
+    if (elements.purchasesOrdersPagePrev) elements.purchasesOrdersPagePrev.disabled = page <= 1;
+    if (elements.purchasesOrdersPageNext) elements.purchasesOrdersPageNext.disabled = page >= totalPages;
+}
+
+async function loadPurchaseOrdersData({ page, query, refreshPending = true } = {}) {
     try {
-        const [pending, orders] = await Promise.all([apiFetch("/compras/pedidos/pendentes"), apiFetch("/compras/pedidos")]);
-        state.purchases.pendingPcItems = Array.isArray(pending) ? pending : [];
-        state.purchases.orders = Array.isArray(orders) ? orders : [];
+        const current = state.purchases.ordersPagination || {};
+        const nextPage = Math.max(1, Number(page || current.page || 1));
+        const nextQuery = String(query ?? current.query ?? "").trim();
+        const params = new URLSearchParams({ page: String(nextPage), per_page: String(current.per_page || 100) });
+        if (nextQuery) params.set("q", nextQuery);
+        const [pending, result] = await Promise.all([
+            refreshPending ? apiFetch("/compras/pedidos/pendentes") : Promise.resolve(null),
+            apiFetch(`/compras/pedidos?${params.toString()}`),
+        ]);
+        if (Array.isArray(pending)) state.purchases.pendingPcItems = pending;
+        state.purchases.orders = Array.isArray(result) ? result : (result?.items || []);
+        state.purchases.ordersPagination = {
+            ...current,
+            ...(result?.pagination || { page: nextPage, per_page: current.per_page || 100, total: state.purchases.orders.length, total_pages: 1 }),
+            query: nextQuery,
+        };
         renderPurchaseOrderPending();
+        renderPurchaseOrderPagination();
         renderPurchaseOverview();
     } catch (error) {
-        state.purchases.pendingPcItems = [];
+        if (refreshPending) state.purchases.pendingPcItems = [];
         renderPurchaseOrderPending();
         showToast(error.message || "FALHA AO CARREGAR OS PEDIDOS DE COMPRA.", true);
     }
@@ -10871,6 +10908,21 @@ on(elements.purchasesOrderBoard, "keydown", (event) => {
 on(elements.purchaseRequestForm, "submit", submitPurchaseRequest);
 on(elements.purchaseOrderForm, "submit", submitPurchaseOrder);
 on(elements.purchasesOrdersRefresh, "click", loadPurchaseOrdersData);
+on(elements.purchasesOrdersSearch, "input", () => {
+    window.clearTimeout(state.purchases.ordersSearchTimer);
+    state.purchases.ordersSearchTimer = window.setTimeout(() => {
+        void loadPurchaseOrdersData({ page: 1, query: elements.purchasesOrdersSearch?.value || "", refreshPending: false });
+    }, 250);
+});
+on(elements.purchasesOrdersPagePrev, "click", () => {
+    const page = Number(state.purchases.ordersPagination?.page || 1);
+    if (page > 1) void loadPurchaseOrdersData({ page: page - 1, refreshPending: false });
+});
+on(elements.purchasesOrdersPageNext, "click", () => {
+    const pagination = state.purchases.ordersPagination || {};
+    const page = Number(pagination.page || 1);
+    if (page < Number(pagination.total_pages || 1)) void loadPurchaseOrdersData({ page: page + 1, refreshPending: false });
+});
 on(elements.purchasesInvoicesRefresh, "click", loadPurchaseInvoiceData);
 on(elements.purchasesInvoicePendingList, "click", (event) => {
     const button = event.target instanceof HTMLElement ? event.target.closest("[data-purchase-invoice-open]") : null;

@@ -346,8 +346,33 @@ def list_purchase_orders():
     denied = _guard_management()
     if denied:
         return denied
-    rows = PurchaseOrder.query.options(*_order_list_options()).order_by(PurchaseOrder.created_at.desc()).limit(100).all()
-    return api_response(True, data=[row.to_dict() for row in rows])
+    page_requested = "page" in request.args or "per_page" in request.args or "q" in request.args
+    page = max(1, request.args.get("page", 1, type=int) or 1)
+    per_page = min(100, max(1, request.args.get("per_page", 100, type=int) or 100))
+    search = _clean(request.args.get("q"))
+    query = PurchaseOrder.query
+    if search:
+        query = query.filter(PurchaseOrder.pc_number.ilike(f"%{search}%"))
+    total = query.count()
+    rows = (
+        query.options(*_order_list_options())
+        .order_by(PurchaseOrder.created_at.desc())
+        .offset((page - 1) * per_page)
+        .limit(per_page)
+        .all()
+    )
+    data = [row.to_dict() for row in rows]
+    if not page_requested:
+        return api_response(True, data=data)
+    return api_response(True, data={
+        "items": data,
+        "pagination": {
+            "page": page,
+            "per_page": per_page,
+            "total": total,
+            "total_pages": max(1, (total + per_page - 1) // per_page),
+        },
+    })
 
 
 @bp.get("/compras/pedidos/<int:order_id>/historico")

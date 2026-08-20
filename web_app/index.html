@@ -14,7 +14,7 @@
     <title>SIS MMP | Sistema de Manutenção de Máquinas Pesadas</title>
     <link rel="icon" type="image/png" sizes="192x192" href="./static/icons/icon-192.png?v=sis-mmp-20260810">
     <link rel="apple-touch-icon" href="./static/icons/icon-192.png?v=sis-mmp-20260810">
-    <link rel="stylesheet" href="./static/css/styles.css?v=20260820-pc-history-fast-load">
+    <link rel="stylesheet" href="./static/css/styles.css?v=20260820-pc-pagination">
 </head>
 <body>
     <div class="mobile-shell">
@@ -496,9 +496,10 @@
                 <section class="module-section purchases-orders-panel purchases-area-hidden" data-purchases-area-section="orders">
                     <div class="module-header purchases-orders-header">
                         <div><span>ETAPA 02 DO FLUXO</span><strong>PEDIDOS DE COMPRA (PC)</strong><p class="purchases-help">Selecione somente os itens aprovados que serão incluídos neste PC. A mesma SC pode gerar mais de um pedido.</p></div>
-                        <div class="purchases-orders-header-actions"><span id="purchases-orders-pending-count" class="purchases-request-count">0 itens pendentes</span><div class="purchases-view-toggle" data-purchases-view-target="orders"><button type="button" data-purchases-view-option="QUADRO">QUADRO</button><button type="button" data-purchases-view-option="LISTA">LISTA</button><button type="button" data-purchases-view-option="CARTOES">CARTÕES</button></div></div>
+                        <div class="purchases-orders-header-actions"><span id="purchases-orders-pending-count" class="purchases-request-count">0 itens pendentes</span><label class="purchases-orders-search"><span>BUSCAR PC</span><input id="purchases-orders-search" maxlength="60" placeholder="Número do PC"></label><div class="purchases-view-toggle" data-purchases-view-target="orders"><button type="button" data-purchases-view-option="QUADRO">QUADRO</button><button type="button" data-purchases-view-option="LISTA">LISTA</button><button type="button" data-purchases-view-option="CARTOES">CARTÕES</button></div></div>
                     </div>
                     <div id="purchases-order-board" class="purchases-kanban-board hidden" aria-live="polite"></div>
+                    <div id="purchases-orders-pagination" class="purchases-orders-pagination hidden" aria-live="polite"><span id="purchases-orders-page-info"></span><div><button id="purchases-orders-page-prev" class="secondary-button" type="button">ANTERIOR</button><button id="purchases-orders-page-next" class="secondary-button" type="button">PRÓXIMA</button></div></div>
                     <form id="purchase-order-form" class="purchase-order-form">
                         <div class="purchase-order-form-grid">
                             <label><span>NÚMERO DO PC *</span><input id="purchase-order-number" maxlength="60" placeholder="Ex.: PC-50001" required></label>
@@ -1587,7 +1588,7 @@
 
     <div id="toast" class="toast hidden"></div>
     <script src="./static/js/config.js?v=20260719-01"></script>
-    <script src="./static/js/app.js?v=20260820-pc-history-fast-load"></script>
+    <script src="./static/js/app.js?v=20260820-pc-pagination"></script>
 </body>
 </html>
 
