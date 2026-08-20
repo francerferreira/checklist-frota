@@ -6999,15 +6999,16 @@ button.rh-admin-operation-card:hover { border-color: #78aee6; transform: transla
 .purchases-request-toolbar label > span { color: var(--theme-text-muted); font-size: .66rem; font-weight: 900; letter-spacing: .07em; }
 .purchases-request-toolbar input,
 .purchases-request-toolbar select { width: 100%; min-height: 44px; padding: 10px 12px; border: 1px solid var(--theme-border-strong); border-radius: 11px; background: var(--theme-input); color: var(--theme-text); }
-.purchases-request-list { display: grid; grid-template-columns: repeat(auto-fit, minmax(290px, 1fr)); gap: 12px; }
-.purchases-request-card { display: grid; gap: 13px; min-height: 190px; padding: 16px; border: 1px solid var(--theme-border); border-left: 4px solid var(--state-scheduled-border); border-radius: 16px; background: var(--theme-surface); box-shadow: var(--theme-shadow); }
+.purchases-request-list { display: grid; grid-template-columns: repeat(auto-fit, minmax(270px, 1fr)); gap: 10px; }
+.purchases-request-card { display: grid; gap: 9px; min-height: 0; padding: 12px; border: 1px solid var(--theme-border); border-left: 3px solid var(--state-scheduled-border); border-radius: 13px; background: var(--theme-surface); box-shadow: var(--theme-shadow); }
 .purchases-request-card > header { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; }
 .purchases-request-card > header > div { display: grid; gap: 3px; min-width: 0; }
 .purchases-request-code { color: var(--theme-accent); font-size: .67rem; font-weight: 900; letter-spacing: .08em; }
-.purchases-request-card strong { color: var(--theme-text-strong); font-size: .95rem; line-height: 1.25; }
+.purchases-request-card strong { display: -webkit-box; overflow: hidden; color: var(--theme-text-strong); font-size: .86rem; line-height: 1.18; text-overflow: ellipsis; -webkit-box-orient: vertical; -webkit-line-clamp: 2; }
 .purchases-request-card em { color: var(--theme-text-muted); font-size: .74rem; font-style: normal; }
 .purchases-request-status,
-.purchases-request-priority { display: inline-flex; align-items: center; width: fit-content; padding: 5px 8px; border: 1px solid transparent; border-radius: 999px; font-size: .59rem; letter-spacing: .04em; white-space: nowrap; }
+.purchases-request-priority { display: inline-flex; align-items: center; width: fit-content; max-width: 100%; padding: 4px 7px; border: 1px solid transparent; border-radius: 999px; font-size: .56rem; letter-spacing: .04em; white-space: nowrap; }
+.purchases-request-status { max-width: 48%; overflow: hidden; text-overflow: ellipsis; }
 .purchases-request-status.status-solicitada,
 .purchases-request-status.status-aprovada { border-color: var(--state-scheduled-border); background: var(--state-scheduled-bg); color: var(--state-scheduled-text); }
 .purchases-request-status.status-aguardando_pc,
@@ -7015,17 +7016,18 @@ button.rh-admin-operation-card:hover { border-color: #78aee6; transform: transla
 .purchases-request-status.status-em_transito { border-color: var(--state-progress-border); background: var(--state-progress-bg); color: var(--state-progress-text); }
 .purchases-request-status.status-recebida { border-color: var(--state-completed-border); background: var(--state-completed-bg); color: var(--state-completed-text); }
 .purchases-request-status.status-cancelada { border-color: var(--state-unavailable-border); background: var(--state-unavailable-bg); color: var(--state-unavailable-text); }
-.purchases-request-details { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
-.purchases-request-details > span { display: grid; gap: 3px; color: var(--theme-text); font-size: .76rem; font-weight: 750; }
-.purchases-request-details small { color: var(--theme-text-muted); font-size: .6rem; font-weight: 900; letter-spacing: .07em; }
+.purchases-request-details { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 7px 10px; }
+.purchases-request-details > span { display: grid; gap: 2px; color: var(--theme-text); font-size: .72rem; font-weight: 750; }
+.purchases-request-details small { color: var(--theme-text-muted); font-size: .56rem; font-weight: 900; letter-spacing: .07em; }
 .purchases-request-priority.priority-critica { border-color: var(--state-critical-border); background: var(--state-critical-bg); color: var(--state-critical-text); }
 .purchases-request-priority.priority-alta { border-color: var(--state-attention-border); background: var(--state-attention-bg); color: var(--state-attention-text); }
 .purchases-request-priority.priority-media { border-color: var(--state-scheduled-border); background: var(--state-scheduled-bg); color: var(--state-scheduled-text); }
 .purchases-request-priority.priority-baixa { border-color: var(--state-planned-border); background: var(--state-planned-bg); color: var(--state-planned-text); }
-.purchases-request-card > footer { display: flex; justify-content: space-between; gap: 10px; padding-top: 10px; border-top: 1px solid var(--theme-border); color: var(--theme-text-muted); font-size: .7rem; }
+.purchases-request-card > footer { display: grid; grid-template-columns: minmax(0, 1.2fr) minmax(0, .8fr); gap: 8px; padding-top: 8px; border-top: 1px solid var(--theme-border); color: var(--theme-text-muted); font-size: .63rem; }
 .purchases-request-card > footer span { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .purchases-request-actions { display: flex; flex-wrap: wrap; gap: 8px; }
-.purchases-request-actions button { min-height: 36px; padding: 8px 11px; font-size: .66rem; }
+.purchases-request-actions { gap: 6px; }
+.purchases-request-actions button { min-height: 32px; padding: 6px 9px; font-size: .61rem; }
 .purchases-request-empty { display: grid; gap: 5px; grid-column: 1 / -1; padding: 28px 18px; border: 1px dashed var(--theme-border-strong); border-radius: 16px; background: var(--theme-surface-soft); color: var(--theme-text-muted); text-align: center; }
 .purchases-request-empty strong { color: var(--theme-text); font-size: .82rem; }
 
