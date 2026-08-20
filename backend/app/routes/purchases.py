@@ -5,10 +5,13 @@ from decimal import Decimal, InvalidOperation
 from io import BytesIO
 import os
 from pathlib import Path
+import re
 import tempfile
 
 from flask import Blueprint, current_app, g, request, send_file
 from sqlalchemy import case, func, or_
+from sqlalchemy import text as sa_text
+from sqlalchemy.exc import OperationalError
 from sqlalchemy.orm import joinedload, selectinload
 
 from app.extensions import db
@@ -48,6 +51,35 @@ def _order_list_options():
 def _clean(value) -> str | None:
     text = str(value or "").strip()
     return text or None
+
+
+def _fts_entity_ids(search: str, entity_type: str) -> set[int] | None:
+    """Consulta o índice FTS5 local; retorna None quando a base ainda não o possui."""
+    if db.engine.dialect.name != "sqlite":
+        return None
+    tokens = re.findall(r"[0-9A-Za-zÀ-ÿ]+", str(search or "").lower())
+    if not tokens:
+        return set()
+    match = " AND ".join(f'"{token}"*' for token in tokens)
+    try:
+        rows = db.session.execute(
+            sa_text(
+                "SELECT entity_id FROM purchase_search_fts "
+                "WHERE entity_type = :entity_type AND purchase_search_fts MATCH :match"
+            ),
+            {"entity_type": entity_type, "match": match},
+        )
+    except OperationalError:
+        return None
+    return {int(row[0]) for row in rows}
+
+
+def _postgres_fts_clause(column, search: str):
+    if not db.engine.dialect.name.startswith("postgresql"):
+        return None
+    return func.to_tsvector("simple", func.coalesce(column, "")).op("@@")(
+        func.plainto_tsquery("simple", search)
+    )
 
 
 def _as_bool(value, default: bool = False) -> bool:
@@ -289,23 +321,42 @@ def list_purchase_requests():
     search = _clean(request.args.get("q"))
     if search:
         term = f"%{search[:120]}%"
-        query = query.filter(or_(
+        search_clauses = [
             PurchaseRequest.code.ilike(term),
             PurchaseRequest.sc_number.ilike(term),
             PurchaseRequest.module.ilike(term),
             PurchaseRequest.requester_raw.ilike(term),
             PurchaseRequest.equipment_raw.ilike(term),
             PurchaseRequest.cost_center.ilike(term),
-            PurchaseRequest.material.has(or_(Material.referencia.ilike(term), Material.descricao.ilike(term))),
             PurchaseRequest.supplier.has(or_(Supplier.code.ilike(term), Supplier.name.ilike(term), Supplier.trade_name.ilike(term))),
-            PurchaseRequest.items.any(or_(
-                PurchaseRequestItem.product_code_raw.ilike(term),
-                PurchaseRequestItem.description_raw.ilike(term),
-                PurchaseRequestItem.manual_reference_raw.ilike(term),
-                PurchaseRequestItem.material.has(or_(Material.referencia.ilike(term), Material.descricao.ilike(term))),
-                PurchaseRequestItem.service_catalog.has(or_(PurchaseServiceCatalog.code.ilike(term), PurchaseServiceCatalog.service_name.ilike(term))),
-            )),
-        ))
+        ]
+        sqlite_fts = {entity: _fts_entity_ids(search, entity) for entity in ("REQUEST", "MATERIAL", "REQUEST_ITEM", "SERVICE", "SUPPLIER")}
+        postgres_fts = [
+            _postgres_fts_clause(Material.descricao, search),
+            _postgres_fts_clause(PurchaseRequestItem.description_raw, search),
+            _postgres_fts_clause(PurchaseServiceCatalog.service_name, search),
+        ]
+        if all(value is not None for value in sqlite_fts.values()):
+            search_clauses.extend([
+                PurchaseRequest.id.in_(sqlite_fts["REQUEST"]),
+                PurchaseRequest.material_id.in_(sqlite_fts["MATERIAL"]),
+                PurchaseRequest.items.any(PurchaseRequestItem.id.in_(sqlite_fts["REQUEST_ITEM"])),
+                PurchaseRequest.items.any(PurchaseRequestItem.service_catalog_id.in_(sqlite_fts["SERVICE"])),
+                PurchaseRequest.supplier_id.in_(sqlite_fts["SUPPLIER"]),
+            ])
+        elif not all(clause is not None for clause in postgres_fts):
+            search_clauses.extend([
+                PurchaseRequest.material.has(or_(Material.referencia.ilike(term), Material.descricao.ilike(term))),
+                PurchaseRequest.items.any(or_(
+                    PurchaseRequestItem.product_code_raw.ilike(term),
+                    PurchaseRequestItem.description_raw.ilike(term),
+                    PurchaseRequestItem.manual_reference_raw.ilike(term),
+                    PurchaseRequestItem.material.has(or_(Material.referencia.ilike(term), Material.descricao.ilike(term))),
+                    PurchaseRequestItem.service_catalog.has(or_(PurchaseServiceCatalog.code.ilike(term), PurchaseServiceCatalog.service_name.ilike(term))),
+                )),
+            ])
+        search_clauses.extend(clause for clause in postgres_fts if clause is not None)
+        query = query.filter(or_(*search_clauses))
     status_filter = str(request.args.get("status") or "TODOS").strip().upper()
     if status_filter and status_filter != "TODOS":
         query = query.filter(or_(
@@ -729,18 +780,38 @@ def list_pending_purchase_invoices():
             .order_by(PurchaseOrder.created_at.desc())
         )
         if term:
-            orders_query = orders_query.filter(or_(
+            search_clauses = [
                 PurchaseOrder.pc_number.ilike(term),
                 PurchaseOrder.supplier_raw.ilike(term),
                 PurchaseRequest.sc_number.ilike(term),
                 PurchaseRequest.requester_raw.ilike(term),
                 PurchaseRequestItem.product_code_raw.ilike(term),
-                PurchaseRequestItem.description_raw.ilike(term),
-                Material.referencia.ilike(term),
-                Material.descricao.ilike(term),
-                PurchaseServiceCatalog.code.ilike(term),
-                PurchaseServiceCatalog.service_name.ilike(term),
-            ))
+            ]
+            sqlite_fts = {entity: _fts_entity_ids(search, entity) for entity in ("PC", "MATERIAL", "REQUEST", "REQUEST_ITEM", "SERVICE", "SUPPLIER")}
+            postgres_fts = [
+                _postgres_fts_clause(Material.descricao, search),
+                _postgres_fts_clause(PurchaseRequestItem.description_raw, search),
+                _postgres_fts_clause(PurchaseServiceCatalog.service_name, search),
+            ]
+            if all(value is not None for value in sqlite_fts.values()):
+                search_clauses.extend([
+                    PurchaseOrder.id.in_(sqlite_fts["PC"]),
+                    PurchaseRequest.id.in_(sqlite_fts["REQUEST"]),
+                    PurchaseRequestItem.id.in_(sqlite_fts["REQUEST_ITEM"]),
+                    PurchaseRequestItem.material_id.in_(sqlite_fts["MATERIAL"]),
+                    PurchaseRequestItem.service_catalog_id.in_(sqlite_fts["SERVICE"]),
+                    PurchaseOrder.supplier_id.in_(sqlite_fts["SUPPLIER"]),
+                ])
+            elif not all(clause is not None for clause in postgres_fts):
+                search_clauses.extend([
+                    PurchaseRequestItem.description_raw.ilike(term),
+                    Material.referencia.ilike(term),
+                    Material.descricao.ilike(term),
+                    PurchaseServiceCatalog.code.ilike(term),
+                    PurchaseServiceCatalog.service_name.ilike(term),
+                ])
+            search_clauses.extend(clause for clause in postgres_fts if clause is not None)
+            orders_query = orders_query.filter(or_(*search_clauses))
     total_pending_nf = orders_query.count() if orders_query is not None else 0
     orders = orders_query.offset((page - 1) * per_page).limit(per_page).all() if page_requested and orders_query is not None else (orders_query.all() if orders_query is not None else [])
     for order in orders:
@@ -789,7 +860,7 @@ def list_pending_purchase_invoices():
             .order_by(PurchaseInvoiceItem.id.desc())
         )
         if term:
-            receipt_query = receipt_query.filter(or_(
+            search_clauses = [
                 PurchaseInvoice.invoice_number.ilike(term),
                 PurchaseInvoice.series.ilike(term),
                 PurchaseInvoice.supplier_raw.ilike(term),
@@ -797,12 +868,33 @@ def list_pending_purchase_invoices():
                 PurchaseOrder.supplier_raw.ilike(term),
                 PurchaseRequest.sc_number.ilike(term),
                 PurchaseRequestItem.product_code_raw.ilike(term),
-                PurchaseRequestItem.description_raw.ilike(term),
-                Material.referencia.ilike(term),
-                Material.descricao.ilike(term),
-                PurchaseServiceCatalog.code.ilike(term),
-                PurchaseServiceCatalog.service_name.ilike(term),
-            ))
+            ]
+            sqlite_fts = {entity: _fts_entity_ids(search, entity) for entity in ("NF", "PC", "MATERIAL", "REQUEST", "REQUEST_ITEM", "SERVICE", "SUPPLIER")}
+            postgres_fts = [
+                _postgres_fts_clause(Material.descricao, search),
+                _postgres_fts_clause(PurchaseRequestItem.description_raw, search),
+                _postgres_fts_clause(PurchaseServiceCatalog.service_name, search),
+            ]
+            if all(value is not None for value in sqlite_fts.values()):
+                search_clauses.extend([
+                    PurchaseInvoice.id.in_(sqlite_fts["NF"]),
+                    PurchaseOrder.id.in_(sqlite_fts["PC"]),
+                    PurchaseRequest.id.in_(sqlite_fts["REQUEST"]),
+                    PurchaseRequestItem.id.in_(sqlite_fts["REQUEST_ITEM"]),
+                    PurchaseRequestItem.material_id.in_(sqlite_fts["MATERIAL"]),
+                    PurchaseRequestItem.service_catalog_id.in_(sqlite_fts["SERVICE"]),
+                    PurchaseInvoice.supplier_id.in_(sqlite_fts["SUPPLIER"]),
+                ])
+            elif not all(clause is not None for clause in postgres_fts):
+                search_clauses.extend([
+                    PurchaseRequestItem.description_raw.ilike(term),
+                    Material.referencia.ilike(term),
+                    Material.descricao.ilike(term),
+                    PurchaseServiceCatalog.code.ilike(term),
+                    PurchaseServiceCatalog.service_name.ilike(term),
+                ])
+            search_clauses.extend(clause for clause in postgres_fts if clause is not None)
+            receipt_query = receipt_query.filter(or_(*search_clauses))
     total_pending_receipts = receipt_query.count() if receipt_query is not None else 0
     invoice_items = receipt_query.offset((page - 1) * per_page).limit(per_page).all() if page_requested and receipt_query is not None else (receipt_query.all() if receipt_query is not None else [])
     for invoice_item in invoice_items:
