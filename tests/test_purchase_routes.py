@@ -256,6 +256,13 @@ class PurchaseRouteTests(unittest.TestCase):
         self.assertEqual(data["items"][0]["next_action"], "EMITIR_PC")
         self.assertIsNotNone(data["items"][0]["updated_at"])
 
+        indicators = self.client.get("/compras/indicadores", headers=self.gestor_headers)
+        self.assertEqual(indicators.status_code, 200, indicators.get_json())
+        indicator_data = indicators.get_json()["data"]
+        self.assertGreaterEqual(indicator_data["open_requests"], 1)
+        self.assertGreaterEqual(indicator_data["pending_pc_items"], 1)
+        self.assertIn("pending_nf_items", indicator_data)
+
         report = self.client.get("/compras/relatorios/resumo", headers=self.gestor_headers)
         self.assertEqual(report.status_code, 200, report.get_json())
         report_data = report.get_json()["data"]

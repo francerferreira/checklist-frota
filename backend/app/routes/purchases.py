@@ -8,7 +8,7 @@ from pathlib import Path
 import tempfile
 
 from flask import Blueprint, current_app, g, request, send_file
-from sqlalchemy import or_
+from sqlalchemy import func, or_
 from sqlalchemy.orm import joinedload, selectinload
 
 from app.extensions import db
@@ -285,6 +285,25 @@ def list_purchase_requests():
         query = query.filter(~PurchaseRequest.status.in_({"RECEBIDA", "CANCELADA"}))
     rows = query.all()
     return api_response(True, data=[row.to_dict() for row in rows])
+
+
+@bp.get("/compras/indicadores")
+@auth_required
+def purchase_operational_indicators():
+    """Resumo leve e canônico das etapas abertas do fluxo SC → PC → NF."""
+    denied = _guard_management()
+    if denied:
+        return denied
+    active_request = ~PurchaseRequest.status.in_({"RECEBIDA", "CANCELADA"})
+    item_query = PurchaseRequestItem.query.join(PurchaseRequest).filter(active_request)
+    open_requests = db.session.query(func.count(PurchaseRequest.id)).filter(active_request).scalar() or 0
+    pending_pc_items = item_query.filter(PurchaseRequestItem.status.in_({"AGUARDANDO_PC", "PC_PARCIAL"})).count()
+    pending_nf_items = item_query.filter(PurchaseRequestItem.status == "AGUARDANDO_NF").count()
+    return api_response(True, data={
+        "open_requests": int(open_requests),
+        "pending_pc_items": int(pending_pc_items),
+        "pending_nf_items": int(pending_nf_items),
+    })
 
 
 def _update_purchase_item_pc_status(request_item: PurchaseRequestItem) -> None:

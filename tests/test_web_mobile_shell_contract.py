@@ -326,6 +326,7 @@ class WebMobileShellContractTests(unittest.TestCase):
         app_js = (PROJECT_ROOT / "web_app" / "static" / "js" / "app.js").read_text(encoding="utf-8")
         self.assertIn("openPurchasesMenu", app_js)
         self.assertIn('apiFetch("/compras/solicitacoes?modo=OPERACIONAL")', app_js)
+        self.assertIn('apiFetch("/compras/indicadores")', app_js)
         self.assertIn('apiFetch("/compras/importacoes",', app_js)
         self.assertIn("submitPurchaseImport", app_js)
         self.assertIn("loadMaterialPurchaseHistory", app_js)

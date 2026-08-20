@@ -318,6 +318,7 @@ const state = {
         ordersSearchTimer: null,
         pendingInvoices: { pending_nf: [], pending_receipts: [] },
         processCenter: { summary: {}, items: [] },
+        overview: null,
         processCenterPagination: { page: 1, per_page: 100, total_pages: 1 },
         reportSummary: { summary: {}, by_status: {}, by_type: {}, by_provider: {} },
         reportSchedules: [],
@@ -4095,6 +4096,7 @@ async function togglePurchaseReportSchedule(scheduleId, active) {
 
 function renderPurchaseOverview() {
     const rows = state.purchases.requests || [];
+    const overview = state.purchases.overview;
     const open = rows.filter((row) => !["RECEBIDA", "CANCELADA"].includes(String(row.status || "").toUpperCase()));
     const pendingPcCount = purchaseOrderPendingRows().length;
     const awaitingPc = pendingPcCount || rows.filter((row) => ["SOLICITADA", "AGUARDANDO_PC"].includes(String(row.status || "").toUpperCase())).length;
@@ -4102,16 +4104,20 @@ function renderPurchaseOverview() {
     const awaitingNf = Array.isArray(pendingInvoiceGroups)
         ? pendingInvoiceGroups
         : rows.filter((row) => ["EM_TRANSITO", "AGUARDANDO_NF"].includes(String(row.status || "").toUpperCase()));
-    if (elements.purchasesOpenCount) elements.purchasesOpenCount.textContent = String(open.length);
-    if (elements.purchasesAwaitingPcCount) elements.purchasesAwaitingPcCount.textContent = String(awaitingPc);
-    if (elements.purchasesAwaitingNfCount) elements.purchasesAwaitingNfCount.textContent = String(awaitingNf.length);
+    if (elements.purchasesOpenCount) elements.purchasesOpenCount.textContent = String(Number(overview?.open_requests ?? open.length));
+    if (elements.purchasesAwaitingPcCount) elements.purchasesAwaitingPcCount.textContent = String(Number(overview?.pending_pc_items ?? awaitingPc));
+    if (elements.purchasesAwaitingNfCount) elements.purchasesAwaitingNfCount.textContent = String(Number(overview?.pending_nf_items ?? awaitingNf.length));
     renderPurchaseRequests();
 }
 
 async function loadPurchasesData() {
     try {
-        const requests = await apiFetch("/compras/solicitacoes?modo=OPERACIONAL");
+        const [requests, overview] = await Promise.all([
+            apiFetch("/compras/solicitacoes?modo=OPERACIONAL"),
+            apiFetch("/compras/indicadores"),
+        ]);
         state.purchases.requests = requests || [];
+        state.purchases.overview = overview || null;
         renderPurchaseOverview();
         await loadPurchasesAreaData(state.purchases.activeArea || "process");
     } catch (error) {
