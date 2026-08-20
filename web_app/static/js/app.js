@@ -4263,11 +4263,12 @@ async function loadMaterialPurchaseHistory() {
     } catch (error) { showToast(error.message || "MATERIAL SEM HISTÓRICO DE COMPRAS.", true); }
 }
 
-const PURCHASES_AREAS = new Set(["process", "requests", "orders", "invoices", "materials", "reports"]);
+const PURCHASES_AREAS = new Set(["process", "requests", "orders", "invoices", "materials", "providers", "reports"]);
 const PURCHASES_VIEWS = new Set(["QUADRO", "LISTA", "CARTOES"]);
 
 function setPurchasesArea(area = "process") {
-    const nextArea = PURCHASES_AREAS.has(area) ? area : "process";
+    const requestedArea = PURCHASES_AREAS.has(area) ? area : "process";
+    const nextArea = requestedArea === "providers" && !hasAdminAccess() ? "materials" : requestedArea;
     state.purchases.activeArea = nextArea;
     document.querySelectorAll("[data-purchases-area-section]").forEach((section) => {
         section.classList.toggle("purchases-area-hidden", section.dataset.purchasesAreaSection !== nextArea);
@@ -4280,6 +4281,7 @@ function setPurchasesArea(area = "process") {
 async function loadPurchasesAreaData(area = "process") {
     if (area === "orders") return loadPurchaseOrdersData();
     if (area === "invoices") return loadPurchaseInvoiceData();
+    if (area === "providers" && hasAdminAccess()) return loadPurchaseProviders();
     if (area === "process") return loadPurchaseProcessCenter();
     if (area === "reports") {
         await loadPurchaseReportSummary();
@@ -4323,11 +4325,13 @@ async function openPurchasesMenu({ focusProviders = false, focusReports = false 
     if (elements.purchasesRoleBadge) elements.purchasesRoleBadge.textContent = hasAdminAccess() ? "ADMINISTRAÇÃO" : "GESTÃO";
     if (elements.purchaseOrderDate && !elements.purchaseOrderDate.value) elements.purchaseOrderDate.value = formatDateInputValue(new Date());
     elements.purchasesProviderPanel?.classList.toggle("hidden", !hasAdminAccess());
+    elements.purchasesWorkflowNav?.querySelectorAll("[data-purchases-admin-only]").forEach((button) => {
+        button.classList.toggle("hidden", !hasAdminAccess());
+    });
     setActiveScreen("purchases");
-    setPurchasesArea(focusReports ? "reports" : focusProviders ? "materials" : state.purchases.activeArea || "process");
+    setPurchasesArea(focusReports ? "reports" : focusProviders ? "providers" : state.purchases.activeArea || "process");
     applyPurchasesViews();
     const loaders = [loadPurchasesData()];
-    if (hasAdminAccess()) loaders.push(loadPurchaseProviders());
     await Promise.all(loaders);
     if (focusProviders && hasAdminAccess()) {
         elements.purchasesProviderPanel?.scrollIntoView({ behavior: "smooth", block: "start" });

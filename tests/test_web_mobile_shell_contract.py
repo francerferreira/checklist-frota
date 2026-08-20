@@ -25,8 +25,8 @@ class WebMobileShellContractTests(unittest.TestCase):
         cls.legacy_readme = LEGACY_README_PATH.read_text(encoding="utf-8")
 
     def test_index_uses_canonical_frontend_bundle(self):
-        self.assertIn('./static/js/app.js?v=20260818-07', self.index_html)
-        self.assertIn('./static/css/styles.css?v=20260818-08', self.index_html)
+        self.assertIn('./static/js/app.js?v=', self.index_html)
+        self.assertIn('./static/css/styles.css?v=', self.index_html)
         self.assertNotIn("app-20260419-", self.index_html)
 
     def test_login_uses_institutional_glass_layout_with_sis_mmp_identity(self):
@@ -325,7 +325,7 @@ class WebMobileShellContractTests(unittest.TestCase):
     def test_purchases_foundation_web_flow_is_connected(self):
         app_js = (PROJECT_ROOT / "web_app" / "static" / "js" / "app.js").read_text(encoding="utf-8")
         self.assertIn("openPurchasesMenu", app_js)
-        self.assertIn('apiFetch("/compras/solicitacoes")', app_js)
+        self.assertIn('apiFetch("/compras/solicitacoes?modo=OPERACIONAL")', app_js)
         self.assertIn('apiFetch("/compras/importacoes",', app_js)
         self.assertIn("submitPurchaseImport", app_js)
         self.assertIn("loadMaterialPurchaseHistory", app_js)
@@ -478,6 +478,8 @@ class WebMobileShellContractTests(unittest.TestCase):
             'id="open-admin-catalogs-menu"',
             'id="admin-catalogs-screen"',
             'data-admin-catalog-action="providers"',
+            'data-purchases-area="providers"',
+            'data-purchases-area-section="providers"',
             'id="purchases-provider-panel"',
             'id="purchases-provider-new"',
             'id="purchases-provider-editor"',

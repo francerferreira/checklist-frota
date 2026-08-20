@@ -14,7 +14,7 @@
     <title>SIS MMP | Sistema de Manutenção de Máquinas Pesadas</title>
     <link rel="icon" type="image/png" sizes="192x192" href="./static/icons/icon-192.png?v=sis-mmp-20260810">
     <link rel="apple-touch-icon" href="./static/icons/icon-192.png?v=sis-mmp-20260810">
-    <link rel="stylesheet" href="./static/css/styles.css?v=20260820-process-pagination">
+    <link rel="stylesheet" href="./static/css/styles.css?v=20260820-provider-area">
 </head>
 <body>
     <div class="mobile-shell">
@@ -436,6 +436,7 @@
                     <button type="button" data-purchases-area="orders">PEDIDOS PC</button>
                     <button type="button" data-purchases-area="invoices">NF E RECEBIMENTOS</button>
                     <button type="button" data-purchases-area="materials">MATERIAIS</button>
+                    <button type="button" data-purchases-area="providers" data-purchases-admin-only="true">PROVEDORES</button>
                     <button type="button" data-purchases-area="reports">RELATÓRIOS</button>
                 </nav>
                 <section class="purchases-summary-grid" aria-label="Resumo de compras">
@@ -526,7 +527,7 @@
                         <section class="purchases-invoice-column"><header><span>NFs AGUARDANDO RECEBIMENTO</span><strong>Dar entrada por item</strong></header><div id="purchases-receipt-pending-list" class="purchases-invoice-list" aria-live="polite"></div></section>
                     </div>
                 </section>
-                <section id="purchases-provider-panel" class="module-section purchases-provider-panel hidden purchases-area-hidden" data-purchases-area-section="materials">
+                <section id="purchases-provider-panel" class="module-section purchases-provider-panel hidden purchases-area-hidden" data-purchases-area-section="providers">
                     <div class="purchases-provider-heading">
                         <div><span>CADASTRO EXCLUSIVO DO ADMINISTRADOR</span><strong>PROVEDORES</strong><p>Uma visão rápida de quem atende às compras. Gestores e operação não visualizam esta área.</p></div>
                         <div class="purchases-provider-heading-actions"><span id="purchases-provider-count" class="purchases-provider-count">0 cadastrados</span><button id="purchases-provider-new" class="primary-button" type="button">+ NOVO PROVEDOR</button></div>
@@ -554,7 +555,7 @@
                     <div id="purchases-provider-list" class="purchases-provider-list" aria-live="polite"></div>
                 </section>
                 <section class="module-section purchases-material-panel purchases-area-hidden" data-purchases-area-section="materials">
-                    <div class="module-header"><div><span>INTEGRAÇÃO COM MATERIAIS</span><strong>HISTÓRICO DE UM MATERIAL</strong></div><em>SC, PC, NF e recebimento</em></div>
+                    <div class="module-header"><div><span>CATÁLOGO DE MATERIAIS</span><strong>HISTÓRICO DE COMPRAS POR MATERIAL</strong></div><em>SC, PC, NF e recebimento</em></div>
                     <div class="purchases-material-search"><input id="purchases-material-id" type="number" min="1" placeholder="ID do material cadastrado"><button id="purchases-material-history-button" class="secondary-button" type="button">CONSULTAR HISTÓRICO</button></div>
                     <div id="purchases-material-history" class="sync-list">Informe o ID de um material para ver solicitações, quantidades, status e aplicações.</div>
                 </section>
@@ -1588,7 +1589,7 @@
 
     <div id="toast" class="toast hidden"></div>
     <script src="./static/js/config.js?v=20260719-01"></script>
-    <script src="./static/js/app.js?v=20260820-process-pagination"></script>
+    <script src="./static/js/app.js?v=20260820-provider-area"></script>
 </body>
 </html>
 
