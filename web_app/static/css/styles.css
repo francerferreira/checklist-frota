@@ -7680,6 +7680,53 @@ button.rh-admin-operation-card:hover { border-color: #78aee6; transform: transla
     padding-top: 4px;
 }
 
+.admin-catalog-permissions {
+    grid-column: 1 / -1;
+    display: grid;
+    gap: 10px;
+    margin: 2px 0 0;
+    padding: 12px;
+    border: 1px solid var(--theme-border);
+    border-radius: 10px;
+    background: var(--theme-surface);
+}
+
+.admin-catalog-permissions legend {
+    padding: 0 4px;
+    color: var(--theme-text-strong);
+    font-size: .72rem;
+    font-weight: 900;
+    letter-spacing: .06em;
+}
+
+.admin-catalog-permissions > small {
+    color: var(--muted);
+}
+
+.admin-catalog-permission-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+    gap: 8px;
+}
+
+.admin-catalog-permission-grid label {
+    display: flex;
+    grid-template-columns: none;
+    align-items: center;
+    gap: 8px;
+    min-height: 34px;
+    padding: 7px 9px;
+    border: 1px solid var(--theme-border);
+    border-radius: 8px;
+    background: var(--theme-surface-muted);
+    color: var(--theme-text);
+    font-size: .78rem;
+}
+
+.admin-catalog-permission-grid input {
+    accent-color: var(--theme-accent-strong);
+}
+
 .admin-catalog-log-list {
     display: grid;
     gap: 8px;

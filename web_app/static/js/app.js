@@ -307,6 +307,7 @@ const state = {
         activeTab: "list",
         rows: [],
         editingId: null,
+        editingRow: null,
         editingKind: "default",
         loading: false,
         searchTimer: null,
@@ -3152,6 +3153,39 @@ const ADMIN_CATALOG_DEFINITIONS = {
     materials: { section: "MATERIAIS", title: "CATÁLOGO DE MATERIAIS", description: "Referências usadas em compras, armazéns MMP e aplicações nos equipamentos.", endpoint: "/materiais?ativos=all", entity: "MATERIAL", name: (row) => row.descricao, code: (row) => row.referencia, active: (row) => row.ativo !== false },
 };
 
+const ADMIN_USER_PAGE_OPTIONS = [
+    ["dashboard", "Dashboard"], ["operations_center", "Central Operacional"], ["equipment", "Equipamentos"],
+    ["checklist_items", "Itens de Checklist"], ["checklist_history", "Histórico de Checklist"], ["maintenance", "Manutenção"],
+    ["availability", "Disponibilidade e Horímetro"], ["activities", "Inspeções"], ["emergencies", "Emergências e OS"],
+    ["purchases", "Compras"], ["materials", "Materiais"], ["supply_library", "Suprimentos e Biblioteca"],
+    ["employees", "Colaboradores"], ["attendance", "Frequência"], ["employee_records", "Documentos e Treinamentos"],
+    ["hr_management", "Gestão de RH"], ["reports", "Relatórios"], ["users", "Usuários"], ["audit_logs", "Auditoria"],
+];
+const ADMIN_ROLE_PAGE_KEYS = {
+    admin: new Set(ADMIN_USER_PAGE_OPTIONS.map(([key]) => key).concat(["nc", "productivity", "spreader_history", "inspection_templates", "washes", "pcm", "resources", "vacations", "special_schedule", "rtg_module", "lbs_module", "rtg_maintenance", "lbs_maintenance", "rtg_downtime", "lbs_downtime", "cloud_backup", "admin_rules"])),
+    gestor: new Set(ADMIN_USER_PAGE_OPTIONS.map(([key]) => key).concat(["nc", "productivity", "spreader_history", "inspection_templates", "washes", "pcm", "resources", "vacations", "special_schedule", "rtg_module", "lbs_module", "rtg_maintenance", "lbs_maintenance", "rtg_downtime", "lbs_downtime", "admin_rules"])),
+    mecanico: new Set(["dashboard", "operations_center", "nc", "productivity", "activities", "maintenance", "availability", "emergencies"]),
+    operacional: new Set(["dashboard", "operations_center", "nc", "productivity", "activities", "maintenance", "availability", "emergencies"]),
+    motorista: new Set(["dashboard"]),
+};
+
+function adminUserPermissionFields(row = {}) {
+    const role = String(row.tipo || "operacional").toLowerCase();
+    const allowed = ADMIN_ROLE_PAGE_KEYS[role] || ADMIN_ROLE_PAGE_KEYS.operacional;
+    const selected = new Set(Array.isArray(row.custom_page_keys) && row.custom_page_keys.length ? row.custom_page_keys : [...allowed]);
+    return `<fieldset class="admin-catalog-permissions"><legend>TELAS LIBERADAS</legend><small>O acesso é limitado ao perfil escolhido. O Dashboard permanece sempre disponível.</small><div class="admin-catalog-permission-grid">${ADMIN_USER_PAGE_OPTIONS.filter(([key]) => allowed.has(key)).map(([key, label]) => `<label><input type="checkbox" name="page_keys" value="${key}" ${selected.has(key) ? "checked" : ""}><span>${label}</span></label>`).join("")}</div></fieldset>`;
+}
+
+function refreshAdminUserPermissions(form, selectedOverride = null) {
+    const type = String(form.elements.namedItem("tipo")?.value || "operacional").toLowerCase();
+    const current = selectedOverride || new Set(Array.from(form.querySelectorAll("input[name='page_keys']:checked")).map((input) => input.value));
+    const fieldset = form.querySelector(".admin-catalog-permissions");
+    if (!fieldset) return;
+    const allowed = ADMIN_ROLE_PAGE_KEYS[type] || ADMIN_ROLE_PAGE_KEYS.operacional;
+    const selected = current.size ? current : new Set(allowed);
+    fieldset.outerHTML = adminUserPermissionFields({ tipo: type, custom_page_keys: [...selected] });
+}
+
 function adminCatalogDefinition() {
     return ADMIN_CATALOG_DEFINITIONS[state.adminCatalogs.activeCatalog] || ADMIN_CATALOG_DEFINITIONS.providers;
 }
@@ -3184,8 +3218,12 @@ function adminCatalogFormFields(catalog, row = {}) {
         <label><span>HOMOLOGAÇÃO</span><select name="homologated"><option value="false" ${row.homologated ? "" : "selected"}>PENDENTE</option><option value="true" ${row.homologated ? "selected" : ""}>HOMOLOGADO</option></select></label>`;
     if (catalog === "checklist") return `
         <label><span>NOME DO ITEM *</span><input name="item_nome" required value="${value("item_nome")}"></label>
-        <label><span>TIPO DE EQUIPAMENTO *</span><select name="tipo"><option value="cavalo">CAVALO</option><option value="rtg">RTG</option><option value="lbs">LBS</option><option value="spreader">SPREADER</option></select></label>
+        <label><span>TIPO DE EQUIPAMENTO *</span><select name="tipo"><option value="cavalo">CAVALO</option><option value="carreta">CARRETA</option><option value="carro_simples">CARRO SIMPLES</option><option value="cavalo_auxiliar">CAVALO AUXILIAR</option><option value="ambulancia">AMBULÂNCIA</option><option value="caminhao_pipa">CAMINHÃO PIPA</option><option value="caminhao_brigada">CAMINHÃO BRIGADA</option><option value="onibus">ÔNIBUS</option><option value="van">VAN</option></select></label>
         <label><span>ORDEM</span><input type="number" min="1" name="position" value="${value("position") || "1"}"></label>
+        <label><span>AGRUPAMENTO</span><select name="tipo_agrupamento"><option value="simples">SIMPLES</option><option value="lado">LADO</option><option value="compartimento">COMPARTIMENTO</option></select></label>
+        <label><span>ITEM PRINCIPAL</span><input name="item_principal" value="${value("item_principal")}"></label>
+        <label><span>PARTE</span><input name="parte" value="${value("parte")}" placeholder="Ex.: LADO DIREITO"></label>
+        <label class="admin-catalog-field-wide"><span>FOTO DE REFERÊNCIA</span><input type="file" name="foto_file" accept="image/*"><small>${row.foto_path ? "Foto atual mantida se nenhuma nova for escolhida." : "Nenhuma foto cadastrada."}</small></label>
         <label><span>SITUAÇÃO</span><select name="ativo"><option value="true" ${row.ativo !== false ? "selected" : ""}>ATIVO</option><option value="false" ${row.ativo === false ? "selected" : ""}>INATIVO</option></select></label>`;
     if (catalog === "employees") return `
         <label><span>MATRÍCULA *</span><input name="registration" required value="${value("registration")}"></label>
@@ -3195,13 +3233,16 @@ function adminCatalogFormFields(catalog, row = {}) {
         <label><span>TURNO *</span><input name="shift_name" required value="${value("shift_name")}"></label>
         <label><span>SITUAÇÃO</span><select name="status"><option value="ATIVO">ATIVO</option><option value="PRE_CADASTRO">PRÉ-CADASTRO</option><option value="INATIVO">INATIVO</option></select></label>
         <label><span>DATA DE ADMISSÃO</span><input type="date" name="hired_on" value="${value("hired_on")}"></label>
-        <label class="admin-catalog-field-wide"><span>OBSERVAÇÕES</span><textarea name="notes" rows="3">${value("notes")}</textarea></label>`;
+        <label><span>LOGIN VINCULADO</span><select name="user_id" data-admin-employee-users><option value="">SEM LOGIN VINCULADO</option></select></label>
+        <label class="admin-catalog-field-wide"><span>OBSERVAÇÕES</span><textarea name="notes" rows="3">${value("notes")}</textarea></label>
+        <label class="admin-catalog-field-wide"><span>FOTO DO COLABORADOR</span><input type="file" name="photo_file" accept="image/*"><small>${row.photo_path ? "Foto atual mantida se nenhuma nova for escolhida." : "Nenhuma foto cadastrada."}</small></label>`;
     if (catalog === "users") return `
         <label><span>NOME *</span><input name="nome" required value="${value("nome")}"></label>
         <label><span>LOGIN *</span><input name="login" required value="${value("login")}"></label>
-        <label><span>PERFIL</span><select name="tipo"><option value="operacional">OPERACIONAL</option><option value="gestor">GESTOR</option><option value="admin">ADMIN</option></select></label>
+        <label><span>PERFIL</span><select name="tipo"><option value="operacional">OPERACIONAL</option><option value="mecanico">MECÂNICO</option><option value="motorista">MOTORISTA</option><option value="gestor">GESTOR</option><option value="admin">ADMIN</option></select></label>
         <label><span>NOVA SENHA</span><input type="password" name="senha" placeholder="Obrigatória ao criar"></label>
-        <label><span>SITUAÇÃO</span><select name="ativo"><option value="true" ${row.ativo !== false ? "selected" : ""}>ATIVO</option><option value="false" ${row.ativo === false ? "selected" : ""}>INATIVO</option></select></label>`;
+        <label><span>SITUAÇÃO</span><select name="ativo"><option value="true" ${row.ativo !== false ? "selected" : ""}>ATIVO</option><option value="false" ${row.ativo === false ? "selected" : ""}>INATIVO</option></select></label>
+        ${adminUserPermissionFields(row)}`;
     if (catalog === "materials") return `
         <label><span>REFERÊNCIA *</span><input name="referencia" required value="${value("referencia")}"></label>
         <label><span>DESCRIÇÃO *</span><input name="descricao" required value="${value("descricao")}"></label>
@@ -3259,6 +3300,23 @@ function renderAdminCatalogForm(row = null) {
             const field = form.elements.namedItem(name);
             if (field) field.value = String(selected);
         });
+    }
+    if (state.adminCatalogs.activeCatalog === "employees" && form) void loadAdminCatalogEmployeeUsers(form, row);
+    if (state.adminCatalogs.activeCatalog === "users" && form) {
+        form.elements.namedItem("tipo")?.addEventListener("change", () => refreshAdminUserPermissions(form));
+    }
+}
+
+async function loadAdminCatalogEmployeeUsers(form, row = null) {
+    const select = form.querySelector("[data-admin-employee-users]");
+    if (!select) return;
+    try {
+        const users = await apiFetch("/rh/colaboradores/usuarios-disponiveis");
+        select.innerHTML = `<option value="">SEM LOGIN VINCULADO</option>${(Array.isArray(users) ? users : []).map((user) => `<option value="${Number(user.id)}">${escapeHtml(user.nome || user.login || "Usuário")} (${escapeHtml(user.login || "")})</option>`).join("")}`;
+        if (row?.user_id) select.value = String(row.user_id);
+    } catch (error) {
+        select.innerHTML = `<option value="">NÃO FOI POSSÍVEL CARREGAR LOGINS</option>`;
+        showToast(error.message || "FALHA AO CARREGAR LOGINS DISPONÍVEIS.", true);
     }
 }
 
@@ -3323,6 +3381,7 @@ function openAdminCatalogDetail(action) {
     if (!definition) return;
     state.adminCatalogs.activeCatalog = action;
     state.adminCatalogs.editingId = null;
+    state.adminCatalogs.editingRow = null;
     elements.adminCatalogsGrid?.classList.add("hidden");
     document.querySelector(".admin-settings-intro")?.classList.add("hidden");
     elements.adminCatalogDetail?.classList.remove("hidden");
@@ -3341,6 +3400,7 @@ function closeAdminCatalogDetail() {
     elements.adminCatalogsGrid?.classList.remove("hidden");
     document.querySelector(".admin-settings-intro")?.classList.remove("hidden");
     state.adminCatalogs.activeCatalog = "";
+    state.adminCatalogs.editingRow = null;
 }
 
 async function submitAdminCatalogForm(event) {
@@ -3352,20 +3412,49 @@ async function submitAdminCatalogForm(event) {
     let endpoint = ADMIN_CATALOG_DEFINITIONS[catalog].endpoint.split("?")[0];
     if (catalog === "stock" && state.adminCatalogs.editingKind === "location") endpoint = ADMIN_CATALOG_DEFINITIONS[catalog].locationsEndpoint;
     let payload = { ...values };
+    delete payload.foto_file;
+    delete payload.page_keys;
     ["active", "ativo", "homologated"].forEach((key) => { if (key in payload) payload[key] = payload[key] === "true"; });
-    if (catalog === "checklist") payload.position = Number(values.position || 1);
-    if (catalog === "materials") {
+    try {
+    if (catalog === "checklist") {
+            payload.position = Number(values.position || 1);
+            payload.tipo_agrupamento = values.tipo_agrupamento || "simples";
+            payload.item_principal = values.item_principal || null;
+            payload.parte = values.parte || null;
+            const photo = form.elements.namedItem("foto_file")?.files?.[0];
+        if (photo) payload.foto_path = await uploadEvidence(photo, "CHECKLIST", values.item_nome || "ITEM", "referencia", "CATALOGO_CHECKLIST");
+        else if (state.adminCatalogs.editingRow?.foto_path) payload.foto_path = state.adminCatalogs.editingRow.foto_path;
+        }
+        if (catalog === "materials") {
         payload.estoque_minimo = Number(values.estoque_minimo || 0);
         payload.ponto_reposicao = Number(values.ponto_reposicao || 0);
         payload.ativo = values.ativo === "true";
         if (!id) payload.quantidade_estoque = 0;
     }
-    if (catalog === "employees") payload.hired_on = values.hired_on || null;
+        if (catalog === "employees") {
+        payload.hired_on = values.hired_on || null;
+        payload.user_id = values.user_id ? Number(values.user_id) : null;
+        const photo = form.elements.namedItem("photo_file")?.files?.[0];
+        if (photo) payload.photo_path = await uploadEvidence(photo, "RH", values.full_name || "COLABORADOR", "perfil", "COLABORADORES");
+        else if (state.adminCatalogs.editingRow?.photo_path) payload.photo_path = state.adminCatalogs.editingRow.photo_path;
+    }
+    } catch (error) {
+        showToast(error.message || "FALHA AO ENVIAR ANEXO.", true);
+        return;
+    }
     if (catalog === "users" && !id && !values.senha) { showToast("INFORME A SENHA AO CRIAR UM USUÁRIO.", true); return; }
     try {
-        await apiFetch(id ? `${endpoint}/${id}` : endpoint, { method: id ? "PUT" : "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload) });
+        const saved = await apiFetch(id ? `${endpoint}/${id}` : endpoint, { method: id ? "PUT" : "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload) });
+        if (catalog === "users") {
+            const savedId = Number(id || saved?.id);
+            if (savedId) {
+                const pageKeys = Array.from(form.querySelectorAll("input[name='page_keys']:checked")).map((input) => input.value);
+                await apiFetch(`/usuarios/${savedId}/telas`, { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ page_keys: pageKeys }) });
+            }
+        }
         showToast(id ? "CADASTRO ATUALIZADO." : "CADASTRO CRIADO.");
         state.adminCatalogs.editingId = null;
+        state.adminCatalogs.editingRow = null;
         await loadAdminCatalogRecords();
     } catch (error) { showToast(error.message || "FALHA AO SALVAR CADASTRO.", true); }
 }
@@ -11018,11 +11107,13 @@ on(elements.adminCatalogsGrid, "click", (event) => {
 on(elements.adminCatalogDetailBack, "click", closeAdminCatalogDetail);
 on(elements.adminCatalogNewButton, "click", () => {
     state.adminCatalogs.editingId = null;
+    state.adminCatalogs.editingRow = null;
     state.adminCatalogs.editingKind = "default";
     setAdminCatalogTab("form");
 });
 on(elements.adminCatalogNewLocationButton, "click", () => {
     state.adminCatalogs.editingId = null;
+    state.adminCatalogs.editingRow = null;
     state.adminCatalogs.editingKind = "location";
     setAdminCatalogTab("form");
 });
@@ -11045,6 +11136,7 @@ on(elements.adminCatalogDetailContent, "click", (event) => {
     const row = state.adminCatalogs.rows.find((item) => Number(item.id) === Number(button.dataset.adminCatalogEdit));
     if (row) {
         state.adminCatalogs.editingId = Number(row.id);
+        state.adminCatalogs.editingRow = row;
         state.adminCatalogs.editingKind = row.record_kind || "default";
         setAdminCatalogTab("form");
         renderAdminCatalogForm(row);
