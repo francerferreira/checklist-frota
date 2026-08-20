@@ -399,26 +399,46 @@
                 <section class="module-reports-intro admin-settings-intro">
                     <span>ACESSO RESTRITO</span>
                     <strong>CENTRAL ADMINISTRATIVA DE CADASTROS</strong>
-                    <p>Escolha o assunto que deseja cadastrar. Cada opção abre a área responsável, sem misturar cadastro com operação.</p>
+                    <p>Escolha um cadastro. Cada cartão abre uma tela administrativa independente, com o mesmo padrão de busca, filtros, edição, histórico e auditoria.</p>
                 </section>
 
                 <div id="admin-catalogs-grid" class="module-report-grid admin-settings-grid">
                     <button class="module-report-card admin-settings-card" type="button" data-admin-catalog-action="providers">
-                        <span>COMPRAS</span><strong>PROVEDORES</strong><em>Empresas e contatos que atendem aos processos de compra.</em><b>ABRIR EM COMPRAS</b>
+                        <span>COMPRAS</span><strong>PROVEDORES</strong><em>Empresas e contatos que atendem aos processos de compra.</em><b>ABRIR CADASTRO</b>
                     </button>
                     <button class="module-report-card admin-settings-card" type="button" data-admin-catalog-action="checklist">
-                        <span>EQUIPAMENTOS</span><strong>ITENS DE CHECKLIST</strong><em>Itens e agrupamentos usados nos checklists operacionais.</em><b>ABRIR CATÁLOGO</b>
+                        <span>EQUIPAMENTOS</span><strong>ITENS DE CHECKLIST</strong><em>Itens e agrupamentos usados nos checklists operacionais.</em><b>ABRIR CADASTRO</b>
                     </button>
                     <button class="module-report-card admin-settings-card" type="button" data-admin-catalog-action="employees">
-                        <span>RH</span><strong>COLABORADORES</strong><em>Dados funcionais, vínculo, equipe e situação cadastral.</em><b>ABRIR GESTÃO DE RH</b>
+                        <span>RH</span><strong>COLABORADORES</strong><em>Dados funcionais, vínculo, equipe e situação cadastral.</em><b>ABRIR CADASTRO</b>
                     </button>
                     <button class="module-report-card admin-settings-card" type="button" data-admin-catalog-action="users">
-                        <span>ACESSO</span><strong>USUÁRIOS E PERMISSÕES</strong><em>Logins, perfis e acessos concedidos no sistema.</em><b>ABRIR SALA DE CONTROLE</b>
+                        <span>ACESSO</span><strong>USUÁRIOS E PERMISSÕES</strong><em>Logins, perfis e acessos concedidos no sistema.</em><b>ABRIR CADASTRO</b>
                     </button>
                     <button class="module-report-card admin-settings-card" type="button" data-admin-catalog-action="stock">
-                        <span>MATERIAIS</span><strong>ARMAZÉNS E LOCAIS MMP</strong><em>Armazém Principal, Estoque MMP, prateleiras e posições.</em><b>ABRIR ESTOQUE MMP</b>
+                        <span>MATERIAIS</span><strong>ARMAZÉNS E LOCAIS MMP</strong><em>Armazém Principal, Estoque MMP, prateleiras e posições.</em><b>ABRIR CADASTRO</b>
                     </button>
                 </div>
+
+                <section id="admin-catalog-detail" class="admin-catalog-detail hidden" aria-live="polite">
+                    <div class="admin-catalog-detail-heading">
+                        <button id="admin-catalog-detail-back" class="icon-button" type="button">CADASTROS</button>
+                        <div><span id="admin-catalog-detail-section">CADASTRO ADMINISTRATIVO</span><h3 id="admin-catalog-detail-title">CADASTRO</h3><p id="admin-catalog-detail-description"></p></div>
+                        <button id="admin-catalog-new-button" class="primary-button" type="button">+ NOVO CADASTRO</button>
+                    </div>
+                    <nav id="admin-catalog-detail-tabs" class="admin-catalog-detail-tabs" aria-label="Seções do cadastro">
+                        <button type="button" class="is-active" data-admin-catalog-tab="list">LISTA</button>
+                        <button type="button" data-admin-catalog-tab="form">CADASTRO</button>
+                        <button type="button" data-admin-catalog-tab="history">HISTÓRICO</button>
+                        <button type="button" data-admin-catalog-tab="audit">AUDITORIA</button>
+                    </nav>
+                    <div class="admin-catalog-toolbar">
+                        <label><span>BUSCAR</span><input id="admin-catalog-search" type="search" placeholder="Nome, código ou descrição"></label>
+                        <label><span>STATUS</span><select id="admin-catalog-status"><option value="TODOS">TODOS</option><option value="ATIVO">ATIVOS</option><option value="INATIVO">INATIVOS</option></select></label>
+                        <button id="admin-catalog-refresh" class="secondary-button" type="button">ATUALIZAR</button>
+                    </div>
+                    <div id="admin-catalog-detail-content" class="admin-catalog-detail-content"></div>
+                </section>
             </section>
 
             <section id="purchases-screen" class="screen hidden">
