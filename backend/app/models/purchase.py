@@ -92,6 +92,8 @@ class PurchaseRequest(db.Model):
     equipment = db.relationship("Vehicle", foreign_keys=[equipment_id], lazy="joined")
 
     __table_args__ = (
+        db.Index("ix_purchase_requests_status_created_at", "status", "created_at"),
+        db.Index("ix_purchase_requests_sc_number_created_at", "sc_number", "created_at"),
         db.CheckConstraint("requested_quantity > 0", name="ck_purchase_request_quantity"),
         db.CheckConstraint("received_quantity >= 0 AND received_quantity <= requested_quantity", name="ck_purchase_request_received"),
         db.CheckConstraint("status IN ('SOLICITADA', 'APROVADA', 'EM_TRANSITO', 'PARCIALMENTE_RECEBIDA', 'RECEBIDA', 'CANCELADA')", name="ck_purchase_request_status"),
@@ -217,6 +219,9 @@ class PurchaseRequestItem(db.Model):
     order_links = db.relationship("PurchaseOrderItem", back_populates="request_item", lazy="selectin")
 
     __table_args__ = (
+        db.Index("ix_purchase_request_items_description_raw", "description_raw"),
+        db.Index("ix_purchase_request_items_manual_reference_raw", "manual_reference_raw"),
+        db.Index("ix_purchase_request_items_status_request_id", "status", "purchase_request_id"),
         db.UniqueConstraint("purchase_request_id", "line_number", name="uq_purchase_request_item_line"),
         db.CheckConstraint("quantity_requested > 0", name="ck_purchase_request_item_quantity"),
         db.CheckConstraint("quantity_received >= 0 AND quantity_received <= quantity_requested", name="ck_purchase_request_item_received"),
@@ -287,7 +292,11 @@ class PurchaseOrder(db.Model):
     items = db.relationship("PurchaseOrderItem", back_populates="purchase_order", cascade="all, delete-orphan", lazy="selectin")
     invoice_links = db.relationship("InvoicePurchaseOrderLink", back_populates="purchase_order", cascade="all, delete-orphan", lazy="selectin")
 
-    __table_args__ = (db.UniqueConstraint("pc_number", "company_code", "branch_code", name="uq_purchase_order_business_key"),)
+    __table_args__ = (
+        db.Index("ix_purchase_orders_pc_number_created_at", "pc_number", "created_at"),
+        db.Index("ix_purchase_orders_status_created_at", "status", "created_at"),
+        db.UniqueConstraint("pc_number", "company_code", "branch_code", name="uq_purchase_order_business_key"),
+    )
 
     def to_dict(self) -> dict:
         return {
@@ -374,7 +383,11 @@ class PurchaseInvoice(db.Model):
     purchase_order_links = db.relationship("InvoicePurchaseOrderLink", back_populates="invoice", cascade="all, delete-orphan", lazy="selectin")
     items = db.relationship("PurchaseInvoiceItem", back_populates="invoice", cascade="all, delete-orphan", lazy="selectin")
 
-    __table_args__ = (db.UniqueConstraint("supplier_id", "series", "invoice_number", name="uq_purchase_invoice_supplier_series_number"),)
+    __table_args__ = (
+        db.Index("ix_purchase_invoices_number_date", "invoice_number", "invoice_date"),
+        db.Index("ix_purchase_invoices_status_date", "status", "invoice_date"),
+        db.UniqueConstraint("supplier_id", "series", "invoice_number", name="uq_purchase_invoice_supplier_series_number"),
+    )
 
     def to_dict(self) -> dict:
         return {

@@ -46,6 +46,8 @@ class Material(db.Model):
     family_applications = db.relationship("MaterialFamilyApplication", back_populates="material", cascade="all, delete-orphan", lazy="selectin")
 
     __table_args__ = (
+        db.Index("ix_materials_search_codigo_descricao", "codigo_produto", "descricao"),
+        db.Index("ix_materials_search_referencia_descricao", "referencia", "descricao"),
         db.CheckConstraint(
             "aplicacao_tipo IN ('cavalo', 'carreta', 'ambos')",
             name="ck_material_aplicacao_tipo",
