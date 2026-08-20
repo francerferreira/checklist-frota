@@ -189,6 +189,10 @@ class PurchaseRouteTests(unittest.TestCase):
         self.assertEqual(pending_data["pending_receipts"][0]["invoice_number"], "NF-30001")
         self.assertEqual(pending_data["pending_receipts"][0]["remaining_receipt_quantity"], 5.0)
 
+        paged_pending = self.client.get("/compras/notas/pendentes?page=1&per_page=100", headers=self.gestor_headers)
+        self.assertEqual(paged_pending.status_code, 200, paged_pending.get_json())
+        self.assertEqual(paged_pending.get_json()["data"]["pagination"]["per_page"], 100)
+
         first_receipt = self.client.post(
             "/compras/notas/{}/recebimentos".format(invoice_data["id"]),
             headers=self.gestor_headers,
@@ -255,6 +259,12 @@ class PurchaseRouteTests(unittest.TestCase):
         self.assertEqual(data["items"][0]["item_status"], "AGUARDANDO_PC")
         self.assertEqual(data["items"][0]["next_action"], "EMITIR_PC")
         self.assertIsNotNone(data["items"][0]["updated_at"])
+
+        paged_requests = self.client.get("/compras/solicitacoes?modo=OPERACIONAL&page=1&per_page=100", headers=self.gestor_headers)
+        self.assertEqual(paged_requests.status_code, 200, paged_requests.get_json())
+        paged_request_data = paged_requests.get_json()["data"]
+        self.assertLessEqual(len(paged_request_data["items"]), 100)
+        self.assertEqual(paged_request_data["pagination"]["per_page"], 100)
 
         indicators = self.client.get("/compras/indicadores", headers=self.gestor_headers)
         self.assertEqual(indicators.status_code, 200, indicators.get_json())

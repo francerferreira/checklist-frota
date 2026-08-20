@@ -280,11 +280,26 @@ def list_purchase_requests():
     denied = _guard_management()
     if denied:
         return denied
+    page_requested = "page" in request.args or "per_page" in request.args
+    page = max(1, request.args.get("page", 1, type=int) or 1)
+    per_page = min(100, max(1, request.args.get("per_page", 100, type=int) or 100))
     query = PurchaseRequest.query.options(*_request_list_options()).order_by(PurchaseRequest.created_at.desc())
     if str(request.args.get("modo") or "").strip().upper() == "OPERACIONAL":
         query = query.filter(~PurchaseRequest.status.in_({"RECEBIDA", "CANCELADA"}))
-    rows = query.all()
-    return api_response(True, data=[row.to_dict() for row in rows])
+    if not page_requested:
+        rows = query.all()
+        return api_response(True, data=[row.to_dict() for row in rows])
+    total = query.count()
+    rows = query.offset((page - 1) * per_page).limit(per_page).all()
+    return api_response(True, data={
+        "items": [row.to_dict() for row in rows],
+        "pagination": {
+            "page": page,
+            "per_page": per_page,
+            "total": total,
+            "total_pages": max(1, (total + per_page - 1) // per_page),
+        },
+    })
 
 
 @bp.get("/compras/indicadores")
@@ -640,8 +655,28 @@ def list_pending_purchase_invoices():
     denied = _guard_management()
     if denied:
         return denied
+    page_requested = "page" in request.args or "per_page" in request.args
+    page = max(1, request.args.get("page", 1, type=int) or 1)
+    per_page = min(100, max(1, request.args.get("per_page", 100, type=int) or 100))
     pending_nf = []
-    orders = PurchaseOrder.query.order_by(PurchaseOrder.created_at.asc()).all()
+    invoiced_by_order_item = (
+        db.session.query(
+            PurchaseInvoiceItem.purchase_order_item_id.label("purchase_order_item_id"),
+            func.coalesce(func.sum(PurchaseInvoiceItem.quantity_invoiced), 0).label("quantity_invoiced"),
+        )
+        .group_by(PurchaseInvoiceItem.purchase_order_item_id)
+        .subquery()
+    )
+    orders_query = (
+        PurchaseOrder.query
+        .join(PurchaseOrderItem, PurchaseOrderItem.purchase_order_id == PurchaseOrder.id)
+        .outerjoin(invoiced_by_order_item, invoiced_by_order_item.c.purchase_order_item_id == PurchaseOrderItem.id)
+        .group_by(PurchaseOrder.id)
+        .having(func.sum(PurchaseOrderItem.quantity_ordered - func.coalesce(invoiced_by_order_item.c.quantity_invoiced, 0)) > 0)
+        .order_by(PurchaseOrder.created_at.desc())
+    )
+    total_pending_nf = orders_query.count()
+    orders = orders_query.offset((page - 1) * per_page).limit(per_page).all() if page_requested else orders_query.all()
     for order in orders:
         pending_items = []
         for order_item in order.items:
@@ -673,7 +708,13 @@ def list_pending_purchase_invoices():
                 "items": pending_items,
             })
     pending_receipts = []
-    invoice_items = PurchaseInvoiceItem.query.order_by(PurchaseInvoiceItem.id.asc()).all()
+    receipt_query = (
+        PurchaseInvoiceItem.query
+        .filter(func.coalesce(PurchaseInvoiceItem.quantity_received, 0) < func.coalesce(PurchaseInvoiceItem.quantity_invoiced, 0))
+        .order_by(PurchaseInvoiceItem.id.desc())
+    )
+    total_pending_receipts = receipt_query.count()
+    invoice_items = receipt_query.offset((page - 1) * per_page).limit(per_page).all() if page_requested else receipt_query.all()
     for invoice_item in invoice_items:
         summary = _invoice_item_summary(invoice_item)
         if summary["remaining_receipt_quantity"] > 0:
@@ -685,7 +726,18 @@ def list_pending_purchase_invoices():
                 "invoice_value": float(invoice.invoice_value) if invoice and invoice.invoice_value is not None else None,
             })
             pending_receipts.append(summary)
-    return api_response(True, data={"pending_nf": pending_nf, "pending_receipts": pending_receipts})
+    if not page_requested:
+        return api_response(True, data={"pending_nf": pending_nf, "pending_receipts": pending_receipts})
+    return api_response(True, data={
+        "pending_nf": pending_nf,
+        "pending_receipts": pending_receipts,
+        "pagination": {
+            "page": page,
+            "per_page": per_page,
+            "pending_nf": {"total": total_pending_nf, "total_pages": max(1, (total_pending_nf + per_page - 1) // per_page)},
+            "pending_receipts": {"total": total_pending_receipts, "total_pages": max(1, (total_pending_receipts + per_page - 1) // per_page)},
+        },
+    })
 
 
 @bp.post("/compras/notas")

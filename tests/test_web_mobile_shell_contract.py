@@ -325,9 +325,12 @@ class WebMobileShellContractTests(unittest.TestCase):
     def test_purchases_foundation_web_flow_is_connected(self):
         app_js = (PROJECT_ROOT / "web_app" / "static" / "js" / "app.js").read_text(encoding="utf-8")
         self.assertIn("openPurchasesMenu", app_js)
-        self.assertIn('apiFetch("/compras/solicitacoes?modo=OPERACIONAL")', app_js)
+        self.assertIn('/compras/solicitacoes?modo=OPERACIONAL&page=${nextPage}&per_page=100', app_js)
         self.assertIn('apiFetch("/compras/indicadores")', app_js)
         self.assertIn('if (area === "requests") return loadPurchaseRequestsData();', app_js)
+        self.assertIn('per_page=100', app_js)
+        self.assertIn('id="purchases-requests-pagination"', self.index_html)
+        self.assertIn('id="purchases-invoices-pagination"', self.index_html)
         self.assertIn('apiFetch("/compras/importacoes",', app_js)
         self.assertIn("submitPurchaseImport", app_js)
         self.assertIn("loadMaterialPurchaseHistory", app_js)

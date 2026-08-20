@@ -312,11 +312,13 @@ const state = {
     },
     purchases: {
         requests: [],
+        requestsPagination: { page: 1, per_page: 100, total: 0, total_pages: 1 },
         pendingPcItems: [],
         orders: [],
         ordersPagination: { page: 1, per_page: 100, total: 0, total_pages: 1, query: "" },
         ordersSearchTimer: null,
         pendingInvoices: { pending_nf: [], pending_receipts: [] },
+        invoicesPagination: { page: 1, per_page: 100, pending_nf: { total: 0, total_pages: 1 }, pending_receipts: { total: 0, total_pages: 1 } },
         processCenter: { summary: {}, items: [] },
         overview: null,
         processCenterPagination: { page: 1, per_page: 100, total_pages: 1 },
@@ -626,6 +628,10 @@ const elements = {
     purchasesAwaitingPcCount: document.getElementById("purchases-awaiting-pc-count"),
     purchasesAwaitingNfCount: document.getElementById("purchases-awaiting-nf-count"),
     purchasesRequestsCount: document.getElementById("purchases-requests-count"),
+    purchasesRequestsPagination: document.getElementById("purchases-requests-pagination"),
+    purchasesRequestsPageInfo: document.getElementById("purchases-requests-page-info"),
+    purchasesRequestsPagePrev: document.getElementById("purchases-requests-page-prev"),
+    purchasesRequestsPageNext: document.getElementById("purchases-requests-page-next"),
     purchasesRequestSearch: document.getElementById("purchases-request-search"),
     purchasesRequestStatus: document.getElementById("purchases-request-status"),
     purchasesRequestSort: document.getElementById("purchases-request-sort"),
@@ -686,6 +692,10 @@ const elements = {
     purchasesInvoicesPendingCount: document.getElementById("purchases-invoices-pending-count"),
     purchasesReceiptsPendingCount: document.getElementById("purchases-receipts-pending-count"),
     purchasesInvoicesRefresh: document.getElementById("purchases-invoices-refresh"),
+    purchasesInvoicesPagination: document.getElementById("purchases-invoices-pagination"),
+    purchasesInvoicesPageInfo: document.getElementById("purchases-invoices-page-info"),
+    purchasesInvoicesPagePrev: document.getElementById("purchases-invoices-page-prev"),
+    purchasesInvoicesPageNext: document.getElementById("purchases-invoices-page-next"),
     purchasesInvoicePendingList: document.getElementById("purchases-invoice-pending-list"),
     purchasesReceiptPendingList: document.getElementById("purchases-receipt-pending-list"),
     purchasesProcessCenterCount: document.getElementById("purchases-process-center-count"),
@@ -3208,7 +3218,17 @@ function renderPurchaseRequests() {
     });
 
     if (elements.purchasesRequestsCount) {
-        elements.purchasesRequestsCount.textContent = `${filtered.length} de ${rows.length} ${rows.length === 1 ? "solicitação" : "solicitações"}`;
+        const pagination = state.purchases.requestsPagination || {};
+        const total = Number(pagination.total ?? rows.length);
+        elements.purchasesRequestsCount.textContent = total > rows.length
+            ? `${filtered.length} de ${rows.length} nesta página · ${total} no total`
+            : `${filtered.length} de ${rows.length} ${rows.length === 1 ? "solicitação" : "solicitações"}`;
+        const page = Number(pagination.page || 1);
+        const totalPages = Math.max(1, Number(pagination.total_pages || 1));
+        if (elements.purchasesRequestsPageInfo) elements.purchasesRequestsPageInfo.textContent = `PÁGINA ${page}/${totalPages}`;
+        elements.purchasesRequestsPagination?.classList.toggle("hidden", totalPages <= 1);
+        if (elements.purchasesRequestsPagePrev) elements.purchasesRequestsPagePrev.disabled = page <= 1;
+        if (elements.purchasesRequestsPageNext) elements.purchasesRequestsPageNext.disabled = page >= totalPages;
     }
     if (!filtered.length) {
         elements.purchasesRequestList.innerHTML = `<article class="purchases-request-empty"><strong>${rows.length ? "NENHUMA SOLICITAÇÃO NESTE FILTRO" : "NENHUMA SOLICITAÇÃO DE COMPRA"}</strong><span>${rows.length ? "Ajuste a busca ou o status para consultar outra SC." : "As solicitações aparecerão aqui quando forem registradas."}</span></article>`;
@@ -3693,8 +3713,19 @@ function purchaseReceiptPendingById(id) {
 function renderPurchaseInvoiceData() {
     const pendingNf = state.purchases.pendingInvoices?.pending_nf || [];
     const pendingReceipts = state.purchases.pendingInvoices?.pending_receipts || [];
-    if (elements.purchasesInvoicesPendingCount) elements.purchasesInvoicesPendingCount.textContent = `${pendingNf.length} ${pendingNf.length === 1 ? "NF pendente" : "NFs pendentes"}`;
-    if (elements.purchasesReceiptsPendingCount) elements.purchasesReceiptsPendingCount.textContent = `${pendingReceipts.length} ${pendingReceipts.length === 1 ? "item para receber" : "itens para receber"}`;
+    const pagination = state.purchases.invoicesPagination || {};
+    const pendingNfMeta = pagination.pending_nf || {};
+    const pendingReceiptsMeta = pagination.pending_receipts || {};
+    const pendingNfTotal = Number(pendingNfMeta.total ?? pendingNf.length);
+    const pendingReceiptsTotal = Number(pendingReceiptsMeta.total ?? pendingReceipts.length);
+    const page = Number(pagination.page || 1);
+    const totalPages = Math.max(1, Number(pendingNfMeta.total_pages || 1), Number(pendingReceiptsMeta.total_pages || 1));
+    if (elements.purchasesInvoicesPendingCount) elements.purchasesInvoicesPendingCount.textContent = `${pendingNfTotal} ${pendingNfTotal === 1 ? "NF pendente" : "NFs pendentes"}`;
+    if (elements.purchasesReceiptsPendingCount) elements.purchasesReceiptsPendingCount.textContent = `${pendingReceiptsTotal} ${pendingReceiptsTotal === 1 ? "item para receber" : "itens para receber"}`;
+    if (elements.purchasesInvoicesPageInfo) elements.purchasesInvoicesPageInfo.textContent = `PÁGINA ${page}/${totalPages}`;
+    elements.purchasesInvoicesPagination?.classList.toggle("hidden", totalPages <= 1);
+    if (elements.purchasesInvoicesPagePrev) elements.purchasesInvoicesPagePrev.disabled = page <= 1;
+    if (elements.purchasesInvoicesPageNext) elements.purchasesInvoicesPageNext.disabled = page >= totalPages;
     if (elements.purchasesInvoicePendingList) {
         elements.purchasesInvoicePendingList.innerHTML = pendingNf.length ? pendingNf.map((order) => {
             const totalPending = (order.items || []).reduce((sum, item) => sum + Number(item.remaining_invoice_quantity || 0), 0);
@@ -3725,13 +3756,18 @@ function renderPurchaseInvoiceBoard(pendingNf = state.purchases.pendingInvoices?
     applyPurchaseKanbanFocus(elements.purchasesInvoiceBoard);
 }
 
-async function loadPurchaseInvoiceData() {
+async function loadPurchaseInvoiceData({ page = null } = {}) {
     try {
-        state.purchases.pendingInvoices = await apiFetch("/compras/notas/pendentes") || { pending_nf: [], pending_receipts: [] };
+        const current = state.purchases.invoicesPagination || {};
+        const nextPage = Math.max(1, Number(page || current.page || 1));
+        const payload = await apiFetch(`/compras/notas/pendentes?page=${nextPage}&per_page=100`) || { pending_nf: [], pending_receipts: [] };
+        state.purchases.pendingInvoices = payload;
+        state.purchases.invoicesPagination = payload.pagination || { page: nextPage, per_page: 100, pending_nf: { total: payload.pending_nf?.length || 0, total_pages: 1 }, pending_receipts: { total: payload.pending_receipts?.length || 0, total_pages: 1 } };
         renderPurchaseInvoiceData();
         renderPurchaseOverview();
     } catch (error) {
         state.purchases.pendingInvoices = { pending_nf: [], pending_receipts: [] };
+        state.purchases.invoicesPagination = { page: 1, per_page: 100, pending_nf: { total: 0, total_pages: 1 }, pending_receipts: { total: 0, total_pages: 1 } };
         renderPurchaseInvoiceData();
         showToast(error.message || "FALHA AO CARREGAR AS NOTAS FISCAIS.", true);
     }
@@ -4110,12 +4146,19 @@ function renderPurchaseOverview() {
     renderPurchaseRequests();
 }
 
-async function loadPurchaseRequestsData() {
+async function loadPurchaseRequestsData({ page = null } = {}) {
     try {
-        state.purchases.requests = await apiFetch("/compras/solicitacoes?modo=OPERACIONAL") || [];
+        const current = state.purchases.requestsPagination || {};
+        const nextPage = Math.max(1, Number(page || current.page || 1));
+        const payload = await apiFetch(`/compras/solicitacoes?modo=OPERACIONAL&page=${nextPage}&per_page=100`);
+        state.purchases.requests = Array.isArray(payload) ? payload : (payload?.items || []);
+        state.purchases.requestsPagination = Array.isArray(payload)
+            ? { page: 1, per_page: 100, total: state.purchases.requests.length, total_pages: 1 }
+            : (payload?.pagination || { page: nextPage, per_page: 100, total: state.purchases.requests.length, total_pages: 1 });
         renderPurchaseOverview();
     } catch (error) {
         state.purchases.requests = [];
+        state.purchases.requestsPagination = { page: 1, per_page: 100, total: 0, total_pages: 1 };
         renderPurchaseOverview();
         showToast(error.message || "FALHA AO CARREGAR AS SOLICITAÇÕES DE COMPRA.", true);
     }
@@ -10897,6 +10940,15 @@ on(elements.purchasesMaterialHistoryButton, "click", loadMaterialPurchaseHistory
 on(elements.purchasesRequestSearch, "input", renderPurchaseRequests);
 on(elements.purchasesRequestStatus, "change", renderPurchaseRequests);
 on(elements.purchasesRequestSort, "change", renderPurchaseRequests);
+on(elements.purchasesRequestsPagePrev, "click", () => {
+    const page = Number(state.purchases.requestsPagination?.page || 1);
+    if (page > 1) void loadPurchaseRequestsData({ page: page - 1 });
+});
+on(elements.purchasesRequestsPageNext, "click", () => {
+    const pagination = state.purchases.requestsPagination || {};
+    const page = Number(pagination.page || 1);
+    if (page < Number(pagination.total_pages || 1)) void loadPurchaseRequestsData({ page: page + 1 });
+});
 on(elements.purchasesRequestNew, "click", openPurchaseRequestModal);
 on(elements.purchaseRequestAddItem, "click", () => addPurchaseRequestItem());
 on(elements.purchaseRequestItems, "click", (event) => {
@@ -10964,6 +11016,16 @@ on(elements.purchasesOrdersPageNext, "click", () => {
     if (page < Number(pagination.total_pages || 1)) void loadPurchaseOrdersData({ page: page + 1, refreshPending: false });
 });
 on(elements.purchasesInvoicesRefresh, "click", loadPurchaseInvoiceData);
+on(elements.purchasesInvoicesPagePrev, "click", () => {
+    const page = Number(state.purchases.invoicesPagination?.page || 1);
+    if (page > 1) void loadPurchaseInvoiceData({ page: page - 1 });
+});
+on(elements.purchasesInvoicesPageNext, "click", () => {
+    const pagination = state.purchases.invoicesPagination || {};
+    const totalPages = Math.max(1, Number(pagination.pending_nf?.total_pages || 1), Number(pagination.pending_receipts?.total_pages || 1));
+    const page = Number(pagination.page || 1);
+    if (page < totalPages) void loadPurchaseInvoiceData({ page: page + 1 });
+});
 on(elements.purchasesInvoicePendingList, "click", (event) => {
     const button = event.target instanceof HTMLElement ? event.target.closest("[data-purchase-invoice-open]") : null;
     if (button) openPurchaseInvoiceModal(purchaseInvoicePendingById(Number(button.dataset.purchaseInvoiceOpen)));
