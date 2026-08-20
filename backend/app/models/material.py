@@ -20,6 +20,22 @@ class Material(db.Model):
     classe_abc = db.Column(db.String(1), nullable=False, default="C", index=True)
     ativo = db.Column(db.Boolean, nullable=False, default=True, index=True)
     created_at = db.Column(db.DateTime, nullable=False, default=now_manaus_naive)
+    codigo_produto = db.Column(db.String(120), nullable=True, index=True)
+    marca = db.Column(db.String(180), nullable=True)
+    referencia_manual = db.Column(db.String(180), nullable=True)
+    numero_fabricante = db.Column(db.String(180), nullable=True)
+    referencia_preferencial = db.Column(db.String(180), nullable=True, index=True)
+    status_referencia = db.Column(db.String(30), nullable=True, index=True)
+    familia_codigo = db.Column(db.String(80), nullable=True, index=True)
+    primeira_sc = db.Column(db.String(60), nullable=True)
+    ultima_sc = db.Column(db.String(60), nullable=True)
+    quantidade_registros_historicos = db.Column(db.Integer, nullable=True)
+    ultimo_pc = db.Column(db.String(60), nullable=True)
+    data_ultimo_pc = db.Column(db.Date, nullable=True)
+    ultimo_fornecedor = db.Column(db.String(220), nullable=True)
+    ultima_nf = db.Column(db.String(80), nullable=True)
+    data_ultima_nf = db.Column(db.Date, nullable=True)
+    valor_item_ultimo_registro = db.Column(db.Numeric(18, 2), nullable=True)
 
     movements = db.relationship(
         "MaterialMovement",
@@ -64,6 +80,22 @@ class Material(db.Model):
             "ponto_reposicao": self.ponto_reposicao,
             "classe_abc": self.classe_abc,
             "ativo": self.ativo,
+            "codigo_produto": self.codigo_produto,
+            "marca": self.marca,
+            "referencia_manual": self.referencia_manual,
+            "numero_fabricante": self.numero_fabricante,
+            "referencia_preferencial": self.referencia_preferencial,
+            "status_referencia": self.status_referencia,
+            "familia_codigo": self.familia_codigo,
+            "primeira_sc": self.primeira_sc,
+            "ultima_sc": self.ultima_sc,
+            "quantidade_registros_historicos": self.quantidade_registros_historicos,
+            "ultimo_pc": self.ultimo_pc,
+            "data_ultimo_pc": self.data_ultimo_pc.isoformat() if self.data_ultimo_pc else None,
+            "ultimo_fornecedor": self.ultimo_fornecedor,
+            "ultima_nf": self.ultima_nf,
+            "data_ultima_nf": self.data_ultima_nf.isoformat() if self.data_ultima_nf else None,
+            "valor_item_ultimo_registro": float(self.valor_item_ultimo_registro) if self.valor_item_ultimo_registro is not None else None,
             "baixo_estoque": self.quantidade_estoque <= self.estoque_minimo,
             "repor": self.quantidade_estoque <= self.ponto_reposicao,
             "created_at": self.created_at.isoformat() if self.created_at else None,

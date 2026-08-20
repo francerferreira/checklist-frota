@@ -156,6 +156,14 @@ class PurchaseServiceCatalog(db.Model):
     module = db.Column(db.String(40), nullable=True, index=True)
     active = db.Column(db.Boolean, nullable=False, default=True, index=True)
     imported = db.Column(db.Boolean, nullable=False, default=False, index=True)
+    referencia_fiscal_manual = db.Column(db.String(180), nullable=True)
+    numero_fabricante_cadastrado = db.Column(db.String(180), nullable=True)
+    primeira_sc = db.Column(db.String(60), nullable=True)
+    ultima_sc = db.Column(db.String(60), nullable=True)
+    quantidade_registros_historicos = db.Column(db.Integer, nullable=True)
+    ultimo_fornecedor = db.Column(db.String(220), nullable=True)
+    ultimo_pc = db.Column(db.String(60), nullable=True)
+    ultima_observacao_sc = db.Column(db.Text, nullable=True)
     created_at = db.Column(db.DateTime, nullable=False, default=now_manaus_naive)
     updated_at = db.Column(db.DateTime, nullable=False, default=now_manaus_naive, onupdate=now_manaus_naive)
 
@@ -169,6 +177,14 @@ class PurchaseServiceCatalog(db.Model):
             "module": self.module,
             "active": self.active,
             "imported": self.imported,
+            "referencia_fiscal_manual": self.referencia_fiscal_manual,
+            "numero_fabricante_cadastrado": self.numero_fabricante_cadastrado,
+            "primeira_sc": self.primeira_sc,
+            "ultima_sc": self.ultima_sc,
+            "quantidade_registros_historicos": self.quantidade_registros_historicos,
+            "ultimo_fornecedor": self.ultimo_fornecedor,
+            "ultimo_pc": self.ultimo_pc,
+            "ultima_observacao_sc": self.ultima_observacao_sc,
         }
 
 
