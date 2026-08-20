@@ -4110,14 +4110,20 @@ function renderPurchaseOverview() {
     renderPurchaseRequests();
 }
 
+async function loadPurchaseRequestsData() {
+    try {
+        state.purchases.requests = await apiFetch("/compras/solicitacoes?modo=OPERACIONAL") || [];
+        renderPurchaseOverview();
+    } catch (error) {
+        state.purchases.requests = [];
+        renderPurchaseOverview();
+        showToast(error.message || "FALHA AO CARREGAR AS SOLICITAÇÕES DE COMPRA.", true);
+    }
+}
+
 async function loadPurchasesData() {
     try {
-        const [requests, overview] = await Promise.all([
-            apiFetch("/compras/solicitacoes?modo=OPERACIONAL"),
-            apiFetch("/compras/indicadores"),
-        ]);
-        state.purchases.requests = requests || [];
-        state.purchases.overview = overview || null;
+        state.purchases.overview = await apiFetch("/compras/indicadores") || null;
         renderPurchaseOverview();
         await loadPurchasesAreaData(state.purchases.activeArea || "process");
     } catch (error) {
@@ -4285,6 +4291,7 @@ function setPurchasesArea(area = "process") {
 }
 
 async function loadPurchasesAreaData(area = "process") {
+    if (area === "requests") return loadPurchaseRequestsData();
     if (area === "orders") return loadPurchaseOrdersData();
     if (area === "invoices") return loadPurchaseInvoiceData();
     if (area === "providers" && hasAdminAccess()) return loadPurchaseProviders();

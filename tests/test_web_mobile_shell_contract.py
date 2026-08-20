@@ -327,6 +327,7 @@ class WebMobileShellContractTests(unittest.TestCase):
         self.assertIn("openPurchasesMenu", app_js)
         self.assertIn('apiFetch("/compras/solicitacoes?modo=OPERACIONAL")', app_js)
         self.assertIn('apiFetch("/compras/indicadores")', app_js)
+        self.assertIn('if (area === "requests") return loadPurchaseRequestsData();', app_js)
         self.assertIn('apiFetch("/compras/importacoes",', app_js)
         self.assertIn("submitPurchaseImport", app_js)
         self.assertIn("loadMaterialPurchaseHistory", app_js)
