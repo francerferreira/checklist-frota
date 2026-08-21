@@ -226,6 +226,56 @@ def delete_checklist_item(item_id: int):
     return api_response(True, data=enrich_catalog_item_payload(item.to_dict()))
 
 
+@bp.get("/checklist-itens/<int:item_id>/uso")
+@auth_required
+def checklist_item_usage(item_id: int):
+    """Retorna o uso operacional de um item do catálogo para a ficha administrativa."""
+    denied = _guard_management_access()
+    if denied:
+        return denied
+
+    item = ChecklistCatalogItem.query.get_or_404(item_id)
+    rows = (
+        ChecklistItem.query
+        .filter(ChecklistItem.item_nome == item.item_nome)
+        .order_by(ChecklistItem.created_at.desc())
+        .limit(100)
+        .all()
+    )
+
+    events = []
+    for row in rows:
+        checklist = row.checklist
+        vehicle = checklist.vehicle if checklist else None
+        user = checklist.user if checklist else None
+        event_date = None
+        if checklist and checklist.created_at:
+            event_date = checklist.created_at.isoformat()
+        elif row.created_at:
+            event_date = row.created_at.isoformat()
+        events.append(
+            {
+                "status": row.status,
+                "date": event_date,
+                "vehicle": getattr(vehicle, "frota", None) or getattr(vehicle, "placa", None) or "Equipamento",
+                "user": getattr(user, "nome", None) or getattr(user, "login", None) or "Usuário",
+            }
+        )
+
+    return api_response(
+        True,
+        data={
+            "item": enrich_catalog_item_payload(item.to_dict()),
+            "summary": {
+                "checklists": len(rows),
+                "ok": sum(1 for row in rows if row.status == "OK"),
+                "nc": sum(1 for row in rows if row.status == "NC"),
+            },
+            "events": events,
+        },
+    )
+
+
 @bp.post("/checklist")
 @auth_required
 def create_checklist():

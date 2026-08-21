@@ -308,6 +308,7 @@ const state = {
         rows: [],
         editingId: null,
         editingRow: null,
+        detailRow: null,
         editingKind: "default",
         loading: false,
         searchTimer: null,
@@ -621,6 +622,7 @@ const elements = {
     adminCatalogNewLocationButton: document.getElementById("admin-catalog-new-location-button"),
     adminCatalogSearch: document.getElementById("admin-catalog-search"),
     adminCatalogStatus: document.getElementById("admin-catalog-status"),
+    adminCatalogSecondaryFilter: document.getElementById("admin-catalog-secondary-filter"),
     adminCatalogRefresh: document.getElementById("admin-catalog-refresh"),
     adminCatalogDetailContent: document.getElementById("admin-catalog-detail-content"),
     mmpStockBackButton: document.getElementById("mmp-stock-back-button"),
@@ -3145,8 +3147,8 @@ function openAdminCatalogs() {
 }
 
 const ADMIN_CATALOG_DEFINITIONS = {
-    providers: { section: "COMPRAS", title: "PROVEDORES", description: "Cadastro administrativo de empresas e contatos usados no fluxo SC → PC → NF.", endpoint: "/compras/provedores", entity: "SUPPLIER", name: (row) => row.name, code: (row) => row.code, active: (row) => row.active !== false },
-    checklist: { section: "EQUIPAMENTOS", title: "ITENS DE CHECKLIST", description: "Itens e agrupamentos que aparecem nos checklists operacionais.", endpoint: "/checklist-itens?ativos=all", entity: "CHECKLIST", name: (row) => row.item_nome, code: (row) => row.tipo || row.vehicle_type, active: (row) => Boolean(row.ativo) },
+    providers: { section: "COMPRAS", title: "PROVEDORES", description: "Cadastro administrativo de empresas e contatos usados no fluxo SC → PC → NF.", endpoint: "/compras/provedores", historyEndpoint: (id) => `/compras/provedores/${id}/historico`, entity: "SUPPLIER", name: (row) => row.name, code: (row) => row.code, active: (row) => row.active !== false },
+    checklist: { section: "EQUIPAMENTOS", title: "ITENS DE CHECKLIST VEICULAR", description: "Itens, agrupamentos e referências visuais usados nos checklists de veículos.", historyEndpoint: (id) => `/checklist-itens/${id}/uso`, entity: "CHECKLIST", name: (row) => row.item_nome, code: (row) => row.tipo || row.vehicle_type, active: (row) => Boolean(row.ativo) },
     employees: { section: "RH", title: "COLABORADORES", description: "Cadastro funcional, vínculo, equipe, turno e situação cadastral.", endpoint: "/rh/colaboradores", entity: "EMPLOYEE", name: (row) => row.full_name, code: (row) => row.registration, active: (row) => String(row.status || "").toUpperCase() !== "INATIVO" },
     users: { section: "ACESSO", title: "USUÁRIOS E PERMISSÕES", description: "Logins, perfis, situação, última entrada e controle de acesso.", endpoint: "/usuarios", entity: "USER", name: (row) => row.nome || row.login, code: (row) => row.login, active: (row) => row.ativo !== false },
     stock: { section: "MATERIAIS", title: "ARMAZÉNS E LOCAIS MMP", description: "Armazém Principal, Estoque MMP, prateleiras e posições administrativas.", endpoint: "/suprimentos/depositos", locationsEndpoint: "/suprimentos/locais", entity: "WAREHOUSE", name: (row) => row.name || row.label, code: (row) => row.code || row.location_code, active: (row) => row.active !== false },
@@ -3215,16 +3217,22 @@ function adminCatalogFormFields(catalog, row = {}) {
         <label><span>TELEFONE</span><input name="phone" value="${value("phone")}"></label>
         <label class="admin-catalog-field-wide"><span>OBSERVAÇÕES</span><textarea name="notes" rows="3">${value("notes")}</textarea></label>
         <label><span>SITUAÇÃO</span><select name="active"><option value="true" ${(row.active !== false) ? "selected" : ""}>ATIVO</option><option value="false" ${(row.active === false) ? "selected" : ""}>INATIVO</option></select></label>
-        <label><span>HOMOLOGAÇÃO</span><select name="homologated"><option value="false" ${row.homologated ? "" : "selected"}>PENDENTE</option><option value="true" ${row.homologated ? "selected" : ""}>HOMOLOGADO</option></select></label>`;
-    if (catalog === "checklist") return `
+        <label><span>HOMOLOGAÇÃO</span><select name="homologated"><option value="false" ${row.homologated ? "" : "selected"}>PENDENTE</option><option value="true" ${row.homologated ? "selected" : ""}>HOMOLOGADO</option></select></label>
+        <label><span>PREFERENCIAL</span><select name="preferred"><option value="false" ${row.preferred ? "" : "selected"}>NÃO</option><option value="true" ${row.preferred ? "selected" : ""}>SIM</option></select></label>`;
+    if (catalog === "checklist") {
+        const checklistType = row.tipo || row.vehicle_type || "cavalo";
+        const groupingType = row.tipo_agrupamento || "simples";
+        const selected = (valueToCompare, currentValue) => valueToCompare === currentValue ? "selected" : "";
+        return `
         <label><span>NOME DO ITEM *</span><input name="item_nome" required value="${value("item_nome")}"></label>
-        <label><span>TIPO DE EQUIPAMENTO *</span><select name="tipo"><option value="cavalo">CAVALO</option><option value="carreta">CARRETA</option><option value="carro_simples">CARRO SIMPLES</option><option value="cavalo_auxiliar">CAVALO AUXILIAR</option><option value="ambulancia">AMBULÂNCIA</option><option value="caminhao_pipa">CAMINHÃO PIPA</option><option value="caminhao_brigada">CAMINHÃO BRIGADA</option><option value="onibus">ÔNIBUS</option><option value="van">VAN</option></select></label>
+        <label><span>TIPO DE EQUIPAMENTO *</span><select name="tipo"><option value="cavalo" ${selected("cavalo", checklistType)}>CAVALO</option><option value="carreta" ${selected("carreta", checklistType)}>CARRETA</option><option value="carro_simples" ${selected("carro_simples", checklistType)}>CARRO SIMPLES</option><option value="cavalo_auxiliar" ${selected("cavalo_auxiliar", checklistType)}>CAVALO AUXILIAR</option><option value="ambulancia" ${selected("ambulancia", checklistType)}>AMBULÂNCIA</option><option value="caminhao_pipa" ${selected("caminhao_pipa", checklistType)}>CAMINHÃO PIPA</option><option value="caminhao_brigada" ${selected("caminhao_brigada", checklistType)}>CAMINHÃO BRIGADA</option><option value="onibus" ${selected("onibus", checklistType)}>ÔNIBUS</option><option value="van" ${selected("van", checklistType)}>VAN</option></select></label>
         <label><span>ORDEM</span><input type="number" min="1" name="position" value="${value("position") || "1"}"></label>
-        <label><span>AGRUPAMENTO</span><select name="tipo_agrupamento"><option value="simples">SIMPLES</option><option value="lado">LADO</option><option value="compartimento">COMPARTIMENTO</option></select></label>
+        <label><span>AGRUPAMENTO</span><select name="tipo_agrupamento"><option value="simples" ${selected("simples", groupingType)}>SIMPLES</option><option value="lado" ${selected("lado", groupingType)}>LADO</option><option value="compartimento" ${selected("compartimento", groupingType)}>COMPARTIMENTO</option></select></label>
         <label><span>ITEM PRINCIPAL</span><input name="item_principal" value="${value("item_principal")}"></label>
         <label><span>PARTE</span><input name="parte" value="${value("parte")}" placeholder="Ex.: LADO DIREITO"></label>
         <label class="admin-catalog-field-wide"><span>FOTO DE REFERÊNCIA</span><input type="file" name="foto_file" accept="image/*"><small>${row.foto_path ? "Foto atual mantida se nenhuma nova for escolhida." : "Nenhuma foto cadastrada."}</small></label>
         <label><span>SITUAÇÃO</span><select name="ativo"><option value="true" ${row.ativo !== false ? "selected" : ""}>ATIVO</option><option value="false" ${row.ativo === false ? "selected" : ""}>INATIVO</option></select></label>`;
+    }
     if (catalog === "employees") return `
         <label><span>MATRÍCULA *</span><input name="registration" required value="${value("registration")}"></label>
         <label><span>NOME COMPLETO *</span><input name="full_name" required value="${value("full_name")}"></label>
@@ -3264,17 +3272,62 @@ function adminCatalogFormFields(catalog, row = {}) {
         <label><span>SITUAÇÃO</span><select name="active"><option value="true" ${row.active !== false ? "selected" : ""}>ATIVO</option><option value="false" ${row.active === false ? "selected" : ""}>INATIVO</option></select></label>`;
 }
 
-function renderAdminCatalogList() {
+function filteredAdminCatalogRows() {
     const definition = adminCatalogDefinition();
     const query = String(elements.adminCatalogSearch?.value || "").trim().toLocaleLowerCase("pt-BR");
     const status = String(elements.adminCatalogStatus?.value || "TODOS");
-    const rows = state.adminCatalogs.rows.filter((row) => (!query || adminCatalogSearchable(row, definition).includes(query)) && (status === "TODOS" || (status === "ATIVO" ? definition.active(row) : !definition.active(row))));
+    const secondary = String(elements.adminCatalogSecondaryFilter?.value || "TODOS");
+    return state.adminCatalogs.rows.filter((row) => {
+        if (query && !adminCatalogSearchable(row, definition).includes(query)) return false;
+        if (status !== "TODOS" && (status === "ATIVO") !== definition.active(row)) return false;
+        if (state.adminCatalogs.activeCatalog === "providers") {
+            if (secondary === "HOMOLOGADOS" && !row.homologated) return false;
+            if (secondary === "PENDENTES" && row.homologated) return false;
+            if (secondary === "PREFERENCIAIS" && !row.preferred) return false;
+        }
+        if (state.adminCatalogs.activeCatalog === "checklist") {
+            if (secondary === "COM_FOTO" && !row.foto_path) return false;
+            if (secondary === "SEM_FOTO" && row.foto_path) return false;
+            if (secondary === "AGRUPADOS" && (!row.tipo_agrupamento || row.tipo_agrupamento === "simples")) return false;
+        }
+        return true;
+    });
+}
+
+function renderAdminCatalogList() {
+    const definition = adminCatalogDefinition();
+    const rows = filteredAdminCatalogRows();
     if (!rows.length) {
-        elements.adminCatalogDetailContent.innerHTML = `<div class="empty-state"><strong>NENHUM REGISTRO ENCONTRADO</strong><span>Ajuste a busca ou use “+ Novo cadastro”.</span></div>`;
+        elements.adminCatalogDetailContent.innerHTML = `<div class="empty-state"><strong>NENHUM REGISTRO ENCONTRADO</strong><span>Ajuste os filtros ou use “+ Novo cadastro”.</span></div>`;
         return;
     }
-    elements.adminCatalogDetailContent.innerHTML = `<div class="admin-catalog-record-grid">${rows.map((row) => `
-        <article class="admin-catalog-record"><header><span>${escapeHtml(String(definition.code(row) || "SEM CÓDIGO"))}</span><b class="status-pill">${definition.active(row) ? "ATIVO" : "INATIVO"}</b></header><strong>${escapeHtml(String(definition.name(row) || "SEM NOME"))}</strong><small>${escapeHtml(String(row.legal_name || row.team_name || row.location || row.warehouse_type || row.tipo || row.login || row.shelf_code || "Cadastro administrativo"))}</small><footer><small>${row.record_kind === "location" ? "LOCAL MMP" : `Atualizado: ${escapeHtml(formatAdminDate(row.updated_at || row.created_at))}`}</small><button class="secondary-button" type="button" data-admin-catalog-edit="${Number(row.id)}">EDITAR</button></footer></article>`).join("")}</div>`;
+    if (state.adminCatalogs.activeCatalog === "providers") {
+        const active = rows.filter((row) => row.active !== false).length;
+        const homologated = rows.filter((row) => row.homologated).length;
+        elements.adminCatalogDetailContent.innerHTML = `<div class="admin-catalog-summary"><div><span>REGISTROS VISÍVEIS</span><strong>${rows.length}</strong></div><div><span>ATIVOS</span><strong>${active}</strong></div><div><span>HOMOLOGADOS</span><strong>${homologated}</strong></div></div><div class="admin-catalog-record-grid admin-provider-record-grid">${rows.map((row) => `<article class="admin-catalog-record admin-provider-record"><header><div><span>${escapeHtml(row.code || "SEM CÓDIGO")}</span><strong>${escapeHtml(row.name || "SEM NOME")}</strong></div><b class="status-pill ${row.active === false ? "is-inactive" : ""}">${row.active === false ? "INATIVO" : "ATIVO"}</b></header><small>${escapeHtml(row.trade_name || row.legal_name || "Razão social não informada")}</small><p>${escapeHtml([row.contact_name, row.phone, row.email].filter(Boolean).join(" · ") || "Contato não informado")}</p><div class="admin-catalog-badges"><b>${row.homologated ? "HOMOLOGADO" : "PENDENTE"}</b>${row.preferred ? "<b>PREFERENCIAL</b>" : ""}</div><footer><button class="secondary-button" type="button" data-admin-catalog-view="${Number(row.id)}">ABRIR FICHA</button><button class="secondary-button" type="button" data-admin-catalog-edit="${Number(row.id)}">EDITAR</button></footer></article>`).join("")}</div>`;
+        return;
+    }
+    if (state.adminCatalogs.activeCatalog === "checklist") {
+        const groups = new Map();
+        rows.forEach((row) => { const key = row.vehicle_type || row.tipo || "OUTROS"; if (!groups.has(key)) groups.set(key, []); groups.get(key).push(row); });
+        elements.adminCatalogDetailContent.innerHTML = `<div class="admin-catalog-summary"><div><span>ITENS VISÍVEIS</span><strong>${rows.length}</strong></div><div><span>TIPOS DE VEÍCULO</span><strong>${groups.size}</strong></div><div><span>COM FOTO</span><strong>${rows.filter((row) => row.foto_path).length}</strong></div></div><div class="admin-checklist-groups">${[...groups.entries()].map(([type, items]) => `<section class="admin-checklist-group"><header><div><span>TIPO DE VEÍCULO</span><strong>${escapeHtml(type.toUpperCase())}</strong></div><b>${items.length} ITEM(NS)</b></header><div class="admin-checklist-item-list">${items.map((row) => `<article class="admin-checklist-item"><div><strong>${escapeHtml(row.item_nome || "SEM NOME")}</strong><small>${escapeHtml(row.item_principal || "Item principal")}${row.parte ? ` · ${escapeHtml(row.parte)}` : ""}</small></div><span>${row.foto_path ? "COM FOTO" : "SEM FOTO"} · ORDEM ${Number(row.position || 0)}</span><footer><button class="secondary-button" type="button" data-admin-catalog-view="${Number(row.id)}">FICHA</button><button class="secondary-button" type="button" data-admin-catalog-edit="${Number(row.id)}">EDITAR</button></footer></article>`).join("")}</div></section>`).join("")}</div>`;
+        return;
+    }
+    elements.adminCatalogDetailContent.innerHTML = `<div class="admin-catalog-record-grid">${rows.map((row) => `<article class="admin-catalog-record"><header><span>${escapeHtml(String(definition.code(row) || "SEM CÓDIGO"))}</span><b class="status-pill">${definition.active(row) ? "ATIVO" : "INATIVO"}</b></header><strong>${escapeHtml(String(definition.name(row) || "SEM NOME"))}</strong><small>${escapeHtml(String(row.legal_name || row.team_name || row.location || row.warehouse_type || row.tipo || row.login || row.shelf_code || "Cadastro administrativo"))}</small><footer><small>${row.record_kind === "location" ? "LOCAL MMP" : `Atualizado: ${escapeHtml(formatAdminDate(row.updated_at || row.created_at))}`}</small><button class="secondary-button" type="button" data-admin-catalog-view="${Number(row.id)}">FICHA</button><button class="secondary-button" type="button" data-admin-catalog-edit="${Number(row.id)}">EDITAR</button></footer></article>`).join("")}</div>`;
+}
+
+function renderAdminCatalogDetailRecord(row = state.adminCatalogs.detailRow) {
+    if (!row) {
+        elements.adminCatalogDetailContent.innerHTML = `<div class="empty-state"><strong>SELECIONE UM REGISTRO</strong><span>Abra uma ficha pela lista para consultar os detalhes.</span></div>`;
+        return;
+    }
+    if (state.adminCatalogs.activeCatalog === "providers") {
+        elements.adminCatalogDetailContent.innerHTML = `<div class="admin-record-detail"><header><div><span>PROVEDOR ${escapeHtml(row.code || "")}</span><h4>${escapeHtml(row.name || "SEM NOME")}</h4><p>${escapeHtml(row.trade_name || row.legal_name || "Razão social não informada")}</p></div><button class="primary-button" type="button" data-admin-catalog-edit="${Number(row.id)}">EDITAR PROVEDOR</button></header><div class="admin-record-detail-grid"><div><span>CNPJ / DOCUMENTO</span><strong>${escapeHtml(row.tax_id || "NÃO INFORMADO")}</strong></div><div><span>CONTATO</span><strong>${escapeHtml(row.contact_name || "NÃO INFORMADO")}</strong></div><div><span>E-MAIL</span><strong>${escapeHtml(row.email || "NÃO INFORMADO")}</strong></div><div><span>TELEFONE</span><strong>${escapeHtml(row.phone || "NÃO INFORMADO")}</strong></div><div><span>HOMOLOGAÇÃO</span><strong>${row.homologated ? "HOMOLOGADO" : "PENDENTE"}</strong></div><div><span>PREFERENCIAL</span><strong>${row.preferred ? "SIM" : "NÃO"}</strong></div><div class="admin-record-detail-wide"><span>OBSERVAÇÕES</span><strong>${escapeHtml(row.notes || "Nenhuma observação registrada.")}</strong></div></div></div>`;
+        return;
+    }
+    if (state.adminCatalogs.activeCatalog === "checklist") {
+        elements.adminCatalogDetailContent.innerHTML = `<div class="admin-record-detail"><header><div><span>${escapeHtml(String(row.vehicle_type || row.tipo || "VEÍCULO").toUpperCase())}</span><h4>${escapeHtml(row.item_nome || "SEM NOME")}</h4><p>${escapeHtml(row.item_principal || "Item principal")}${row.parte ? ` · ${escapeHtml(row.parte)}` : ""}</p></div><button class="primary-button" type="button" data-admin-catalog-edit="${Number(row.id)}">EDITAR ITEM</button></header><div class="admin-record-detail-grid"><div><span>AGRUPAMENTO</span><strong>${escapeHtml(row.tipo_agrupamento || "SIMPLES")}</strong></div><div><span>ORDEM</span><strong>${Number(row.position || 0)}</strong></div><div><span>SITUAÇÃO</span><strong>${row.ativo ? "ATIVO" : "INATIVO"}</strong></div><div><span>FOTO</span><strong>${row.foto_path ? "CADASTRADA" : "NÃO CADASTRADA"}</strong></div><div class="admin-record-detail-wide"><span>PRÉVIA OPERACIONAL</span><strong>${escapeHtml(row.item_principal || row.item_nome || "Item")}${row.parte ? ` — ${escapeHtml(row.parte)}` : ""}</strong></div></div></div>`;
+    }
 }
 
 function renderAdminCatalogForm(row = null) {
@@ -3288,9 +3341,11 @@ function renderAdminCatalogForm(row = null) {
             ativo: row.ativo !== undefined ? String(Boolean(row.ativo)) : undefined,
             status: row.status,
             tipo: row.tipo || row.vehicle_type,
+            tipo_agrupamento: row.tipo_agrupamento,
             warehouse_type: row.warehouse_type,
             active: row.active !== undefined ? String(Boolean(row.active)) : undefined,
             homologated: row.homologated !== undefined ? String(Boolean(row.homologated)) : undefined,
+            preferred: row.preferred !== undefined ? String(Boolean(row.preferred)) : undefined,
             login: row.login,
             aplicacao_tipo: row.aplicacao_tipo,
             classe_abc: row.classe_abc,
@@ -3302,6 +3357,20 @@ function renderAdminCatalogForm(row = null) {
         });
     }
     if (state.adminCatalogs.activeCatalog === "employees" && form) void loadAdminCatalogEmployeeUsers(form, row);
+    if (state.adminCatalogs.activeCatalog === "checklist" && form) {
+        const grouping = form.elements.namedItem("tipo_agrupamento");
+        const syncGrouping = () => {
+            const grouped = grouping?.value !== "simples";
+            ["item_principal", "parte"].forEach((name) => {
+                const field = form.elements.namedItem(name);
+                const label = field?.closest("label");
+                if (label) label.classList.toggle("hidden", !grouped);
+                if (field) field.required = grouped && name === "parte";
+            });
+        };
+        grouping?.addEventListener("change", syncGrouping);
+        syncGrouping();
+    }
     if (state.adminCatalogs.activeCatalog === "users" && form) {
         form.elements.namedItem("tipo")?.addEventListener("change", () => refreshAdminUserPermissions(form));
     }
@@ -3332,13 +3401,37 @@ async function loadAdminCatalogAudit(mode = "audit") {
     }
 }
 
+async function loadAdminCatalogHistory() {
+    const definition = adminCatalogDefinition();
+    const row = state.adminCatalogs.detailRow;
+    if ((state.adminCatalogs.activeCatalog === "providers" || state.adminCatalogs.activeCatalog === "checklist") && row && definition.historyEndpoint) {
+        try {
+            const history = await apiFetch(definition.historyEndpoint(Number(row.id)));
+            if (state.adminCatalogs.activeCatalog === "providers") {
+                const summary = history.summary || {};
+                elements.adminCatalogDetailContent.innerHTML = `<div class="admin-catalog-summary"><div><span>SCS</span><strong>${Number(summary.purchase_requests || 0)}</strong></div><div><span>PCS</span><strong>${Number(summary.purchase_orders || 0)}</strong></div><div><span>NFS</span><strong>${Number(summary.invoices || 0)}</strong></div></div><div class="admin-catalog-history-list">${(history.events || []).map((event) => `<article><strong>${escapeHtml(event.type || "EVENTO")}</strong><span>${escapeHtml(event.reference || "-")}</span><small>${escapeHtml(formatAdminDate(event.date))} · ${escapeHtml(event.status || "")}</small></article>`).join("") || `<div class="empty-state"><strong>NENHUM MOVIMENTO DE COMPRAS</strong><span>Este provedor ainda não possui processos relacionados.</span></div>`}</div>`;
+            } else {
+                const summary = history.summary || {};
+                elements.adminCatalogDetailContent.innerHTML = `<div class="admin-catalog-summary"><div><span>CHECKLISTS</span><strong>${Number(summary.checklists || 0)}</strong></div><div><span>OK</span><strong>${Number(summary.ok || 0)}</strong></div><div><span>NÃO CONFORME</span><strong>${Number(summary.nc || 0)}</strong></div></div><div class="admin-catalog-history-list">${(history.events || []).map((event) => `<article><strong>${escapeHtml(event.status || "REGISTRO")}</strong><span>${escapeHtml(event.vehicle || "Equipamento")}</span><small>${escapeHtml(formatAdminDate(event.date))} · ${escapeHtml(event.user || "Usuário")}</small></article>`).join("") || `<div class="empty-state"><strong>NENHUM USO REGISTRADO</strong><span>Este item ainda não foi usado em um checklist.</span></div>`}</div>`;
+            }
+            return;
+        } catch (error) {
+            renderStateCard(elements.adminCatalogDetailContent, { title: "HISTÓRICO INDISPONÍVEL", message: error.message || "Não foi possível consultar o histórico.", tone: "error" });
+            return;
+        }
+    }
+    await loadAdminCatalogAudit("history");
+}
+
 function setAdminCatalogTab(tab = "list") {
-    const selected = ["list", "form", "history", "audit"].includes(tab) ? tab : "list";
+    const selected = ["list", "detail", "form", "history", "audit"].includes(tab) ? tab : "list";
     state.adminCatalogs.activeTab = selected;
     elements.adminCatalogDetailTabs?.querySelectorAll("[data-admin-catalog-tab]").forEach((button) => button.classList.toggle("is-active", button.dataset.adminCatalogTab === selected));
     elements.adminCatalogNewButton?.classList.toggle("hidden", selected !== "list");
     if (selected === "list") renderAdminCatalogList();
+    else if (selected === "detail") renderAdminCatalogDetailRecord();
     else if (selected === "form") renderAdminCatalogForm();
+    else if (selected === "history") void loadAdminCatalogHistory();
     else void loadAdminCatalogAudit(selected);
 }
 
@@ -3382,6 +3475,7 @@ function openAdminCatalogDetail(action) {
     state.adminCatalogs.activeCatalog = action;
     state.adminCatalogs.editingId = null;
     state.adminCatalogs.editingRow = null;
+    state.adminCatalogs.detailRow = null;
     elements.adminCatalogsGrid?.classList.add("hidden");
     document.querySelector(".admin-settings-intro")?.classList.add("hidden");
     elements.adminCatalogDetail?.classList.remove("hidden");
@@ -3391,6 +3485,17 @@ function openAdminCatalogDetail(action) {
     elements.adminCatalogNewLocationButton?.classList.toggle("hidden", action !== "stock");
     elements.adminCatalogSearch.value = "";
     elements.adminCatalogStatus.value = "TODOS";
+    const secondaryWrap = document.getElementById("admin-catalog-secondary-filter-wrap");
+    const secondaryOptions = action === "providers"
+        ? [["TODOS", "TODOS"], ["HOMOLOGADOS", "HOMOLOGADOS"], ["PENDENTES", "PENDENTES"], ["PREFERENCIAIS", "PREFERENCIAIS"]]
+        : action === "checklist"
+            ? [["TODOS", "TODOS"], ["COM_FOTO", "COM FOTO"], ["SEM_FOTO", "SEM FOTO"], ["AGRUPADOS", "AGRUPADOS"]]
+            : [];
+    if (elements.adminCatalogSecondaryFilter && secondaryWrap) {
+        elements.adminCatalogSecondaryFilter.innerHTML = secondaryOptions.map(([value, label]) => `<option value="${value}">${label}</option>`).join("");
+        elements.adminCatalogSecondaryFilter.value = "TODOS";
+        secondaryWrap.classList.toggle("hidden", secondaryOptions.length === 0);
+    }
     setAdminCatalogTab("list");
     void loadAdminCatalogRecords();
 }
@@ -3401,6 +3506,7 @@ function closeAdminCatalogDetail() {
     document.querySelector(".admin-settings-intro")?.classList.remove("hidden");
     state.adminCatalogs.activeCatalog = "";
     state.adminCatalogs.editingRow = null;
+    state.adminCatalogs.detailRow = null;
 }
 
 async function submitAdminCatalogForm(event) {
@@ -3414,7 +3520,7 @@ async function submitAdminCatalogForm(event) {
     let payload = { ...values };
     delete payload.foto_file;
     delete payload.page_keys;
-    ["active", "ativo", "homologated"].forEach((key) => { if (key in payload) payload[key] = payload[key] === "true"; });
+    ["active", "ativo", "homologated", "preferred"].forEach((key) => { if (key in payload) payload[key] = payload[key] === "true"; });
     try {
     if (catalog === "checklist") {
             payload.position = Number(values.position || 1);
@@ -11108,6 +11214,7 @@ on(elements.adminCatalogDetailBack, "click", closeAdminCatalogDetail);
 on(elements.adminCatalogNewButton, "click", () => {
     state.adminCatalogs.editingId = null;
     state.adminCatalogs.editingRow = null;
+    state.adminCatalogs.detailRow = null;
     state.adminCatalogs.editingKind = "default";
     setAdminCatalogTab("form");
 });
@@ -11126,11 +11233,23 @@ on(elements.adminCatalogSearch, "input", () => {
 on(elements.adminCatalogStatus, "change", () => {
     if (state.adminCatalogs.activeTab === "list") void loadAdminCatalogRecords();
 });
+on(elements.adminCatalogSecondaryFilter, "change", () => {
+    if (state.adminCatalogs.activeTab === "list") renderAdminCatalogList();
+});
 on(elements.adminCatalogDetailTabs, "click", (event) => {
     const button = event.target instanceof HTMLElement ? event.target.closest("[data-admin-catalog-tab]") : null;
     if (button) setAdminCatalogTab(button.dataset.adminCatalogTab);
 });
 on(elements.adminCatalogDetailContent, "click", (event) => {
+    const viewButton = event.target instanceof HTMLElement ? event.target.closest("[data-admin-catalog-view]") : null;
+    if (viewButton) {
+        const row = state.adminCatalogs.rows.find((item) => Number(item.id) === Number(viewButton.dataset.adminCatalogView));
+        if (row) {
+            state.adminCatalogs.detailRow = row;
+            setAdminCatalogTab("detail");
+        }
+        return;
+    }
     const button = event.target instanceof HTMLElement ? event.target.closest("[data-admin-catalog-edit]") : null;
     if (!button) return;
     const row = state.adminCatalogs.rows.find((item) => Number(item.id) === Number(button.dataset.adminCatalogEdit));

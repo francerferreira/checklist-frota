@@ -431,6 +431,7 @@
                     </div>
                     <nav id="admin-catalog-detail-tabs" class="admin-catalog-detail-tabs" aria-label="Seções do cadastro">
                         <button type="button" class="is-active" data-admin-catalog-tab="list">LISTA</button>
+                        <button type="button" data-admin-catalog-tab="detail">FICHA</button>
                         <button type="button" data-admin-catalog-tab="form">CADASTRO</button>
                         <button type="button" data-admin-catalog-tab="history">HISTÓRICO</button>
                         <button type="button" data-admin-catalog-tab="audit">AUDITORIA</button>
@@ -438,6 +439,7 @@
                     <div class="admin-catalog-toolbar">
                         <label><span>BUSCAR</span><input id="admin-catalog-search" type="search" placeholder="Nome, código ou descrição"></label>
                         <label><span>STATUS</span><select id="admin-catalog-status"><option value="TODOS">TODOS</option><option value="ATIVO">ATIVOS</option><option value="INATIVO">INATIVOS</option></select></label>
+                        <label id="admin-catalog-secondary-filter-wrap" class="hidden"><span>FILTRO DA ÁREA</span><select id="admin-catalog-secondary-filter"><option value="TODOS">TODOS</option></select></label>
                         <button id="admin-catalog-refresh" class="secondary-button" type="button">ATUALIZAR</button>
                     </div>
                     <div id="admin-catalog-detail-content" class="admin-catalog-detail-content"></div>

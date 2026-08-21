@@ -7574,11 +7574,142 @@ button.rh-admin-operation-card:hover { border-color: #78aee6; transform: transla
 
 .admin-catalog-toolbar {
     display: grid;
-    grid-template-columns: minmax(0, 2fr) minmax(180px, 1fr) auto;
+    grid-template-columns: minmax(0, 2fr) minmax(180px, 1fr) minmax(180px, 1fr) auto;
     gap: 10px;
     align-items: end;
     margin-bottom: 14px;
 }
+
+.admin-catalog-summary {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 10px;
+    margin-bottom: 12px;
+}
+
+.admin-catalog-summary > div {
+    display: grid;
+    gap: 5px;
+    padding: 12px 14px;
+    border: 1px solid var(--theme-border);
+    border-radius: 10px;
+    background: var(--theme-surface-muted);
+}
+
+.admin-catalog-summary span,
+.admin-record-detail-grid span,
+.admin-record-detail header span,
+.admin-checklist-group header span {
+    color: var(--muted);
+    font-size: .66rem;
+    font-weight: 900;
+    letter-spacing: .07em;
+}
+
+.admin-catalog-summary strong {
+    color: var(--theme-text-strong);
+    font-size: 1.2rem;
+}
+
+.admin-provider-record p {
+    margin: 0;
+    color: var(--muted);
+    font-size: .8rem;
+}
+
+.admin-catalog-badges {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+}
+
+.admin-catalog-badges b,
+.admin-checklist-group header b {
+    padding: 4px 8px;
+    border: 1px solid var(--theme-border);
+    border-radius: 999px;
+    color: var(--theme-accent-contrast);
+    background: var(--theme-accent-strong);
+    font-size: .62rem;
+    letter-spacing: .04em;
+}
+
+.admin-checklist-groups {
+    display: grid;
+    gap: 12px;
+}
+
+.admin-checklist-group {
+    overflow: hidden;
+    border: 1px solid var(--theme-border);
+    border-radius: 12px;
+    background: var(--theme-surface-muted);
+}
+
+.admin-checklist-group > header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    padding: 12px 14px;
+    border-bottom: 1px solid var(--theme-border);
+}
+
+.admin-checklist-group > header div,
+.admin-record-detail header div {
+    display: grid;
+    gap: 3px;
+}
+
+.admin-checklist-group > header strong {
+    color: var(--theme-text-strong);
+}
+
+.admin-checklist-item {
+    display: grid;
+    grid-template-columns: minmax(0, 2fr) minmax(150px, 1fr) auto;
+    align-items: center;
+    gap: 10px;
+    padding: 11px 14px;
+    border-bottom: 1px solid var(--theme-border);
+}
+
+.admin-checklist-item:last-child { border-bottom: 0; }
+.admin-checklist-item div { display: grid; gap: 3px; }
+.admin-checklist-item strong { color: var(--theme-text-strong); }
+.admin-checklist-item small,
+.admin-checklist-item > span { color: var(--muted); font-size: .75rem; }
+.admin-checklist-item footer { display: flex; gap: 6px; }
+
+.admin-record-detail {
+    display: grid;
+    gap: 16px;
+    padding: 16px;
+    border: 1px solid var(--theme-border);
+    border-radius: 12px;
+    background: var(--theme-surface-muted);
+}
+
+.admin-record-detail > header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    padding-bottom: 12px;
+    border-bottom: 1px solid var(--theme-border);
+}
+
+.admin-record-detail h4 { margin: 0; color: var(--theme-text-strong); font-size: 1.25rem; }
+.admin-record-detail p { margin: 0; color: var(--muted); }
+.admin-record-detail-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; }
+.admin-record-detail-grid > div { display: grid; gap: 4px; }
+.admin-record-detail-grid strong { color: var(--theme-text-strong); }
+.admin-record-detail-wide { grid-column: 1 / -1; }
+
+.admin-catalog-history-list { display: grid; gap: 8px; }
+.admin-catalog-history-list article { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 10px; padding: 12px; border: 1px solid var(--theme-border); border-radius: 9px; background: var(--theme-surface-muted); }
+.admin-catalog-history-list strong { color: var(--theme-text-strong); }
+.admin-catalog-history-list span, .admin-catalog-history-list small { color: var(--muted); }
 
 .admin-catalog-toolbar label {
     display: grid;
@@ -7755,6 +7886,13 @@ button.rh-admin-operation-card:hover { border-color: #78aee6; transform: transla
     .admin-catalog-toolbar .secondary-button { width: 100%; }
     .admin-catalog-form .admin-catalog-form-actions { flex-direction: column-reverse; }
     .admin-catalog-form .admin-catalog-form-actions button { width: 100%; }
+    .admin-catalog-summary,
+    .admin-record-detail-grid { grid-template-columns: 1fr; }
+    .admin-checklist-item,
+    .admin-catalog-history-list article { grid-template-columns: 1fr; }
+    .admin-checklist-item footer { flex-wrap: wrap; }
+    .admin-checklist-item footer button { flex: 1 1 140px; }
+    .admin-record-detail > header { align-items: stretch; flex-direction: column; }
 }
 
 .admin-settings-feedback {

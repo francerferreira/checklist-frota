@@ -316,6 +316,30 @@ def update_supplier(provider_id: int):
     return _run(action)
 
 
+@bp.get("/compras/provedores/<int:provider_id>/historico")
+@auth_required
+def supplier_history(provider_id: int):
+    denied = _guard_admin()
+    if denied:
+        return denied
+    supplier = db.session.get(Supplier, provider_id)
+    if not supplier:
+        return api_response(False, error="Provedor nao encontrado.", status_code=404)
+    requests = PurchaseRequest.query.filter_by(supplier_id=provider_id).order_by(PurchaseRequest.updated_at.desc()).limit(100).all()
+    orders = PurchaseOrder.query.filter_by(supplier_id=provider_id).order_by(PurchaseOrder.updated_at.desc()).limit(100).all()
+    invoices = PurchaseInvoice.query.filter_by(supplier_id=provider_id).order_by(PurchaseInvoice.updated_at.desc()).limit(100).all()
+    events = []
+    events.extend({"type": "SC", "reference": row.sc_number or row.code, "date": (row.updated_at or row.created_at).isoformat() if (row.updated_at or row.created_at) else None, "status": row.status} for row in requests)
+    events.extend({"type": "PC", "reference": row.pc_number, "date": (row.updated_at or row.created_at).isoformat() if (row.updated_at or row.created_at) else None, "status": row.status} for row in orders)
+    events.extend({"type": "NF", "reference": row.invoice_number, "date": (row.updated_at or row.created_at).isoformat() if (row.updated_at or row.created_at) else None, "status": row.status} for row in invoices)
+    events.sort(key=lambda row: row["date"] or "", reverse=True)
+    return api_response(True, data={
+        "provider": supplier.to_dict(),
+        "summary": {"purchase_requests": len(requests), "purchase_orders": len(orders), "invoices": len(invoices)},
+        "events": events[:150],
+    })
+
+
 @bp.get("/compras/solicitacoes")
 @auth_required
 def list_purchase_requests():
