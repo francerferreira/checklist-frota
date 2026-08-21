@@ -144,6 +144,45 @@ def get_employee(employee_id: int):
     return api_response(True, data=employee.to_dict())
 
 
+@bp.get("/rh/colaboradores/<int:employee_id>/historico")
+@auth_required
+def employee_history(employee_id: int):
+    """Consolida a ficha operacional do colaborador para a área administrativa."""
+    denied = _guard_hr_management()
+    if denied:
+        return denied
+    employee = db.session.get(Employee, employee_id)
+    if not employee:
+        return api_response(False, error="Colaborador nao encontrado.", status_code=404)
+
+    events = []
+    for row in employee.attendance_records[:100]:
+        events.append({"type": "FREQUÊNCIA", "date": row.occurrence_date.isoformat(), "label": row.occurrence_type, "status": row.record_status})
+    for row in employee.documents[:100]:
+        events.append({"type": "DOCUMENTO", "date": row.expires_on.isoformat() if row.expires_on else row.created_at.isoformat(), "label": row.document_type, "status": row.status()})
+    for row in employee.trainings[:100]:
+        events.append({"type": "TREINAMENTO", "date": row.ends_on.isoformat() if row.ends_on else row.created_at.isoformat(), "label": row.course_name, "status": row.status()})
+    for row in employee.vacations[:100]:
+        events.append({"type": "FÉRIAS", "date": row.starts_on.isoformat(), "label": f"{row.starts_on.isoformat()} a {row.ends_on.isoformat()}", "status": row.status})
+    for row in employee.history_events[:100]:
+        events.append({"type": "HISTÓRICO", "date": row.occurred_on.isoformat(), "label": row.event_type, "status": row.description})
+    events.sort(key=lambda row: row["date"] or "", reverse=True)
+
+    return api_response(
+        True,
+        data={
+            "employee": employee.to_dict(),
+            "summary": {
+                "attendance": len(employee.attendance_records),
+                "documents": len(employee.documents),
+                "trainings": len(employee.trainings),
+                "vacations": len(employee.vacations),
+            },
+            "events": events[:200],
+        },
+    )
+
+
 @bp.put("/rh/colaboradores/<int:employee_id>")
 @auth_required
 def update_employee(employee_id: int):

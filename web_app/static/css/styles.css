@@ -7711,6 +7711,30 @@ button.rh-admin-operation-card:hover { border-color: #78aee6; transform: transla
 .admin-catalog-history-list strong { color: var(--theme-text-strong); }
 .admin-catalog-history-list span, .admin-catalog-history-list small { color: var(--muted); }
 
+.admin-employee-record,
+.admin-user-record { min-height: 142px; }
+
+.admin-employee-record header strong,
+.admin-user-record header strong {
+    display: block;
+    margin-top: 3px;
+    font-size: .96rem;
+}
+
+.admin-employee-record p,
+.admin-user-record p {
+    margin: 0;
+    color: var(--muted);
+    font-size: .75rem;
+}
+
+.admin-employee-record .status-pill.ativo { border-color: var(--state-available-border); background: var(--state-available-bg); color: var(--state-available-text); }
+.admin-employee-record .status-pill.inativo,
+.admin-user-record .status-pill.is-inactive { border-color: var(--state-critical-border); background: var(--state-critical-bg); color: var(--state-critical-text); }
+.admin-employee-record .status-pill.em_validacao,
+.admin-employee-record .status-pill.aguardando_documentos,
+.admin-employee-record .status-pill.aguardando_foto { border-color: var(--state-attention-border); background: var(--state-attention-bg); color: var(--state-attention-text); }
+
 .admin-catalog-toolbar label {
     display: grid;
     gap: 6px;

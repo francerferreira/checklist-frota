@@ -3149,8 +3149,8 @@ function openAdminCatalogs() {
 const ADMIN_CATALOG_DEFINITIONS = {
     providers: { section: "COMPRAS", title: "PROVEDORES", description: "Cadastro administrativo de empresas e contatos usados no fluxo SC → PC → NF.", endpoint: "/compras/provedores", historyEndpoint: (id) => `/compras/provedores/${id}/historico`, entity: "SUPPLIER", name: (row) => row.name, code: (row) => row.code, active: (row) => row.active !== false },
     checklist: { section: "EQUIPAMENTOS", title: "ITENS DE CHECKLIST VEICULAR", description: "Itens, agrupamentos e referências visuais usados nos checklists de veículos.", historyEndpoint: (id) => `/checklist-itens/${id}/uso`, entity: "CHECKLIST", name: (row) => row.item_nome, code: (row) => row.tipo || row.vehicle_type, active: (row) => Boolean(row.ativo) },
-    employees: { section: "RH", title: "COLABORADORES", description: "Cadastro funcional, vínculo, equipe, turno e situação cadastral.", endpoint: "/rh/colaboradores", entity: "EMPLOYEE", name: (row) => row.full_name, code: (row) => row.registration, active: (row) => String(row.status || "").toUpperCase() !== "INATIVO" },
-    users: { section: "ACESSO", title: "USUÁRIOS E PERMISSÕES", description: "Logins, perfis, situação, última entrada e controle de acesso.", endpoint: "/usuarios", entity: "USER", name: (row) => row.nome || row.login, code: (row) => row.login, active: (row) => row.ativo !== false },
+    employees: { section: "RH", title: "COLABORADORES", description: "Cadastro funcional, vínculo, equipe, turno, documentos e situação cadastral.", endpoint: "/rh/colaboradores", historyEndpoint: (id) => `/rh/colaboradores/${id}/historico`, entity: "EMPLOYEE", name: (row) => row.full_name, code: (row) => row.registration, active: (row) => String(row.status || "").toUpperCase() !== "INATIVO" },
+    users: { section: "ACESSO", title: "USUÁRIOS E PERMISSÕES", description: "Logins, perfis, sessões, telas autorizadas e controle de acesso.", endpoint: "/usuarios", historyEndpoint: (id) => `/usuarios/${id}/historico`, entity: "USER", name: (row) => row.nome || row.login, code: (row) => row.login, active: (row) => row.ativo !== false },
     stock: { section: "MATERIAIS", title: "ARMAZÉNS E LOCAIS MMP", description: "Armazém Principal, Estoque MMP, prateleiras e posições administrativas.", endpoint: "/suprimentos/depositos", locationsEndpoint: "/suprimentos/locais", entity: "WAREHOUSE", name: (row) => row.name || row.label, code: (row) => row.code || row.location_code, active: (row) => row.active !== false },
     materials: { section: "MATERIAIS", title: "CATÁLOGO DE MATERIAIS", description: "Referências usadas em compras, armazéns MMP e aplicações nos equipamentos.", endpoint: "/materiais?ativos=all", entity: "MATERIAL", name: (row) => row.descricao, code: (row) => row.referencia, active: (row) => row.ativo !== false },
 };
@@ -3233,24 +3233,32 @@ function adminCatalogFormFields(catalog, row = {}) {
         <label class="admin-catalog-field-wide"><span>FOTO DE REFERÊNCIA</span><input type="file" name="foto_file" accept="image/*"><small>${row.foto_path ? "Foto atual mantida se nenhuma nova for escolhida." : "Nenhuma foto cadastrada."}</small></label>
         <label><span>SITUAÇÃO</span><select name="ativo"><option value="true" ${row.ativo !== false ? "selected" : ""}>ATIVO</option><option value="false" ${row.ativo === false ? "selected" : ""}>INATIVO</option></select></label>`;
     }
-    if (catalog === "employees") return `
+    if (catalog === "employees") {
+        const employeeStatus = row.status || "PRE_CADASTRO";
+        const selected = (valueToCompare, currentValue) => valueToCompare === currentValue ? "selected" : "";
+        return `
         <label><span>MATRÍCULA *</span><input name="registration" required value="${value("registration")}"></label>
         <label><span>NOME COMPLETO *</span><input name="full_name" required value="${value("full_name")}"></label>
         <label><span>FUNÇÃO *</span><input name="function_name" required value="${value("function_name")}"></label>
         <label><span>ATIVIDADE / EQUIPE *</span><input name="team_name" required value="${value("team_name")}"></label>
         <label><span>TURNO *</span><input name="shift_name" required value="${value("shift_name")}"></label>
-        <label><span>SITUAÇÃO</span><select name="status"><option value="ATIVO">ATIVO</option><option value="PRE_CADASTRO">PRÉ-CADASTRO</option><option value="INATIVO">INATIVO</option></select></label>
+        <label><span>SITUAÇÃO</span><select name="status"><option value="PRE_CADASTRO" ${selected("PRE_CADASTRO", employeeStatus)}>PRÉ-CADASTRO</option><option value="AGUARDANDO_FOTO" ${selected("AGUARDANDO_FOTO", employeeStatus)}>AGUARDANDO FOTO</option><option value="AGUARDANDO_DOCUMENTOS" ${selected("AGUARDANDO_DOCUMENTOS", employeeStatus)}>AGUARDANDO DOCUMENTOS</option><option value="EM_VALIDACAO" ${selected("EM_VALIDACAO", employeeStatus)}>EM VALIDAÇÃO</option><option value="ATIVO" ${selected("ATIVO", employeeStatus)}>ATIVO</option><option value="INATIVO" ${selected("INATIVO", employeeStatus)}>INATIVO</option></select></label>
         <label><span>DATA DE ADMISSÃO</span><input type="date" name="hired_on" value="${value("hired_on")}"></label>
         <label><span>LOGIN VINCULADO</span><select name="user_id" data-admin-employee-users><option value="">SEM LOGIN VINCULADO</option></select></label>
         <label class="admin-catalog-field-wide"><span>OBSERVAÇÕES</span><textarea name="notes" rows="3">${value("notes")}</textarea></label>
         <label class="admin-catalog-field-wide"><span>FOTO DO COLABORADOR</span><input type="file" name="photo_file" accept="image/*"><small>${row.photo_path ? "Foto atual mantida se nenhuma nova for escolhida." : "Nenhuma foto cadastrada."}</small></label>`;
-    if (catalog === "users") return `
+    }
+    if (catalog === "users") {
+        const userType = row.tipo || "operacional";
+        const selected = (valueToCompare, currentValue) => valueToCompare === currentValue ? "selected" : "";
+        return `
         <label><span>NOME *</span><input name="nome" required value="${value("nome")}"></label>
         <label><span>LOGIN *</span><input name="login" required value="${value("login")}"></label>
-        <label><span>PERFIL</span><select name="tipo"><option value="operacional">OPERACIONAL</option><option value="mecanico">MECÂNICO</option><option value="motorista">MOTORISTA</option><option value="gestor">GESTOR</option><option value="admin">ADMIN</option></select></label>
+        <label><span>PERFIL</span><select name="tipo"><option value="operacional" ${selected("operacional", userType)}>OPERACIONAL</option><option value="mecanico" ${selected("mecanico", userType)}>MECÂNICO</option><option value="motorista" ${selected("motorista", userType)}>MOTORISTA</option><option value="gestor" ${selected("gestor", userType)}>GESTOR</option><option value="admin" ${selected("admin", userType)}>ADMIN</option></select></label>
         <label><span>NOVA SENHA</span><input type="password" name="senha" placeholder="Obrigatória ao criar"></label>
         <label><span>SITUAÇÃO</span><select name="ativo"><option value="true" ${row.ativo !== false ? "selected" : ""}>ATIVO</option><option value="false" ${row.ativo === false ? "selected" : ""}>INATIVO</option></select></label>
         ${adminUserPermissionFields(row)}`;
+    }
     if (catalog === "materials") return `
         <label><span>REFERÊNCIA *</span><input name="referencia" required value="${value("referencia")}"></label>
         <label><span>DESCRIÇÃO *</span><input name="descricao" required value="${value("descricao")}"></label>
@@ -3290,6 +3298,17 @@ function filteredAdminCatalogRows() {
             if (secondary === "SEM_FOTO" && row.foto_path) return false;
             if (secondary === "AGRUPADOS" && (!row.tipo_agrupamento || row.tipo_agrupamento === "simples")) return false;
         }
+        if (state.adminCatalogs.activeCatalog === "employees") {
+            if (secondary === "COM_LOGIN" && !row.user_id) return false;
+            if (secondary === "SEM_LOGIN" && row.user_id) return false;
+            if (secondary === "COM_FOTO" && !row.photo_path) return false;
+            if (secondary === "PENDENTES" && ["ATIVO", "INATIVO"].includes(String(row.status || "").toUpperCase())) return false;
+        }
+        if (state.adminCatalogs.activeCatalog === "users") {
+            if (secondary === "SESSAO_ABERTA" && !row.session_open) return false;
+            if (secondary === "SEM_VINCULO" && row.identity) return false;
+            if (secondary === "ADMINISTRADORES" && String(row.tipo || "").toLowerCase() !== "admin") return false;
+        }
         return true;
     });
 }
@@ -3313,6 +3332,18 @@ function renderAdminCatalogList() {
         elements.adminCatalogDetailContent.innerHTML = `<div class="admin-catalog-summary"><div><span>ITENS VISÍVEIS</span><strong>${rows.length}</strong></div><div><span>TIPOS DE VEÍCULO</span><strong>${groups.size}</strong></div><div><span>COM FOTO</span><strong>${rows.filter((row) => row.foto_path).length}</strong></div></div><div class="admin-checklist-groups">${[...groups.entries()].map(([type, items]) => `<section class="admin-checklist-group"><header><div><span>TIPO DE VEÍCULO</span><strong>${escapeHtml(type.toUpperCase())}</strong></div><b>${items.length} ITEM(NS)</b></header><div class="admin-checklist-item-list">${items.map((row) => `<article class="admin-checklist-item"><div><strong>${escapeHtml(row.item_nome || "SEM NOME")}</strong><small>${escapeHtml(row.item_principal || "Item principal")}${row.parte ? ` · ${escapeHtml(row.parte)}` : ""}</small></div><span>${row.foto_path ? "COM FOTO" : "SEM FOTO"} · ORDEM ${Number(row.position || 0)}</span><footer><button class="secondary-button" type="button" data-admin-catalog-view="${Number(row.id)}">FICHA</button><button class="secondary-button" type="button" data-admin-catalog-edit="${Number(row.id)}">EDITAR</button></footer></article>`).join("")}</div></section>`).join("")}</div>`;
         return;
     }
+    if (state.adminCatalogs.activeCatalog === "employees") {
+        const active = rows.filter((row) => definition.active(row)).length;
+        const linked = rows.filter((row) => row.user_id).length;
+        elements.adminCatalogDetailContent.innerHTML = `<div class="admin-catalog-summary"><div><span>COLABORADORES VISÍVEIS</span><strong>${rows.length}</strong></div><div><span>ATIVOS</span><strong>${active}</strong></div><div><span>COM LOGIN</span><strong>${linked}</strong></div></div><div class="admin-catalog-record-grid admin-employee-record-grid">${rows.map((row) => `<article class="admin-catalog-record admin-employee-record"><header><div><span>${escapeHtml(row.registration || "SEM MATRÍCULA")}</span><strong>${escapeHtml(row.full_name || "SEM NOME")}</strong></div><b class="status-pill ${String(row.status || "").toLowerCase()}">${escapeHtml(String(row.status || "SEM STATUS").replaceAll("_", " "))}</b></header><small>${escapeHtml([row.function_name, row.team_name, row.shift_name].filter(Boolean).join(" · ") || "Vínculo funcional não informado")}</small><p>${row.user_id ? `LOGIN VINCULADO: ${escapeHtml(row.linked_user?.login || "SIM")}` : "SEM LOGIN VINCULADO"} · ${row.photo_path ? "FOTO CADASTRADA" : "SEM FOTO"}</p><footer><button class="secondary-button" type="button" data-admin-catalog-view="${Number(row.id)}">ABRIR FICHA</button><button class="secondary-button" type="button" data-admin-catalog-edit="${Number(row.id)}">EDITAR</button></footer></article>`).join("")}</div>`;
+        return;
+    }
+    if (state.adminCatalogs.activeCatalog === "users") {
+        const active = rows.filter((row) => row.ativo !== false).length;
+        const openSessions = rows.filter((row) => row.session_open).length;
+        elements.adminCatalogDetailContent.innerHTML = `<div class="admin-catalog-summary"><div><span>USUÁRIOS VISÍVEIS</span><strong>${rows.length}</strong></div><div><span>ATIVOS</span><strong>${active}</strong></div><div><span>SESSÕES ABERTAS</span><strong>${openSessions}</strong></div></div><div class="admin-catalog-record-grid admin-user-record-grid">${rows.map((row) => `<article class="admin-catalog-record admin-user-record"><header><div><span>@${escapeHtml(row.login || "sem-login")}</span><strong>${escapeHtml(row.nome || "SEM NOME")}</strong></div><b class="status-pill ${row.ativo === false ? "is-inactive" : ""}">${row.ativo === false ? "INATIVO" : "ATIVO"}</b></header><small>${escapeHtml(String(row.tipo || "SEM PERFIL").toUpperCase())} · ${row.identity ? "VINCULADO AO RH" : "SEM VÍNCULO RH"}</small><p>${row.session_open ? `SESSÃO ABERTA · ${escapeHtml(formatAdminDuration(row.session_duration_seconds))}` : `ÚLTIMA ENTRADA: ${escapeHtml(formatAdminDate(row.last_login_at))}`}</p><footer><button class="secondary-button" type="button" data-admin-catalog-view="${Number(row.id)}">ABRIR FICHA</button><button class="secondary-button" type="button" data-admin-catalog-edit="${Number(row.id)}">EDITAR</button></footer></article>`).join("")}</div>`;
+        return;
+    }
     elements.adminCatalogDetailContent.innerHTML = `<div class="admin-catalog-record-grid">${rows.map((row) => `<article class="admin-catalog-record"><header><span>${escapeHtml(String(definition.code(row) || "SEM CÓDIGO"))}</span><b class="status-pill">${definition.active(row) ? "ATIVO" : "INATIVO"}</b></header><strong>${escapeHtml(String(definition.name(row) || "SEM NOME"))}</strong><small>${escapeHtml(String(row.legal_name || row.team_name || row.location || row.warehouse_type || row.tipo || row.login || row.shelf_code || "Cadastro administrativo"))}</small><footer><small>${row.record_kind === "location" ? "LOCAL MMP" : `Atualizado: ${escapeHtml(formatAdminDate(row.updated_at || row.created_at))}`}</small><button class="secondary-button" type="button" data-admin-catalog-view="${Number(row.id)}">FICHA</button><button class="secondary-button" type="button" data-admin-catalog-edit="${Number(row.id)}">EDITAR</button></footer></article>`).join("")}</div>`;
 }
 
@@ -3327,6 +3358,16 @@ function renderAdminCatalogDetailRecord(row = state.adminCatalogs.detailRow) {
     }
     if (state.adminCatalogs.activeCatalog === "checklist") {
         elements.adminCatalogDetailContent.innerHTML = `<div class="admin-record-detail"><header><div><span>${escapeHtml(String(row.vehicle_type || row.tipo || "VEÍCULO").toUpperCase())}</span><h4>${escapeHtml(row.item_nome || "SEM NOME")}</h4><p>${escapeHtml(row.item_principal || "Item principal")}${row.parte ? ` · ${escapeHtml(row.parte)}` : ""}</p></div><button class="primary-button" type="button" data-admin-catalog-edit="${Number(row.id)}">EDITAR ITEM</button></header><div class="admin-record-detail-grid"><div><span>AGRUPAMENTO</span><strong>${escapeHtml(row.tipo_agrupamento || "SIMPLES")}</strong></div><div><span>ORDEM</span><strong>${Number(row.position || 0)}</strong></div><div><span>SITUAÇÃO</span><strong>${row.ativo ? "ATIVO" : "INATIVO"}</strong></div><div><span>FOTO</span><strong>${row.foto_path ? "CADASTRADA" : "NÃO CADASTRADA"}</strong></div><div class="admin-record-detail-wide"><span>PRÉVIA OPERACIONAL</span><strong>${escapeHtml(row.item_principal || row.item_nome || "Item")}${row.parte ? ` — ${escapeHtml(row.parte)}` : ""}</strong></div></div></div>`;
+        return;
+    }
+    if (state.adminCatalogs.activeCatalog === "employees") {
+        const linkedLogin = row.linked_user?.login || "SEM LOGIN VINCULADO";
+        elements.adminCatalogDetailContent.innerHTML = `<div class="admin-record-detail"><header><div><span>MATRÍCULA ${escapeHtml(row.registration || "")}</span><h4>${escapeHtml(row.full_name || "SEM NOME")}</h4><p>${escapeHtml([row.function_name, row.team_name, row.shift_name].filter(Boolean).join(" · ") || "Vínculo funcional não informado")}</p></div><button class="primary-button" type="button" data-admin-catalog-edit="${Number(row.id)}">EDITAR COLABORADOR</button></header><div class="admin-record-detail-grid"><div><span>SITUAÇÃO</span><strong>${escapeHtml(String(row.status || "SEM STATUS").replaceAll("_", " "))}</strong></div><div><span>ADMISSÃO</span><strong>${escapeHtml(row.hired_on || "NÃO INFORMADA")}</strong></div><div><span>LOGIN VINCULADO</span><strong>${escapeHtml(linkedLogin)}</strong></div><div><span>FOTO</span><strong>${row.photo_path ? "CADASTRADA" : "PENDENTE"}</strong></div><div><span>PRIMEIRO ACESSO</span><strong>${row.first_access_completed_at ? escapeHtml(formatAdminDate(row.first_access_completed_at)) : "PENDENTE"}</strong></div><div><span>DOCUMENTAÇÃO</span><strong>${row.signature_path ? "ASSINATURA CADASTRADA" : "PENDENTE"}</strong></div><div class="admin-record-detail-wide"><span>OBSERVAÇÕES</span><strong>${escapeHtml(row.notes || "Nenhuma observação registrada.")}</strong></div></div></div>`;
+        return;
+    }
+    if (state.adminCatalogs.activeCatalog === "users") {
+        const permissionCount = Array.isArray(row.custom_page_keys) ? row.custom_page_keys.length : 0;
+        elements.adminCatalogDetailContent.innerHTML = `<div class="admin-record-detail"><header><div><span>LOGIN @${escapeHtml(row.login || "")}</span><h4>${escapeHtml(row.nome || "SEM NOME")}</h4><p>${escapeHtml(String(row.tipo || "SEM PERFIL").toUpperCase())}</p></div><button class="primary-button" type="button" data-admin-catalog-edit="${Number(row.id)}">EDITAR USUÁRIO</button></header><div class="admin-record-detail-grid"><div><span>SITUAÇÃO</span><strong>${row.ativo === false ? "INATIVO" : "ATIVO"}</strong></div><div><span>CRIADO EM</span><strong>${escapeHtml(formatAdminDate(row.created_at))}</strong></div><div><span>ÚLTIMA ENTRADA</span><strong>${escapeHtml(formatAdminDate(row.last_login_at))}</strong></div><div><span>SESSÃO</span><strong>${row.session_open ? `ABERTA · ${escapeHtml(formatAdminDuration(row.session_duration_seconds))}` : escapeHtml(formatAdminDuration(row.session_duration_seconds))}</strong></div><div><span>VÍNCULO RH</span><strong>${row.identity ? escapeHtml(row.identity.full_name || "VINCULADO") : "SEM VÍNCULO"}</strong></div><div><span>TELAS AUTORIZADAS</span><strong>${permissionCount}</strong></div></div></div>`;
     }
 }
 
@@ -3420,6 +3461,21 @@ async function loadAdminCatalogHistory() {
             return;
         }
     }
+    if ((state.adminCatalogs.activeCatalog === "employees" || state.adminCatalogs.activeCatalog === "users") && row && definition.historyEndpoint) {
+        try {
+            const history = await apiFetch(definition.historyEndpoint(Number(row.id)));
+            const summary = history.summary || {};
+            if (state.adminCatalogs.activeCatalog === "employees") {
+                elements.adminCatalogDetailContent.innerHTML = `<div class="admin-catalog-summary"><div><span>FREQUÊNCIAS</span><strong>${Number(summary.attendance || 0)}</strong></div><div><span>DOCUMENTOS</span><strong>${Number(summary.documents || 0)}</strong></div><div><span>TREINAMENTOS</span><strong>${Number(summary.trainings || 0)}</strong></div></div><div class="admin-catalog-history-list">${(history.events || []).map((event) => `<article><strong>${escapeHtml(event.type || "EVENTO")}</strong><span>${escapeHtml(event.label || "-")}</span><small>${escapeHtml(formatAdminDate(event.date))} · ${escapeHtml(event.status || "")}</small></article>`).join("") || `<div class="empty-state"><strong>NENHUM HISTÓRICO DE RH</strong><span>Este colaborador ainda não possui eventos registrados.</span></div>`}</div>`;
+            } else {
+                elements.adminCatalogDetailContent.innerHTML = `<div class="admin-catalog-summary"><div><span>EVENTOS DE AUDITORIA</span><strong>${Number(summary.audit_events || 0)}</strong></div><div><span>SESSÃO</span><strong>${summary.session_open ? "ABERTA" : "FECHADA"}</strong></div><div><span>TEMPO DE SESSÃO</span><strong>${escapeHtml(formatAdminDuration(summary.session_duration_seconds || 0))}</strong></div></div><div class="admin-catalog-history-list">${(history.events || []).map((event) => `<article><strong>${escapeHtml(event.type || "EVENTO")}</strong><span>${escapeHtml(event.action || "-")}</span><small>${escapeHtml(formatAdminDate(event.date))} · ID ${Number(event.reference || 0)}</small></article>`).join("") || `<div class="empty-state"><strong>NENHUMA AUDITORIA</strong><span>Este usuário ainda não possui eventos registrados.</span></div>`}</div>`;
+            }
+            return;
+        } catch (error) {
+            renderStateCard(elements.adminCatalogDetailContent, { title: "HISTÓRICO INDISPONÍVEL", message: error.message || "Não foi possível consultar o histórico.", tone: "error" });
+            return;
+        }
+    }
     await loadAdminCatalogAudit("history");
 }
 
@@ -3490,6 +3546,10 @@ function openAdminCatalogDetail(action) {
         ? [["TODOS", "TODOS"], ["HOMOLOGADOS", "HOMOLOGADOS"], ["PENDENTES", "PENDENTES"], ["PREFERENCIAIS", "PREFERENCIAIS"]]
         : action === "checklist"
             ? [["TODOS", "TODOS"], ["COM_FOTO", "COM FOTO"], ["SEM_FOTO", "SEM FOTO"], ["AGRUPADOS", "AGRUPADOS"]]
+            : action === "employees"
+                ? [["TODOS", "TODOS"], ["COM_LOGIN", "COM LOGIN"], ["SEM_LOGIN", "SEM LOGIN"], ["COM_FOTO", "COM FOTO"], ["PENDENTES", "PENDENTES"]]
+                : action === "users"
+                    ? [["TODOS", "TODOS"], ["SESSAO_ABERTA", "SESSÃO ABERTA"], ["SEM_VINCULO", "SEM VÍNCULO RH"], ["ADMINISTRADORES", "ADMINISTRADORES"]]
             : [];
     if (elements.adminCatalogSecondaryFilter && secondaryWrap) {
         elements.adminCatalogSecondaryFilter.innerHTML = secondaryOptions.map(([value, label]) => `<option value="${value}">${label}</option>`).join("");

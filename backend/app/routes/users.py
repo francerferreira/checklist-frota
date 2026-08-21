@@ -113,6 +113,45 @@ def get_user_profile(user_id: int):
     return api_response(True, data=_user_with_activity(user, activity))
 
 
+@bp.get("/usuarios/<int:user_id>/historico")
+@auth_required
+def get_user_history(user_id: int):
+    """Retorna atividade de sessão e auditoria sem expor credenciais ou valores sensíveis."""
+    denied = _guard_admin_access()
+    if denied:
+        return denied
+    user = User.query.get_or_404(user_id)
+    activity = _session_activity_by_user([user.id]).get(user.id, {})
+    logs = (
+        AuditLog.query
+        .filter(AuditLog.user_id == user.id)
+        .order_by(AuditLog.created_at.desc())
+        .limit(100)
+        .all()
+    )
+    events = [
+        {
+            "type": log.entity_type,
+            "action": log.action,
+            "date": log.created_at.isoformat() if log.created_at else None,
+            "reference": log.entity_id,
+        }
+        for log in logs
+    ]
+    return api_response(
+        True,
+        data={
+            "user": _user_with_activity(user, activity),
+            "summary": {
+                "audit_events": len(events),
+                "session_open": bool(activity.get("session_open")),
+                "session_duration_seconds": int(activity.get("session_duration_seconds") or 0),
+            },
+            "events": events,
+        },
+    )
+
+
 @bp.post("/usuarios/<int:user_id>/reset-primeiro-acesso")
 @auth_required
 def reset_user_first_access(user_id: int):
