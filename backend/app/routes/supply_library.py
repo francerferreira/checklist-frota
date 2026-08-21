@@ -67,6 +67,39 @@ def warehouse_update(warehouse_id: int):
     return _run(action)
 
 
+@bp.get("/suprimentos/depositos/<int:warehouse_id>/historico")
+@auth_required
+def warehouse_history(warehouse_id: int):
+    """Retorna saldos, locais e transferências relacionadas ao depósito."""
+    from app.models import Warehouse, WarehouseTransfer
+
+    warehouse = db.session.get(Warehouse, warehouse_id)
+    if not warehouse:
+        return api_response(False, error="Depósito não encontrado.", status_code=404)
+    transfers = (
+        WarehouseTransfer.query.filter(
+            (WarehouseTransfer.source_warehouse_id == warehouse_id)
+            | (WarehouseTransfer.destination_warehouse_id == warehouse_id)
+        )
+        .order_by(WarehouseTransfer.created_at.desc())
+        .limit(100)
+        .all()
+    )
+    return api_response(
+        True,
+        data={
+            "warehouse": warehouse.to_dict(include_stocks=True),
+            "summary": {
+                "stocks": len(warehouse.stocks),
+                "locations": len(warehouse.locations),
+                "transfers": len(transfers),
+                "quantity": sum(int(row.quantity or 0) for row in warehouse.stocks),
+            },
+            "events": [row.to_dict() for row in transfers],
+        },
+    )
+
+
 @bp.get("/suprimentos/estoques")
 @auth_required
 def warehouse_stock_list():

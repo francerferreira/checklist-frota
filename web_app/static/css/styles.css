@@ -7735,6 +7735,22 @@ button.rh-admin-operation-card:hover { border-color: #78aee6; transform: transla
 .admin-employee-record .status-pill.aguardando_documentos,
 .admin-employee-record .status-pill.aguardando_foto { border-color: var(--state-attention-border); background: var(--state-attention-bg); color: var(--state-attention-text); }
 
+.admin-material-record,
+.admin-warehouse-record,
+.admin-location-record { min-height: 150px; }
+
+.admin-material-record header strong,
+.admin-warehouse-record header strong,
+.admin-location-record header strong { display: block; margin-top: 3px; font-size: .92rem; }
+.admin-material-record p,
+.admin-warehouse-record p { margin: 0; color: var(--muted); font-size: .78rem; }
+.material-abc-badge { padding: 4px 8px; border: 1px solid var(--theme-border); border-radius: 999px; font-size: .64rem; letter-spacing: .04em; }
+.material-abc-a { border-color: var(--state-critical-border); background: var(--state-critical-bg); color: var(--state-critical-text); }
+.material-abc-b { border-color: var(--state-attention-border); background: var(--state-attention-bg); color: var(--state-attention-text); }
+.material-abc-c { border-color: var(--state-planned-border); background: var(--state-planned-bg); color: var(--state-planned-text); }
+.material-stock-alert { color: var(--state-critical-text); font-size: .66rem; font-weight: 900; }
+.material-stock-ok { color: var(--state-available-text); font-size: .66rem; font-weight: 900; }
+
 .admin-catalog-toolbar label {
     display: grid;
     gap: 6px;

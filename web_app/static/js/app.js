@@ -3151,8 +3151,8 @@ const ADMIN_CATALOG_DEFINITIONS = {
     checklist: { section: "EQUIPAMENTOS", title: "ITENS DE CHECKLIST VEICULAR", description: "Itens, agrupamentos e referências visuais usados nos checklists de veículos.", historyEndpoint: (id) => `/checklist-itens/${id}/uso`, entity: "CHECKLIST", name: (row) => row.item_nome, code: (row) => row.tipo || row.vehicle_type, active: (row) => Boolean(row.ativo) },
     employees: { section: "RH", title: "COLABORADORES", description: "Cadastro funcional, vínculo, equipe, turno, documentos e situação cadastral.", endpoint: "/rh/colaboradores", historyEndpoint: (id) => `/rh/colaboradores/${id}/historico`, entity: "EMPLOYEE", name: (row) => row.full_name, code: (row) => row.registration, active: (row) => String(row.status || "").toUpperCase() !== "INATIVO" },
     users: { section: "ACESSO", title: "USUÁRIOS E PERMISSÕES", description: "Logins, perfis, sessões, telas autorizadas e controle de acesso.", endpoint: "/usuarios", historyEndpoint: (id) => `/usuarios/${id}/historico`, entity: "USER", name: (row) => row.nome || row.login, code: (row) => row.login, active: (row) => row.ativo !== false },
-    stock: { section: "MATERIAIS", title: "ARMAZÉNS E LOCAIS MMP", description: "Armazém Principal, Estoque MMP, prateleiras e posições administrativas.", endpoint: "/suprimentos/depositos", locationsEndpoint: "/suprimentos/locais", entity: "WAREHOUSE", name: (row) => row.name || row.label, code: (row) => row.code || row.location_code, active: (row) => row.active !== false },
-    materials: { section: "MATERIAIS", title: "CATÁLOGO DE MATERIAIS", description: "Referências usadas em compras, armazéns MMP e aplicações nos equipamentos.", endpoint: "/materiais?ativos=all", entity: "MATERIAL", name: (row) => row.descricao, code: (row) => row.referencia, active: (row) => row.ativo !== false },
+    stock: { section: "MATERIAIS", title: "ARMAZÉNS E LOCAIS MMP", description: "Armazém Principal, Estoque MMP, prateleiras, posições e saldos administrativos.", endpoint: "/suprimentos/depositos", locationsEndpoint: "/suprimentos/locais", historyEndpoint: (id) => `/suprimentos/depositos/${id}/historico`, entity: "WAREHOUSE", name: (row) => row.name || row.label, code: (row) => row.code || row.location_code, active: (row) => row.active !== false },
+    materials: { section: "MATERIAIS", title: "CATÁLOGO DE MATERIAIS", description: "Referências usadas em compras, armazéns MMP e aplicações nos equipamentos.", endpoint: "/materiais?ativos=all", historyEndpoint: (id) => `/materiais/${id}/historico`, entity: "MATERIAL", name: (row) => row.descricao, code: (row) => row.referencia, active: (row) => row.ativo !== false },
 };
 
 const ADMIN_USER_PAGE_OPTIONS = [
@@ -3309,6 +3309,16 @@ function filteredAdminCatalogRows() {
             if (secondary === "SEM_VINCULO" && row.identity) return false;
             if (secondary === "ADMINISTRADORES" && String(row.tipo || "").toLowerCase() !== "admin") return false;
         }
+        if (state.adminCatalogs.activeCatalog === "materials") {
+            if (secondary === "BAIXO_ESTOQUE" && !row.baixo_estoque) return false;
+            if (secondary === "REPOR" && !row.repor) return false;
+            if (["ABC_A", "ABC_B", "ABC_C"].includes(secondary) && String(row.classe_abc || "").toUpperCase() !== secondary.slice(-1)) return false;
+        }
+        if (state.adminCatalogs.activeCatalog === "stock") {
+            if (["PRINCIPAL", "MMP"].includes(secondary) && (row.record_kind !== "warehouse" || String(row.warehouse_type || "").toUpperCase() !== secondary)) return false;
+            if (secondary === "COM_SALDO" && (row.record_kind !== "warehouse" || !Number(row.stock_total || 0))) return false;
+            if (secondary === "LOCAIS" && row.record_kind !== "location") return false;
+        }
         return true;
     });
 }
@@ -3344,6 +3354,20 @@ function renderAdminCatalogList() {
         elements.adminCatalogDetailContent.innerHTML = `<div class="admin-catalog-summary"><div><span>USUÁRIOS VISÍVEIS</span><strong>${rows.length}</strong></div><div><span>ATIVOS</span><strong>${active}</strong></div><div><span>SESSÕES ABERTAS</span><strong>${openSessions}</strong></div></div><div class="admin-catalog-record-grid admin-user-record-grid">${rows.map((row) => `<article class="admin-catalog-record admin-user-record"><header><div><span>@${escapeHtml(row.login || "sem-login")}</span><strong>${escapeHtml(row.nome || "SEM NOME")}</strong></div><b class="status-pill ${row.ativo === false ? "is-inactive" : ""}">${row.ativo === false ? "INATIVO" : "ATIVO"}</b></header><small>${escapeHtml(String(row.tipo || "SEM PERFIL").toUpperCase())} · ${row.identity ? "VINCULADO AO RH" : "SEM VÍNCULO RH"}</small><p>${row.session_open ? `SESSÃO ABERTA · ${escapeHtml(formatAdminDuration(row.session_duration_seconds))}` : `ÚLTIMA ENTRADA: ${escapeHtml(formatAdminDate(row.last_login_at))}`}</p><footer><button class="secondary-button" type="button" data-admin-catalog-view="${Number(row.id)}">ABRIR FICHA</button><button class="secondary-button" type="button" data-admin-catalog-edit="${Number(row.id)}">EDITAR</button></footer></article>`).join("")}</div>`;
         return;
     }
+    if (state.adminCatalogs.activeCatalog === "materials") {
+        const lowStock = rows.filter((row) => row.baixo_estoque).length;
+        const reorder = rows.filter((row) => row.repor).length;
+        const totalQuantity = rows.reduce((total, row) => total + Number(row.quantidade_estoque || 0), 0);
+        elements.adminCatalogDetailContent.innerHTML = `<div class="admin-catalog-summary"><div><span>MATERIAIS VISÍVEIS</span><strong>${rows.length}</strong></div><div><span>ABAIXO DO MÍNIMO</span><strong>${lowStock}</strong></div><div><span>SALDO TOTAL</span><strong>${totalQuantity}</strong></div></div><div class="admin-catalog-record-grid admin-material-record-grid">${rows.map((row) => `<article class="admin-catalog-record admin-material-record"><header><div><span>${escapeHtml(row.referencia || "SEM REFERÊNCIA")}</span><strong>${escapeHtml(row.descricao || "SEM DESCRIÇÃO")}</strong></div><b class="material-abc-badge material-abc-${escapeHtml(String(row.classe_abc || "C").toLowerCase())}">ABC ${escapeHtml(row.classe_abc || "C")}</b></header><small>${escapeHtml(String(row.aplicacao_tipo || "ambos").toUpperCase())} · ${row.ativo === false ? "INATIVO" : "ATIVO"}</small><p>SALDO: <strong>${Number(row.quantidade_estoque || 0)}</strong> · MÍNIMO: ${Number(row.estoque_minimo || 0)} · REPOSIÇÃO: ${Number(row.ponto_reposicao || 0)}</p><footer><span class="${row.baixo_estoque ? "material-stock-alert" : "material-stock-ok"}">${row.baixo_estoque ? "ABAIXO DO MÍNIMO" : "SALDO NORMAL"}</span><button class="secondary-button" type="button" data-admin-catalog-view="${Number(row.id)}">ABRIR FICHA</button><button class="secondary-button" type="button" data-admin-catalog-edit="${Number(row.id)}">EDITAR</button></footer></article>`).join("")}</div>`;
+        return;
+    }
+    if (state.adminCatalogs.activeCatalog === "stock") {
+        const warehouses = rows.filter((row) => row.record_kind === "warehouse");
+        const locations = rows.filter((row) => row.record_kind === "location");
+        const totalQuantity = warehouses.reduce((total, row) => total + Number(row.stock_total || 0), 0);
+        elements.adminCatalogDetailContent.innerHTML = `<div class="admin-catalog-summary"><div><span>DEPÓSITOS</span><strong>${warehouses.length}</strong></div><div><span>LOCAIS CADASTRADOS</span><strong>${locations.length}</strong></div><div><span>SALDO TOTAL</span><strong>${totalQuantity}</strong></div></div><div class="admin-catalog-record-grid admin-stock-record-grid">${rows.map((row) => row.record_kind === "location" ? `<article class="admin-catalog-record admin-location-record"><header><div><span>LOCAL MMP</span><strong>${escapeHtml(row.label || "LOCAL")}</strong></div><b class="status-pill ${row.active === false ? "is-inactive" : ""}">${row.active === false ? "INATIVO" : "ATIVO"}</b></header><small>PRATELEIRA ${escapeHtml(row.shelf_code || "-")} · POSIÇÃO ${escapeHtml(row.position_code || "-")}</small><footer><button class="secondary-button" type="button" data-admin-catalog-view="${Number(row.id)}">ABRIR FICHA</button><button class="secondary-button" type="button" data-admin-catalog-edit="${Number(row.id)}">EDITAR</button></footer></article>` : `<article class="admin-catalog-record admin-warehouse-record"><header><div><span>${escapeHtml(row.code || "SEM CÓDIGO")}</span><strong>${escapeHtml(row.name || "SEM NOME")}</strong></div><b class="status-pill ${row.active === false ? "is-inactive" : ""}">${row.active === false ? "INATIVO" : "ATIVO"}</b></header><small>${escapeHtml(String(row.warehouse_type || "PRINCIPAL"))} · ${escapeHtml(row.location || "Localização não informada")}</small><p>SALDO TOTAL: <strong>${Number(row.stock_total || 0)}</strong></p><footer><button class="secondary-button" type="button" data-admin-catalog-view="${Number(row.id)}">ABRIR FICHA</button><button class="secondary-button" type="button" data-admin-catalog-edit="${Number(row.id)}">EDITAR</button></footer></article>`).join("")}</div>`;
+        return;
+    }
     elements.adminCatalogDetailContent.innerHTML = `<div class="admin-catalog-record-grid">${rows.map((row) => `<article class="admin-catalog-record"><header><span>${escapeHtml(String(definition.code(row) || "SEM CÓDIGO"))}</span><b class="status-pill">${definition.active(row) ? "ATIVO" : "INATIVO"}</b></header><strong>${escapeHtml(String(definition.name(row) || "SEM NOME"))}</strong><small>${escapeHtml(String(row.legal_name || row.team_name || row.location || row.warehouse_type || row.tipo || row.login || row.shelf_code || "Cadastro administrativo"))}</small><footer><small>${row.record_kind === "location" ? "LOCAL MMP" : `Atualizado: ${escapeHtml(formatAdminDate(row.updated_at || row.created_at))}`}</small><button class="secondary-button" type="button" data-admin-catalog-view="${Number(row.id)}">FICHA</button><button class="secondary-button" type="button" data-admin-catalog-edit="${Number(row.id)}">EDITAR</button></footer></article>`).join("")}</div>`;
 }
 
@@ -3368,6 +3392,15 @@ function renderAdminCatalogDetailRecord(row = state.adminCatalogs.detailRow) {
     if (state.adminCatalogs.activeCatalog === "users") {
         const permissionCount = Array.isArray(row.custom_page_keys) ? row.custom_page_keys.length : 0;
         elements.adminCatalogDetailContent.innerHTML = `<div class="admin-record-detail"><header><div><span>LOGIN @${escapeHtml(row.login || "")}</span><h4>${escapeHtml(row.nome || "SEM NOME")}</h4><p>${escapeHtml(String(row.tipo || "SEM PERFIL").toUpperCase())}</p></div><button class="primary-button" type="button" data-admin-catalog-edit="${Number(row.id)}">EDITAR USUÁRIO</button></header><div class="admin-record-detail-grid"><div><span>SITUAÇÃO</span><strong>${row.ativo === false ? "INATIVO" : "ATIVO"}</strong></div><div><span>CRIADO EM</span><strong>${escapeHtml(formatAdminDate(row.created_at))}</strong></div><div><span>ÚLTIMA ENTRADA</span><strong>${escapeHtml(formatAdminDate(row.last_login_at))}</strong></div><div><span>SESSÃO</span><strong>${row.session_open ? `ABERTA · ${escapeHtml(formatAdminDuration(row.session_duration_seconds))}` : escapeHtml(formatAdminDuration(row.session_duration_seconds))}</strong></div><div><span>VÍNCULO RH</span><strong>${row.identity ? escapeHtml(row.identity.full_name || "VINCULADO") : "SEM VÍNCULO"}</strong></div><div><span>TELAS AUTORIZADAS</span><strong>${permissionCount}</strong></div></div></div>`;
+        return;
+    }
+    if (state.adminCatalogs.activeCatalog === "materials") {
+        elements.adminCatalogDetailContent.innerHTML = `<div class="admin-record-detail"><header><div><span>REFERÊNCIA ${escapeHtml(row.referencia || "")}</span><h4>${escapeHtml(row.descricao || "SEM DESCRIÇÃO")}</h4><p>${escapeHtml(String(row.aplicacao_tipo || "ambos").toUpperCase())} · ABC ${escapeHtml(row.classe_abc || "C")}</p></div><button class="primary-button" type="button" data-admin-catalog-edit="${Number(row.id)}">EDITAR MATERIAL</button></header><div class="admin-record-detail-grid"><div><span>SALDO ATUAL</span><strong>${Number(row.quantidade_estoque || 0)}</strong></div><div><span>ESTOQUE MÍNIMO</span><strong>${Number(row.estoque_minimo || 0)}</strong></div><div><span>PONTO DE REPOSIÇÃO</span><strong>${Number(row.ponto_reposicao || 0)}</strong></div><div><span>MARCA</span><strong>${escapeHtml(row.marca || "NÃO INFORMADA")}</strong></div><div><span>CÓDIGO DO PRODUTO</span><strong>${escapeHtml(row.codigo_produto || "NÃO INFORMADO")}</strong></div><div><span>SITUAÇÃO</span><strong>${row.ativo === false ? "INATIVO" : "ATIVO"}</strong></div><div class="admin-record-detail-wide"><span>REFERÊNCIAS DE COMPRAS</span><strong>${escapeHtml([row.referencia_preferencial, row.ultima_sc, row.ultimo_pc, row.ultima_nf].filter(Boolean).join(" · ") || "Nenhum histórico de compra resumido")}</strong></div></div></div>`;
+        return;
+    }
+    if (state.adminCatalogs.activeCatalog === "stock") {
+        const isLocation = row.record_kind === "location";
+        elements.adminCatalogDetailContent.innerHTML = `<div class="admin-record-detail"><header><div><span>${isLocation ? "LOCAL DE ESTOQUE" : escapeHtml(String(row.warehouse_type || "DEPÓSITO").toUpperCase())}</span><h4>${escapeHtml(isLocation ? (row.label || "LOCAL") : (row.name || "SEM NOME"))}</h4><p>${escapeHtml(isLocation ? `Prateleira ${row.shelf_code || "-"} · Posição ${row.position_code || "-"}` : (row.location || "Localização não informada"))}</p></div><button class="primary-button" type="button" data-admin-catalog-edit="${Number(row.id)}">${isLocation ? "EDITAR LOCAL" : "EDITAR DEPÓSITO"}</button></header><div class="admin-record-detail-grid">${isLocation ? `<div><span>DEPÓSITO</span><strong>${Number(row.warehouse_id || 0)}</strong></div><div><span>PRATELEIRA</span><strong>${escapeHtml(row.shelf_code || "-")}</strong></div><div><span>LOCAL</span><strong>${escapeHtml(row.location_code || "-")}</strong></div><div><span>POSIÇÃO</span><strong>${escapeHtml(row.position_code || "-")}</strong></div>` : `<div><span>TIPO</span><strong>${escapeHtml(row.warehouse_type || "PRINCIPAL")}</strong></div><div><span>LOCAIS CADASTRADOS</span><strong>${Number((row.locations || []).length || 0)}</strong></div><div><span>SALDO TOTAL</span><strong>${Number(row.stock_total || 0)}</strong></div>`}<div><span>SITUAÇÃO</span><strong>${row.active === false ? "INATIVO" : "ATIVO"}</strong></div></div></div>`;
     }
 }
 
@@ -3476,6 +3509,28 @@ async function loadAdminCatalogHistory() {
             return;
         }
     }
+    if (state.adminCatalogs.activeCatalog === "materials" && row && definition.historyEndpoint) {
+        try {
+            const history = await apiFetch(definition.historyEndpoint(Number(row.id)));
+            const summary = history.summary || {};
+            elements.adminCatalogDetailContent.innerHTML = `<div class="admin-catalog-summary"><div><span>MOVIMENTOS</span><strong>${Number(summary.movements || 0)}</strong></div><div><span>ENTRADAS</span><strong>${Number(summary.entries || 0)}</strong></div><div><span>SAÍDAS</span><strong>${Number(summary.exits || 0)}</strong></div></div><div class="admin-catalog-history-list">${(history.events || []).map((event) => `<article><strong>${escapeHtml(event.tipo_movimento || "MOVIMENTO")}</strong><span>${escapeHtml(`${event.quantidade || 0} un. · saldo ${event.saldo_posterior ?? "-"}`)}</span><small>${escapeHtml(formatAdminDate(event.created_at))} · ${escapeHtml(event.observacao || "Sem observação")}</small></article>`).join("") || `<div class="empty-state"><strong>NENHUM MOVIMENTO</strong><span>Este material ainda não possui movimentações.</span></div>`}</div>`;
+            return;
+        } catch (error) {
+            renderStateCard(elements.adminCatalogDetailContent, { title: "HISTÓRICO INDISPONÍVEL", message: error.message || "Não foi possível consultar o histórico.", tone: "error" });
+            return;
+        }
+    }
+    if (state.adminCatalogs.activeCatalog === "stock" && row && row.record_kind === "warehouse" && definition.historyEndpoint) {
+        try {
+            const history = await apiFetch(definition.historyEndpoint(Number(row.id)));
+            const summary = history.summary || {};
+            elements.adminCatalogDetailContent.innerHTML = `<div class="admin-catalog-summary"><div><span>ESTOQUES</span><strong>${Number(summary.stocks || 0)}</strong></div><div><span>LOCAIS</span><strong>${Number(summary.locations || 0)}</strong></div><div><span>TRANSFERÊNCIAS</span><strong>${Number(summary.transfers || 0)}</strong></div></div><div class="admin-catalog-history-list">${(history.events || []).map((event) => `<article><strong>${escapeHtml(event.code || "TRANSFERÊNCIA")}</strong><span>${escapeHtml(`${event.source_warehouse?.name || "Origem"} → ${event.destination_warehouse?.name || "Destino"}`)}</span><small>${escapeHtml(formatAdminDate(event.created_at))} · ${escapeHtml(event.status || "")}</small></article>`).join("") || `<div class="empty-state"><strong>NENHUMA TRANSFERÊNCIA</strong><span>Este depósito ainda não possui transferências registradas.</span></div>`}</div>`;
+            return;
+        } catch (error) {
+            renderStateCard(elements.adminCatalogDetailContent, { title: "HISTÓRICO INDISPONÍVEL", message: error.message || "Não foi possível consultar o histórico.", tone: "error" });
+            return;
+        }
+    }
     await loadAdminCatalogAudit("history");
 }
 
@@ -3510,9 +3565,17 @@ async function loadAdminCatalogRecords() {
         const endpoint = `${definition.endpoint.split("?")[0]}${queryString ? `?${queryString}` : ""}`;
         const rows = await apiFetch(endpoint);
         if (state.adminCatalogs.activeCatalog === "stock") {
-            const locations = await apiFetch(definition.locationsEndpoint);
+            const [locations, stocks] = await Promise.all([
+                apiFetch(definition.locationsEndpoint),
+                apiFetch("/suprimentos/estoques"),
+            ]);
+            const stockTotals = new Map();
+            (Array.isArray(stocks) ? stocks : []).forEach((stock) => {
+                const warehouseId = Number(stock.warehouse_id);
+                stockTotals.set(warehouseId, (stockTotals.get(warehouseId) || 0) + Number(stock.quantity || 0));
+            });
             state.adminCatalogs.rows = [
-                ...(Array.isArray(rows) ? rows : []).map((row) => ({ ...row, record_kind: "warehouse" })),
+                ...(Array.isArray(rows) ? rows : []).map((row) => ({ ...row, record_kind: "warehouse", stock_total: stockTotals.get(Number(row.id)) || 0 })),
                 ...(Array.isArray(locations) ? locations : []).map((row) => ({ ...row, record_kind: "location", name: row.label, code: row.location_code })),
             ];
         } else {
@@ -3550,7 +3613,11 @@ function openAdminCatalogDetail(action) {
                 ? [["TODOS", "TODOS"], ["COM_LOGIN", "COM LOGIN"], ["SEM_LOGIN", "SEM LOGIN"], ["COM_FOTO", "COM FOTO"], ["PENDENTES", "PENDENTES"]]
                 : action === "users"
                     ? [["TODOS", "TODOS"], ["SESSAO_ABERTA", "SESSÃO ABERTA"], ["SEM_VINCULO", "SEM VÍNCULO RH"], ["ADMINISTRADORES", "ADMINISTRADORES"]]
-            : [];
+                    : action === "materials"
+                        ? [["TODOS", "TODOS"], ["BAIXO_ESTOQUE", "ABAIXO DO MÍNIMO"], ["REPOR", "REPOR"], ["ABC_A", "ABC A"], ["ABC_B", "ABC B"], ["ABC_C", "ABC C"]]
+                        : action === "stock"
+                            ? [["TODOS", "TODOS"], ["PRINCIPAL", "ARMAZÉM PRINCIPAL"], ["MMP", "ESTOQUE MMP"], ["LOCAIS", "LOCAIS / POSIÇÕES"], ["COM_SALDO", "COM SALDO"]]
+                            : [];
     if (elements.adminCatalogSecondaryFilter && secondaryWrap) {
         elements.adminCatalogSecondaryFilter.innerHTML = secondaryOptions.map(([value, label]) => `<option value="${value}">${label}</option>`).join("");
         elements.adminCatalogSecondaryFilter.value = "TODOS";

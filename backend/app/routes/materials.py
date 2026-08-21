@@ -441,6 +441,11 @@ def create_material():
         descricao=descricao,
         aplicacao_tipo=aplicacao_tipo,
         foto_path=_clean(payload.get("foto_path")),
+        codigo_produto=_clean(payload.get("codigo_produto")),
+        marca=_clean(payload.get("marca")),
+        referencia_manual=_clean(payload.get("referencia_manual")),
+        numero_fabricante=_clean(payload.get("numero_fabricante")),
+        familia_codigo=_clean(payload.get("familia_codigo")),
         quantidade_estoque=0,
         estoque_minimo=estoque_minimo,
         ponto_reposicao=ponto_reposicao,
@@ -499,6 +504,11 @@ def update_material(material_id: int):
     material.descricao = descricao
     material.aplicacao_tipo = aplicacao_tipo
     material.foto_path = _clean(payload.get("foto_path")) or material.foto_path
+    material.codigo_produto = _clean(payload.get("codigo_produto"))
+    material.marca = _clean(payload.get("marca"))
+    material.referencia_manual = _clean(payload.get("referencia_manual"))
+    material.numero_fabricante = _clean(payload.get("numero_fabricante"))
+    material.familia_codigo = _clean(payload.get("familia_codigo"))
     material.estoque_minimo = estoque_minimo
     material.ponto_reposicao = ponto_reposicao
     material.classe_abc = classe_abc
@@ -533,6 +543,32 @@ def list_material_movements(material_id: int):
         .all()
     )
     return api_response(True, data=[movement.to_dict() for movement in movements])
+
+
+@bp.get("/materiais/<int:material_id>/historico")
+@auth_required
+def material_history(material_id: int):
+    """Consolida saldo, movimentos e rastreabilidade do material para a ficha administrativa."""
+    material = Material.query.get_or_404(material_id)
+    movements = (
+        MaterialMovement.query.filter_by(material_id=material_id)
+        .order_by(MaterialMovement.created_at.desc())
+        .limit(200)
+        .all()
+    )
+    return api_response(
+        True,
+        data={
+            "material": material.to_dict(),
+            "summary": {
+                "movements": len(movements),
+                "entries": sum(1 for row in movements if row.tipo_movimento == "ENTRADA"),
+                "exits": sum(1 for row in movements if row.tipo_movimento in {"SAIDA", "ATIVIDADE", "NAO_CONFORMIDADE"}),
+                "current_stock": int(material.quantidade_estoque or 0),
+            },
+            "events": [movement.to_dict() for movement in movements],
+        },
+    )
 
 
 @bp.post("/materiais/<int:material_id>/ajustar_estoque")
