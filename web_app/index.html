@@ -396,12 +396,6 @@
                     <span class="rh-admin-role-badge">SOMENTE ADM</span>
                 </div>
 
-                <section class="module-reports-intro admin-settings-intro">
-                    <span>ACESSO RESTRITO</span>
-                    <strong>CENTRAL ADMINISTRATIVA DE CADASTROS</strong>
-                    <p>Escolha um cadastro. Cada cartão abre uma tela administrativa independente, com o mesmo padrão de busca, filtros, edição, histórico e auditoria.</p>
-                </section>
-
                 <div id="admin-catalogs-grid" class="module-report-grid admin-settings-grid">
                     <button class="module-report-card admin-settings-card" type="button" data-admin-catalog-action="providers">
                         <span>COMPRAS</span><strong>PROVEDORES</strong><em>Empresas e contatos que atendem aos processos de compra.</em><b>ABRIR CADASTRO</b>
@@ -429,13 +423,10 @@
                         <div><span id="admin-catalog-detail-section">CADASTRO ADMINISTRATIVO</span><h3 id="admin-catalog-detail-title">CADASTRO</h3><p id="admin-catalog-detail-description"></p></div>
                         <div class="admin-catalog-detail-actions"><button id="admin-catalog-new-location-button" class="secondary-button hidden" type="button">+ NOVO LOCAL</button><button id="admin-catalog-new-button" class="primary-button" type="button">+ NOVO CADASTRO</button></div>
                     </div>
-                    <nav id="admin-catalog-detail-tabs" class="admin-catalog-detail-tabs" aria-label="Seções do cadastro">
-                        <button type="button" class="is-active" data-admin-catalog-tab="list">LISTA</button>
-                        <button type="button" data-admin-catalog-tab="detail">FICHA</button>
-                        <button type="button" data-admin-catalog-tab="form">CADASTRO</button>
-                        <button type="button" data-admin-catalog-tab="history">HISTÓRICO</button>
-                        <button type="button" data-admin-catalog-tab="audit">AUDITORIA</button>
-                    </nav>
+                    <div id="admin-catalog-view-switch" class="admin-catalog-view-switch" role="group" aria-label="Modo de visualização">
+                        <button type="button" class="is-active" data-admin-catalog-view-mode="table">TABELA</button>
+                        <button type="button" data-admin-catalog-view-mode="cards">CARTÕES</button>
+                    </div>
                     <div class="admin-catalog-toolbar">
                         <label><span>BUSCAR</span><input id="admin-catalog-search" type="search" placeholder="Nome, código ou descrição"></label>
                         <label><span>STATUS</span><select id="admin-catalog-status"><option value="TODOS">TODOS</option><option value="ATIVO">ATIVOS</option><option value="INATIVO">INATIVOS</option></select></label>

@@ -7572,6 +7572,35 @@ button.rh-admin-operation-card:hover { border-color: #78aee6; transform: transla
     color: var(--theme-accent-contrast);
 }
 
+.admin-catalog-view-switch {
+    display: flex;
+    justify-content: flex-end;
+    gap: 4px;
+    margin: 14px 0;
+    padding: 4px;
+    border: 1px solid var(--theme-border);
+    border-radius: 10px;
+    background: var(--theme-surface-muted);
+}
+
+.admin-catalog-view-switch button {
+    min-height: 34px;
+    padding: 0 14px;
+    border: 0;
+    border-radius: 7px;
+    background: transparent;
+    color: var(--muted);
+    font-size: .72rem;
+    font-weight: 900;
+    letter-spacing: .04em;
+    cursor: pointer;
+}
+
+.admin-catalog-view-switch button.is-active {
+    background: var(--theme-accent-strong);
+    color: var(--theme-accent-contrast);
+}
+
 .admin-catalog-toolbar {
     display: grid;
     grid-template-columns: minmax(0, 2fr) minmax(180px, 1fr) minmax(180px, 1fr) auto;
@@ -7765,6 +7794,53 @@ button.rh-admin-operation-card:hover { border-color: #78aee6; transform: transla
     min-height: 180px;
 }
 
+.admin-catalog-table-wrap {
+    overflow-x: auto;
+    border: 1px solid var(--theme-border);
+    border-radius: 12px;
+    background: var(--theme-surface-muted);
+}
+
+.admin-catalog-table {
+    width: 100%;
+    border-collapse: collapse;
+    min-width: 680px;
+}
+
+.admin-catalog-table th,
+.admin-catalog-table td {
+    padding: 11px 13px;
+    border-bottom: 1px solid var(--theme-border);
+    text-align: left;
+    vertical-align: middle;
+}
+
+.admin-catalog-table th {
+    color: var(--muted);
+    font-size: .66rem;
+    font-weight: 900;
+    letter-spacing: .07em;
+}
+
+.admin-catalog-table td {
+    color: var(--muted);
+    font-size: .78rem;
+}
+
+.admin-catalog-table td strong {
+    display: block;
+    max-width: 360px;
+    overflow: hidden;
+    color: var(--theme-text-strong);
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.admin-catalog-table tbody tr:last-child td { border-bottom: 0; }
+.admin-catalog-table tbody tr:hover { background: var(--theme-surface); }
+.admin-catalog-table-actions { white-space: nowrap; }
+.admin-catalog-table-actions .secondary-button { min-height: 30px; margin-right: 5px; padding: 5px 9px; font-size: .64rem; }
+
 .admin-catalog-record-grid {
     display: grid;
     grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
@@ -7933,6 +8009,21 @@ button.rh-admin-operation-card:hover { border-color: #78aee6; transform: transla
     .admin-checklist-item footer { flex-wrap: wrap; }
     .admin-checklist-item footer button { flex: 1 1 140px; }
     .admin-record-detail > header { align-items: stretch; flex-direction: column; }
+    .admin-catalog-view-switch { justify-content: stretch; }
+    .admin-catalog-view-switch button { flex: 1; }
+    .admin-catalog-table { min-width: 0; }
+    .admin-catalog-table thead { display: none; }
+    .admin-catalog-table,
+    .admin-catalog-table tbody,
+    .admin-catalog-table tr,
+    .admin-catalog-table td { display: block; width: 100%; }
+    .admin-catalog-table tr { padding: 10px 12px; border-bottom: 1px solid var(--theme-border); }
+    .admin-catalog-table tr:last-child { border-bottom: 0; }
+    .admin-catalog-table td { display: grid; grid-template-columns: 92px minmax(0, 1fr); gap: 8px; padding: 5px 0; border: 0; }
+    .admin-catalog-table td::before { content: attr(data-label); color: var(--muted); font-size: .64rem; font-weight: 900; letter-spacing: .04em; }
+    .admin-catalog-table td strong { max-width: none; white-space: normal; }
+    .admin-catalog-table-actions { display: flex !important; justify-content: flex-end; gap: 5px; }
+    .admin-catalog-table-actions::before { margin-right: auto; align-self: center; }
 }
 
 .admin-settings-feedback {

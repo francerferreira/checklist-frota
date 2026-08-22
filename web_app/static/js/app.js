@@ -1,4 +1,4 @@
-﻿const MODULE_ORDER = [
+const MODULE_ORDER = [
     "ILUMINAÇÃO",
     "CABINE E PAINEL",
     "MOTOR E FLUIDOS",
@@ -305,6 +305,7 @@ const state = {
     adminCatalogs: {
         activeCatalog: "",
         activeTab: "list",
+        viewMode: "table",
         rows: [],
         editingId: null,
         editingRow: null,
@@ -618,6 +619,7 @@ const elements = {
     adminCatalogDetailTitle: document.getElementById("admin-catalog-detail-title"),
     adminCatalogDetailDescription: document.getElementById("admin-catalog-detail-description"),
     adminCatalogDetailTabs: document.getElementById("admin-catalog-detail-tabs"),
+    adminCatalogViewSwitch: document.getElementById("admin-catalog-view-switch"),
     adminCatalogNewButton: document.getElementById("admin-catalog-new-button"),
     adminCatalogNewLocationButton: document.getElementById("admin-catalog-new-location-button"),
     adminCatalogSearch: document.getElementById("admin-catalog-search"),
@@ -3323,6 +3325,35 @@ function filteredAdminCatalogRows() {
     });
 }
 
+function adminCatalogTableContext(row) {
+    const catalog = state.adminCatalogs.activeCatalog;
+    if (catalog === "providers") return row.trade_name || row.legal_name || row.phone || "Contato não informado";
+    if (catalog === "checklist") return [row.vehicle_type || row.tipo, row.item_principal || row.parte].filter(Boolean).join(" · ") || "Item de checklist";
+    if (catalog === "employees") return [row.function_name, row.team_name, row.shift_name].filter(Boolean).join(" · ") || "Vínculo funcional não informado";
+    if (catalog === "users") return [row.tipo, row.session_open ? "SESSÃO ABERTA" : "SESSÃO FECHADA"].filter(Boolean).join(" · ");
+    if (catalog === "materials") return [row.aplicacao_tipo, `SALDO ${Number(row.quantidade_estoque || 0)}`, `ABC ${row.classe_abc || "C"}`].join(" · ");
+    if (catalog === "stock") return row.record_kind === "location"
+        ? `PRATELEIRA ${row.shelf_code || "-"} · POSIÇÃO ${row.position_code || "-"}`
+        : [row.warehouse_type, row.location, `SALDO ${Number(row.stock_total || 0)}`].filter(Boolean).join(" · ");
+    return row.description || row.location || "Cadastro administrativo";
+}
+
+function renderAdminCatalogTable(rows, definition) {
+    const body = rows.map((row) => {
+        const code = definition.code(row) || (row.record_kind === "location" ? row.location_code : "SEM CÓDIGO");
+        const name = definition.name(row) || (row.record_kind === "location" ? row.label : "SEM NOME");
+        const active = definition.active(row);
+        return `<tr>
+            <td data-label="Código">${escapeHtml(String(code || "SEM CÓDIGO"))}</td>
+            <td data-label="Nome"><strong>${escapeHtml(String(name || "SEM NOME"))}</strong></td>
+            <td data-label="Informação">${escapeHtml(String(adminCatalogTableContext(row)))}</td>
+            <td data-label="Status"><span class="status-pill ${active ? "" : "is-inactive"}">${active ? "ATIVO" : "INATIVO"}</span></td>
+            <td data-label="Ações" class="admin-catalog-table-actions"><button class="secondary-button" type="button" data-admin-catalog-view="${Number(row.id)}">VER</button><button class="secondary-button" type="button" data-admin-catalog-edit="${Number(row.id)}">EDITAR</button></td>
+        </tr>`;
+    }).join("");
+    elements.adminCatalogDetailContent.innerHTML = `<div class="admin-catalog-table-wrap"><table class="admin-catalog-table"><thead><tr><th>CÓDIGO</th><th>NOME</th><th>INFORMAÇÃO</th><th>STATUS</th><th>AÇÕES</th></tr></thead><tbody>${body}</tbody></table></div>`;
+}
+
 function renderAdminCatalogList() {
     const definition = adminCatalogDefinition();
     const rows = filteredAdminCatalogRows();
@@ -3330,50 +3361,54 @@ function renderAdminCatalogList() {
         elements.adminCatalogDetailContent.innerHTML = `<div class="empty-state"><strong>NENHUM REGISTRO ENCONTRADO</strong><span>Ajuste os filtros ou use “+ Novo cadastro”.</span></div>`;
         return;
     }
+    if (state.adminCatalogs.viewMode === "table") {
+        renderAdminCatalogTable(rows, definition);
+        return;
+    }
     if (state.adminCatalogs.activeCatalog === "providers") {
         const active = rows.filter((row) => row.active !== false).length;
         const homologated = rows.filter((row) => row.homologated).length;
-        elements.adminCatalogDetailContent.innerHTML = `<div class="admin-catalog-summary"><div><span>REGISTROS VISÍVEIS</span><strong>${rows.length}</strong></div><div><span>ATIVOS</span><strong>${active}</strong></div><div><span>HOMOLOGADOS</span><strong>${homologated}</strong></div></div><div class="admin-catalog-record-grid admin-provider-record-grid">${rows.map((row) => `<article class="admin-catalog-record admin-provider-record"><header><div><span>${escapeHtml(row.code || "SEM CÓDIGO")}</span><strong>${escapeHtml(row.name || "SEM NOME")}</strong></div><b class="status-pill ${row.active === false ? "is-inactive" : ""}">${row.active === false ? "INATIVO" : "ATIVO"}</b></header><small>${escapeHtml(row.trade_name || row.legal_name || "Razão social não informada")}</small><p>${escapeHtml([row.contact_name, row.phone, row.email].filter(Boolean).join(" · ") || "Contato não informado")}</p><div class="admin-catalog-badges"><b>${row.homologated ? "HOMOLOGADO" : "PENDENTE"}</b>${row.preferred ? "<b>PREFERENCIAL</b>" : ""}</div><footer><button class="secondary-button" type="button" data-admin-catalog-view="${Number(row.id)}">ABRIR FICHA</button><button class="secondary-button" type="button" data-admin-catalog-edit="${Number(row.id)}">EDITAR</button></footer></article>`).join("")}</div>`;
+        elements.adminCatalogDetailContent.innerHTML = `<div class="admin-catalog-summary"><div><span>REGISTROS VISÍVEIS</span><strong>${rows.length}</strong></div><div><span>ATIVOS</span><strong>${active}</strong></div><div><span>HOMOLOGADOS</span><strong>${homologated}</strong></div></div><div class="admin-catalog-record-grid admin-provider-record-grid">${rows.map((row) => `<article class="admin-catalog-record admin-provider-record"><header><div><span>${escapeHtml(row.code || "SEM CÓDIGO")}</span><strong>${escapeHtml(row.name || "SEM NOME")}</strong></div><b class="status-pill ${row.active === false ? "is-inactive" : ""}">${row.active === false ? "INATIVO" : "ATIVO"}</b></header><small>${escapeHtml(row.trade_name || row.legal_name || "Razão social não informada")}</small><p>${escapeHtml([row.contact_name, row.phone, row.email].filter(Boolean).join(" · ") || "Contato não informado")}</p><div class="admin-catalog-badges"><b>${row.homologated ? "HOMOLOGADO" : "PENDENTE"}</b>${row.preferred ? "<b>PREFERENCIAL</b>" : ""}</div><footer><button class="secondary-button" type="button" data-admin-catalog-view="${Number(row.id)}">VER</button><button class="secondary-button" type="button" data-admin-catalog-edit="${Number(row.id)}">EDITAR</button></footer></article>`).join("")}</div>`;
         return;
     }
     if (state.adminCatalogs.activeCatalog === "checklist") {
         const groups = new Map();
         rows.forEach((row) => { const key = row.vehicle_type || row.tipo || "OUTROS"; if (!groups.has(key)) groups.set(key, []); groups.get(key).push(row); });
-        elements.adminCatalogDetailContent.innerHTML = `<div class="admin-catalog-summary"><div><span>ITENS VISÍVEIS</span><strong>${rows.length}</strong></div><div><span>TIPOS DE VEÍCULO</span><strong>${groups.size}</strong></div><div><span>COM FOTO</span><strong>${rows.filter((row) => row.foto_path).length}</strong></div></div><div class="admin-checklist-groups">${[...groups.entries()].map(([type, items]) => `<section class="admin-checklist-group"><header><div><span>TIPO DE VEÍCULO</span><strong>${escapeHtml(type.toUpperCase())}</strong></div><b>${items.length} ITEM(NS)</b></header><div class="admin-checklist-item-list">${items.map((row) => `<article class="admin-checklist-item"><div><strong>${escapeHtml(row.item_nome || "SEM NOME")}</strong><small>${escapeHtml(row.item_principal || "Item principal")}${row.parte ? ` · ${escapeHtml(row.parte)}` : ""}</small></div><span>${row.foto_path ? "COM FOTO" : "SEM FOTO"} · ORDEM ${Number(row.position || 0)}</span><footer><button class="secondary-button" type="button" data-admin-catalog-view="${Number(row.id)}">FICHA</button><button class="secondary-button" type="button" data-admin-catalog-edit="${Number(row.id)}">EDITAR</button></footer></article>`).join("")}</div></section>`).join("")}</div>`;
+        elements.adminCatalogDetailContent.innerHTML = `<div class="admin-catalog-summary"><div><span>ITENS VISÍVEIS</span><strong>${rows.length}</strong></div><div><span>TIPOS DE VEÍCULO</span><strong>${groups.size}</strong></div><div><span>COM FOTO</span><strong>${rows.filter((row) => row.foto_path).length}</strong></div></div><div class="admin-checklist-groups">${[...groups.entries()].map(([type, items]) => `<section class="admin-checklist-group"><header><div><span>TIPO DE VEÍCULO</span><strong>${escapeHtml(type.toUpperCase())}</strong></div><b>${items.length} ITEM(NS)</b></header><div class="admin-checklist-item-list">${items.map((row) => `<article class="admin-checklist-item"><div><strong>${escapeHtml(row.item_nome || "SEM NOME")}</strong><small>${escapeHtml(row.item_principal || "Item principal")}${row.parte ? ` · ${escapeHtml(row.parte)}` : ""}</small></div><span>${row.foto_path ? "COM FOTO" : "SEM FOTO"} · ORDEM ${Number(row.position || 0)}</span><footer><button class="secondary-button" type="button" data-admin-catalog-view="${Number(row.id)}">VER</button><button class="secondary-button" type="button" data-admin-catalog-edit="${Number(row.id)}">EDITAR</button></footer></article>`).join("")}</div></section>`).join("")}</div>`;
         return;
     }
     if (state.adminCatalogs.activeCatalog === "employees") {
         const active = rows.filter((row) => definition.active(row)).length;
         const linked = rows.filter((row) => row.user_id).length;
-        elements.adminCatalogDetailContent.innerHTML = `<div class="admin-catalog-summary"><div><span>COLABORADORES VISÍVEIS</span><strong>${rows.length}</strong></div><div><span>ATIVOS</span><strong>${active}</strong></div><div><span>COM LOGIN</span><strong>${linked}</strong></div></div><div class="admin-catalog-record-grid admin-employee-record-grid">${rows.map((row) => `<article class="admin-catalog-record admin-employee-record"><header><div><span>${escapeHtml(row.registration || "SEM MATRÍCULA")}</span><strong>${escapeHtml(row.full_name || "SEM NOME")}</strong></div><b class="status-pill ${String(row.status || "").toLowerCase()}">${escapeHtml(String(row.status || "SEM STATUS").replaceAll("_", " "))}</b></header><small>${escapeHtml([row.function_name, row.team_name, row.shift_name].filter(Boolean).join(" · ") || "Vínculo funcional não informado")}</small><p>${row.user_id ? `LOGIN VINCULADO: ${escapeHtml(row.linked_user?.login || "SIM")}` : "SEM LOGIN VINCULADO"} · ${row.photo_path ? "FOTO CADASTRADA" : "SEM FOTO"}</p><footer><button class="secondary-button" type="button" data-admin-catalog-view="${Number(row.id)}">ABRIR FICHA</button><button class="secondary-button" type="button" data-admin-catalog-edit="${Number(row.id)}">EDITAR</button></footer></article>`).join("")}</div>`;
+        elements.adminCatalogDetailContent.innerHTML = `<div class="admin-catalog-summary"><div><span>COLABORADORES VISÍVEIS</span><strong>${rows.length}</strong></div><div><span>ATIVOS</span><strong>${active}</strong></div><div><span>COM LOGIN</span><strong>${linked}</strong></div></div><div class="admin-catalog-record-grid admin-employee-record-grid">${rows.map((row) => `<article class="admin-catalog-record admin-employee-record"><header><div><span>${escapeHtml(row.registration || "SEM MATRÍCULA")}</span><strong>${escapeHtml(row.full_name || "SEM NOME")}</strong></div><b class="status-pill ${String(row.status || "").toLowerCase()}">${escapeHtml(String(row.status || "SEM STATUS").replaceAll("_", " "))}</b></header><small>${escapeHtml([row.function_name, row.team_name, row.shift_name].filter(Boolean).join(" · ") || "Vínculo funcional não informado")}</small><p>${row.user_id ? `LOGIN VINCULADO: ${escapeHtml(row.linked_user?.login || "SIM")}` : "SEM LOGIN VINCULADO"} · ${row.photo_path ? "FOTO CADASTRADA" : "SEM FOTO"}</p><footer><button class="secondary-button" type="button" data-admin-catalog-view="${Number(row.id)}">VER</button><button class="secondary-button" type="button" data-admin-catalog-edit="${Number(row.id)}">EDITAR</button></footer></article>`).join("")}</div>`;
         return;
     }
     if (state.adminCatalogs.activeCatalog === "users") {
         const active = rows.filter((row) => row.ativo !== false).length;
         const openSessions = rows.filter((row) => row.session_open).length;
-        elements.adminCatalogDetailContent.innerHTML = `<div class="admin-catalog-summary"><div><span>USUÁRIOS VISÍVEIS</span><strong>${rows.length}</strong></div><div><span>ATIVOS</span><strong>${active}</strong></div><div><span>SESSÕES ABERTAS</span><strong>${openSessions}</strong></div></div><div class="admin-catalog-record-grid admin-user-record-grid">${rows.map((row) => `<article class="admin-catalog-record admin-user-record"><header><div><span>@${escapeHtml(row.login || "sem-login")}</span><strong>${escapeHtml(row.nome || "SEM NOME")}</strong></div><b class="status-pill ${row.ativo === false ? "is-inactive" : ""}">${row.ativo === false ? "INATIVO" : "ATIVO"}</b></header><small>${escapeHtml(String(row.tipo || "SEM PERFIL").toUpperCase())} · ${row.identity ? "VINCULADO AO RH" : "SEM VÍNCULO RH"}</small><p>${row.session_open ? `SESSÃO ABERTA · ${escapeHtml(formatAdminDuration(row.session_duration_seconds))}` : `ÚLTIMA ENTRADA: ${escapeHtml(formatAdminDate(row.last_login_at))}`}</p><footer><button class="secondary-button" type="button" data-admin-catalog-view="${Number(row.id)}">ABRIR FICHA</button><button class="secondary-button" type="button" data-admin-catalog-edit="${Number(row.id)}">EDITAR</button></footer></article>`).join("")}</div>`;
+        elements.adminCatalogDetailContent.innerHTML = `<div class="admin-catalog-summary"><div><span>USUÁRIOS VISÍVEIS</span><strong>${rows.length}</strong></div><div><span>ATIVOS</span><strong>${active}</strong></div><div><span>SESSÕES ABERTAS</span><strong>${openSessions}</strong></div></div><div class="admin-catalog-record-grid admin-user-record-grid">${rows.map((row) => `<article class="admin-catalog-record admin-user-record"><header><div><span>@${escapeHtml(row.login || "sem-login")}</span><strong>${escapeHtml(row.nome || "SEM NOME")}</strong></div><b class="status-pill ${row.ativo === false ? "is-inactive" : ""}">${row.ativo === false ? "INATIVO" : "ATIVO"}</b></header><small>${escapeHtml(String(row.tipo || "SEM PERFIL").toUpperCase())} · ${row.identity ? "VINCULADO AO RH" : "SEM VÍNCULO RH"}</small><p>${row.session_open ? `SESSÃO ABERTA · ${escapeHtml(formatAdminDuration(row.session_duration_seconds))}` : `ÚLTIMA ENTRADA: ${escapeHtml(formatAdminDate(row.last_login_at))}`}</p><footer><button class="secondary-button" type="button" data-admin-catalog-view="${Number(row.id)}">VER</button><button class="secondary-button" type="button" data-admin-catalog-edit="${Number(row.id)}">EDITAR</button></footer></article>`).join("")}</div>`;
         return;
     }
     if (state.adminCatalogs.activeCatalog === "materials") {
         const lowStock = rows.filter((row) => row.baixo_estoque).length;
         const reorder = rows.filter((row) => row.repor).length;
         const totalQuantity = rows.reduce((total, row) => total + Number(row.quantidade_estoque || 0), 0);
-        elements.adminCatalogDetailContent.innerHTML = `<div class="admin-catalog-summary"><div><span>MATERIAIS VISÍVEIS</span><strong>${rows.length}</strong></div><div><span>ABAIXO DO MÍNIMO</span><strong>${lowStock}</strong></div><div><span>SALDO TOTAL</span><strong>${totalQuantity}</strong></div></div><div class="admin-catalog-record-grid admin-material-record-grid">${rows.map((row) => `<article class="admin-catalog-record admin-material-record"><header><div><span>${escapeHtml(row.referencia || "SEM REFERÊNCIA")}</span><strong>${escapeHtml(row.descricao || "SEM DESCRIÇÃO")}</strong></div><b class="material-abc-badge material-abc-${escapeHtml(String(row.classe_abc || "C").toLowerCase())}">ABC ${escapeHtml(row.classe_abc || "C")}</b></header><small>${escapeHtml(String(row.aplicacao_tipo || "ambos").toUpperCase())} · ${row.ativo === false ? "INATIVO" : "ATIVO"}</small><p>SALDO: <strong>${Number(row.quantidade_estoque || 0)}</strong> · MÍNIMO: ${Number(row.estoque_minimo || 0)} · REPOSIÇÃO: ${Number(row.ponto_reposicao || 0)}</p><footer><span class="${row.baixo_estoque ? "material-stock-alert" : "material-stock-ok"}">${row.baixo_estoque ? "ABAIXO DO MÍNIMO" : "SALDO NORMAL"}</span><button class="secondary-button" type="button" data-admin-catalog-view="${Number(row.id)}">ABRIR FICHA</button><button class="secondary-button" type="button" data-admin-catalog-edit="${Number(row.id)}">EDITAR</button></footer></article>`).join("")}</div>`;
+        elements.adminCatalogDetailContent.innerHTML = `<div class="admin-catalog-summary"><div><span>MATERIAIS VISÍVEIS</span><strong>${rows.length}</strong></div><div><span>ABAIXO DO MÍNIMO</span><strong>${lowStock}</strong></div><div><span>SALDO TOTAL</span><strong>${totalQuantity}</strong></div></div><div class="admin-catalog-record-grid admin-material-record-grid">${rows.map((row) => `<article class="admin-catalog-record admin-material-record"><header><div><span>${escapeHtml(row.referencia || "SEM REFERÊNCIA")}</span><strong>${escapeHtml(row.descricao || "SEM DESCRIÇÃO")}</strong></div><b class="material-abc-badge material-abc-${escapeHtml(String(row.classe_abc || "C").toLowerCase())}">ABC ${escapeHtml(row.classe_abc || "C")}</b></header><small>${escapeHtml(String(row.aplicacao_tipo || "ambos").toUpperCase())} · ${row.ativo === false ? "INATIVO" : "ATIVO"}</small><p>SALDO: <strong>${Number(row.quantidade_estoque || 0)}</strong> · MÍNIMO: ${Number(row.estoque_minimo || 0)} · REPOSIÇÃO: ${Number(row.ponto_reposicao || 0)}</p><footer><span class="${row.baixo_estoque ? "material-stock-alert" : "material-stock-ok"}">${row.baixo_estoque ? "ABAIXO DO MÍNIMO" : "SALDO NORMAL"}</span><button class="secondary-button" type="button" data-admin-catalog-view="${Number(row.id)}">VER</button><button class="secondary-button" type="button" data-admin-catalog-edit="${Number(row.id)}">EDITAR</button></footer></article>`).join("")}</div>`;
         return;
     }
     if (state.adminCatalogs.activeCatalog === "stock") {
         const warehouses = rows.filter((row) => row.record_kind === "warehouse");
         const locations = rows.filter((row) => row.record_kind === "location");
         const totalQuantity = warehouses.reduce((total, row) => total + Number(row.stock_total || 0), 0);
-        elements.adminCatalogDetailContent.innerHTML = `<div class="admin-catalog-summary"><div><span>DEPÓSITOS</span><strong>${warehouses.length}</strong></div><div><span>LOCAIS CADASTRADOS</span><strong>${locations.length}</strong></div><div><span>SALDO TOTAL</span><strong>${totalQuantity}</strong></div></div><div class="admin-catalog-record-grid admin-stock-record-grid">${rows.map((row) => row.record_kind === "location" ? `<article class="admin-catalog-record admin-location-record"><header><div><span>LOCAL MMP</span><strong>${escapeHtml(row.label || "LOCAL")}</strong></div><b class="status-pill ${row.active === false ? "is-inactive" : ""}">${row.active === false ? "INATIVO" : "ATIVO"}</b></header><small>PRATELEIRA ${escapeHtml(row.shelf_code || "-")} · POSIÇÃO ${escapeHtml(row.position_code || "-")}</small><footer><button class="secondary-button" type="button" data-admin-catalog-view="${Number(row.id)}">ABRIR FICHA</button><button class="secondary-button" type="button" data-admin-catalog-edit="${Number(row.id)}">EDITAR</button></footer></article>` : `<article class="admin-catalog-record admin-warehouse-record"><header><div><span>${escapeHtml(row.code || "SEM CÓDIGO")}</span><strong>${escapeHtml(row.name || "SEM NOME")}</strong></div><b class="status-pill ${row.active === false ? "is-inactive" : ""}">${row.active === false ? "INATIVO" : "ATIVO"}</b></header><small>${escapeHtml(String(row.warehouse_type || "PRINCIPAL"))} · ${escapeHtml(row.location || "Localização não informada")}</small><p>SALDO TOTAL: <strong>${Number(row.stock_total || 0)}</strong></p><footer><button class="secondary-button" type="button" data-admin-catalog-view="${Number(row.id)}">ABRIR FICHA</button><button class="secondary-button" type="button" data-admin-catalog-edit="${Number(row.id)}">EDITAR</button></footer></article>`).join("")}</div>`;
+        elements.adminCatalogDetailContent.innerHTML = `<div class="admin-catalog-summary"><div><span>DEPÓSITOS</span><strong>${warehouses.length}</strong></div><div><span>LOCAIS CADASTRADOS</span><strong>${locations.length}</strong></div><div><span>SALDO TOTAL</span><strong>${totalQuantity}</strong></div></div><div class="admin-catalog-record-grid admin-stock-record-grid">${rows.map((row) => row.record_kind === "location" ? `<article class="admin-catalog-record admin-location-record"><header><div><span>LOCAL MMP</span><strong>${escapeHtml(row.label || "LOCAL")}</strong></div><b class="status-pill ${row.active === false ? "is-inactive" : ""}">${row.active === false ? "INATIVO" : "ATIVO"}</b></header><small>PRATELEIRA ${escapeHtml(row.shelf_code || "-")} · POSIÇÃO ${escapeHtml(row.position_code || "-")}</small><footer><button class="secondary-button" type="button" data-admin-catalog-view="${Number(row.id)}">VER</button><button class="secondary-button" type="button" data-admin-catalog-edit="${Number(row.id)}">EDITAR</button></footer></article>` : `<article class="admin-catalog-record admin-warehouse-record"><header><div><span>${escapeHtml(row.code || "SEM CÓDIGO")}</span><strong>${escapeHtml(row.name || "SEM NOME")}</strong></div><b class="status-pill ${row.active === false ? "is-inactive" : ""}">${row.active === false ? "INATIVO" : "ATIVO"}</b></header><small>${escapeHtml(String(row.warehouse_type || "PRINCIPAL"))} · ${escapeHtml(row.location || "Localização não informada")}</small><p>SALDO TOTAL: <strong>${Number(row.stock_total || 0)}</strong></p><footer><button class="secondary-button" type="button" data-admin-catalog-view="${Number(row.id)}">VER</button><button class="secondary-button" type="button" data-admin-catalog-edit="${Number(row.id)}">EDITAR</button></footer></article>`).join("")}</div>`;
         return;
     }
-    elements.adminCatalogDetailContent.innerHTML = `<div class="admin-catalog-record-grid">${rows.map((row) => `<article class="admin-catalog-record"><header><span>${escapeHtml(String(definition.code(row) || "SEM CÓDIGO"))}</span><b class="status-pill">${definition.active(row) ? "ATIVO" : "INATIVO"}</b></header><strong>${escapeHtml(String(definition.name(row) || "SEM NOME"))}</strong><small>${escapeHtml(String(row.legal_name || row.team_name || row.location || row.warehouse_type || row.tipo || row.login || row.shelf_code || "Cadastro administrativo"))}</small><footer><small>${row.record_kind === "location" ? "LOCAL MMP" : `Atualizado: ${escapeHtml(formatAdminDate(row.updated_at || row.created_at))}`}</small><button class="secondary-button" type="button" data-admin-catalog-view="${Number(row.id)}">FICHA</button><button class="secondary-button" type="button" data-admin-catalog-edit="${Number(row.id)}">EDITAR</button></footer></article>`).join("")}</div>`;
+    elements.adminCatalogDetailContent.innerHTML = `<div class="admin-catalog-record-grid">${rows.map((row) => `<article class="admin-catalog-record"><header><span>${escapeHtml(String(definition.code(row) || "SEM CÓDIGO"))}</span><b class="status-pill">${definition.active(row) ? "ATIVO" : "INATIVO"}</b></header><strong>${escapeHtml(String(definition.name(row) || "SEM NOME"))}</strong><small>${escapeHtml(String(row.legal_name || row.team_name || row.location || row.warehouse_type || row.tipo || row.login || row.shelf_code || "Cadastro administrativo"))}</small><footer><small>${row.record_kind === "location" ? "LOCAL MMP" : `Atualizado: ${escapeHtml(formatAdminDate(row.updated_at || row.created_at))}`}</small><button class="secondary-button" type="button" data-admin-catalog-view="${Number(row.id)}">VER</button><button class="secondary-button" type="button" data-admin-catalog-edit="${Number(row.id)}">EDITAR</button></footer></article>`).join("")}</div>`;
 }
 
 function renderAdminCatalogDetailRecord(row = state.adminCatalogs.detailRow) {
     if (!row) {
-        elements.adminCatalogDetailContent.innerHTML = `<div class="empty-state"><strong>SELECIONE UM REGISTRO</strong><span>Abra uma ficha pela lista para consultar os detalhes.</span></div>`;
+        elements.adminCatalogDetailContent.innerHTML = `<div class="empty-state"><strong>SELECIONE UM REGISTRO</strong><span>Selecione um registro para consultar os detalhes.</span></div>`;
         return;
     }
     if (state.adminCatalogs.activeCatalog === "providers") {
@@ -3546,6 +3581,15 @@ function setAdminCatalogTab(tab = "list") {
     else void loadAdminCatalogAudit(selected);
 }
 
+function setAdminCatalogViewMode(mode = "table") {
+    const selected = mode === "cards" ? "cards" : "table";
+    state.adminCatalogs.viewMode = selected;
+    elements.adminCatalogViewSwitch?.querySelectorAll("[data-admin-catalog-view-mode]").forEach((button) => {
+        button.classList.toggle("is-active", button.dataset.adminCatalogViewMode === selected);
+    });
+    if (state.adminCatalogs.activeTab === "list") renderAdminCatalogList();
+}
+
 async function loadAdminCatalogRecords() {
     const definition = adminCatalogDefinition();
     state.adminCatalogs.loading = true;
@@ -3592,6 +3636,7 @@ function openAdminCatalogDetail(action) {
     const definition = ADMIN_CATALOG_DEFINITIONS[action];
     if (!definition) return;
     state.adminCatalogs.activeCatalog = action;
+    state.adminCatalogs.viewMode = "table";
     state.adminCatalogs.editingId = null;
     state.adminCatalogs.editingRow = null;
     state.adminCatalogs.detailRow = null;
@@ -3623,6 +3668,7 @@ function openAdminCatalogDetail(action) {
         elements.adminCatalogSecondaryFilter.value = "TODOS";
         secondaryWrap.classList.toggle("hidden", secondaryOptions.length === 0);
     }
+    setAdminCatalogViewMode("table");
     setAdminCatalogTab("list");
     void loadAdminCatalogRecords();
 }
@@ -11366,6 +11412,10 @@ on(elements.adminCatalogSecondaryFilter, "change", () => {
 on(elements.adminCatalogDetailTabs, "click", (event) => {
     const button = event.target instanceof HTMLElement ? event.target.closest("[data-admin-catalog-tab]") : null;
     if (button) setAdminCatalogTab(button.dataset.adminCatalogTab);
+});
+on(elements.adminCatalogViewSwitch, "click", (event) => {
+    const button = event.target instanceof HTMLElement ? event.target.closest("[data-admin-catalog-view-mode]") : null;
+    if (button) setAdminCatalogViewMode(button.dataset.adminCatalogViewMode);
 });
 on(elements.adminCatalogDetailContent, "click", (event) => {
     const viewButton = event.target instanceof HTMLElement ? event.target.closest("[data-admin-catalog-view]") : null;
