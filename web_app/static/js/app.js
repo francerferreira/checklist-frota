@@ -313,6 +313,7 @@ const state = {
         editingKind: "default",
         loading: false,
         saving: false,
+        toggling: false,
         searchTimer: null,
     },
     mmpStock: {
@@ -3339,6 +3340,112 @@ function adminCatalogTableContext(row) {
     return row.description || row.location || "Cadastro administrativo";
 }
 
+function adminCatalogTogglePayload(catalog, row, active) {
+    if (catalog === "providers") return {
+        code: row.code,
+        name: row.name,
+        legal_name: row.legal_name,
+        trade_name: row.trade_name,
+        tax_id: row.tax_id,
+        contact_name: row.contact_name,
+        email: row.email,
+        phone: row.phone,
+        notes: row.notes,
+        active,
+        homologated: Boolean(row.homologated),
+        preferred: Boolean(row.preferred),
+    };
+    if (catalog === "employees") return {
+        registration: row.registration,
+        full_name: row.full_name,
+        function_name: row.function_name,
+        team_name: row.team_name,
+        shift_name: row.shift_name,
+        user_id: row.user_id || null,
+        photo_path: row.photo_path || null,
+        status: active ? "ATIVO" : "INATIVO",
+        hired_on: row.hired_on || null,
+        notes: row.notes || null,
+    };
+    if (catalog === "checklist") return { ativo: active };
+    if (catalog === "users") return { ativo: active };
+    if (catalog === "materials") return {
+        referencia: row.referencia,
+        descricao: row.descricao,
+        aplicacao_tipo: row.aplicacao_tipo,
+        foto_path: row.foto_path || null,
+        codigo_produto: row.codigo_produto || null,
+        marca: row.marca || null,
+        referencia_manual: row.referencia_manual || null,
+        numero_fabricante: row.numero_fabricante || null,
+        familia_codigo: row.familia_codigo || null,
+        estoque_minimo: Number(row.estoque_minimo || 0),
+        ponto_reposicao: Number(row.ponto_reposicao || 0),
+        classe_abc: row.classe_abc || "C",
+        ativo: active,
+    };
+    if (catalog === "stock" && row.record_kind === "warehouse") return {
+        code: row.code,
+        name: row.name,
+        location: row.location || null,
+        warehouse_type: row.warehouse_type || "PRINCIPAL",
+        active,
+    };
+    return { active };
+}
+
+function adminCatalogToggleButton(row, definition = adminCatalogDefinition()) {
+    const active = definition.active(row);
+    const button = document.createElement("button");
+    button.type = "button";
+    button.className = "secondary-button admin-catalog-toggle-button";
+    button.dataset.adminCatalogToggle = String(Number(row.id));
+    button.dataset.adminCatalogActive = String(active);
+    button.textContent = active ? "DESATIVAR" : "ATIVAR";
+    button.setAttribute("aria-label", `${active ? "Desativar" : "Ativar"} ${definition.name(row) || "registro"}`);
+    return button;
+}
+
+function appendAdminCatalogToggleButtons() {
+    const definition = adminCatalogDefinition();
+    const root = elements.adminCatalogDetailContent;
+    if (!root) return;
+    root.querySelectorAll("[data-admin-catalog-edit]").forEach((editButton) => {
+        const parent = editButton.parentElement;
+        if (!parent || parent.querySelector("[data-admin-catalog-toggle]")) return;
+        const row = state.adminCatalogs.rows.find((item) => Number(item.id) === Number(editButton.dataset.adminCatalogEdit));
+        if (!row) return;
+        parent.appendChild(adminCatalogToggleButton(row, definition));
+    });
+}
+
+async function toggleAdminCatalogRecord(row) {
+    if (!row || state.adminCatalogs.toggling) return;
+    const definition = adminCatalogDefinition();
+    const active = definition.active(row);
+    const nextActive = !active;
+    const label = definition.name(row) || definition.code(row) || "este registro";
+    const action = nextActive ? "ativar" : "desativar";
+    if (!window.confirm(`Confirma ${action} ${label}? O histórico será preservado.`)) return;
+    state.adminCatalogs.toggling = true;
+    try {
+        let endpoint = definition.endpoint.split("?")[0];
+        if (state.adminCatalogs.activeCatalog === "stock" && row.record_kind === "location") endpoint = definition.locationsEndpoint;
+        await apiFetch(`${endpoint}/${Number(row.id)}`, {
+            method: "PUT",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(adminCatalogTogglePayload(state.adminCatalogs.activeCatalog, row, nextActive)),
+        });
+        showToast(nextActive ? "REGISTRO ATIVADO." : "REGISTRO DESATIVADO.");
+        state.adminCatalogs.detailRow = null;
+        await loadAdminCatalogRecords();
+    } catch (error) {
+        showToast(error.message || `NÃO FOI POSSÍVEL ${action.toUpperCase()} O REGISTRO.`, true);
+    } finally {
+        state.adminCatalogs.toggling = false;
+    }
+}
+
 function renderAdminCatalogTable(rows, definition) {
     const body = rows.map((row) => {
         const code = definition.code(row) || (row.record_kind === "location" ? row.location_code : "SEM CÓDIGO");
@@ -3600,8 +3707,13 @@ function setAdminCatalogTab(tab = "list") {
     state.adminCatalogs.activeTab = selected;
     elements.adminCatalogDetailTabs?.querySelectorAll("[data-admin-catalog-tab]").forEach((button) => button.classList.toggle("is-active", button.dataset.adminCatalogTab === selected));
     elements.adminCatalogNewButton?.classList.toggle("hidden", selected !== "list");
-    if (selected === "list") renderAdminCatalogList();
-    else if (selected === "detail") renderAdminCatalogDetailRecord();
+    if (selected === "list") {
+        renderAdminCatalogList();
+        appendAdminCatalogToggleButtons();
+    } else if (selected === "detail") {
+        renderAdminCatalogDetailRecord();
+        appendAdminCatalogToggleButtons();
+    }
     else if (selected === "form") renderAdminCatalogForm();
     else if (selected === "history") void loadAdminCatalogHistory();
     else void loadAdminCatalogAudit(selected);
@@ -3613,7 +3725,10 @@ function setAdminCatalogViewMode(mode = "table") {
     elements.adminCatalogViewSwitch?.querySelectorAll("[data-admin-catalog-view-mode]").forEach((button) => {
         button.classList.toggle("is-active", button.dataset.adminCatalogViewMode === selected);
     });
-    if (state.adminCatalogs.activeTab === "list") renderAdminCatalogList();
+    if (state.adminCatalogs.activeTab === "list") {
+        renderAdminCatalogList();
+        appendAdminCatalogToggleButtons();
+    }
 }
 
 async function loadAdminCatalogRecords() {
@@ -11464,6 +11579,12 @@ on(elements.adminCatalogDetailContent, "click", (event) => {
             state.adminCatalogs.detailRow = row;
             setAdminCatalogTab("detail");
         }
+        return;
+    }
+    const toggleButton = event.target instanceof HTMLElement ? event.target.closest("[data-admin-catalog-toggle]") : null;
+    if (toggleButton) {
+        const row = state.adminCatalogs.rows.find((item) => Number(item.id) === Number(toggleButton.dataset.adminCatalogToggle));
+        if (row) void toggleAdminCatalogRecord(row);
         return;
     }
     const button = event.target instanceof HTMLElement ? event.target.closest("[data-admin-catalog-edit]") : null;
