@@ -312,6 +312,7 @@ const state = {
         detailRow: null,
         editingKind: "default",
         loading: false,
+        saving: false,
         searchTimer: null,
     },
     mmpStock: {
@@ -3441,8 +3442,10 @@ function renderAdminCatalogDetailRecord(row = state.adminCatalogs.detailRow) {
 
 function renderAdminCatalogForm(row = null) {
     const definition = adminCatalogDefinition();
-    elements.adminCatalogDetailContent.innerHTML = `<form class="admin-catalog-form" id="admin-catalog-form">${adminCatalogFormFields(state.adminCatalogs.activeCatalog, row)}<div class="admin-catalog-form-actions"><button type="button" class="secondary-button" data-admin-catalog-cancel>VOLTAR</button><button type="submit" class="primary-button">${row ? "SALVAR ALTERAÇÕES" : "CADASTRAR"}</button></div></form>`;
+    state.adminCatalogs.saving = false;
+    elements.adminCatalogDetailContent.innerHTML = `<form class="admin-catalog-form" id="admin-catalog-form"><div class="admin-catalog-form-heading"><span>${row ? "EDITAR REGISTRO" : "NOVO REGISTRO"}</span><strong>${escapeHtml(definition.title)}</strong><small>Preencha os campos obrigatórios e salve para confirmar.</small></div>${adminCatalogFormFields(state.adminCatalogs.activeCatalog, row)}<div class="admin-catalog-form-feedback" id="admin-catalog-form-feedback" aria-live="polite"></div><div class="admin-catalog-form-actions"><button type="button" class="secondary-button" data-admin-catalog-cancel>VOLTAR</button><button type="submit" class="primary-button">${row ? "SALVAR ALTERAÇÕES" : "CADASTRAR"}</button></div></form>`;
     const form = document.getElementById("admin-catalog-form");
+    form?.querySelectorAll("[required]").forEach((field) => field.addEventListener("blur", () => validateAdminCatalogFormField(field)));
     form?.addEventListener("submit", submitAdminCatalogForm);
     form?.querySelector("[data-admin-catalog-cancel]")?.addEventListener("click", () => setAdminCatalogTab("list"));
     if (row && form) {
@@ -3483,6 +3486,29 @@ function renderAdminCatalogForm(row = null) {
     if (state.adminCatalogs.activeCatalog === "users" && form) {
         form.elements.namedItem("tipo")?.addEventListener("change", () => refreshAdminUserPermissions(form));
     }
+}
+
+function validateAdminCatalogFormField(field) {
+    if (!field || field.validity.valid) {
+        field?.classList.remove("is-invalid");
+        return true;
+    }
+    field.classList.add("is-invalid");
+    return false;
+}
+
+function setAdminCatalogFormFeedback(message = "", tone = "") {
+    const feedback = document.getElementById("admin-catalog-form-feedback");
+    if (!feedback) return;
+    feedback.textContent = message;
+    feedback.className = `admin-catalog-form-feedback${tone ? ` is-${tone}` : ""}`;
+}
+
+function setAdminCatalogFormBusy(form, busy) {
+    state.adminCatalogs.saving = busy;
+    form.querySelectorAll("button, input, select, textarea").forEach((field) => { field.disabled = busy; });
+    const submit = form.querySelector("button[type='submit']");
+    if (submit) submit.textContent = busy ? "SALVANDO..." : (state.adminCatalogs.editingId ? "SALVAR ALTERAÇÕES" : "CADASTRAR");
 }
 
 async function loadAdminCatalogEmployeeUsers(form, row = null) {
@@ -3687,6 +3713,13 @@ async function submitAdminCatalogForm(event) {
     const catalog = state.adminCatalogs.activeCatalog;
     const id = state.adminCatalogs.editingId;
     const form = event.currentTarget;
+    if (state.adminCatalogs.saving) return;
+    const invalidFields = Array.from(form.querySelectorAll("[required]")).filter((field) => !validateAdminCatalogFormField(field));
+    if (invalidFields.length || !form.checkValidity()) {
+        setAdminCatalogFormFeedback("Preencha os campos obrigatórios antes de salvar.", "error");
+        form.reportValidity();
+        return;
+    }
     const values = Object.fromEntries(new FormData(form).entries());
     let endpoint = ADMIN_CATALOG_DEFINITIONS[catalog].endpoint.split("?")[0];
     if (catalog === "stock" && state.adminCatalogs.editingKind === "location") endpoint = ADMIN_CATALOG_DEFINITIONS[catalog].locationsEndpoint;
@@ -3721,7 +3754,9 @@ async function submitAdminCatalogForm(event) {
         showToast(error.message || "FALHA AO ENVIAR ANEXO.", true);
         return;
     }
-    if (catalog === "users" && !id && !values.senha) { showToast("INFORME A SENHA AO CRIAR UM USUÁRIO.", true); return; }
+    if (catalog === "users" && !id && !values.senha) { setAdminCatalogFormFeedback("Informe a senha para criar o usuário.", "error"); showToast("INFORME A SENHA AO CRIAR UM USUÁRIO.", true); return; }
+    setAdminCatalogFormBusy(form, true);
+    setAdminCatalogFormFeedback("Salvando registro...", "loading");
     try {
         const saved = await apiFetch(id ? `${endpoint}/${id}` : endpoint, { method: id ? "PUT" : "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload) });
         if (catalog === "users") {
@@ -3735,7 +3770,11 @@ async function submitAdminCatalogForm(event) {
         state.adminCatalogs.editingId = null;
         state.adminCatalogs.editingRow = null;
         await loadAdminCatalogRecords();
-    } catch (error) { showToast(error.message || "FALHA AO SALVAR CADASTRO.", true); }
+    } catch (error) {
+        setAdminCatalogFormBusy(form, false);
+        setAdminCatalogFormFeedback(error.message || "Não foi possível salvar o registro.", "error");
+        showToast(error.message || "FALHA AO SALVAR CADASTRO.", true);
+    }
 }
 
 async function openAdminCatalogAction(action) {

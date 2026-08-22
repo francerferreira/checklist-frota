@@ -7903,6 +7903,44 @@ button.rh-admin-operation-card:hover { border-color: #78aee6; transform: transla
     background: var(--theme-surface-muted);
 }
 
+.admin-catalog-form-heading {
+    display: grid;
+    gap: 4px;
+    grid-column: 1 / -1;
+    padding-bottom: 8px;
+    border-bottom: 1px solid var(--theme-border);
+}
+
+.admin-catalog-form-heading span,
+.admin-catalog-form-heading small {
+    color: var(--muted);
+    font-size: .68rem;
+    font-weight: 900;
+    letter-spacing: .06em;
+}
+
+.admin-catalog-form-heading strong {
+    color: var(--theme-text-strong);
+    font-size: 1.05rem;
+}
+
+.admin-catalog-form-feedback {
+    display: none;
+    grid-column: 1 / -1;
+    padding: 9px 11px;
+    border: 1px solid var(--theme-border);
+    border-radius: 8px;
+    color: var(--muted);
+    font-size: .76rem;
+}
+
+.admin-catalog-form-feedback:not(:empty) { display: block; }
+.admin-catalog-form-feedback.is-loading { color: var(--theme-accent-contrast); background: var(--theme-accent-strong); }
+.admin-catalog-form-feedback.is-error { color: var(--state-critical-text); border-color: var(--state-critical-border); background: var(--state-critical-bg); }
+.admin-catalog-form input.is-invalid,
+.admin-catalog-form select.is-invalid,
+.admin-catalog-form textarea.is-invalid { border-color: var(--state-critical-border); box-shadow: 0 0 0 2px var(--state-critical-bg); }
+
 .admin-catalog-form label {
     display: grid;
     gap: 6px;
