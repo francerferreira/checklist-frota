@@ -3152,7 +3152,7 @@ function openAdminCatalogs() {
 
 const ADMIN_CATALOG_DEFINITIONS = {
     providers: { section: "COMPRAS", title: "PROVEDORES", description: "Cadastro administrativo de empresas e contatos usados no fluxo SC → PC → NF.", endpoint: "/compras/provedores", historyEndpoint: (id) => `/compras/provedores/${id}/historico`, entity: "SUPPLIER", name: (row) => row.name, code: (row) => row.code, active: (row) => row.active !== false },
-    checklist: { section: "EQUIPAMENTOS", title: "ITENS DE CHECKLIST VEICULAR", description: "Itens, agrupamentos e referências visuais usados nos checklists de veículos.", historyEndpoint: (id) => `/checklist-itens/${id}/uso`, entity: "CHECKLIST", name: (row) => row.item_nome, code: (row) => row.tipo || row.vehicle_type, active: (row) => Boolean(row.ativo) },
+    checklist: { section: "EQUIPAMENTOS", title: "ITENS DE CHECKLIST VEICULAR", description: "Itens, agrupamentos e referências visuais usados nos checklists de veículos.", endpoint: "/checklist-itens?ativos=all", historyEndpoint: (id) => `/checklist-itens/${id}/uso`, entity: "CHECKLIST", name: (row) => row.item_nome, code: (row) => row.tipo || row.vehicle_type, active: (row) => Boolean(row.ativo) },
     employees: { section: "RH", title: "COLABORADORES", description: "Cadastro funcional, vínculo, equipe, turno, documentos e situação cadastral.", endpoint: "/rh/colaboradores", historyEndpoint: (id) => `/rh/colaboradores/${id}/historico`, entity: "EMPLOYEE", name: (row) => row.full_name, code: (row) => row.registration, active: (row) => String(row.status || "").toUpperCase() !== "INATIVO" },
     users: { section: "ACESSO", title: "USUÁRIOS E PERMISSÕES", description: "Logins, perfis, sessões, telas autorizadas e controle de acesso.", endpoint: "/usuarios", historyEndpoint: (id) => `/usuarios/${id}/historico`, entity: "USER", name: (row) => row.nome || row.login, code: (row) => row.login, active: (row) => row.ativo !== false },
     stock: { section: "MATERIAIS", title: "ARMAZÉNS E LOCAIS MMP", description: "Armazém Principal, Estoque MMP, prateleiras, posições e saldos administrativos.", endpoint: "/suprimentos/depositos", locationsEndpoint: "/suprimentos/locais", historyEndpoint: (id) => `/suprimentos/depositos/${id}/historico`, entity: "WAREHOUSE", name: (row) => row.name || row.label, code: (row) => row.code || row.location_code, active: (row) => row.active !== false },
@@ -3201,6 +3201,7 @@ function adminCatalogSearchable(row, definition) {
 }
 
 function adminCatalogFormFields(catalog, row = {}) {
+    row = row || {};
     const value = (key) => escapeHtml(String(row[key] ?? ""));
     if (catalog === "stock" && state.adminCatalogs.editingKind === "location") {
         const warehouses = state.adminCatalogs.rows.filter((item) => item.record_kind === "warehouse");
@@ -3714,7 +3715,7 @@ function setAdminCatalogTab(tab = "list") {
         renderAdminCatalogDetailRecord();
         appendAdminCatalogToggleButtons();
     }
-    else if (selected === "form") renderAdminCatalogForm();
+    else if (selected === "form") renderAdminCatalogForm(state.adminCatalogs.editingRow);
     else if (selected === "history") void loadAdminCatalogHistory();
     else void loadAdminCatalogAudit(selected);
 }
